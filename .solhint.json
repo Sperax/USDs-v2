@@ -4,7 +4,7 @@
   "rules": {
     "prettier/prettier": "error",
     "compiler-version": "off",
-    "ordering": "warn",
+    "ordering": "error",
     "avoid-throw": "off",
     "avoid-suicide": "error",
     "avoid-sha3": "warn",
