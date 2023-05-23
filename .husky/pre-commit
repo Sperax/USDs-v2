@@ -2,3 +2,6 @@
 . "$(dirname -- "$0")/_/husky.sh"
 
 chmod +x .husky/hooks/validate-branch-name.sh
+npx hardhat compile --force --quiet
+npm run lint-contract
+npm run lint

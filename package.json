@@ -5,8 +5,10 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "prettier": "prettier --write 'contracts/**/*.sol'",
-    "lint": "solhint 'contracts/**/*.sol' -f table",
+    "lint:fix": "prettier --write 'scripts/**/*.{js,ts}' 'test/**/*.{js,ts}' '*.{js,ts}' && tslint --fix --config tslint.json --project tsconfig.json",
+    "lint": "tslint --config tslint.json --project tsconfig.json",
+    "lint-contract": "solhint 'contracts/**/*.sol' -f table",
+    "lint-contract:fix": "prettier --write 'contracts/**/*.sol'",
     "prepare": "husky install"
   },
   "keywords": [
@@ -25,6 +27,8 @@
     "solhint-plugin-prettier": "^0.0.5"
   },
   "dependencies": {
-    "@openzeppelin/contracts": "^4.8.3"
+    "@openzeppelin/contracts": "^4.8.3",
+    "tslint": "^6.1.3",
+    "tslint-plugin-prettier": "^2.3.0"
   }
 }
