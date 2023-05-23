@@ -53,11 +53,10 @@ contract MasterPriceOracle is Ownable {
         emit PriceFeedRemoved(_token);
     }
 
-
     /// @notice Gets the price feed for `_token`.
     /// @param _token address of the desired token.
     /// @dev Function reverts if the price feed does not exists.
-    /// @returns PriceData (uint256 price, uint256 precision).
+    /// @return (uint256 price, uint256 precision).
     function getPrice(address _token) external view returns (PriceData memory) {
         PriceFeedData memory data = tokenPriceFeed[_token];
         return _getPriceFeed(_token, data.source, data.msgData);
@@ -67,7 +66,7 @@ contract MasterPriceOracle is Ownable {
     /// @param _token address of the desired token.
     /// @param _source price feed source.
     /// @param _msgData call data for fetching feed.
-    /// @returns PriceData (uint256 price, uint256 precision).
+    /// @return priceData (uint256 price, uint256 precision).
     function _getPriceFeed(
         address _token,
         address _source,
