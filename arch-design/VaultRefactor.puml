@@ -66,48 +66,64 @@
 
         'All the necessary information for a collateral
         struct CollateralData {
-            + uint8 id;
-            + bool added;
             + bool mintAllowed;
             + bool redeemAllowed;
             + bool allocationAllowed;
-            + uint256 collateralCapacityUsed;
+            + address defafaultStrategy;
+            + uint8 id;
             + uint8 basefeeIn;
             + uint8 basefeeOut;
-            + uint32 downsidePeg;
-            + uint32 upsidePeg;
+            + uint16 downsidePeg;
+            + uint16 upsidePeg;
+            + uint16 collateralCapacityUsed;
         }
 
         ' All the necessary information for minting via a collateral
         struct CollateralMintData{
-            uint8 baseFeeIn;
-            uint32 upsidePeg;
+            bool mintAllowed;
+            uint16 baseFeeIn;
+            uint16 upsidePeg;
         }
 
         ' All the necessary information for redeeming via a collateral
         struct CollateralRedeemData{
-            uint8 baseFeeOut;
-            uint32 downsidePeg;
-        }
+            bool redeemAllowed;
+            address defaultStrategy;
+            uint16 baseFeeOut;
+            uint16 downsidePeg;
 
-        ' All the necessary information required for allocation of a collateral to strategy.
-        struct StrategyData{
-            + uint8 id;
-            + uint256 allocationPercentage;
         }
 
         class CollateralManager {
             + address[] allCollaterals
             + uint256 numCollaterals
-            - Map[address => CollateralData] collateralInfo
-            + Map[address => StrategyData[]] strategyInfo
-            # addCollateral(address _collateral) onlyOwner
-            # updateCollateralData() onlyOwner
-            # removeCollateral(address _collateral) onlyOnwer
-            + getMintParams() external view => CollateralMintData
-            + getRedeemParams() external view => CollateralRedeemData
-            + getCollateralFeeData() external => CollateralFeeData
-            + validateAllocation(address _collateral, address _strategy, uint256 _amount) external => bool
+            - Map[address => CollateralData] collateralInfo;
+            - Map[address => StrategyData[]] collateralStrategyInfo;
+            - Map[address => Map[address => uint8]] private collateralStrategyId;
+            
+            ' Functions for configuring collaterals
+            # addCollateral(address _collateral, CollateralData memory _data) onlyOwner
+            # updateCollateralData(address _collateral, CollateralData memory _data) onlyOwner
+            # removeCollateral(address _collateral) onlyOwner
+            
+            ' Function for updating collateral strategy information
+            # addStrategyToCollateral(address _collateral, uint16 _allocationPer) onlyOwner
+            # updateCollateralStrategy(address _collateral, address _strategy, uint16 _allocationPer) onlyOwner
+            # removeCollateralStrategy(address _collateral, address _strategy) onlyOwner
+            # updateCollateralDefaultStrategy(address _collateral, address _newDefaultStrategy) onlyOwner
+            
+            ' Functions to get important info for vault core operations
+            + getMintParams(address _collateral) external view => CollateralMintData
+            + getRedeemParams(address _collateral) external view => CollateralRedeemData
+            + validateAllocation(address _collateral, address _strategy, uint256 _amount) external view => bool
+            
+            + getAllCollaterals() external view => address[]
+            + getCollateralStrategies() external view => address[]
+
+            ' Function to get collateral amounts (To be used for accounting)
+            + getCollateralInStrategies(address _collateral) public view => (uin256 amountInStrategies)
+            + getCollateralInVault(address _collateral) public view => (uint256 amountInVault)
+            + getCollateralInAStrategy(address _collateral, address _strategy) public view => (uint256 allocated amount)
         }
 
         VaultCore -- CollateralManager
