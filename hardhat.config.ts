@@ -2,6 +2,7 @@ import "@foundry-rs/hardhat-forge";
 import "@nomicfoundation/hardhat-foundry";
 import "@nomicfoundation/hardhat-toolbox";
 import "@nomiclabs/hardhat-solhint";
+import "@openzeppelin/hardhat-upgrades";
 import { config as dotenvConf } from "dotenv";
 import { task } from "hardhat/config";
 import type {
