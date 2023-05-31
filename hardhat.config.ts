@@ -4,10 +4,7 @@ import "@nomicfoundation/hardhat-toolbox";
 import "@nomiclabs/hardhat-solhint";
 import { config as dotenvConf } from "dotenv";
 import { task } from "hardhat/config";
-import type {
-  HardhatUserConfig,
-  HttpNetworkUserConfig,
-} from "hardhat/types";
+import type { HardhatUserConfig, HttpNetworkUserConfig } from "hardhat/types";
 
 dotenvConf({ path: __dirname + "/.env" });
 
