@@ -4,14 +4,14 @@ pragma solidity 0.8.18;
 interface ICollateralManager {
     struct CollateralMintData {
         bool mintAllowed;
-        uint16 baseFeeIn;
+        uint8 baseFeeIn;
         uint16 upsidePeg;
     }
 
     struct CollateralRedeemData {
         bool redeemAllowed;
         address defaultStrategy;
-        uint16 baseFeeOut;
+        uint8 baseFeeOut;
         uint16 downsidePeg;
     }
 
