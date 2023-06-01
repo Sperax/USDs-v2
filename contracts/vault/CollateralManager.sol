@@ -54,6 +54,7 @@ contract CollateralManager is ICollateralManager, Ownable {
     event CollateralInfoUpdated(address collateral, CollateralData data);
     event CollateralStrategyAdded(address collateral, address strategy);
     event CollateralStrategyUpdate(address collateral, address strategy);
+    event CollateralStrategyRemoved(address collateral, address strategy);
 
     /// @notice Register a collateral for mint & redeem in USDs
     /// @param _collateral Address of the collateral
@@ -113,8 +114,10 @@ contract CollateralManager is ICollateralManager, Ownable {
             collateralInfo[_collateral].exists == true,
             "Collateral doen't exist"
         );
-        // Check if collateral is added
-        // Check if collateral is safe to remove, i.e it is not there in the vault/strategies.
+        require(
+            collateralStrategies[_collateral].length <= 0,
+            "Strategies exists"
+        );
 
         for (uint256 i = 0; i < collaterals.length; ++i) {
             if (collaterals[i] == _collateral) {
@@ -158,7 +161,7 @@ contract CollateralManager is ICollateralManager, Ownable {
         );
         require(
             _allocationPer >
-                (100 - collateralInfo[_collateral].collateralCapacityUsed),
+                (1000000 - collateralInfo[_collateral].collateralCapacityUsed),
             "AllocationPer  exceeded"
         );
 
@@ -196,7 +199,7 @@ contract CollateralManager is ICollateralManager, Ownable {
         );
         require(
             _allocationPer >
-                (100 - collateralInfo[_collateral].collateralCapacityUsed),
+                (1000000 - collateralInfo[_collateral].collateralCapacityUsed),
             "AllocationPer  exceeded"
         );
 
@@ -243,6 +246,8 @@ contract CollateralManager is ICollateralManager, Ownable {
                 break;
             }
         }
+
+        emit CollateralStrategyRemoved(_collateral, _strategy);
     }
 
     /// @notice Update the collateral's default strategy for redemption.
@@ -277,7 +282,9 @@ contract CollateralManager is ICollateralManager, Ownable {
     ) external view returns (bool) {
         uint256 maxCollateralUsage = (collateralStrategyInfo[_collateral][
             _strategy
-        ].allocationCap / 100) * getCollateralInVault(_collateral);
+        ].allocationCap / 1000000) *
+            (getCollateralInVault(_collateral) +
+                getCollateralInStrategies(_collateral));
 
         if (
             (maxCollateralUsage -
