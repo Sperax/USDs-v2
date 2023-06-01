@@ -100,7 +100,7 @@ contract CollateralManager is ICollateralManager, Ownable {
 
         require(_collateral != address(0), "Illegal input");
         require(
-            collateralInfo[_collateral].exists == true,
+            collateralInfo[_collateral].exists != false,
             "Collateral doen't exist"
         );
         emit CollateralInfoUpdated(_collateral, _updateData);
@@ -111,7 +111,7 @@ contract CollateralManager is ICollateralManager, Ownable {
     function removeCollateral(address _collateral) external onlyOwner {
         require(_collateral != address(0), "Illegal input");
         require(
-            collateralInfo[_collateral].exists == true,
+            collateralInfo[_collateral].exists != false,
             "Collateral doen't exist"
         );
         require(
@@ -148,7 +148,7 @@ contract CollateralManager is ICollateralManager, Ownable {
 
         require(_collateral != address(0), "Illegal input");
         require(
-            collateralInfo[_collateral].exists == true,
+            collateralInfo[_collateral].exists != false,
             "Collateral doen't exist"
         );
         require(
@@ -190,11 +190,11 @@ contract CollateralManager is ICollateralManager, Ownable {
         // Check if _allocationPer <= 100 - collateralCapacityUsed  + oldAllocationPer
         // Update the info
         require(
-            collateralInfo[_collateral].exists == true,
+            collateralInfo[_collateral].exists != false,
             "Collateral doen't exist"
         );
         require(
-            collateralStrategyInfo[_collateral][_strategy].exists == true,
+            collateralStrategyInfo[_collateral][_strategy].exists != false,
             "Strategy doen't exist"
         );
         require(
@@ -228,7 +228,7 @@ contract CollateralManager is ICollateralManager, Ownable {
         // remove collateralCapacity.
         // remove item from list.
         require(
-            collateralStrategyInfo[_collateral][_strategy].exists == true,
+            collateralStrategyInfo[_collateral][_strategy].exists != false,
             "Strategy doen't exist"
         );
         require(
@@ -264,7 +264,7 @@ contract CollateralManager is ICollateralManager, Ownable {
             "Illegal input"
         );
         require(
-            collateralInfo[_collateral].exists == true,
+            collateralInfo[_collateral].exists != false,
             "Collateral doen't exist"
         );
         collateralInfo[_collateral].defaultStrategy = _strategy;
@@ -304,7 +304,7 @@ contract CollateralManager is ICollateralManager, Ownable {
     ) external view returns (CollateralMintData memory mintData) {
         require(_collateral != address(0), "Illegal input");
         require(
-            collateralInfo[_collateral].exists == true,
+            collateralInfo[_collateral].exists != false,
             "Collateral doen't exist"
         );
 
@@ -331,7 +331,7 @@ contract CollateralManager is ICollateralManager, Ownable {
     ) external view returns (CollateralRedeemData memory redeemData) {
         require(_collateral != address(0), "Illegal input");
         require(
-            collateralInfo[_collateral].exists == true,
+            collateralInfo[_collateral].exists != false,
             "Collateral doen't exist"
         );
         // Check if collateral exists
