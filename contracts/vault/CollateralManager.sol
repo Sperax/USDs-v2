@@ -177,7 +177,7 @@ contract CollateralManager is ICollateralManager, Ownable {
     /// @return address[] list of available strategies for a collateral
     function getCollateralStrategies(
         address _collateral
-    ) external view returns (address[] memory) {
+    ) public view returns (address[] memory) {
         return collateralStrategies[_collateral];
     }
 
@@ -203,4 +203,19 @@ contract CollateralManager is ICollateralManager, Ownable {
         address _collateral,
         address _strategy
     ) public view returns (uint256 allocatedAmt) {}
+
+    function isValidStrategy(
+        address _collateral,
+        address _strategy
+    ) public view returns (bool) {
+        address[] memory _validStrategies = getCollateralStrategies(
+            _collateral
+        );
+        for (uint8 i = 0; i < _validStrategies.length; ++i) {
+            if (_validStrategies[i] == _strategy) {
+                return true;
+            }
+        }
+        return false;
+    }
 }

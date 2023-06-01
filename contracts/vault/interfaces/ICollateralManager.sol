@@ -44,6 +44,12 @@ interface ICollateralManager {
     /// @return address[] of listed collaterals
     function getAllCollaterals() external view returns (address[] memory);
 
+    /// @notice Gets list of all the collateral linked strategies
+    /// @return address[] list of available strategies for a collateral
+    function getCollateralStrategies(
+        address _collateral
+    ) external view returns (address[] memory);
+
     /// @notice Get the amount of collateral in all Strategies
     /// @param _collateral Address of the collateral
     /// @return amountInStrategies
@@ -57,4 +63,13 @@ interface ICollateralManager {
     function getCollateralInVault(
         address _collateral
     ) external view returns (uint256 amountInVault);
+
+    /// @notice Verify if a strategy is associated with the collateral
+    /// @param _collateral Address of the collateral
+    /// @param _collateral Address of the strategy
+    /// @return isValid True if the strategy is associated with the collateral
+    function isValidStrategy(
+        address _collateral,
+        address _strategy
+    ) external view returns (bool isValid);
 }

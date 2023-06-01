@@ -27,10 +27,13 @@
             + address yieldReceiver
             + address collateralManager
             + address feeCalculator
+            + address oracle
 
             # updateFeeVault() onlyOwner
-            # updateCollateralManager() onlyOwner
             # updateYieldReceiver() onlyOwner
+            # updateCollateralManager() onlyOwner
+            # updateFeeCalculator() onlyOwner
+            # updateOracle() onlyOwner
 
             ' The role of Rebase manager is to push USDs in the Vault contract for performing the rebase
             ' Initially we can carry on the same set of opperation to carry out rebase.
@@ -44,8 +47,10 @@
             # allocate(address _collateral, address _strategy, uint256 _amount) onlyAllocator external
 
             + mint(address _collateral, uint256 _collateralAmt, uint256 _mintUSDsAmt, uint256 _deadline) external
+            + mintBySpecifyingCollateralAmt(address _collateral, uint256 _collateralAmt, uint256 _mintUSDsAmt, uint256 _deprecated, uint256 _deadline) external
             + redeem(address _collateral, uint256 _usdsAmt, uint256 _minCollAmt, uint256 _deadline) external
             + redeem(address _collateral, uint256 _usdsAmt, uint256 _minCollAmt, uint256 _deadline, address _strategyAddr) external
+            + redeem(address _collateral, uint256 _usdsAmt, uint256 _minCollAmt, uint256 _deprecated, uint256 _deadline) external
             + mintView(address _collateral, uint256 _collateralAmt) external view returns(uint256 _mintUSDAmt)
             + redeemView(address _collateral, uint256 _collateralAmt) external view returns(uint256 _redeemedCollAmt)
             + redeemView(address _collateral, address _strategy, uint256 _collateralAmt) external view returns(uint256 _redeemedCollAmt)
