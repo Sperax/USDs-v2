@@ -2,7 +2,7 @@
 // https://github.com/FraxFinance/frax-solidity/blob/master/src/hardhat/contracts/Staking/Variants/FraxCCFarmV2_ArbiCurveVSTFRAX.sol
 // https://github.com/FraxFinance/frax-solidity/blob/master/src/hardhat/contracts/Staking/FraxCrossChainFarmV2.sol
 // https://arbiscan.io/address/0x127963a74c07f72d862f2bdc225226c3251bd117
-pragma solidity 0.8.18;
+pragma solidity 0.8.16;
 
 interface IFraxFarm {
     /* ========== STRUCTS ========== */

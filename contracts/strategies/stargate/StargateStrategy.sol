@@ -1,4 +1,4 @@
-pragma solidity 0.8.18;
+pragma solidity 0.8.16;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -174,7 +174,7 @@ contract StargateStrategy is InitializableAbstractStrategy {
         _isValidAmount(_amount);
         require(_validateRwdClaim(_asset), "Insufficient rwd fund in farm");
         address sToken = _getSTokenFor(_asset);
-        IERC20(_asset).safeTransferFrom(vaultAddress, address(this), _amount);
+        IERC20(_asset).safeTransferFrom(msg.sender, address(this), _amount);
         IERC20(_asset).safeApprove(router, _amount);
 
         // Add liquidity in the stargate pool.

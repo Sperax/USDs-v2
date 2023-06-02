@@ -1,7 +1,7 @@
 // Current version: 3
 // This contract's version: 4
 // SPDX-License-Identifier: agpl-3.0
-pragma solidity 0.8.18;
+pragma solidity 0.8.16;
 
 interface ICurve2Pool {
     function add_liquidity(

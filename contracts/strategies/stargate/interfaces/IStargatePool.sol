@@ -1,4 +1,4 @@
-pragma solidity 0.8.18;
+pragma solidity 0.8.16;
 
 interface IStargatePool {
     function totalLiquidity() external view returns (uint256);
