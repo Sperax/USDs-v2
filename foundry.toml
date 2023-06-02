@@ -1,7 +1,10 @@
 [profile.default]
 solc = '0.8.16'
 src = 'contracts'
-out = 'out'
+out = 'artifacts/contracts'
+build_info = true
+build_info_path = 'artifacts/contracts/build-info'
+
 libs = ['node_modules', 'lib']
 test = 'test'
 cache_path  = 'cache_forge'
