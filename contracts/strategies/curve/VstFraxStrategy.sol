@@ -14,6 +14,21 @@ import {IFraxFarm} from "./interfaces/IFraxFarm.sol";
 contract VstFraxStrategy is InitializableAbstractStrategy {
     using SafeERC20 for IERC20;
 
+    struct InitData {
+        address platformAddress;
+        address vaultAddress;
+        address yieldReceiver;
+        address fraxFarmAddr;
+        address oracleAddr;
+        uint256 assetPriceMin; // VST & Frax peg lower bound, 1e8 = $1
+        uint256 assetPriceMax; // VST & Frax peg upper bound, 1e8 = $1
+        uint256 depositSlippage; // deposit slippage tolerance LP -> asset, 200 = 2%
+        uint256 withdrawSlippage; // withdrawSlippage Slippage tolerance asset -> LP, 200 = 2%
+        uint256 intLiqThreshold;
+        uint256 lockPeriod; // Farm stake initial lockup period, in seconds
+        uint256 stakePercentage; // Percentage of LP to stake to farm, 200 = 2%
+    }
+
     uint256 public constant PCT_PREC = 10000;
     uint256 public constant PRICE_PREC = 1e18;
 
@@ -39,54 +54,34 @@ contract VstFraxStrategy is InitializableAbstractStrategy {
     event FarmParameterChanged(uint256 lockPeriod, uint256 stakePercentage);
 
     /// @dev Initializer for setting up strategy internal state
-    /// @param _platformAddress Curve pool address
-    /// @param _fraxFramAddr Frax fram address
-    /// @param _assetPriceMin VST & Frax peg lower bound, 1e8 = $1
-    /// @param _assetPriceMax VST & Frax peg upper bound, 1e8 = $1
-    /// @param _depositSlippage Slippage tolerance LP -> asset, 200 = 2%
-    /// @param _withdrawSlippage Slippage tolerance asset -> LP, 200 = 2%
-    /// @param _stakePercentage Percentage of LP to stake to farm, 200 = 2%
-    /// @param _lockPeriod Farm stake initial lockup period, in seconds
-    function initialize(
-        address _platformAddress,
-        address _vaultAddress,
-        address _yieldReceiver,
-        address _fraxFramAddr,
-        address _oracleAddr,
-        uint256 _assetPriceMin,
-        uint256 _assetPriceMax,
-        uint256 _depositSlippage,
-        uint256 _withdrawSlippage,
-        uint256 _intLiqThreshold,
-        uint256 _lockPeriod,
-        uint256 _stakePercentage
-    ) external initializer {
-        _isNonZeroAddr(_platformAddress);
-        _isNonZeroAddr(_fraxFramAddr);
-        _isNonZeroAddr(_oracleAddr);
-        fraxFarm = _fraxFramAddr;
-        curvePool = _platformAddress;
-        oracle = _oracleAddr;
-        rewardTokenAddress.push(IFraxFarm(fraxFarm).rewardsToken0());
-        rewardTokenAddress.push(IFraxFarm(fraxFarm).rewardsToken1());
+    /// @param _data Initialization data for strategy
+    function initialize(InitData calldata _data) external initializer {
+        _isNonZeroAddr(_data.platformAddress);
+        _isNonZeroAddr(_data.fraxFarmAddr);
+        _isNonZeroAddr(_data.oracleAddr);
+        fraxFarm = _data.fraxFarmAddr;
+        curvePool = _data.platformAddress;
+        oracle = _data.oracleAddr;
+        rewardTokenAddress.push(IFraxFarm(_data.fraxFarmAddr).rewardsToken0());
+        rewardTokenAddress.push(IFraxFarm(_data.fraxFarmAddr).rewardsToken1());
         for (uint256 i = 0; i < 2; ++i) {
             _setPTokenAddress(
                 ICurve2Pool(curvePool).coins(i),
-                _platformAddress
+                _data.platformAddress
             );
         }
-        assetPriceMin = _assetPriceMin;
-        assetPriceMax = _assetPriceMax;
-        depositSlippage = _depositSlippage;
-        withdrawSlippage = _withdrawSlippage;
-        intLiqThreshold = _intLiqThreshold;
-        lockPeriod = _lockPeriod;
-        stakePercentage = _stakePercentage;
+        assetPriceMin = _data.assetPriceMin;
+        assetPriceMax = _data.assetPriceMax;
+        depositSlippage = _data.depositSlippage;
+        withdrawSlippage = _data.withdrawSlippage;
+        intLiqThreshold = _data.intLiqThreshold;
+        lockPeriod = _data.lockPeriod;
+        stakePercentage = _data.stakePercentage;
         // Should call InitializableAbstractStrategy._initialize() at the end
         // otherwise abstractSetPToken() might fail
         _initialize(
-            _vaultAddress,
-            _yieldReceiver,
+            _data.vaultAddress,
+            _data.yieldReceiver,
             new address[](0),
             new address[](0)
         );
@@ -151,11 +146,6 @@ contract VstFraxStrategy is InitializableAbstractStrategy {
         emit FarmParameterChanged(lockPeriod, stakePercentage);
     }
 
-    function updateVault(address _newVault) external onlyOwner {
-        _isNonZeroAddr(_newVault);
-        vaultAddress = _newVault;
-    }
-
     /// @notice Deposit asset into the Curve Frax-VST balancedly
     /// @inheritdoc InitializableAbstractStrategy
     function deposit(
@@ -164,7 +154,7 @@ contract VstFraxStrategy is InitializableAbstractStrategy {
     ) external override onlyVault nonReentrant {
         require(supportsCollateral(_asset), "Unsupported collateral");
         _isValidAmount(_amount);
-        IERC20(_asset).safeTransferFrom(vaultAddress, address(this), _amount);
+        IERC20(_asset).safeTransferFrom(msg.sender, address(this), _amount);
     }
 
     /// @notice Allocate Funds to curve pool.

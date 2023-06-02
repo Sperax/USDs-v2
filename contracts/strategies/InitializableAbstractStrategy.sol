@@ -16,6 +16,8 @@ abstract contract InitializableAbstractStrategy is
     address[] public rewardTokenAddress;
     mapping(address => address) public assetToPToken;
 
+    event VaultUpdated(address newVaultAddr);
+    event yieldReceiverUpdated(address newYieldReceiver);
     event PTokenAdded(address indexed asset, address pToken);
     event PTokenRemoved(address indexed asset, address pToken);
     event Deposit(address indexed asset, address pToken, uint256 amount);
@@ -158,7 +160,9 @@ abstract contract InitializableAbstractStrategy is
         _isNonZeroAddr(_vaultAddress);
         _isNonZeroAddr(_yieldReceiver);
 
-        for (uint8 i; i < _assets.length; ) {
+        vaultAddress = _vaultAddress;
+        yieldReceiver = _yieldReceiver;
+        for (uint8 i = 0; i < _assets.length; ) {
             _setPTokenAddress(_assets[i], _pTokens[i]);
             unchecked {
                 ++i;

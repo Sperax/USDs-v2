@@ -40,7 +40,7 @@ contract UsdcFraxStrategy is InitializableAbstractStrategy {
         address _usdcFraxPool,
         address _sdl,
         address _lpToken,
-        uint256 _pid,
+        uint256 _pId,
         address _farmAddress,
         address _vaultAddress,
         address _yieldReceiver,
@@ -54,7 +54,7 @@ contract UsdcFraxStrategy is InitializableAbstractStrategy {
         farm = _farmAddress;
         lpToken = _lpToken;
         vaultAddress = _vaultAddress;
-        pid = _pid;
+        pid = _pId;
         intLiqThreshold = _intLiqThreshold;
         rewardTokenAddress.push(_sdl);
         _initialize(
@@ -78,12 +78,6 @@ contract UsdcFraxStrategy is InitializableAbstractStrategy {
         emit IntLiqThresholdChanged(intLiqThreshold);
     }
 
-    function updateVault(address _newVault) external onlyOwner {
-        _isNonZeroAddr(_newVault);
-        emit VaultAddressUpdated(vaultAddress, _newVault);
-        vaultAddress = _newVault;
-    }
-
     /// @inheritdoc InitializableAbstractStrategy
     function deposit(
         address _asset,
@@ -91,7 +85,7 @@ contract UsdcFraxStrategy is InitializableAbstractStrategy {
     ) external override onlyVault nonReentrant {
         _supportedCollateral(_asset);
         _isValidAmount(_amount);
-        IERC20(_asset).safeTransferFrom(vaultAddress, address(this), _amount);
+        IERC20(_asset).safeTransferFrom(msg.sender, address(this), _amount);
     }
 
     /// @notice Allocate Funds to curve pool.

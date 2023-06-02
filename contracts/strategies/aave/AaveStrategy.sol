@@ -111,7 +111,7 @@ contract AaveStrategy is InitializableAbstractStrategy {
         // an asset that we support.
         allocatedAmt[_asset] = allocatedAmt[_asset] + _amount;
 
-        IERC20(_asset).safeTransferFrom(vaultAddress, address(this), _amount);
+        IERC20(_asset).safeTransferFrom(msg.sender, address(this), _amount);
         IERC20(_asset).safeApprove(address(aavePool), _amount);
         aavePool.supply(_asset, _amount, address(this), REFERRAL_CODE);
 
