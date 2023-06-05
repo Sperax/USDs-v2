@@ -49,8 +49,8 @@ contract CollateralManager is ICollateralManager, Ownable {
 
     mapping(address => address[]) private collateralStrategies;
 
-    uint256 public constant PEG_PERC_PRECISION = 1000;
-    uint256 public constant FEE_PERC_PRECISION = 10 ** 5;
+    uint256 public constant PERC_PRECISION = 1000;
+    uint256 public constant ALLC_PERC_PRECISION = 10 ** 5;
 
     event CollateralAdded(address collateral, CollateralData data);
     event CollateralRemoved(address collateral);
@@ -74,13 +74,13 @@ contract CollateralManager is ICollateralManager, Ownable {
         );
 
         require(
-            _data.downsidePeg <= PEG_PERC_PRECISION &&
-                _data.upsidePeg <= PEG_PERC_PRECISION,
+            _data.downsidePeg <= PERC_PRECISION &&
+                _data.upsidePeg <= PERC_PRECISION,
             "Illegal Peg input"
         );
 
         require(
-            _feeData.baseFeeInPerc <= 1000 && _feeData.baseFeeOutPerc <= 1000,
+            _feeData.baseFeeInPerc <= PERC_PRECISION && _feeData.baseFeeOutPerc <= PERC_PRECISION,
             "Illegal BaseFee input"
         );
 
@@ -111,8 +111,33 @@ contract CollateralManager is ICollateralManager, Ownable {
     ) external onlyOwner {
         // Check if collateral added;
         // Update the collateral storage data
-
         require(collateralInfo[_collateral].exists, "Collateral doen't exist");
+        require(
+            _data.downsidePeg <= PERC_PRECISION &&
+                _data.upsidePeg <= PERC_PRECISION,
+            "Illegal Peg input"
+        );
+
+        require(
+            _feeData.baseFeeInPerc <= PERC_PRECISION && _feeData.baseFeeOutPerc <= PERC_PRECISION,
+            "Illegal BaseFee input"
+        );
+
+        CollateralData memory currentCollateralData = collateralInfo[_collateral];
+
+        collateralInfo[_collateral] = CollateralStorageData({
+            mintAllowed: _data.mintAllowed,
+            redeemAllowed: _data.redeemAllowed,
+            allocationAllowed: _data.allocationAllowed,
+            defaultStrategy: currentCollateralData.defaultStrategy,
+            baseFeeIn: _data.baseFeeIn,
+            baseFeeOut: _data.baseFeeOut,
+            upsidePeg: _data.upsidePeg,
+            downsidePeg: _data.downsidePeg,
+            collateralCapacityUsed: currentCollateralData.collateralCapacityUsed,
+            exists: true
+        });
+
         emit CollateralInfoUpdated(_collateral, _updateData);
     }
 
@@ -121,7 +146,7 @@ contract CollateralManager is ICollateralManager, Ownable {
     function removeCollateral(address _collateral) external onlyOwner {
         require(collateralInfo[_collateral].exists, "Collateral doen't exist");
         require(
-            collateralStrategies[_collateral].length <= 0,
+            collateralStrategies[_collateral].length == 0,
             "Strategy/ies exists"
         );
 
@@ -165,7 +190,7 @@ contract CollateralManager is ICollateralManager, Ownable {
         );
         require(
             _allocationPer >
-                (FEE_PERC_PRECISION -
+                (ALLC_PERC_PRECISION -
                     collateralInfo[_collateral].collateralCapacityUsed),
             "AllocationPer  exceeded"
         );
@@ -201,7 +226,7 @@ contract CollateralManager is ICollateralManager, Ownable {
         );
         require(
             _allocationPer >
-                (FEE_PERC_PRECISION -
+                (ALLC_PERC_PRECISION -
                     collateralInfo[_collateral].collateralCapacityUsed),
             "AllocationPer  exceeded"
         );
@@ -236,7 +261,7 @@ contract CollateralManager is ICollateralManager, Ownable {
             "Strategy doen't exist"
         );
         require(
-            IStrategy(_strategy).checkBalance(_collateral) <= 0,
+            IStrategy(_strategy).checkBalance(_collateral) == 0,
             "Strategy in use"
         );
 
@@ -283,11 +308,11 @@ contract CollateralManager is ICollateralManager, Ownable {
             _strategy
         ].allocationCap *
             (getCollateralInVault(_collateral) +
-                getCollateralInStrategies(_collateral))) / FEE_PERC_PRECISION;
+                getCollateralInStrategies(_collateral))) / ALLC_PERC_PRECISION;
 
         if (
             (maxCollateralUsage -
-                getCollateralInAStrategy(_collateral, _strategy)) >= _amount
+                IStrategy(_strategy).checkBalance(_collateral)) >= _amount
         ) {
             return true;
         } else {
