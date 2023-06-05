@@ -15,21 +15,21 @@ contract CollateralManager is ICollateralManager, Ownable {
         bool mintAllowed;
         bool redeemAllowed;
         bool allocationAllowed;
+        bool exists;
         address defaultStrategy;
-        uint8 baseFeeIn;
-        uint8 baseFeeOut;
+        uint16 baseFeeIn;
+        uint16 baseFeeOut;
         uint16 upsidePeg;
         uint16 downsidePeg;
-        uint16 collateralCapacityUsed; // 100
-        bool exists;
+        uint16 collateralCapacityUsed;
     }
 
     struct CollateralData {
         bool mintAllowed;
         bool redeemAllowed;
         bool allocationAllowed;
-        uint8 baseFeeIn;
-        uint8 baseFeeOut;
+        uint16 baseFeeIn;
+        uint16 baseFeeOut;
         uint16 upsidePeg;
         uint16 downsidePeg;
     }
@@ -49,11 +49,14 @@ contract CollateralManager is ICollateralManager, Ownable {
 
     mapping(address => address[]) private collateralStrategies;
 
+    uint256 public constant PEG_PERC_PRECISION = 1000;
+    uint256 public constant FEE_PERC_PRECISION = 10 ** 5;
+
     event CollateralAdded(address collateral, CollateralData data);
     event CollateralRemoved(address collateral);
     event CollateralInfoUpdated(address collateral, CollateralData data);
     event CollateralStrategyAdded(address collateral, address strategy);
-    event CollateralStrategyUpdate(address collateral, address strategy);
+    event CollateralStrategyUpdated(address collateral, address strategy);
     event CollateralStrategyRemoved(address collateral, address strategy);
 
     /// @notice Register a collateral for mint & redeem in USDs
@@ -65,11 +68,22 @@ contract CollateralManager is ICollateralManager, Ownable {
     ) external onlyOwner {
         // Test if collateral is already added
         // Initialize collateral storage data
-        require(_collateral != address(0), "Illegal input");
         require(
-            collateralInfo[_collateral].exists != true,
+            !collateralInfo[_collateral].exists,
             "Collateral already exists"
         );
+
+        require(
+            _data.downsidePeg <= PEG_PERC_PRECISION &&
+                _data.upsidePeg <= PEG_PERC_PRECISION,
+            "Illegal Peg input"
+        );
+
+        require(
+            _feeData.baseFeeInPerc <= 1000 && _feeData.baseFeeOutPerc <= 1000,
+            "Illegal BaseFee input"
+        );
+
         collateralInfo[_collateral] = CollateralStorageData({
             mintAllowed: _data.mintAllowed,
             redeemAllowed: _data.redeemAllowed,
@@ -98,30 +112,24 @@ contract CollateralManager is ICollateralManager, Ownable {
         // Check if collateral added;
         // Update the collateral storage data
 
-        require(_collateral != address(0), "Illegal input");
-        require(
-            collateralInfo[_collateral].exists != false,
-            "Collateral doen't exist"
-        );
+        require(collateralInfo[_collateral].exists, "Collateral doen't exist");
         emit CollateralInfoUpdated(_collateral, _updateData);
     }
 
     /// @notice Unlist a collateral
     /// @param _collateral Address of the collateral
     function removeCollateral(address _collateral) external onlyOwner {
-        require(_collateral != address(0), "Illegal input");
-        require(
-            collateralInfo[_collateral].exists != false,
-            "Collateral doen't exist"
-        );
+        require(collateralInfo[_collateral].exists, "Collateral doen't exist");
         require(
             collateralStrategies[_collateral].length <= 0,
-            "Strategies exists"
+            "Strategy/ies exists"
         );
 
-        for (uint256 i = 0; i < collaterals.length; ++i) {
+        uint256 numCollaterals = collaterals.length;
+
+        for (uint256 i = 0; i < numCollaterals; ++i) {
             if (collaterals[i] == _collateral) {
-                collaterals[i] = collaterals[collaterals.length - 1];
+                collaterals[i] = collaterals[numCollaterals - 1];
                 collaterals.pop();
                 delete (collateralInfo[_collateral]);
                 break;
@@ -146,22 +154,19 @@ contract CollateralManager is ICollateralManager, Ownable {
         // Check if collateral is allocation is supported by the strategy.
         // add info to collateral mapping
 
-        require(_collateral != address(0), "Illegal input");
+        require(collateralInfo[_collateral].exists, "Collateral doen't exist");
         require(
-            collateralInfo[_collateral].exists != false,
-            "Collateral doen't exist"
+            !collateralStrategyInfo[_collateral][_strategy].exists,
+            "Strategy already mapped"
         );
         require(
-            collateralStrategyInfo[_collateral][_strategy].exists != true,
-            "Strategy already exists"
-        );
-        require(
-            collateralInfo[_collateral].allocationAllowed == true,
+            collateralInfo[_collateral].allocationAllowed,
             "Allocation not allowed"
         );
         require(
             _allocationPer >
-                (1000000 - collateralInfo[_collateral].collateralCapacityUsed),
+                (FEE_PERC_PRECISION -
+                    collateralInfo[_collateral].collateralCapacityUsed),
             "AllocationPer  exceeded"
         );
 
@@ -189,29 +194,28 @@ contract CollateralManager is ICollateralManager, Ownable {
         // Check if collateral and strategy are mapped
         // Check if _allocationPer <= 100 - collateralCapacityUsed  + oldAllocationPer
         // Update the info
+        require(collateralInfo[_collateral].exists, "Collateral doen't exist");
         require(
-            collateralInfo[_collateral].exists != false,
-            "Collateral doen't exist"
-        );
-        require(
-            collateralStrategyInfo[_collateral][_strategy].exists != false,
+            collateralStrategyInfo[_collateral][_strategy].exists,
             "Strategy doen't exist"
         );
         require(
             _allocationPer >
-                (1000000 - collateralInfo[_collateral].collateralCapacityUsed),
+                (FEE_PERC_PRECISION -
+                    collateralInfo[_collateral].collateralCapacityUsed),
             "AllocationPer  exceeded"
         );
 
+        collateralInfo[_collateral].collateralCapacityUsed =
+            (collateralInfo[_collateral].collateralCapacityUsed -
+                collateralStrategyInfo[_collateral][_strategy]._allocationPer) +
+            _allocationPer;
         collateralStrategyInfo[_collateral][_strategy] = StrategyData(
             _allocationPer,
             true
         );
-        collateralInfo[_collateral].collateralCapacityUsed =
-            collateralInfo[_collateral].collateralCapacityUsed +
-            _allocationPer;
 
-        emit CollateralStrategyUpdate(_collateral, _strategy);
+        emit CollateralStrategyUpdated(_collateral, _strategy);
     }
 
     /// @notice Remove an existing strategy from collateral
@@ -228,7 +232,7 @@ contract CollateralManager is ICollateralManager, Ownable {
         // remove collateralCapacity.
         // remove item from list.
         require(
-            collateralStrategyInfo[_collateral][_strategy].exists != false,
+            collateralStrategyInfo[_collateral][_strategy].exists,
             "Strategy doen't exist"
         );
         require(
@@ -236,11 +240,13 @@ contract CollateralManager is ICollateralManager, Ownable {
             "Strategy in use"
         );
 
-        for (uint256 i = 0; i < collateralStrategies[_collateral].length; ++i) {
+        uint256 numStrategy = collateralStrategies[_collateral].length;
+
+        for (uint256 i = 0; i < numStrategy; ++i) {
             if (collateralStrategies[_collateral][i] == _strategy) {
                 collateralStrategies[_collateral][i] = collateralStrategies[
                     _collateral
-                ][collateralStrategies[_collateral].length - 1];
+                ][numStrategy - 1];
                 collateralStrategies[_collateral].pop();
                 delete collateralStrategyInfo[_collateral][_strategy];
                 break;
@@ -259,14 +265,7 @@ contract CollateralManager is ICollateralManager, Ownable {
         address _collateral,
         address _strategy
     ) external onlyOwner {
-        require(
-            _collateral != address(0) || _strategy != address(0),
-            "Illegal input"
-        );
-        require(
-            collateralInfo[_collateral].exists != false,
-            "Collateral doen't exist"
-        );
+        require(collateralInfo[_collateral].exists, "Collateral doen't exist");
         collateralInfo[_collateral].defaultStrategy = _strategy;
     }
 
@@ -282,9 +281,9 @@ contract CollateralManager is ICollateralManager, Ownable {
     ) external view returns (bool) {
         uint256 maxCollateralUsage = (collateralStrategyInfo[_collateral][
             _strategy
-        ].allocationCap / 1000000) *
+        ].allocationCap *
             (getCollateralInVault(_collateral) +
-                getCollateralInStrategies(_collateral));
+                getCollateralInStrategies(_collateral))) / FEE_PERC_PRECISION;
 
         if (
             (maxCollateralUsage -
@@ -302,11 +301,7 @@ contract CollateralManager is ICollateralManager, Ownable {
     function getMintParams(
         address _collateral
     ) external view returns (CollateralMintData memory mintData) {
-        require(_collateral != address(0), "Illegal input");
-        require(
-            collateralInfo[_collateral].exists != false,
-            "Collateral doen't exist"
-        );
+        require(collateralInfo[_collateral].exists, "Collateral doen't exist");
 
         // Check if collateral exists
         // Compose and return collateral mint params
@@ -316,11 +311,11 @@ contract CollateralManager is ICollateralManager, Ownable {
         ];
 
         return
-            CollateralMintData(
-                collateralStorageData.mintAllowed,
-                collateralStorageData.baseFeeIn,
-                collateralStorageData.upsidePeg
-            );
+            CollateralMintData({
+                mintAllowed: collateralStorageData.mintAllowed,
+                baseFeeIn: collateralStorageData.baseFeeIn,
+                upsidePeg: collateralStorageData.upsidePeg
+            });
     }
 
     /// @notice Get the required data for USDs redemption
@@ -329,11 +324,7 @@ contract CollateralManager is ICollateralManager, Ownable {
     function getRedeemParams(
         address _collateral
     ) external view returns (CollateralRedeemData memory redeemData) {
-        require(_collateral != address(0), "Illegal input");
-        require(
-            collateralInfo[_collateral].exists != false,
-            "Collateral doen't exist"
-        );
+        require(collateralInfo[_collateral].exists, "Collateral doen't exist");
         // Check if collateral exists
         // Compose and return collateral redeem params
 
@@ -342,12 +333,12 @@ contract CollateralManager is ICollateralManager, Ownable {
         ];
 
         return
-            CollateralRedeemData(
-                collateralStorageData.redeemAllowed,
-                collateralStorageData.defaultStrategy,
-                collateralStorageData.baseFeeOut,
-                collateralStorageData.downsidePeg
-            );
+            CollateralRedeemData({
+                redeemAllowed: collateralStorageData.redeemAllowed,
+                defaultStrategy: collateralStorageData.defaultStrategy,
+                baseFeeOut: collateralStorageData.baseFeeOut,
+                downsidePeg: collateralStorageData.downsidePeg
+            });
     }
 
     /// @notice Gets list of all the listed collateral
@@ -372,13 +363,12 @@ contract CollateralManager is ICollateralManager, Ownable {
     ) public view returns (uint256 amountInStrategies) {
         amountInStrategies = 0;
 
-        for (uint256 i = 0; i < collateralStrategies[_collateral].length; ++i) {
+        uint256 numStrategy = collateralStrategies[_collateral].length;
+
+        for (uint256 i = 0; i < numStrategy; ++i) {
             amountInStrategies =
                 amountInStrategies +
-                getCollateralInAStrategy(
-                    _collateral,
-                    collateralStrategies[_collateral][i]
-                );
+                IStrategy(_strategy).checkBalance(_collateral);
         }
 
         return amountInStrategies;
