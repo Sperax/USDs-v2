@@ -1,9 +1,9 @@
 [profile.default]
 solc = '0.8.16'
 src = 'contracts'
-out = 'artifacts/contracts'
+out = 'out'
 build_info = true
-build_info_path = 'artifacts/contracts/build-info'
+build_info_path = 'out/build-info'
 
 libs = ['node_modules', 'lib']
 test = 'test'

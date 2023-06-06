@@ -1,7 +1,6 @@
 {
     "filter_paths": "(lib/|test/|node_modules/)",
     "compile_force_framework": "forge",
-    "foundry_out_directory": "artifacts/contracts",
     "detectors_to_exclude": "naming-convention",
     "fail_high": true
 }
