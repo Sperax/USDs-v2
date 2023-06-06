@@ -32,7 +32,7 @@ contract UsdcFraxStrategy is InitializableAbstractStrategy {
     /// @param _usdcFraxPool Saddle pool address
     /// @param _sdl Saddle token address (Reward token)
     /// @param _lpToken Address of lp token.
-    /// @param _pid frax-USDC Pool Id in the farm.
+    /// @param _pId frax-USDC Pool Id in the farm.
     /// @param _farmAddress Saddle Masterchef
     /// @param _vaultAddress Address of the vaultCore.
     /// @param _intLiqThreshold Threshold value for min interest to be collected.
