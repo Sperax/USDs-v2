@@ -112,7 +112,7 @@ contract CollateralManager is ICollateralManager, Ownable {
     ) external onlyOwner {
         // Check if collateral added;
         // Update the collateral storage data
-        require(collateralInfo[_collateral].exists, "Collateral doen't exist");
+        require(collateralInfo[_collateral].exists, "Collateral doesn't exist");
         require(
             _updateData.downsidePeg <= PERC_PRECISION &&
                 _updateData.upsidePeg <= PERC_PRECISION,
