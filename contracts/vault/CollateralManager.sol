@@ -2,16 +2,13 @@
 pragma solidity 0.8.18;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {ICollateralManager} from "./interfaces/ICollateralManager.sol";
 import {IStrategy} from "./interfaces/IStrategy.sol";
 
 contract CollateralManager is ICollateralManager, Ownable {
-    using SafeERC20 for IERC20;
-
-    struct CollateralStorageData {
+    struct CollateralData {
         bool mintAllowed;
         bool redeemAllowed;
         bool allocationAllowed;
@@ -24,16 +21,6 @@ contract CollateralManager is ICollateralManager, Ownable {
         uint256 collateralCapacityUsed;
     }
 
-    struct CollateralData {
-        bool mintAllowed;
-        bool redeemAllowed;
-        bool allocationAllowed;
-        uint16 baseFeeIn;
-        uint16 baseFeeOut;
-        uint16 upsidePeg;
-        uint16 downsidePeg;
-    }
-
     struct StrategyData {
         uint32 allocationCap;
         bool exists;
@@ -43,28 +30,47 @@ contract CollateralManager is ICollateralManager, Ownable {
     uint32 public numCollateralStrategy;
     address public vaultCore;
     address[] private collaterals;
-    mapping(address => CollateralStorageData) public collateralInfo;
+    mapping(address => CollateralData) public collateralInfo;
     mapping(address => mapping(address => StrategyData))
         private collateralStrategyInfo;
 
     mapping(address => address[]) private collateralStrategies;
 
-    uint256 public constant PERC_PRECISION = 1000;
-    uint256 public constant ALLC_PERC_PRECISION = 10 ** 5;
+    uint256 public constant PERC_PRECISION = 10 ** 4;
 
-    event CollateralAdded(address collateral, CollateralData data);
+    event CollateralAdded(address collateral, CollateralBaseData data);
     event CollateralRemoved(address collateral);
-    event CollateralInfoUpdated(address collateral, CollateralData data);
+    event CollateralInfoUpdated(address collateral, CollateralBaseData data);
     event CollateralStrategyAdded(address collateral, address strategy);
     event CollateralStrategyUpdated(address collateral, address strategy);
     event CollateralStrategyRemoved(address collateral, address strategy);
+
+    function validatePegInputs(
+        uint256 downsidePeg,
+        uint256 upsidePeg
+    ) internal pure {
+        require(
+            downsidePeg <= PERC_PRECISION && upsidePeg <= PERC_PRECISION,
+            "Illegal Peg input"
+        );
+    }
+
+    function validateBaseFeeInputs(
+        uint256 baseFeeIn,
+        uint256 baseFeeOut
+    ) internal pure {
+        require(
+            baseFeeIn <= PERC_PRECISION && baseFeeOut <= PERC_PRECISION,
+            "Illegal BaseFee input"
+        );
+    }
 
     /// @notice Register a collateral for mint & redeem in USDs
     /// @param _collateral Address of the collateral
     /// @param _data Collateral configuration data
     function addCollateral(
         address _collateral,
-        CollateralData memory _data
+        CollateralBaseData memory _data
     ) external onlyOwner {
         // Test if collateral is already added
         // Initialize collateral storage data
@@ -73,19 +79,10 @@ contract CollateralManager is ICollateralManager, Ownable {
             "Collateral already exists"
         );
 
-        require(
-            _data.downsidePeg <= PERC_PRECISION &&
-                _data.upsidePeg <= PERC_PRECISION,
-            "Illegal Peg input"
-        );
+        validatePegInputs(_data.downsidePeg, _data.upsidePeg);
+        validateBaseFeeInputs(_data.baseFeeIn, _data.baseFeeOut);
 
-        require(
-            _data.baseFeeIn <= PERC_PRECISION &&
-                _data.baseFeeOut <= PERC_PRECISION,
-            "Illegal BaseFee input"
-        );
-
-        collateralInfo[_collateral] = CollateralStorageData({
+        collateralInfo[_collateral] = CollateralData({
             mintAllowed: _data.mintAllowed,
             redeemAllowed: _data.redeemAllowed,
             allocationAllowed: _data.allocationAllowed,
@@ -108,24 +105,16 @@ contract CollateralManager is ICollateralManager, Ownable {
     /// @param _updateData Updated configuration for the collateral
     function updateCollateralData(
         address _collateral,
-        CollateralData memory _updateData
+        CollateralBaseData memory _updateData
     ) external onlyOwner {
         // Check if collateral added;
         // Update the collateral storage data
         require(collateralInfo[_collateral].exists, "Collateral doesn't exist");
-        require(
-            _updateData.downsidePeg <= PERC_PRECISION &&
-                _updateData.upsidePeg <= PERC_PRECISION,
-            "Illegal Peg input"
-        );
 
-        require(
-            _updateData.baseFeeIn <= PERC_PRECISION &&
-                _updateData.baseFeeOut <= PERC_PRECISION,
-            "Illegal BaseFee input"
-        );
+        validatePegInputs(_updateData.downsidePeg, _updateData.upsidePeg);
+        validateBaseFeeInputs(_updateData.baseFeeIn, _updateData.baseFeeOut);
 
-        CollateralStorageData storage data = collateralInfo[_collateral];
+        CollateralData storage data = collateralInfo[_collateral];
         data.mintAllowed = _updateData.mintAllowed;
         data.redeemAllowed = _updateData.redeemAllowed;
         data.allocationAllowed = _updateData.allocationAllowed;
@@ -167,11 +156,11 @@ contract CollateralManager is ICollateralManager, Ownable {
     /// @notice Add a new strategy to collateral
     /// @param _collateral Address of the collateral
     /// @param _strategy Address of the strategy
-    /// @param _allocationPer Allocation capacity
+    /// @param _allocationCap Allocation capacity
     function addCollateralStrategy(
         address _collateral,
         address _strategy,
-        uint32 _allocationPer
+        uint32 _allocationCap
     ) external onlyOwner {
         // Check if the collateral is valid
         // Check if collateral strategy not allready added.
@@ -190,18 +179,18 @@ contract CollateralManager is ICollateralManager, Ownable {
         );
 
         require(
-            _allocationPer <=
-                (ALLC_PERC_PRECISION -
+            _allocationCap <=
+                (PERC_PRECISION -
                     collateralInfo[_collateral].collateralCapacityUsed),
             "AllocationPer  exceeded"
         );
 
         collateralStrategyInfo[_collateral][_strategy] = StrategyData(
-            _allocationPer,
+            _allocationCap,
             true
         );
         collateralStrategies[_collateral].push(_strategy);
-        collateralInfo[_collateral].collateralCapacityUsed += _allocationPer;
+        collateralInfo[_collateral].collateralCapacityUsed += _allocationCap;
 
         emit CollateralStrategyAdded(_collateral, _strategy);
     }
@@ -209,48 +198,46 @@ contract CollateralManager is ICollateralManager, Ownable {
     /// @notice Update existing strategy for collateral
     /// @param _collateral Address of the collateral
     /// @param _strategy Address of the strategy
-    /// @param _allocationPer Allocation capacity
+    /// @param _allocationCap Allocation capacity
     function updateCollateralStrategy(
         address _collateral,
         address _strategy,
-        uint16 _allocationPer
+        uint16 _allocationCap
     ) external onlyOwner {
         // Check if collateral and strategy are mapped
-        // Check if _allocationPer <= 100 - collateralCapacityUsed  + oldAllocationPer
+        // Check if _allocationCap <= 100 - collateralCapacityUsed  + oldAllocationPer
         // Update the info
         require(
             collateralStrategyInfo[_collateral][_strategy].exists,
             "Strategy doen't exist"
         );
 
-        CollateralStorageData storage collateralData = collateralInfo[
-            _collateral
-        ];
+        CollateralData storage collateralData = collateralInfo[_collateral];
         StrategyData storage strategyData = collateralStrategyInfo[_collateral][
             _strategy
         ];
 
         uint256 newCapacityUsed = collateralData.collateralCapacityUsed -
             strategyData.allocationCap +
-            _allocationPer;
+            _allocationCap;
         uint256 totalCollateral = getCollateralInVault(_collateral) +
             getCollateralInStrategies(_collateral);
         uint256 currentAllocatedPer = (getCollateralInAStrategy(
             _collateral,
             _strategy
-        ) * ALLC_PERC_PRECISION) / totalCollateral;
+        ) * PERC_PRECISION) / totalCollateral;
 
         require(
-            _allocationPer <= (ALLC_PERC_PRECISION - newCapacityUsed),
+            _allocationCap <= (PERC_PRECISION - newCapacityUsed),
             "AllocationPer exceeded"
         );
         require(
-            _allocationPer < currentAllocatedPer,
+            _allocationCap < currentAllocatedPer,
             "AllocationPer not valid"
         );
 
         collateralData.collateralCapacityUsed = newCapacityUsed;
-        strategyData.allocationCap = _allocationPer;
+        strategyData.allocationCap = _allocationCap;
 
         emit CollateralStrategyUpdated(_collateral, _strategy);
     }
@@ -339,7 +326,7 @@ contract CollateralManager is ICollateralManager, Ownable {
             _strategy
         ].allocationCap *
             (getCollateralInVault(_collateral) +
-                getCollateralInStrategies(_collateral))) / ALLC_PERC_PRECISION;
+                getCollateralInStrategies(_collateral))) / PERC_PRECISION;
 
         return ((maxCollateralUsage -
             IStrategy(_strategy).checkBalance(_collateral)) >= _amount);
@@ -356,7 +343,7 @@ contract CollateralManager is ICollateralManager, Ownable {
         // Check if collateral exists
         // Compose and return collateral mint params
 
-        CollateralStorageData memory collateralStorageData = collateralInfo[
+        CollateralData memory collateralStorageData = collateralInfo[
             _collateral
         ];
 
@@ -378,7 +365,7 @@ contract CollateralManager is ICollateralManager, Ownable {
         // Check if collateral exists
         // Compose and return collateral redeem params
 
-        CollateralStorageData memory collateralStorageData = collateralInfo[
+        CollateralData memory collateralStorageData = collateralInfo[
             _collateral
         ];
 
