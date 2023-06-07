@@ -186,7 +186,7 @@ contract CollateralManager is ICollateralManager, Ownable {
         );
         require(
             IStrategy(_strategy).supportsCollateral(_collateral),
-            "Collateral allocation not supported"
+            "Collateral not supported"
         );
 
         require(
@@ -275,7 +275,7 @@ contract CollateralManager is ICollateralManager, Ownable {
 
         require(
             collateralInfo[_collateral].defaultStrategy != _strategy,
-            "Default strategy removal not allowed"
+            "DS removal not allowed"
         );
 
         require(
