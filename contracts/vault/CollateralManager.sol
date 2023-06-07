@@ -140,7 +140,7 @@ contract CollateralManager is ICollateralManager, Ownable {
     /// @notice Unlist a collateral
     /// @param _collateral Address of the collateral
     function removeCollateral(address _collateral) external onlyOwner {
-        require(collateralInfo[_collateral].exists, "Collateral doen't exist");
+        require(collateralInfo[_collateral].exists, "Collateral doesn't exist");
         require(
             collateralStrategies[_collateral].length == 0,
             "Strategy/ies exists"
@@ -179,7 +179,7 @@ contract CollateralManager is ICollateralManager, Ownable {
         // Check if collateral is allocation is supported by the strategy.
         // add info to collateral mapping
 
-        require(collateralInfo[_collateral].exists, "Collateral doen't exist");
+        require(collateralInfo[_collateral].exists, "Collateral doesn't exist");
         require(
             !collateralStrategyInfo[_collateral][_strategy].exists,
             "Strategy already mapped"
@@ -316,7 +316,7 @@ contract CollateralManager is ICollateralManager, Ownable {
         address _collateral,
         address _strategy
     ) external onlyOwner {
-        require(collateralInfo[_collateral].exists, "Collateral doen't exist");
+        require(collateralInfo[_collateral].exists, "Collateral doesn't exist");
         collateralInfo[_collateral].defaultStrategy = _strategy;
     }
 
@@ -351,7 +351,7 @@ contract CollateralManager is ICollateralManager, Ownable {
     function getMintParams(
         address _collateral
     ) external view returns (CollateralMintData memory mintData) {
-        require(collateralInfo[_collateral].exists, "Collateral doen't exist");
+        require(collateralInfo[_collateral].exists, "Collateral doesn't exist");
 
         // Check if collateral exists
         // Compose and return collateral mint params
@@ -374,7 +374,7 @@ contract CollateralManager is ICollateralManager, Ownable {
     function getRedeemParams(
         address _collateral
     ) external view returns (CollateralRedeemData memory redeemData) {
-        require(collateralInfo[_collateral].exists, "Collateral doen't exist");
+        require(collateralInfo[_collateral].exists, "Collateral doesn't exist");
         // Check if collateral exists
         // Compose and return collateral redeem params
 
