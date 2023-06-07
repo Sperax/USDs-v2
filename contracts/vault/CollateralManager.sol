@@ -21,7 +21,7 @@ contract CollateralManager is ICollateralManager, Ownable {
         uint16 baseFeeOut;
         uint16 upsidePeg;
         uint16 downsidePeg;
-        uint16 collateralCapacityUsed;
+        uint32 collateralCapacityUsed;
     }
 
     struct CollateralData {
@@ -35,7 +35,7 @@ contract CollateralManager is ICollateralManager, Ownable {
     }
 
     struct StrategyData {
-        uint16 allocationCap;
+        uint32 allocationCap;
         bool exists;
     }
 
@@ -180,7 +180,7 @@ contract CollateralManager is ICollateralManager, Ownable {
     function addCollateralStrategy(
         address _collateral,
         address _strategy,
-        uint16 _allocationPer
+        uint32 _allocationPer
     ) external onlyOwner {
         // Check if the collateral is valid
         // Check if collateral strategy not allready added.
@@ -194,11 +194,12 @@ contract CollateralManager is ICollateralManager, Ownable {
             "Strategy already mapped"
         );
         require(
-            collateralInfo[_collateral].allocationAllowed,
-            "Allocation not allowed"
+            IStrategy(_strategy).supportsCollateral(_collateral),
+            "Collateral not supported"
         );
+
         require(
-            _allocationPer >
+            _allocationPer <=
                 (ALLC_PERC_PRECISION -
                     collateralInfo[_collateral].collateralCapacityUsed),
             "AllocationPer  exceeded"
@@ -209,9 +210,7 @@ contract CollateralManager is ICollateralManager, Ownable {
             true
         );
         collateralStrategies[_collateral].push(_strategy);
-        collateralInfo[_collateral].collateralCapacityUsed =
-            collateralInfo[_collateral].collateralCapacityUsed +
-            _allocationPer;
+        collateralInfo[_collateral].collateralCapacityUsed += _allocationPer;
 
         emit CollateralStrategyAdded(_collateral, _strategy);
     }
@@ -234,7 +233,7 @@ contract CollateralManager is ICollateralManager, Ownable {
             "Strategy doen't exist"
         );
         require(
-            _allocationPer >
+            _allocationPer <=
                 (ALLC_PERC_PRECISION -
                     (collateralInfo[_collateral].collateralCapacityUsed +
                         collateralStrategyInfo[_collateral][_strategy]
@@ -284,6 +283,12 @@ contract CollateralManager is ICollateralManager, Ownable {
             collateralStrategyInfo[_collateral][_strategy].exists,
             "Strategy doen't exist"
         );
+
+        require(
+            collateralInfo[_collateral].defaultStrategy != _strategy,
+            "DS removal not allowed"
+        );
+
         require(
             IStrategy(_strategy).checkBalance(_collateral) == 0,
             "Strategy in use"
@@ -297,6 +302,10 @@ contract CollateralManager is ICollateralManager, Ownable {
                     _collateral
                 ][numStrategy - 1];
                 collateralStrategies[_collateral].pop();
+                collateralInfo[_collateral]
+                    .collateralCapacityUsed -= collateralStrategyInfo[
+                    _collateral
+                ][_strategy].allocationCap;
                 delete collateralStrategyInfo[_collateral][_strategy];
                 break;
             }
@@ -332,20 +341,19 @@ contract CollateralManager is ICollateralManager, Ownable {
         address _strategy,
         uint256 _amount
     ) external view returns (bool) {
+        require(
+            collateralInfo[_collateral].allocationAllowed,
+            "Allocation not allowed"
+        );
+
         uint256 maxCollateralUsage = (collateralStrategyInfo[_collateral][
             _strategy
         ].allocationCap *
             (getCollateralInVault(_collateral) +
                 getCollateralInStrategies(_collateral))) / ALLC_PERC_PRECISION;
 
-        if (
-            (maxCollateralUsage -
-                IStrategy(_strategy).checkBalance(_collateral)) >= _amount
-        ) {
-            return true;
-        } else {
-            return false;
-        }
+        return ((maxCollateralUsage -
+            IStrategy(_strategy).checkBalance(_collateral)) >= _amount);
     }
 
     /// @notice Get the required data for mint
