@@ -21,7 +21,7 @@ contract CollateralManager is ICollateralManager, Ownable {
         uint16 baseFeeOut;
         uint16 upsidePeg;
         uint16 downsidePeg;
-        uint32 collateralCapacityUsed;
+        uint256 collateralCapacityUsed;
     }
 
     struct CollateralData {
@@ -125,23 +125,14 @@ contract CollateralManager is ICollateralManager, Ownable {
             "Illegal BaseFee input"
         );
 
-        CollateralStorageData memory currentCollateralData = collateralInfo[
-            _collateral
-        ];
-
-        collateralInfo[_collateral] = CollateralStorageData({
-            mintAllowed: _updateData.mintAllowed,
-            redeemAllowed: _updateData.redeemAllowed,
-            allocationAllowed: _updateData.allocationAllowed,
-            defaultStrategy: currentCollateralData.defaultStrategy,
-            baseFeeIn: _updateData.baseFeeIn,
-            baseFeeOut: _updateData.baseFeeOut,
-            upsidePeg: _updateData.upsidePeg,
-            downsidePeg: _updateData.downsidePeg,
-            collateralCapacityUsed: currentCollateralData
-                .collateralCapacityUsed,
-            exists: true
-        });
+        CollateralStorageData storage data = collateralInfo[_collateral];
+        data.mintAllowed = _updateData.mintAllowed;
+        data.redeemAllowed = _updateData.redeemAllowed;
+        data.allocationAllowed = _updateData.allocationAllowed;
+        data.baseFeeIn = _updateData.baseFeeIn;
+        data.baseFeeOut = _updateData.baseFeeOut;
+        data.upsidePeg = _updateData.upsidePeg;
+        data.downsidePeg = _updateData.downsidePeg;
 
         emit CollateralInfoUpdated(_collateral, _updateData);
     }
@@ -195,7 +186,7 @@ contract CollateralManager is ICollateralManager, Ownable {
         );
         require(
             IStrategy(_strategy).supportsCollateral(_collateral),
-            "Collateral not supported"
+            "Collateral allocation not supported"
         );
 
         require(
@@ -227,41 +218,39 @@ contract CollateralManager is ICollateralManager, Ownable {
         // Check if collateral and strategy are mapped
         // Check if _allocationPer <= 100 - collateralCapacityUsed  + oldAllocationPer
         // Update the info
-        require(collateralInfo[_collateral].exists, "Collateral doen't exist");
         require(
             collateralStrategyInfo[_collateral][_strategy].exists,
             "Strategy doen't exist"
         );
-        require(
-            _allocationPer <=
-                (ALLC_PERC_PRECISION -
-                    (collateralInfo[_collateral].collateralCapacityUsed +
-                        collateralStrategyInfo[_collateral][_strategy]
-                            .allocationCap)),
-            "AllocationPer  exceeded"
-        );
 
+        CollateralStorageData storage collateralData = collateralInfo[
+            _collateral
+        ];
+        StrategyData storage strategyData = collateralStrategyInfo[_collateral][
+            _strategy
+        ];
+
+        uint256 newCapacityUsed = collateralData.collateralCapacityUsed -
+            strategyData.allocationCap +
+            _allocationPer;
+        uint256 totalCollateral = getCollateralInVault(_collateral) +
+            getCollateralInStrategies(_collateral);
         uint256 currentAllocatedPer = (getCollateralInAStrategy(
             _collateral,
             _strategy
-        ) * ALLC_PERC_PRECISION) /
-            (getCollateralInVault(_collateral) +
-                getCollateralInStrategies(_collateral));
+        ) * ALLC_PERC_PRECISION) / totalCollateral;
 
+        require(
+            _allocationPer <= (ALLC_PERC_PRECISION - newCapacityUsed),
+            "AllocationPer exceeded"
+        );
         require(
             _allocationPer < currentAllocatedPer,
             "AllocationPer not valid"
         );
 
-        collateralInfo[_collateral].collateralCapacityUsed =
-            (collateralInfo[_collateral].collateralCapacityUsed -
-                collateralStrategyInfo[_collateral][_strategy].allocationCap) +
-            _allocationPer;
-
-        collateralStrategyInfo[_collateral][_strategy] = StrategyData(
-            _allocationPer,
-            true
-        );
+        collateralData.collateralCapacityUsed = newCapacityUsed;
+        strategyData.allocationCap = _allocationPer;
 
         emit CollateralStrategyUpdated(_collateral, _strategy);
     }
@@ -286,7 +275,7 @@ contract CollateralManager is ICollateralManager, Ownable {
 
         require(
             collateralInfo[_collateral].defaultStrategy != _strategy,
-            "DS removal not allowed"
+            "Default strategy removal not allowed"
         );
 
         require(
