@@ -45,26 +45,6 @@ contract CollateralManager is ICollateralManager, Ownable {
     event CollateralStrategyUpdated(address collateral, address strategy);
     event CollateralStrategyRemoved(address collateral, address strategy);
 
-    function validatePegInputs(
-        uint256 downsidePeg,
-        uint256 upsidePeg
-    ) internal pure {
-        require(
-            downsidePeg <= PERC_PRECISION && upsidePeg <= PERC_PRECISION,
-            "Illegal Peg input"
-        );
-    }
-
-    function validateBaseFeeInputs(
-        uint256 baseFeeIn,
-        uint256 baseFeeOut
-    ) internal pure {
-        require(
-            baseFeeIn <= PERC_PRECISION && baseFeeOut <= PERC_PRECISION,
-            "Illegal BaseFee input"
-        );
-    }
-
     /// @notice Register a collateral for mint & redeem in USDs
     /// @param _collateral Address of the collateral
     /// @param _data Collateral configuration data
@@ -434,5 +414,25 @@ contract CollateralManager is ICollateralManager, Ownable {
         address _strategy
     ) public view returns (uint256 allocatedAmt) {
         return IStrategy(_strategy).checkBalance(_collateral);
+    }
+
+    function validatePegInputs(
+        uint256 downsidePeg,
+        uint256 upsidePeg
+    ) internal pure {
+        require(
+            downsidePeg <= PERC_PRECISION && upsidePeg <= PERC_PRECISION,
+            "Illegal Peg input"
+        );
+    }
+
+    function validateBaseFeeInputs(
+        uint256 baseFeeIn,
+        uint256 baseFeeOut
+    ) internal pure {
+        require(
+            baseFeeIn <= PERC_PRECISION && baseFeeOut <= PERC_PRECISION,
+            "Illegal BaseFee input"
+        );
     }
 }
