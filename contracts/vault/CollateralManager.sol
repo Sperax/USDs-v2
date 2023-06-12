@@ -18,6 +18,7 @@ contract CollateralManager is ICollateralManager, Ownable {
         uint16 baseFeeOut;
         uint16 downsidePeg;
         uint256 collateralCapacityUsed;
+        uint256 collateralCompostion;
     }
 
     struct StrategyData {
@@ -27,6 +28,8 @@ contract CollateralManager is ICollateralManager, Ownable {
 
     uint32 public numCollaterals;
     uint32 public numCollateralStrategy;
+    uint256 private collateralCompostionUsed;
+
     address public vaultCore;
     address[] private collaterals;
     mapping(address => CollateralData) public collateralInfo;
@@ -61,6 +64,12 @@ contract CollateralManager is ICollateralManager, Ownable {
         validatePegInputs(_data.downsidePeg);
         validateBaseFeeInputs(_data.baseFeeIn, _data.baseFeeOut);
 
+        require(
+            _data.collateralCompostion <=
+                (PERC_PRECISION - collateralCompostionUsed),
+            "CollateralCompostion  exceeded"
+        );
+
         collateralInfo[_collateral] = CollateralData({
             mintAllowed: _data.mintAllowed,
             redeemAllowed: _data.redeemAllowed,
@@ -70,10 +79,12 @@ contract CollateralManager is ICollateralManager, Ownable {
             baseFeeOut: _data.baseFeeOut,
             downsidePeg: _data.downsidePeg,
             collateralCapacityUsed: 0,
+            collateralCompostion: _data.collateralCompostion,
             exists: true
         });
 
         collaterals.push(_collateral);
+        collateralCompostionUsed += _data.collateralCompostion;
 
         emit CollateralAdded(_collateral, _data);
     }
@@ -93,12 +104,26 @@ contract CollateralManager is ICollateralManager, Ownable {
         validateBaseFeeInputs(_updateData.baseFeeIn, _updateData.baseFeeOut);
 
         CollateralData storage data = collateralInfo[_collateral];
+
+        uint256 newCapacityUsed = (collateralCompostionUsed -
+            data.collateralCompostion +
+            _updateData.collateralCompostion);
+
+        require(
+            _updateData.collateralCompostion <=
+                (PERC_PRECISION - newCapacityUsed),
+            "Collaterlcompostion exceeded"
+        );
+
         data.mintAllowed = _updateData.mintAllowed;
         data.redeemAllowed = _updateData.redeemAllowed;
         data.allocationAllowed = _updateData.allocationAllowed;
         data.baseFeeIn = _updateData.baseFeeIn;
         data.baseFeeOut = _updateData.baseFeeOut;
         data.downsidePeg = _updateData.downsidePeg;
+        data.collateralCompostion = _updateData.collateralCompostion;
+
+        collateralCompostionUsed = newCapacityUsed;
 
         emit CollateralInfoUpdated(_collateral, _updateData);
     }
@@ -118,6 +143,8 @@ contract CollateralManager is ICollateralManager, Ownable {
             if (collaterals[i] == _collateral) {
                 collaterals[i] = collaterals[numCollateral - 1];
                 collaterals.pop();
+                collateralCompostionUsed -= collateralInfo[_collateral]
+                    .collateralCompostion;
                 delete (collateralInfo[_collateral]);
                 break;
             }
