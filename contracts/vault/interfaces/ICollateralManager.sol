@@ -9,6 +9,7 @@ interface ICollateralManager {
         uint16 baseFeeIn;
         uint16 baseFeeOut;
         uint16 downsidePeg;
+        uint256 collateralCompostion;
     }
 
     struct CollateralMintData {
