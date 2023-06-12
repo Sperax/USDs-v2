@@ -16,7 +16,6 @@ contract CollateralManager is ICollateralManager, Ownable {
         address defaultStrategy;
         uint16 baseFeeIn;
         uint16 baseFeeOut;
-        uint16 upsidePeg;
         uint16 downsidePeg;
         uint256 collateralCapacityUsed;
     }
@@ -59,7 +58,7 @@ contract CollateralManager is ICollateralManager, Ownable {
             "Collateral already exists"
         );
 
-        validatePegInputs(_data.downsidePeg, _data.upsidePeg);
+        validatePegInputs(_data.downsidePeg);
         validateBaseFeeInputs(_data.baseFeeIn, _data.baseFeeOut);
 
         collateralInfo[_collateral] = CollateralData({
@@ -69,7 +68,6 @@ contract CollateralManager is ICollateralManager, Ownable {
             defaultStrategy: address(0),
             baseFeeIn: _data.baseFeeIn,
             baseFeeOut: _data.baseFeeOut,
-            upsidePeg: _data.upsidePeg,
             downsidePeg: _data.downsidePeg,
             collateralCapacityUsed: 0,
             exists: true
@@ -91,7 +89,7 @@ contract CollateralManager is ICollateralManager, Ownable {
         // Update the collateral storage data
         require(collateralInfo[_collateral].exists, "Collateral doesn't exist");
 
-        validatePegInputs(_updateData.downsidePeg, _updateData.upsidePeg);
+        validatePegInputs(_updateData.downsidePeg);
         validateBaseFeeInputs(_updateData.baseFeeIn, _updateData.baseFeeOut);
 
         CollateralData storage data = collateralInfo[_collateral];
@@ -100,7 +98,6 @@ contract CollateralManager is ICollateralManager, Ownable {
         data.allocationAllowed = _updateData.allocationAllowed;
         data.baseFeeIn = _updateData.baseFeeIn;
         data.baseFeeOut = _updateData.baseFeeOut;
-        data.upsidePeg = _updateData.upsidePeg;
         data.downsidePeg = _updateData.downsidePeg;
 
         emit CollateralInfoUpdated(_collateral, _updateData);
@@ -330,8 +327,7 @@ contract CollateralManager is ICollateralManager, Ownable {
         return
             CollateralMintData({
                 mintAllowed: collateralStorageData.mintAllowed,
-                baseFeeIn: collateralStorageData.baseFeeIn,
-                upsidePeg: collateralStorageData.upsidePeg
+                baseFeeIn: collateralStorageData.baseFeeIn
             });
     }
 
@@ -416,14 +412,8 @@ contract CollateralManager is ICollateralManager, Ownable {
         return IStrategy(_strategy).checkBalance(_collateral);
     }
 
-    function validatePegInputs(
-        uint256 downsidePeg,
-        uint256 upsidePeg
-    ) internal pure {
-        require(
-            downsidePeg <= PERC_PRECISION && upsidePeg <= PERC_PRECISION,
-            "Illegal Peg input"
-        );
+    function validatePegInputs(uint256 downsidePeg) internal pure {
+        require(downsidePeg <= PERC_PRECISION, "Illegal Peg input");
     }
 
     function validateBaseFeeInputs(

@@ -8,14 +8,12 @@ interface ICollateralManager {
         bool allocationAllowed;
         uint16 baseFeeIn;
         uint16 baseFeeOut;
-        uint16 upsidePeg;
         uint16 downsidePeg;
     }
 
     struct CollateralMintData {
         bool mintAllowed;
         uint16 baseFeeIn;
-        uint16 upsidePeg;
     }
 
     struct CollateralRedeemData {
