@@ -109,7 +109,7 @@ contract AaveStrategy is InitializableAbstractStrategy {
         require(_amount > 0, "Must deposit something");
         // Following line also doubles as a check that we are depositing
         // an asset that we support.
-        allocatedAmt[_asset] = allocatedAmt[_asset] + _amount;
+        allocatedAmt[_asset] += _amount;
 
         IERC20(_asset).safeTransferFrom(msg.sender, address(this), _amount);
         IERC20(_asset).safeApprove(address(aavePool), _amount);
