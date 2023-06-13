@@ -17,7 +17,7 @@ abstract contract InitializableAbstractStrategy is
     mapping(address => address) public assetToPToken;
 
     event VaultUpdated(address newVaultAddr);
-    event yieldReceiverUpdated(address newYieldReceiver);
+    event YieldReceiverUpdated(address newYieldReceiver);
     event PTokenAdded(address indexed asset, address pToken);
     event PTokenRemoved(address indexed asset, address pToken);
     event Deposit(address indexed asset, address pToken, uint256 amount);
@@ -52,11 +52,15 @@ abstract contract InitializableAbstractStrategy is
     }
 
     function updateVaultCore(address _newVault) external onlyOwner {
+        _isNonZeroAddr(_newVault);
         vaultAddress = _newVault;
+        emit VaultUpdated(_newVault);
     }
 
     function updateYieldReciever(address _newYieldReceiver) external onlyOwner {
+        _isNonZeroAddr(_newYieldReceiver);
         yieldReceiver = _newYieldReceiver;
+        emit YieldReceiverUpdated(_newYieldReceiver);
     }
 
     /// @dev Deposit an amount of asset into the platform
