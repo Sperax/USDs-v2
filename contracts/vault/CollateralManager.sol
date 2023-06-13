@@ -17,18 +17,20 @@ contract CollateralManager is ICollateralManager, Ownable {
         uint16 baseFeeIn;
         uint16 baseFeeOut;
         uint16 downsidePeg;
-        uint256 collateralCapacityUsed;
-        uint256 collateralCompostion;
+        uint16 collateralCompostion;
+        uint16 collateralCapacityUsed;
     }
 
     struct StrategyData {
-        uint32 allocationCap;
+        uint16 allocationCap;
         bool exists;
     }
 
+    uint256 public constant PERC_PRECISION = 10 ** 4;
+
     uint32 public numCollaterals;
     uint32 public numCollateralStrategy;
-    uint256 private collateralCompostionUsed;
+    uint16 private collateralCompostionUsed;
 
     address public vaultCore;
     address[] private collaterals;
@@ -37,8 +39,6 @@ contract CollateralManager is ICollateralManager, Ownable {
         private collateralStrategyInfo;
 
     mapping(address => address[]) private collateralStrategies;
-
-    uint256 public constant PERC_PRECISION = 10 ** 4;
 
     event CollateralAdded(address collateral, CollateralBaseData data);
     event CollateralRemoved(address collateral);
@@ -61,8 +61,8 @@ contract CollateralManager is ICollateralManager, Ownable {
             "Collateral already exists"
         );
 
-        validatePegInputs(_data.downsidePeg);
-        validateBaseFeeInputs(_data.baseFeeIn, _data.baseFeeOut);
+        _validatePegInputs(_data.downsidePeg);
+        _validateBaseFeeInputs(_data.baseFeeIn, _data.baseFeeOut);
 
         require(
             _data.collateralCompostion <=
@@ -100,12 +100,12 @@ contract CollateralManager is ICollateralManager, Ownable {
         // Update the collateral storage data
         require(collateralInfo[_collateral].exists, "Collateral doesn't exist");
 
-        validatePegInputs(_updateData.downsidePeg);
-        validateBaseFeeInputs(_updateData.baseFeeIn, _updateData.baseFeeOut);
+        _validatePegInputs(_updateData.downsidePeg);
+        _validateBaseFeeInputs(_updateData.baseFeeIn, _updateData.baseFeeOut);
 
         CollateralData storage data = collateralInfo[_collateral];
 
-        uint256 newCapacityUsed = (collateralCompostionUsed -
+        uint16 newCapacityUsed = (collateralCompostionUsed -
             data.collateralCompostion +
             _updateData.collateralCompostion);
 
@@ -164,7 +164,7 @@ contract CollateralManager is ICollateralManager, Ownable {
     function addCollateralStrategy(
         address _collateral,
         address _strategy,
-        uint32 _allocationCap
+        uint16 _allocationCap
     ) external onlyOwner {
         // Check if the collateral is valid
         // Check if collateral strategy not allready added.
@@ -221,7 +221,7 @@ contract CollateralManager is ICollateralManager, Ownable {
             _strategy
         ];
 
-        uint256 newCapacityUsed = collateralData.collateralCapacityUsed -
+        uint16 newCapacityUsed = collateralData.collateralCapacityUsed -
             strategyData.allocationCap +
             _allocationCap;
         uint256 totalCollateral = getCollateralInVault(_collateral) +
@@ -354,7 +354,8 @@ contract CollateralManager is ICollateralManager, Ownable {
         return
             CollateralMintData({
                 mintAllowed: collateralStorageData.mintAllowed,
-                baseFeeIn: collateralStorageData.baseFeeIn
+                baseFeeIn: collateralStorageData.baseFeeIn,
+                downsidePeg: collateralStorageData.downsidePeg
             });
     }
 
@@ -376,8 +377,7 @@ contract CollateralManager is ICollateralManager, Ownable {
             CollateralRedeemData({
                 redeemAllowed: collateralStorageData.redeemAllowed,
                 defaultStrategy: collateralStorageData.defaultStrategy,
-                baseFeeOut: collateralStorageData.baseFeeOut,
-                downsidePeg: collateralStorageData.downsidePeg
+                baseFeeOut: collateralStorageData.baseFeeOut
             });
     }
 
@@ -439,11 +439,11 @@ contract CollateralManager is ICollateralManager, Ownable {
         return IStrategy(_strategy).checkBalance(_collateral);
     }
 
-    function validatePegInputs(uint256 downsidePeg) internal pure {
+    function _validatePegInputs(uint256 downsidePeg) internal pure {
         require(downsidePeg <= PERC_PRECISION, "Illegal Peg input");
     }
 
-    function validateBaseFeeInputs(
+    function _validateBaseFeeInputs(
         uint256 baseFeeIn,
         uint256 baseFeeOut
     ) internal pure {

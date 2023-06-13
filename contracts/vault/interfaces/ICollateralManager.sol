@@ -9,19 +9,19 @@ interface ICollateralManager {
         uint16 baseFeeIn;
         uint16 baseFeeOut;
         uint16 downsidePeg;
-        uint256 collateralCompostion;
+        uint16 collateralCompostion;
     }
 
     struct CollateralMintData {
         bool mintAllowed;
         uint16 baseFeeIn;
+        uint16 downsidePeg;
     }
 
     struct CollateralRedeemData {
         bool redeemAllowed;
         address defaultStrategy;
         uint16 baseFeeOut;
-        uint16 downsidePeg;
     }
 
     /// @notice Validate allocation for a collateral
