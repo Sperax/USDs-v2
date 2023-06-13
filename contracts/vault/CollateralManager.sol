@@ -61,11 +61,9 @@ contract CollateralManager is ICollateralManager, Ownable {
             "Collateral already exists"
         );
 
-        _validatePrecision(
-            _data.downsidePeg,
-            _data.baseFeeIn,
-            _data.baseFeeOut
-        );
+        _validatePrecision(_data.downsidePeg);
+        _validatePrecision(_data.baseFeeIn);
+        _validatePrecision(_data.baseFeeOut);
 
         require(
             _data.collateralCompostion <=
@@ -103,11 +101,9 @@ contract CollateralManager is ICollateralManager, Ownable {
         // Update the collateral storage data
         require(collateralInfo[_collateral].exists, "Collateral doesn't exist");
 
-        _validatePrecision(
-            _updateData.downsidePeg,
-            _updateData.baseFeeIn,
-            _updateData.baseFeeOut
-        );
+        _validatePrecision(_updateData.downsidePeg);
+        _validatePrecision(_updateData.baseFeeIn);
+        _validatePrecision(_updateData.baseFeeOut);
 
         CollateralData storage data = collateralInfo[_collateral];
 
@@ -445,15 +441,7 @@ contract CollateralManager is ICollateralManager, Ownable {
         return IStrategy(_strategy).checkBalance(_collateral);
     }
 
-    function _validatePrecision(
-        uint256 downsidePeg,
-        uint256 baseFeeIn,
-        uint256 baseFeeOut
-    ) internal pure {
-        require(downsidePeg <= PERC_PRECISION, "Illegal Peg input");
-        require(
-            baseFeeIn <= PERC_PRECISION && baseFeeOut <= PERC_PRECISION,
-            "Illegal BaseFee input"
-        );
+    function _validatePrecision(uint16 _value) internal pure {
+        require(_value <= PERC_PRECISION, "Illegal PERC input");
     }
 }
