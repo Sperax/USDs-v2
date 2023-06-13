@@ -215,7 +215,7 @@ contract CollateralManager is ICollateralManager, Ownable {
         // Update the info
         require(
             collateralStrategyInfo[_collateral][_strategy].exists,
-            "Strategy doen't exist"
+            "Strategy not mapped"
         );
 
         CollateralData storage collateralData = collateralInfo[_collateral];
@@ -263,7 +263,7 @@ contract CollateralManager is ICollateralManager, Ownable {
         // remove item from list.
         require(
             collateralStrategyInfo[_collateral][_strategy].exists,
-            "Strategy doen't exist"
+            "Strategy not mapped"
         );
 
         require(
