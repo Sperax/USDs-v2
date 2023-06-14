@@ -18,7 +18,7 @@ interface IStrategy {
     ) external;
 
     /// @notice Check if collateral allocation is supported by the strategy
-    function supportsCollateral() external view returns (bool);
+    function supportsCollateral(address _asset) external view returns (bool);
 
     /// @notice Get the amount of a specific asset held in the strategy
     ///           excluding the interest

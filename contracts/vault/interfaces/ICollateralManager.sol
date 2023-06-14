@@ -2,17 +2,26 @@
 pragma solidity 0.8.16;
 
 interface ICollateralManager {
+    struct CollateralBaseData {
+        bool mintAllowed;
+        bool redeemAllowed;
+        bool allocationAllowed;
+        uint16 baseFeeIn;
+        uint16 baseFeeOut;
+        uint16 downsidePeg;
+        uint16 collateralCompostion;
+    }
+
     struct CollateralMintData {
         bool mintAllowed;
         uint16 baseFeeIn;
-        uint16 upsidePeg;
+        uint16 downsidePeg;
     }
 
     struct CollateralRedeemData {
         bool redeemAllowed;
         address defaultStrategy;
         uint16 baseFeeOut;
-        uint16 downsidePeg;
     }
 
     /// @notice Validate allocation for a collateral

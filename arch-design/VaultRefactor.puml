@@ -74,7 +74,6 @@
             + uint8 basefeeIn;
             + uint8 basefeeOut;
             + uint16 downsidePeg;
-            + uint16 upsidePeg;
             + uint16 collateralCapacityUsed;
         }
 
@@ -82,7 +81,7 @@
         struct CollateralMintData{
             bool mintAllowed;
             uint16 baseFeeIn;
-            uint16 upsidePeg;
+            uint16 downsidePeg;
         }
 
         ' All the necessary information for redeeming via a collateral
@@ -90,8 +89,6 @@
             bool redeemAllowed;
             address defaultStrategy;
             uint16 baseFeeOut;
-            uint16 downsidePeg;
-
         }
 
         class CollateralManager {

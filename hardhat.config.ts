@@ -5,10 +5,7 @@ import "@nomiclabs/hardhat-solhint";
 import "@openzeppelin/hardhat-upgrades";
 import { config as dotenvConf } from "dotenv";
 import { task } from "hardhat/config";
-import type {
-  HardhatUserConfig,
-  HttpNetworkUserConfig,
-} from "hardhat/types";
+import type { HardhatUserConfig, HttpNetworkUserConfig } from "hardhat/types";
 
 dotenvConf({ path: __dirname + "/.env" });
 
