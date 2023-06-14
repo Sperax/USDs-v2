@@ -26,6 +26,12 @@ import {InitializableAbstractStrategy} from "../InitializableAbstractStrategy.so
 /// @notice A yield earning strategy for USDs protocol
 contract StargateStrategy is InitializableAbstractStrategy {
     using SafeERC20 for IERC20;
+    struct AssetInfo {
+        uint256 allocatedAmt; // tracks the allocated amount for an asset.
+        uint256 intLiqThreshold; // tracks the interest liq threshold for an asset.
+        uint256 rewardPID; // maps asset to farm reward pool id
+        uint16 pid; // maps asset to pool id
+    }
 
     uint256 public constant SLIPPAGE_PREC = 10000;
     bool public skipRwdValidation; // skip reward validation, for emergency use.
@@ -33,11 +39,7 @@ contract StargateStrategy is InitializableAbstractStrategy {
     address public farm;
     uint256 public withdrawSlippage;
     uint256 public depositSlippage;
-
-    mapping(address => uint256) private allocatedAmt; // tracks the allocated amount for an asset.
-    mapping(address => uint256) private intLiqThreshold; // tracks the interest liq threshold for an asset.
-    mapping(address => uint256) private rewardPIDs; // maps asset to farm reward pool id
-    mapping(address => uint16) private pid; // maps asset to pool id
+    mapping(address => AssetInfo) private assetInfo;
 
     event SkipRwdValidationStatus(bool status);
     event SlippageChanged(uint256 depositSlippage, uint256 withdrawSlippage);
@@ -58,8 +60,6 @@ contract StargateStrategy is InitializableAbstractStrategy {
         _isNonZeroAddr(_router);
         _isNonZeroAddr(_stg);
         _isNonZeroAddr(_farm);
-        address[] memory assets = new address[](0);
-        address[] memory pToken = new address[](0);
         router = _router;
         farm = _farm;
         depositSlippage = _depositSlippage;
@@ -72,8 +72,8 @@ contract StargateStrategy is InitializableAbstractStrategy {
         InitializableAbstractStrategy._initialize(
             _vaultAddress,
             _yieldReceiver,
-            assets,
-            pToken
+            new address[](0),
+            new address[](0)
         );
     }
 
@@ -99,27 +99,28 @@ contract StargateStrategy is InitializableAbstractStrategy {
         (IERC20 lpToken, , , ) = ILPStaking(farm).poolInfo(_rewardPid);
         require(address(lpToken) == _pToken, "Incorrect _rewardPID");
         _setPTokenAddress(_asset, _pToken);
-        pid[_asset] = _pid;
-        intLiqThreshold[_asset] = _intLiqThreshold;
-        rewardPIDs[_asset] = _rewardPid;
+        assetInfo[_asset] = AssetInfo({
+            allocatedAmt: 0,
+            pid: _pid,
+            rewardPID: _rewardPid,
+            intLiqThreshold: _intLiqThreshold
+        });
     }
 
     /// @dev Remove a supported asset by passing its index.
     ///       This method can only be called by the system owner
     ///  @param _assetIndex Index of the asset to be removed
     function removePToken(uint256 _assetIndex) external onlyOwner {
-        require(_assetIndex < assetsMapped.length, "Invalid index");
+        uint256 numAssets = assetsMapped.length;
+        require(_assetIndex < numAssets, "Invalid index");
         address asset = assetsMapped[_assetIndex];
+        require(assetInfo[asset].allocatedAmt == 0, "Collateral allocted");
         address pToken = assetToPToken[asset];
 
-        if (_assetIndex < assetsMapped.length - 1) {
-            assetsMapped[_assetIndex] = assetsMapped[assetsMapped.length - 1];
-        }
+        assetsMapped[_assetIndex] = assetsMapped[numAssets - 1];
         assetsMapped.pop();
         delete assetToPToken[asset];
-        delete pid[asset];
-        delete rewardPIDs[asset];
-        delete intLiqThreshold[asset];
+        delete assetInfo[asset];
 
         emit PTokenRemoved(asset, pToken);
     }
@@ -132,11 +133,11 @@ contract StargateStrategy is InitializableAbstractStrategy {
         uint256 _intLiqThreshold
     ) external onlyOwner {
         require(
-            intLiqThreshold[_asset] != _intLiqThreshold,
+            assetInfo[_asset].intLiqThreshold != _intLiqThreshold,
             "Invalid threshold value"
         );
         require(supportsCollateral(_asset), "Asset not supported");
-        intLiqThreshold[_asset] = _intLiqThreshold;
+        assetInfo[_asset].intLiqThreshold = _intLiqThreshold;
 
         emit IntLiqThresholdChanged(_asset, _intLiqThreshold);
     }
@@ -179,7 +180,7 @@ contract StargateStrategy is InitializableAbstractStrategy {
 
         // Add liquidity in the stargate pool.
         IStargateRouter(router).addLiquidity(
-            pid[_asset],
+            assetInfo[_asset].pid,
             _amount,
             address(this)
         );
@@ -194,10 +195,10 @@ contract StargateStrategy is InitializableAbstractStrategy {
         require(depositAmt >= minDepositAmt, "Insufficient deposit amount");
 
         // Update the allocated amount in the strategy
-        allocatedAmt[_asset] = allocatedAmt[_asset] + depositAmt;
+        assetInfo[_asset].allocatedAmt += depositAmt;
 
         IERC20(sToken).safeApprove(farm, sTokenBal);
-        ILPStaking(farm).deposit(rewardPIDs[_asset], sTokenBal);
+        ILPStaking(farm).deposit(assetInfo[_asset].rewardPID, sTokenBal);
         emit Deposit(_asset, sToken, depositAmt);
     }
 
@@ -230,7 +231,7 @@ contract StargateStrategy is InitializableAbstractStrategy {
         uint256 earnedInterest = checkInterestEarned(_asset);
         interestAssets = new address[](1);
         interestAmts = new uint256[](1);
-        if (earnedInterest > intLiqThreshold[_asset]) {
+        if (earnedInterest > assetInfo[_asset].intLiqThreshold) {
             interestAssets[0] = _asset;
             interestAmts[0] = _withdraw(
                 true,
@@ -251,7 +252,8 @@ contract StargateStrategy is InitializableAbstractStrategy {
         rewardAssets = new address[](1);
         rewardAssets[0] = rewardTokenAddress[0];
         rewardAmts = new uint256[](1);
-        for (uint256 i = 0; i < assetsMapped.length; i++) {
+        uint256 numAssets = assetsMapped.length;
+        for (uint256 i = 0; i < numAssets; ) {
             address asset = assetsMapped[i];
             uint256 rewardAmt = checkPendingRewards(asset);
             if (
@@ -259,7 +261,10 @@ contract StargateStrategy is InitializableAbstractStrategy {
                 (skipRwdValidation ||
                     rewardAmt <= IERC20(rewardTokenAddress[0]).balanceOf(farm))
             ) {
-                ILPStaking(farm).deposit(rewardPIDs[asset], 0);
+                ILPStaking(farm).deposit(assetInfo[asset].rewardPID, 0);
+            }
+            unchecked {
+                ++i;
             }
         }
         rewardAmts[0] = IERC20(rewardTokenAddress[0]).balanceOf(address(this));
@@ -287,18 +292,25 @@ contract StargateStrategy is InitializableAbstractStrategy {
     function checkPendingRewards(address _asset) public view returns (uint256) {
         require(supportsCollateral(_asset), "Collateral not supported");
         return
-            ILPStaking(farm).pendingStargate(rewardPIDs[_asset], address(this));
+            ILPStaking(farm).pendingStargate(
+                assetInfo[_asset].rewardPID,
+                address(this)
+            );
     }
 
     /// @inheritdoc InitializableAbstractStrategy
     function checkRewardEarned() public view override returns (uint256) {
         uint256 pendingRewards = 0;
-        for (uint256 i = 0; i < assetsMapped.length; i++) {
+        uint256 numAssets = assetsMapped.length;
+        for (uint256 i = 0; i < numAssets; ) {
             address asset = assetsMapped[i];
             pendingRewards += ILPStaking(farm).pendingStargate(
-                rewardPIDs[asset],
+                assetInfo[asset].rewardPID,
                 address(this)
             );
+            unchecked {
+                ++i;
+            }
         }
         uint256 claimedRewards = IERC20(rewardTokenAddress[0]).balanceOf(
             address(this)
@@ -313,10 +325,10 @@ contract StargateStrategy is InitializableAbstractStrategy {
         uint256 sTokenBal = checkLPTokenBalance(_asset);
 
         uint256 collateralBal = _convertToCollateral(_asset, sTokenBal);
-        if (collateralBal <= allocatedAmt[_asset]) {
+        if (collateralBal <= assetInfo[_asset].allocatedAmt) {
             return 0;
         }
-        return collateralBal - allocatedAmt[_asset];
+        return collateralBal - assetInfo[_asset].allocatedAmt;
     }
 
     /// @inheritdoc InitializableAbstractStrategy
@@ -325,8 +337,8 @@ contract StargateStrategy is InitializableAbstractStrategy {
     ) public view override returns (uint256) {
         uint256 sTokenBal = checkLPTokenBalance(_asset);
         uint256 calcCollateralBal = _convertToCollateral(_asset, sTokenBal);
-        if (allocatedAmt[_asset] <= calcCollateralBal) {
-            return allocatedAmt[_asset];
+        if (assetInfo[_asset].allocatedAmt <= calcCollateralBal) {
+            return assetInfo[_asset].allocatedAmt;
         }
         return calcCollateralBal;
     }
@@ -346,10 +358,10 @@ contract StargateStrategy is InitializableAbstractStrategy {
             _asset,
             pool.deltaCredit()
         );
-        if (availableFunds <= allocatedAmt[_asset]) {
+        if (availableFunds <= assetInfo[_asset].allocatedAmt) {
             return availableFunds;
         }
-        return allocatedAmt[_asset];
+        return assetInfo[_asset].allocatedAmt;
     }
 
     /// @inheritdoc InitializableAbstractStrategy
@@ -358,7 +370,7 @@ contract StargateStrategy is InitializableAbstractStrategy {
     ) public view override returns (uint256) {
         require(supportsCollateral(_asset), "Collateral not supported");
         (uint256 sTokenStaked, ) = ILPStaking(farm).userInfo(
-            rewardPIDs[_asset],
+            assetInfo[_asset].rewardPID,
             address(this)
         );
         return sTokenStaked;
@@ -417,19 +429,19 @@ contract StargateStrategy is InitializableAbstractStrategy {
         require(_validateRwdClaim(_asset), "Insufficient rwd fund in farm");
         address sToken = assetToPToken[_asset];
         uint256 sTokenAmt = _convertToSToken(_asset, _amount);
-        ILPStaking(farm).withdraw(rewardPIDs[_asset], sTokenAmt);
+        ILPStaking(farm).withdraw(assetInfo[_asset].rewardPID, sTokenAmt);
 
         uint256 minRecvAmt = (_amount * (SLIPPAGE_PREC - withdrawSlippage)) /
             SLIPPAGE_PREC;
         uint256 amtRecv = IStargateRouter(router).instantRedeemLocal(
-            pid[_asset],
+            assetInfo[_asset].pid,
             sTokenAmt,
             _recipient
         );
         require(amtRecv >= minRecvAmt, "Did not withdraw enough");
 
         if (!_withdrawInterest) {
-            allocatedAmt[_asset] = allocatedAmt[_asset] - amtRecv;
+            assetInfo[_asset].allocatedAmt -= amtRecv;
             emit Withdrawal(_asset, sToken, amtRecv);
         } else {
             emit InterestCollected(_asset, sToken, amtRecv);

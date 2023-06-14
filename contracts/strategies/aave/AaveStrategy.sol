@@ -10,13 +10,13 @@ import {IAaveLendingPool, IAToken, IPoolAddressesProvider} from "./interfaces/IA
 /// @notice A yield earning strategy for USDs protocol
 contract AaveStrategy is InitializableAbstractStrategy {
     using SafeERC20 for IERC20;
-
+    struct AssetInfo {
+        uint256 allocatedAmt; // Tracks the allocated amount of an asset.
+        uint256 intLiqThreshold; // tracks the interest liq threshold for an asset.
+    }
     uint16 private constant REFERRAL_CODE = 0;
-
     IAaveLendingPool public aavePool;
-
-    mapping(address => uint256) public allocatedAmt;
-    mapping(address => uint256) public intLiqThreshold; // tracks the interest liq threshold for an asset.
+    mapping(address => AssetInfo) public assetInfo;
 
     event IntLiqThresholdChanged(
         address indexed asset,
@@ -29,32 +29,22 @@ contract AaveStrategy is InitializableAbstractStrategy {
     /// @param _platformAddress Address of the AAVE pool
     /// @param _vaultAddress Address of the vault
     /// @param _yieldReceiver Address of the yieldReceiver
-    /// @param _assets Addresses of supported assets
-    /// @param _pTokens Platform Token corresponding addresses
     function initialize(
         address _platformAddress, // AAVE PoolAddress provider 0xa97684ead0e402dC232d5A977953DF7ECBaB3CDb
         address _vaultAddress,
-        address _yieldReceiver,
-        address[] calldata _assets,
-        address[] calldata _pTokens,
-        uint256[] calldata _intLiqThreshold
+        address _yieldReceiver
     ) external initializer {
         _isNonZeroAddr(_platformAddress);
         _isNonZeroAddr(_vaultAddress);
         aavePool = IAaveLendingPool(
             IPoolAddressesProvider(_platformAddress).getPool()
         ); // aave Lending Pool 0x794a61358D6845594F94dc1DB02A252b5b4814aD
-        require(_assets.length == _intLiqThreshold.length, "Incorrect input");
 
-        // update interest liquidation threshold
-        for (uint8 i = 0; i < _intLiqThreshold.length; ++i) {
-            intLiqThreshold[_assets[i]] = _intLiqThreshold[i];
-        }
         InitializableAbstractStrategy._initialize(
             _vaultAddress,
             _yieldReceiver,
-            _assets,
-            _pTokens
+            new address[](0),
+            new address[](0)
         );
     }
 
@@ -68,22 +58,25 @@ contract AaveStrategy is InitializableAbstractStrategy {
         uint256 _intLiqThreshold
     ) external onlyOwner {
         _setPTokenAddress(_asset, _pToken);
-        intLiqThreshold[_asset] = _intLiqThreshold;
+        assetInfo[_asset] = AssetInfo({
+            allocatedAmt: 0,
+            intLiqThreshold: _intLiqThreshold
+        });
     }
 
     /// @notice Remove a supported asset by passing its index.
     ///      This method can only be called by the system owner
     /// @param _assetIndex Index of the asset to be removed
     function removePToken(uint256 _assetIndex) external onlyOwner {
-        require(_assetIndex < assetsMapped.length, "Invalid index");
+        uint256 numAssets = assetsMapped.length;
+        require(_assetIndex < numAssets, "Invalid index");
         address asset = assetsMapped[_assetIndex];
+        require(assetInfo[asset].allocatedAmt == 0, "Collateral allocted");
         address pToken = assetToPToken[asset];
 
-        assetsMapped[_assetIndex] = assetsMapped[assetsMapped.length - 1];
+        assetsMapped[_assetIndex] = assetsMapped[numAssets - 1];
         assetsMapped.pop();
-        delete assetToPToken[asset];
-        delete intLiqThreshold[asset];
-
+        delete assetInfo[asset];
         emit PTokenRemoved(asset, pToken);
     }
 
@@ -95,7 +88,7 @@ contract AaveStrategy is InitializableAbstractStrategy {
         uint256 _intLiqThreshold
     ) external onlyOwner {
         require(supportsCollateral(_asset), "Collateral not supported");
-        intLiqThreshold[_asset] = _intLiqThreshold;
+        assetInfo[_asset].intLiqThreshold = _intLiqThreshold;
 
         emit IntLiqThresholdChanged(_asset, _intLiqThreshold);
     }
@@ -109,7 +102,7 @@ contract AaveStrategy is InitializableAbstractStrategy {
         require(_amount > 0, "Must deposit something");
         // Following line also doubles as a check that we are depositing
         // an asset that we support.
-        allocatedAmt[_asset] += _amount;
+        assetInfo[_asset].allocatedAmt += _amount;
 
         IERC20(_asset).safeTransferFrom(msg.sender, address(this), _amount);
         IERC20(_asset).safeApprove(address(aavePool), _amount);
@@ -151,7 +144,7 @@ contract AaveStrategy is InitializableAbstractStrategy {
         uint256 assetInterest = checkInterestEarned(_asset);
         interestAssets = new address[](1);
         interestAmts = new uint256[](1);
-        if (assetInterest > intLiqThreshold[_asset]) {
+        if (assetInterest > assetInfo[_asset].intLiqThreshold) {
             uint256 actual = aavePool.withdraw(
                 _asset,
                 assetInterest,
@@ -179,8 +172,9 @@ contract AaveStrategy is InitializableAbstractStrategy {
         address _asset
     ) public view override returns (uint256) {
         uint256 balance = checkLPTokenBalance(_asset);
-        if (balance > allocatedAmt[_asset]) {
-            return balance - allocatedAmt[_asset];
+        uint256 allocatedAmt = assetInfo[_asset].allocatedAmt;
+        if (balance > allocatedAmt) {
+            return balance - allocatedAmt;
         } else {
             return 0;
         }
@@ -191,7 +185,7 @@ contract AaveStrategy is InitializableAbstractStrategy {
         address _asset
     ) public view override returns (uint256 balance) {
         // Balance is always with token aToken decimals
-        balance = allocatedAmt[_asset];
+        balance = assetInfo[_asset].allocatedAmt;
     }
 
     /// @inheritdoc InitializableAbstractStrategy
@@ -201,7 +195,7 @@ contract AaveStrategy is InitializableAbstractStrategy {
         uint256 availableLiquidity = IERC20(_asset).balanceOf(
             _getATokenFor(_asset)
         );
-        uint256 allocateValue = allocatedAmt[_asset];
+        uint256 allocateValue = assetInfo[_asset].allocatedAmt;
         if (availableLiquidity <= allocateValue) {
             return availableLiquidity;
         }
@@ -240,7 +234,7 @@ contract AaveStrategy is InitializableAbstractStrategy {
         _isNonZeroAddr(_recipient);
         require(_amount > 0, "Invalid amount");
         address aToken = _getATokenFor(_asset);
-        allocatedAmt[_asset] = allocatedAmt[_asset] - _amount;
+        assetInfo[_asset].allocatedAmt -= _amount;
         uint256 actual = aavePool.withdraw(_asset, _amount, _recipient);
         require(actual == _amount, "Did not withdraw enough");
         emit Withdrawal(_asset, aToken, actual);
