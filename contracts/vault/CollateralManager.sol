@@ -112,8 +112,7 @@ contract CollateralManager is ICollateralManager, Ownable {
             _updateData.collateralCompostion);
 
         require(
-            _updateData.collateralCompostion <=
-                (PERC_PRECISION - newCapacityUsed),
+            newCapacityUsed <= PERC_PRECISION,
             "Collaterlcompostion exceeded"
         );
 
@@ -233,10 +232,7 @@ contract CollateralManager is ICollateralManager, Ownable {
             _strategy
         ) * PERC_PRECISION) / totalCollateral;
 
-        require(
-            _allocationCap <= (PERC_PRECISION - newCapacityUsed),
-            "AllocationPer exceeded"
-        );
+        require(newCapacityUsed <= PERC_PRECISION, "AllocationPer exceeded");
         require(
             _allocationCap < currentAllocatedPer,
             "AllocationPer not valid"
