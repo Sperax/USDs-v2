@@ -11,10 +11,11 @@ abstract contract InitializableAbstractStrategy is
     ReentrancyGuardUpgradeable
 {
     address public vaultAddress;
-    address public yieldReceiver;
     address[] internal assetsMapped;
     address[] public rewardTokenAddress;
     mapping(address => address) public assetToPToken;
+
+    uint256[40] __gap__;
 
     event VaultUpdated(address newVaultAddr);
     event YieldReceiverUpdated(address newYieldReceiver);
@@ -55,12 +56,6 @@ abstract contract InitializableAbstractStrategy is
         _isNonZeroAddr(_newVault);
         vaultAddress = _newVault;
         emit VaultUpdated(_newVault);
-    }
-
-    function updateYieldReciever(address _newYieldReceiver) external onlyOwner {
-        _isNonZeroAddr(_newYieldReceiver);
-        yieldReceiver = _newYieldReceiver;
-        emit YieldReceiverUpdated(_newYieldReceiver);
     }
 
     /// @dev Deposit an amount of asset into the platform
@@ -155,17 +150,13 @@ abstract contract InitializableAbstractStrategy is
 
     function _initialize(
         address _vaultAddress,
-        address _yieldReceiver,
         address[] memory _assets,
         address[] memory _pTokens
     ) internal {
         OwnableUpgradeable.__Ownable_init();
         ReentrancyGuardUpgradeable.__ReentrancyGuard_init();
         _isNonZeroAddr(_vaultAddress);
-        _isNonZeroAddr(_yieldReceiver);
-
         vaultAddress = _vaultAddress;
-        yieldReceiver = _yieldReceiver;
         for (uint8 i = 0; i < _assets.length; ) {
             _setPTokenAddress(_assets[i], _pTokens[i]);
             unchecked {

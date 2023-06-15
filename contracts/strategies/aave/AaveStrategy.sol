@@ -4,6 +4,7 @@ pragma solidity 0.8.16;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {InitializableAbstractStrategy} from "../InitializableAbstractStrategy.sol";
+import {IVault} from "../interfaces/IVault.sol";
 import {IAaveLendingPool, IAToken, IPoolAddressesProvider} from "./interfaces/IAavePool.sol";
 
 /// @title AAVE strategy for USDs protocol
@@ -28,11 +29,9 @@ contract AaveStrategy is InitializableAbstractStrategy {
     /// addresses for the rewards program.
     /// @param _platformAddress Address of the AAVE pool
     /// @param _vaultAddress Address of the vault
-    /// @param _yieldReceiver Address of the yieldReceiver
     function initialize(
         address _platformAddress, // AAVE PoolAddress provider 0xa97684ead0e402dC232d5A977953DF7ECBaB3CDb
-        address _vaultAddress,
-        address _yieldReceiver
+        address _vaultAddress
     ) external initializer {
         _isNonZeroAddr(_platformAddress);
         _isNonZeroAddr(_vaultAddress);
@@ -42,7 +41,6 @@ contract AaveStrategy is InitializableAbstractStrategy {
 
         InitializableAbstractStrategy._initialize(
             _vaultAddress,
-            _yieldReceiver,
             new address[](0),
             new address[](0)
         );
@@ -140,6 +138,7 @@ contract AaveStrategy is InitializableAbstractStrategy {
         nonReentrant
         returns (address[] memory interestAssets, uint256[] memory interestAmts)
     {
+        address yieldReceiver = IVault(vaultAddress).yieldReceiver();
         address aToken = _getATokenFor(_asset);
         uint256 assetInterest = checkInterestEarned(_asset);
         interestAssets = new address[](1);

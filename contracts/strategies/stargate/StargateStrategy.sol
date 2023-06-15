@@ -6,6 +6,7 @@ import {ILPStaking} from "./interfaces/ILPStaking.sol";
 import {IStargateRouter} from "./interfaces/IStargateRouter.sol";
 import {IStargatePool} from "./interfaces/IStargatePool.sol";
 import {InitializableAbstractStrategy} from "../InitializableAbstractStrategy.sol";
+import {IVault} from "../interfaces/IVault.sol";
 
 /// Pool Ids: https://stargateprotocol.gitbook.io/stargate/developers/pool-ids
 // USDC: 1
@@ -51,7 +52,6 @@ contract StargateStrategy is InitializableAbstractStrategy {
     function initialize(
         address _router,
         address _vaultAddress,
-        address _yieldReceiver,
         address _stg,
         address _farm,
         uint256 _depositSlippage, // 200 = 2%
@@ -71,7 +71,6 @@ contract StargateStrategy is InitializableAbstractStrategy {
 
         InitializableAbstractStrategy._initialize(
             _vaultAddress,
-            _yieldReceiver,
             new address[](0),
             new address[](0)
         );
@@ -228,6 +227,7 @@ contract StargateStrategy is InitializableAbstractStrategy {
         nonReentrant
         returns (address[] memory interestAssets, uint256[] memory interestAmts)
     {
+        address yieldReceiver = IVault(vaultAddress).yieldReceiver();
         uint256 earnedInterest = checkInterestEarned(_asset);
         interestAssets = new address[](1);
         interestAmts = new uint256[](1);
@@ -249,6 +249,7 @@ contract StargateStrategy is InitializableAbstractStrategy {
         nonReentrant
         returns (address[] memory rewardAssets, uint256[] memory rewardAmts)
     {
+        address yieldReceiver = IVault(vaultAddress).yieldReceiver();
         rewardAssets = new address[](1);
         rewardAssets[0] = rewardTokenAddress[0];
         rewardAmts = new uint256[](1);
