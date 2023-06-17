@@ -4,12 +4,16 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "forge test -vvv",
+    "install-pip-packages": "pip3 install -r pip-requirements.txt",
+    "install-husky": "husky install",
+    "prepare": "npm-run-all install-pip-packages install-husky",
+    "slither-analyze": "slither .",
     "lint:fix": "prettier --write 'scripts/**/*.{js,ts}' 'test/**/*.{js,ts}' '*.{js,ts}' && tslint --fix --config tslint.json --project tsconfig.json",
+    "forge-coverage": "forge coverage --report lcov && rm -rf ./coverage && genhtml lcov.info --output-dir coverage && mv lcov.info ./coverage",
     "lint": "tslint --config tslint.json --project tsconfig.json",
     "lint-contract": "solhint 'contracts/**/*.sol' -f table",
-    "lint-contract:fix": "prettier --write 'contracts/**/*.sol'",
-    "prepare": "husky install"
+    "lint-contract:fix": "prettier --write 'contracts/**/*.sol'"
   },
   "keywords": [
     "USDs",
@@ -25,6 +29,7 @@
     "@nomicfoundation/hardhat-toolbox": "^2.0.2",
     "@nomiclabs/hardhat-etherscan": "^3.1.7",
     "@nomiclabs/hardhat-solhint": "^3.0.1",
+    "@openzeppelin/hardhat-upgrades": "^1.27.0",
     "@typechain/ethers-v5": "^10.2.1",
     "@typechain/hardhat": "^6.1.6",
     "@types/mocha": "^10.0.1",

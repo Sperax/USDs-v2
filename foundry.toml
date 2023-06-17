@@ -1,6 +1,10 @@
 [profile.default]
+solc = '0.8.16'
 src = 'contracts'
 out = 'out'
+build_info = true
+build_info_path = 'out/build-info'
+
 libs = ['node_modules', 'lib']
 test = 'test'
 cache_path  = 'cache_forge'

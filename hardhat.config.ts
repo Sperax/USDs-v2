@@ -2,6 +2,7 @@ import "@foundry-rs/hardhat-forge";
 import "@nomicfoundation/hardhat-foundry";
 import "@nomicfoundation/hardhat-toolbox";
 import "@nomiclabs/hardhat-solhint";
+import "@openzeppelin/hardhat-upgrades";
 import { config as dotenvConf } from "dotenv";
 import { task } from "hardhat/config";
 import type { HardhatUserConfig, HttpNetworkUserConfig } from "hardhat/types";
@@ -31,7 +32,7 @@ task("accounts", "Prints the list of accounts", async (taskArgs, hre) => {
 
 const config: HardhatUserConfig = {
   solidity: {
-    version: "0.8.18",
+    version: "0.8.16",
     settings: {
       optimizer: {
         enabled: true,

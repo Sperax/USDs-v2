@@ -1,19 +1,14 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.18;
+pragma solidity 0.8.16;
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {IOracle} from "../interfaces/IOracle.sol";
 
-contract MasterPriceOracle is Ownable {
+contract MasterPriceOracle is Ownable, IOracle {
     struct PriceFeedData {
         address source;
         bytes msgData;
     }
-
-    struct PriceData {
-        uint256 price;
-        uint256 precision;
-    }
-
     // Handles price feed data for a give token.
     mapping(address => PriceFeedData) public tokenPriceFeed;
 
