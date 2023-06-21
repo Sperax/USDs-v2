@@ -392,6 +392,22 @@ contract CollateralManager is ICollateralManager, Ownable {
         return collateralStrategies[_collateral];
     }
 
+    /// @notice Verify if a strategy is linked to a collateral
+    /// @param _collateral Address of the collateral
+    /// @param _strategy Address of the strategy
+    /// @return boolean true if the strategy is linked to the collateral
+    function isValidStrategy(
+        address _collateral,
+        address _strategy
+    ) external view returns (bool) {
+        for (uint256 i = 0; i < collateralStrategies[_collateral].length; i++) {
+            if (collateralStrategies[_collateral][i] == _strategy) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /// @notice Get the amount of collateral in all Strategies
     /// @param _collateral Address of the collateral
     /// @return amountInStrategies

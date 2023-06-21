@@ -66,4 +66,13 @@ interface ICollateralManager {
     function getCollateralInVault(
         address _collateral
     ) external view returns (uint256 amountInVault);
+
+    /// @notice Verify if a strategy is linked to a collateral
+    /// @param _collateral Address of the collateral
+    /// @param _strategy Address of the strategy
+    /// @return boolean true if the strategy is linked to the collateral
+    function isValidStrategy(
+        address _collateral,
+        address _strategy
+    ) external view returns (bool);
 }
