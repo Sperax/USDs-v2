@@ -54,7 +54,7 @@ abstract contract BaseTest is Test {
 
     /// @notice 
     function setArbitrumFork() public {
-        string memory ARBITRUM_RPC_URL = "http://ec2-54-165-189-85.compute-1.amazonaws.com:8545";
+        string memory ARBITRUM_RPC_URL = vm.envString("ARB_URL");
         arbFork = vm.createFork(ARBITRUM_RPC_URL);        
         vm.selectFork(arbFork);
         if (FORK_BLOCK != 0) vm.rollFork(FORK_BLOCK);
