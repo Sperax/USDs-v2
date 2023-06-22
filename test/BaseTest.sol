@@ -2,6 +2,10 @@ pragma solidity 0.8.16;
 
 import {Test} from "forge-std/Test.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
+import {AaveStrategy} from "../contracts/strategies/aave/AaveStrategy.sol";
+import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import  "forge-std/console.sol";
+import "forge-std/StdCheats.sol";
 
 abstract contract BaseTest is Test {
     // Define global constants | Test config
@@ -13,8 +17,9 @@ abstract contract BaseTest is Test {
     address public constant USDS = 0xD74f5255D557944cf7Dd0E45FF521520002D5748;
     address public constant SPA = 0x5575552988A3A80504bBaeB1311674fCFd40aD4B;
     address public constant USDS_OWNER = 0x5b12d9846F8612E439730d18E1C12634753B1bF1;
-    
+    address public constant PROXY_ADMIN = 0x3E49925A79CbFb68BAa5bc9DFb4f7D955D1ddF25;
 
+    
     // Define fork networks
     uint256 arbFork;
 
@@ -49,9 +54,27 @@ abstract contract BaseTest is Test {
 
     /// @notice 
     function setArbitrumFork() public {
-        string memory ARBITRUM_RPC_URL = vm.envString("ARB_URL");
+        string memory ARBITRUM_RPC_URL = "http://ec2-54-165-189-85.compute-1.amazonaws.com:8545";
         arbFork = vm.createFork(ARBITRUM_RPC_URL);        
         vm.selectFork(arbFork);
         if (FORK_BLOCK != 0) vm.rollFork(FORK_BLOCK);
     } 
+
+
+    function deployAaveStratedgy() public returns (AaveStrategy) {
+        address deployed_contract = deployCode("AaveStrategy.sol");
+        
+        address proxy = deployCode(
+            "TransparentUpgradeableProxy.sol",
+            abi.encode(
+               deployed_contract,
+               PROXY_ADMIN,
+               bytes("")
+            )
+        );
+
+        AaveStrategy  wrappedProxyV1 = AaveStrategy(address(proxy));
+
+        return wrappedProxyV1;
+    }
 }
