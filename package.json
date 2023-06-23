@@ -12,8 +12,8 @@
     "lint:fix": "prettier --write 'scripts/**/*.{js,ts}' 'test/**/*.{js,ts}' '*.{js,ts}' && tslint --fix --config tslint.json --project tsconfig.json",
     "forge-coverage": "forge coverage --report lcov && rm -rf ./coverage && genhtml lcov.info --output-dir coverage && mv lcov.info ./coverage",
     "lint": "tslint --config tslint.json --project tsconfig.json",
-    "lint-contract": "solhint 'contracts/**/*.sol' -f table",
-    "lint-contract:fix": "prettier --write 'contracts/**/*.sol'"
+    "lint-contract": "solhint 'contracts/**/*.sol' 'test/**/*.sol' -f table",
+    "lint-contract:fix": "prettier --write 'contracts/**/*.sol' 'test/**/*.sol'"
   },
   "keywords": [
     "USDs",
