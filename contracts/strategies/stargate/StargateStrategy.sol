@@ -40,7 +40,7 @@ contract StargateStrategy is InitializableAbstractStrategy {
     address public farm;
     uint256 public withdrawSlippage;
     uint256 public depositSlippage;
-    mapping(address => AssetInfo) private assetInfo;
+    mapping(address => AssetInfo) public assetInfo;
 
     event SkipRwdValidationStatus(bool status);
     event SlippageChanged(uint256 depositSlippage, uint256 withdrawSlippage);
@@ -65,9 +65,8 @@ contract StargateStrategy is InitializableAbstractStrategy {
         depositSlippage = _depositSlippage;
         withdrawSlippage = _withdrawSlippage;
 
-        address[] memory rewardTokens;
-        rewardTokens = new address[](1);
-        rewardTokens[0] = _stg;
+        // register reward token
+        rewardTokenAddress.push(_stg);
 
         InitializableAbstractStrategy._initialize(
             _vaultAddress,
@@ -96,7 +95,7 @@ contract StargateStrategy is InitializableAbstractStrategy {
         );
         require(IStargatePool(_pToken).poolId() == _pid, "Incorrect pool id");
         (IERC20 lpToken, , , ) = ILPStaking(farm).poolInfo(_rewardPid);
-        require(address(lpToken) == _pToken, "Incorrect _rewardPID");
+        require(address(lpToken) == _pToken, "Incorrect reward pid");
         _setPTokenAddress(_asset, _pToken);
         assetInfo[_asset] = AssetInfo({
             allocatedAmt: 0,
@@ -113,7 +112,7 @@ contract StargateStrategy is InitializableAbstractStrategy {
         uint256 numAssets = assetsMapped.length;
         require(_assetIndex < numAssets, "Invalid index");
         address asset = assetsMapped[_assetIndex];
-        require(assetInfo[asset].allocatedAmt == 0, "Collateral allocted");
+        require(assetInfo[asset].allocatedAmt == 0, "Collateral allocated");
         address pToken = assetToPToken[asset];
 
         assetsMapped[_assetIndex] = assetsMapped[numAssets - 1];
