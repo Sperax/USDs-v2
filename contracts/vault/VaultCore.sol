@@ -19,7 +19,6 @@ contract VaultCore is
 {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
-    bytes32 private constant REBASER_ROLE = keccak256("REBASER_ROLE");
     bytes32 private constant ALLOCATOR_ROLE = keccak256("ALLOCATOR_ROLE");
     bytes32 private constant HARVESTOR_ROLE = keccak256("HARVESTOR_ROLE");
 
@@ -53,6 +52,7 @@ contract VaultCore is
         uint256 collateralAmt,
         uint256 feeAmt
     );
+    event RebasedUSDs(uint256 rebaseAmt);
 
     modifier onlyOwner() {
         require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "Unauthorized caller");
@@ -92,7 +92,12 @@ contract VaultCore is
     }
 
     function rebase() external nonReentrant {
-        IRebaseManager(rebaseManager).rebase();
+        uint256 rebaseAmt = IRebaseManager(rebaseManager).fetchRebaseAmt();
+        uint256 usdsOldSupply = IERC20Upgradeable(USDS).totalSupply();
+        IUSDs(USDS).burnExclFromOutFlow(rebaseAmt);
+        IUSDs(USDS).changeSupply(usdsOldSupply);
+        IRebaseManager(rebaseManager).updateLastRebaseTS();
+        emit RebasedUSDs(rebaseAmt);
     }
 
     function allocate(
@@ -348,7 +353,7 @@ contract VaultCore is
         emit Redeemed(msg.sender, _collateral, burnAmt, collateralAmt, feeAmt);
     }
 
-    function _isNonZeroAddr(address _addr) private view {
+    function _isNonZeroAddr(address _addr) private pure {
         require(_addr != address(0), "Zero address");
     }
 }

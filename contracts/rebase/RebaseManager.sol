@@ -15,7 +15,6 @@ contract RebaseManager is
 {
     using SafeMathUpgradeable for uint256;
 
-    bytes32 public constant REBASER_ROLE = keccak256("REBASER_ROLE");
     address public constant USDS = 0xD74f5255D557944cf7Dd0E45FF521520002D5748;
 
     address public vault;
@@ -27,7 +26,6 @@ contract RebaseManager is
 
     uint256 public lastRebaseTS;
 
-    event RebasedUSDs(uint256 rebaseAmt);
     event DripperChanged(address dripper);
     event GapChanged(uint256 gap);
     event APRChanged(uint256 aprCap, uint256 aprBottom);
@@ -75,46 +73,34 @@ contract RebaseManager is
         emit APRChanged(_aprCap, _aprBottom);
     }
 
-    function rebase() external nonReentrant {
-        require(
-            hasRole(REBASER_ROLE, _msgSender()) || _msgSender() == vault,
-            "Unauthorized caller"
-        );
+    function updateLastRebaseTS() external {
+        require(msg.sender == vault, "unauthorized caller");
+        lastRebaseTS = block.timestamp;
+    }
+
+    function fetchRebaseAmt() external returns (uint256) {
+        // Skip when the time passed is not enough
         if (block.timestamp <= lastRebaseTS + gap) {
-            return;
+            return 0;
         }
         IDripper(dripper).collect();
-        uint256 balance = IERC20Upgradeable(USDS).balanceOf(address(this));
-        uint256 maxRebaseAmt = _getMaxRebaseAmt();
-        uint256 minRebaseAmt = _getMinRebaseAmt();
+        uint256 balance = IERC20Upgradeable(USDS).balanceOf(vault);
+        (uint256 minRebaseAmt, uint256 maxRebaseAmt) = _getMinAndMaxRebaseAmt();
         uint256 rebaseAmt = (balance > maxRebaseAmt) ? maxRebaseAmt : balance;
         // Skip when not enough USDs to rebase
-        if (rebaseAmt == 0 || rebaseAmt < minRebaseAmt) {
-            return;
+        if (rebaseAmt < minRebaseAmt) {
+            return 0;
         }
-        uint256 usdsOldSupply = IERC20Upgradeable(USDS).totalSupply();
-        IUSDs(USDS).burnExclFromOutFlow(rebaseAmt);
-        IUSDs(USDS).changeSupply(usdsOldSupply);
-        lastRebaseTS = block.timestamp;
-        emit RebasedUSDs(rebaseAmt);
+        return rebaseAmt;
     }
 
-    function _getMaxRebaseAmt() private view returns (uint256) {
-        // rebaseAmt = principal * (APR_CAP/100) * timeElapsed / 1_year
-        uint256 principal = IUSDs(USDS).totalSupply() -
-            IUSDs(USDS).nonRebasingSupply();
-        uint256 timeElapsed = block.timestamp - lastRebaseTS;
-        uint256 maxRebaseAmt = (principal * aprCap * timeElapsed) / 3153600000;
-        return maxRebaseAmt;
-    }
-
-    function _getMinRebaseAmt() private view returns (uint256) {
-        // rebaseAmt = principal * (APR_BOTTOM/100) * timeElapsed / 1_year
+    function _getMinAndMaxRebaseAmt() private view returns (uint256, uint256) {
         uint256 principal = IUSDs(USDS).totalSupply() -
             IUSDs(USDS).nonRebasingSupply();
         uint256 timeElapsed = block.timestamp - lastRebaseTS;
         uint256 minRebaseAmt = (principal * aprBottom * timeElapsed) /
             3153600000;
-        return minRebaseAmt;
+        uint256 maxRebaseAmt = (principal * aprCap * timeElapsed) / 3153600000;
+        return (minRebaseAmt, maxRebaseAmt);
     }
 }

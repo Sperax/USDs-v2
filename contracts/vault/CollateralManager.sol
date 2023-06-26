@@ -67,7 +67,7 @@ contract CollateralManager is ICollateralManager, Ownable {
         require(
             _data.collateralCompostion <=
                 (PERC_PRECISION - collateralCompostionUsed),
-            "CollateralCompostion  exceeded"
+            "CollateralCompostion exceeded"
         );
 
         collateralInfo[_collateral] = CollateralData({
@@ -186,7 +186,7 @@ contract CollateralManager is ICollateralManager, Ownable {
             _allocationCap <=
                 (PERC_PRECISION -
                     collateralInfo[_collateral].collateralCapacityUsed),
-            "AllocationPer  exceeded"
+            "AllocationPer exceeded"
         );
 
         collateralStrategyInfo[_collateral][_strategy] = StrategyData(
@@ -400,12 +400,7 @@ contract CollateralManager is ICollateralManager, Ownable {
         address _collateral,
         address _strategy
     ) external view returns (bool) {
-        for (uint256 i = 0; i < collateralStrategies[_collateral].length; i++) {
-            if (collateralStrategies[_collateral][i] == _strategy) {
-                return true;
-            }
-        }
-        return false;
+        return collateralStrategyInfo[_collateral][_strategy].exists;
     }
 
     /// @notice Get the amount of collateral in all Strategies

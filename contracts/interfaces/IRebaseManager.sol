@@ -2,5 +2,7 @@
 pragma solidity 0.8.16;
 
 interface IRebaseManager {
-    function rebase() external;
+    function updateLastRebaseTS() external;
+
+    function fetchRebaseAmt() external returns (uint256);
 }

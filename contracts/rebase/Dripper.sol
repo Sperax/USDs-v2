@@ -9,31 +9,31 @@ contract Dripper is Initializable, OwnableUpgradeable {
 
     address private constant USDS = 0xD74f5255D557944cf7Dd0E45FF521520002D5748;
 
-    address public rebaseManager;
+    address public recipient;
     uint256 public dripRate;
     uint256 public dripDuration;
     uint256 public lastCollectTS;
 
     event Collected(uint256 amount);
-    event RebaseManagerChanged(address rebaseManager);
+    event RecipientChanged(address recipient);
     event DripDurationChanged(uint256 dripDuration);
 
     function initialize(
-        address _rebaseManager,
+        address _recipient,
         uint256 _dripDuration
     ) external initializer {
         __Ownable_init();
-        rebaseManager = _rebaseManager;
+        recipient = _recipient;
         dripDuration = _dripDuration;
         lastCollectTS = block.timestamp;
     }
 
     // Admin functions
 
-    function setRebaseManager(address _rebaseManager) external onlyOwner {
-        require(_rebaseManager != address(0), "Illegal input");
-        rebaseManager = _rebaseManager;
-        emit RebaseManagerChanged(rebaseManager);
+    function setRecipient(address _recipient) external onlyOwner {
+        _isNonZeroAddr(_recipient);
+        recipient = _recipient;
+        emit RecipientChanged(recipient);
     }
 
     function setDripDuration(uint256 _dripDuration) external onlyOwner {
@@ -43,20 +43,21 @@ contract Dripper is Initializable, OwnableUpgradeable {
     }
 
     function collect() public returns (uint256) {
-        require(rebaseManager != address(0), "Incomplete config");
+        _isNonZeroAddr(recipient);
         require(
-            _msgSender() == rebaseManager || _msgSender() == owner(),
+            _msgSender() == recipient || _msgSender() == owner(),
             "Unauthorized caller"
         );
         uint256 collectableAmt = getCollectableAmt();
         if (collectableAmt > 0) {
-            IERC20Upgradeable(USDS).safeTransfer(rebaseManager, collectableAmt);
+            IERC20Upgradeable(USDS).safeTransfer(recipient, collectableAmt);
             lastCollectTS = block.timestamp;
             dripRate =
                 IERC20Upgradeable(USDS).balanceOf(address(this)) /
                 dripDuration;
             emit Collected(collectableAmt);
         }
+        return collectableAmt;
     }
 
     function getCollectableAmt() public view returns (uint256) {
@@ -64,5 +65,9 @@ contract Dripper is Initializable, OwnableUpgradeable {
         uint256 dripped = timeElapsed * dripRate;
         uint256 balance = IERC20Upgradeable(USDS).balanceOf(address(this));
         return (dripped > balance) ? balance : dripped;
+    }
+
+    function _isNonZeroAddr(address _addr) private pure {
+        require(_addr != address(0), "Zero address");
     }
 }
