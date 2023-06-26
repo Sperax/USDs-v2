@@ -4,7 +4,7 @@ pragma solidity 0.8.16;
 import {BaseTest} from "../utils/BaseTest.sol";
 import {UpgradeUtil} from "../utils/UpgradeUtil.sol";
 import {stdStorage, StdStorage} from "forge-std/StdStorage.sol";
-
+import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {StargateStrategy} from "../../contracts/strategies/stargate/StargateStrategy.sol";
 
 contract StargateStrategyTest is BaseTest {
@@ -17,11 +17,6 @@ contract StargateStrategyTest is BaseTest {
         uint256 intLiqThreshold;
     }
 
-    UpgradeUtil private upgradeUtil;
-    StargateStrategy impl;
-    StargateStrategy strategy;
-    address proxyAddress;
-
     // Strategy configuration:
     address public constant STARGATE_ROUTER =
         0x53Bf833A5d6c4ddA888F69c22C88C9f356a41614;
@@ -31,12 +26,18 @@ contract StargateStrategyTest is BaseTest {
     uint256 public constant BASE_DEPOSIT_SLIPPAGE = 20;
     uint256 public constant BASE_WITHDRAW_SLIPPAGE = 20;
 
+    // Test variables
+    UpgradeUtil internal upgradeUtil;
+    StargateStrategy internal impl;
+    StargateStrategy internal strategy;
+    address internal proxyAddress;
+
     function setUp() public virtual override {
         super.setUp();
         setArbitrumFork();
 
-        // Setup the upgrade params
         vm.startPrank(USDS_OWNER);
+        // Setup the upgrade params
         impl = new StargateStrategy();
         upgradeUtil = new UpgradeUtil();
         proxyAddress = upgradeUtil.deployErc1967Proxy(address(impl));
@@ -334,8 +335,8 @@ contract StrategyUpdateIntLiqThreshold is StargateStrategyTest {
 }
 
 contract StrategyChangeSlippage is StargateStrategyTest {
-    uint256 updatedDepositSippage = 100;
-    uint256 updatedWithdrawSippage = 100;
+    uint256 public updatedDepositSippage = 100;
+    uint256 public updatedWithdrawSippage = 100;
 
     function setUp() public override {
         super.setUp();
@@ -361,5 +362,211 @@ contract StrategyChangeSlippage is StargateStrategyTest {
     {
         vm.expectRevert("Slippage exceeds 100%");
         strategy.changeSlippage(10001, 10001);
+    }
+}
+
+contract StrategytoggleRwdValidation is StargateStrategyTest {
+    function setUp() public override {
+        super.setUp();
+        vm.startPrank(USDS_OWNER);
+        _initializeStrategy();
+        vm.stopPrank();
+    }
+
+    function test_toggleRwdValidation() public useKnownActor(USDS_OWNER) {
+        bool currentFlag = strategy.skipRwdValidation();
+        strategy.toggleRwdValidation();
+        assertEq(strategy.skipRwdValidation(), !currentFlag);
+
+        strategy.toggleRwdValidation();
+        assertEq(strategy.skipRwdValidation(), currentFlag);
+    }
+
+    function test_revertsWhen_notOwner() public {
+        vm.expectRevert("Ownable: caller is not the owner");
+        strategy.toggleRwdValidation();
+    }
+}
+
+contract StrategyDeposit is StargateStrategyTest {
+    function setUp() public override {
+        super.setUp();
+        vm.startPrank(USDS_OWNER);
+        _initializeStrategy();
+
+        AssetData[] memory data = _getAssetConfig();
+        for (uint8 i = 0; i < data.length; ++i) {
+            strategy.setPTokenAddress(
+                data[i].asset,
+                data[i].pToken,
+                data[i].pid,
+                data[i].rewardPid,
+                data[i].intLiqThreshold
+            );
+        }
+        vm.stopPrank();
+    }
+
+    function test_deposit(uint256 amount) public useKnownActor(VAULT) {
+        amount = uint256(bound(amount, 1, 1e10));
+        AssetData[] memory data = _getAssetConfig();
+        for (uint8 i = 0; i < data.length; ++i) {
+            amount *= 10 ** ERC20(data[i].asset).decimals();
+            deal(data[i].asset, VAULT, amount, true);
+            ERC20(data[i].asset).approve(address(strategy), amount);
+            strategy.deposit(data[i].asset, amount);
+            assertApproxEqAbs(
+                strategy.checkBalance(data[i].asset),
+                amount,
+                1e2
+            );
+            // @todo fix error in checkAvailableBal
+            // assertApproxEqAbs(strategy.checkAvailableBalance(data[i].asset), amount, 1e2);
+        }
+    }
+
+    function test_revertsWhen_invalidAmount() public useKnownActor(VAULT) {
+        AssetData memory data = _getAssetConfig()[0];
+        vm.expectRevert("Invalid amount");
+        strategy.deposit(data.asset, 0);
+    }
+
+    function test_revertsWhen_notVault() public {
+        AssetData memory data = _getAssetConfig()[0];
+        vm.expectRevert("Caller is not the Vault");
+        strategy.deposit(data.asset, 1000);
+    }
+
+    function test_revertsWhen_unsupportedCollateral()
+        public
+        useKnownActor(VAULT)
+    {
+        AssetData memory data = _getAssetConfig()[0];
+        uint256 amount = 1000000;
+
+        // Remove the asset for testing unsupported collateral.
+        changePrank(USDS_OWNER);
+        strategy.removePToken(0);
+
+        changePrank(VAULT);
+        amount *= 10 ** ERC20(data.asset).decimals();
+        deal(data.asset, VAULT, amount, true);
+        ERC20(data.asset).approve(address(strategy), amount);
+
+        vm.expectRevert("Collateral not supported");
+        strategy.deposit(data.asset, amount);
+    }
+
+    function test_revertsWhen_depositSlippageViolated()
+        public
+        useKnownActor(VAULT)
+    {
+        AssetData memory data = _getAssetConfig()[0];
+        uint256 amount = 1000000;
+
+        // Update the deposit slippage to 0
+        changePrank(USDS_OWNER);
+        strategy.changeSlippage(0, 0);
+
+        changePrank(VAULT);
+        amount *= 10 ** ERC20(data.asset).decimals();
+        deal(data.asset, VAULT, amount, true);
+        ERC20(data.asset).approve(address(strategy), amount);
+
+        vm.expectRevert("Insufficient deposit amount");
+        strategy.deposit(data.asset, amount);
+    }
+
+    function test_revertsWhen_notEnoughRwdInFarm() public useKnownActor(VAULT) {
+        AssetData memory data = _getAssetConfig()[0];
+        uint256 amount = 1000000;
+
+        amount *= 10 ** ERC20(data.asset).decimals();
+        deal(data.asset, VAULT, amount, true);
+        ERC20(data.asset).approve(address(strategy), amount);
+
+        // Create initial deposit
+        strategy.deposit(data.asset, amount / 2);
+
+        // Do a time travel & mine dummy blocks for accumulating some rewards
+        vm.warp(block.timestamp + 10 days);
+        vm.roll(block.number + 1000);
+
+        uint256 pendingRewards = strategy.checkPendingRewards(data.asset);
+        assert(pendingRewards > 0);
+
+        // MOCK: Withdraw rewards from the farm.
+        changePrank(strategy.farm());
+        ERC20(STG).transfer(actors[0], ERC20(STG).balanceOf(strategy.farm()));
+
+        changePrank(VAULT);
+        vm.expectRevert("Insufficient rwd fund in farm");
+        strategy.deposit(data.asset, amount / 2);
+
+        changePrank(USDS_OWNER);
+        strategy.toggleRwdValidation();
+
+        // Test successful deposit
+        assert(strategy.skipRwdValidation());
+        changePrank(VAULT);
+        strategy.deposit(data.asset, amount / 2);
+    }
+}
+
+contract StrategyHarvest is StargateStrategyTest {
+    address public yieldReceiver;
+
+    function setUp() public override {
+        super.setUp();
+        vm.startPrank(USDS_OWNER);
+        _initializeStrategy();
+        uint256 amount = 1000000;
+        yieldReceiver = actors[0];
+
+        AssetData[] memory data = _getAssetConfig();
+        for (uint8 i = 0; i < data.length; ++i) {
+            strategy.setPTokenAddress(
+                data[i].asset,
+                data[i].pToken,
+                data[i].pid,
+                data[i].rewardPid,
+                data[i].intLiqThreshold
+            );
+        }
+
+        changePrank(VAULT);
+        for (uint8 i = 0; i < data.length; ++i) {
+            amount *= 10 ** ERC20(data[i].asset).decimals();
+            deal(data[i].asset, VAULT, amount, true);
+            ERC20(data[i].asset).approve(address(strategy), amount);
+            strategy.deposit(data[i].asset, amount);
+        }
+        vm.stopPrank();
+    }
+
+    function test_collectReward() public {
+        uint256 initialRewards = strategy.checkRewardEarned();
+        assert(initialRewards == 0);
+
+        // Do a time travel & mine dummy blocks for accumulating some rewards
+        vm.warp(block.timestamp + 10 days);
+        vm.roll(block.number + 1000);
+
+        uint256 currentRewards = strategy.checkRewardEarned();
+        assert(currentRewards > 0);
+
+        // Mock Vault yieldReceiver function
+        vm.mockCall(
+            VAULT,
+            abi.encodeWithSignature("yieldReceiver()"),
+            abi.encode(yieldReceiver)
+        );
+
+        strategy.collectReward();
+
+        assertEq(ERC20(STG).balanceOf(yieldReceiver), currentRewards);
+
+        currentRewards = strategy.checkRewardEarned();
+        assert(currentRewards == 0);
     }
 }
