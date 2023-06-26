@@ -1,19 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.16;
 
-import {AccessControlUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
-import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
-import {IERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
-import {SafeMathUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/math/SafeMathUpgradeable.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import {IUSDs} from "../interfaces/IUSDs.sol";
 import {IDripper} from "../interfaces/IDripper.sol";
 
-contract RebaseManager is
-    Initializable,
-    AccessControlUpgradeable,
-    ReentrancyGuardUpgradeable
-{
-    using SafeMathUpgradeable for uint256;
+contract RebaseManager is Ownable {
+    using SafeMath for uint256;
 
     address public constant USDS = 0xD74f5255D557944cf7Dd0E45FF521520002D5748;
 
@@ -30,23 +25,12 @@ contract RebaseManager is
     event GapChanged(uint256 gap);
     event APRChanged(uint256 aprCap, uint256 aprBottom);
 
-    modifier onlyOwner() {
-        require(
-            hasRole(DEFAULT_ADMIN_ROLE, _msgSender()),
-            "Unauthorized caller"
-        );
-        _;
-    }
-
-    function initialize(
+    constructor(
         address _vault,
         uint256 _gap,
         uint256 _aprCap,
         uint256 _aprBottom
-    ) external initializer {
-        __AccessControl_init();
-        __ReentrancyGuard_init();
-        _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
+    ) {
         vault = _vault;
         gap = _gap;
         aprCap = _aprCap;
@@ -84,7 +68,7 @@ contract RebaseManager is
             return 0;
         }
         IDripper(dripper).collect();
-        uint256 balance = IERC20Upgradeable(USDS).balanceOf(vault);
+        uint256 balance = IERC20(USDS).balanceOf(vault);
         (uint256 minRebaseAmt, uint256 maxRebaseAmt) = _getMinAndMaxRebaseAmt();
         uint256 rebaseAmt = (balance > maxRebaseAmt) ? maxRebaseAmt : balance;
         // Skip when not enough USDs to rebase
