@@ -13,6 +13,7 @@ address constant AAVE_POOL_PROVIDER = 0xa97684ead0e402dC232d5A977953DF7ECBaB3CDb
 address constant VAULT_ADDRESS = 0xa97684ead0e402dC232d5A977953DF7ECBaB3CDb;
 address constant ASSET = 0x82aF49447D8a07e3bd95BD0d56f35241523fBab1;
 address constant P_TOKEN = 0xe50fA9b3c56FfB159cB0FCA61F5c9D750e8128c8;
+address constant DUMMY_ADDRESS = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
 
 
 contract AaveStrategyTest is BaseTest { 
@@ -168,7 +169,7 @@ contract PtokenTest is AaveStrategyTest {
             ASSET, 
             P_TOKEN, 0
         );
-
+        aaveStrategy.removePToken(0);
         (uint256 a, uint256 b) = aaveStrategy.assetInfo(ASSET);
         assert(a == 0);
         assert(b == 0);
@@ -188,12 +189,17 @@ contract DepositTest is AaveStrategyTest {
         vm.stopPrank();
     }
 
+    function test_deposit_failures() public useKnownActor(VAULT_ADDRESS) {
+        vm.expectRevert("Collateral not supported");
+        aaveStrategy.deposit(DUMMY_ADDRESS, 1);
+
+        vm.expectRevert("Must deposit something");
+        aaveStrategy.deposit(ASSET, 0);
+    }
+
     function test_deposit()  useKnownActor(VAULT_ADDRESS) public  {
-
         deal(address(ASSET), VAULT_ADDRESS, 1 ether);
-
         IERC20(ASSET).approve(address(aaveStrategy), 1000);
-
         aaveStrategy.deposit(ASSET, 1);
     }
 
@@ -218,6 +224,11 @@ contract collect_interestTest is AaveStrategyTest {
             IERC20(ASSET).approve(address(aaveStrategy), 1000);
             aaveStrategy.deposit(ASSET, 1000);
         vm.stopPrank(); 
+    }
+
+    function test_collect_interest_faliures() public useKnownActor(USDS_OWNER) {
+        vm.expectRevert("Caller is not the Vault");
+        aaveStrategy.collectInterest(DUMMY_ADDRESS);
     }
 
     function test_collect_interest()  useKnownActor(VAULT_ADDRESS) public  {
@@ -270,7 +281,19 @@ contract WithdrawTest is AaveStrategyTest {
         vm.stopPrank(); 
     }
 
-    function test_collect_interest()  useKnownActor(VAULT_ADDRESS) public  {
+    function test_withdraw_faliures() useKnownActor(VAULT_ADDRESS) public {
+        vm.expectRevert("Invalid address");
+        aaveStrategy.withdraw(address(0), ASSET, 1);
+
+        vm.expectRevert("Invalid amount");
+        aaveStrategy.withdraw(VAULT_ADDRESS, ASSET, 0);
+
+        changePrank(address(0));
+        vm.expectRevert("Caller is not the Vault");
+        aaveStrategy.withdraw(VAULT_ADDRESS, ASSET, 1);
+    }
+
+    function test_withdraw()  useKnownActor(VAULT_ADDRESS) public  {
 
         vm.warp(block.timestamp + 10 days);
         vm.roll(block.number + 1000);
@@ -278,9 +301,37 @@ contract WithdrawTest is AaveStrategyTest {
         aaveStrategy.withdraw(VAULT_ADDRESS, ASSET, 1);
     }
 
+    function test_withdrawToVault()  useKnownActor(USDS_OWNER) public  {
+        vm.warp(block.timestamp + 10 days);
+        vm.roll(block.number + 1000);
+ 
+        aaveStrategy.withdrawToVault(ASSET, 1);
+    }    
+
 }
 
 contract MiscellaneousTest is AaveStrategyTest {
+
+    function setUp() public override {
+        super.setUp();
+        vm.startPrank(USDS_OWNER);
+            _initializeStrategy();
+            aaveStrategy.setPTokenAddress(
+                ASSET, 
+                P_TOKEN, 0
+            );
+       
+        changePrank(VAULT_ADDRESS);
+            deal(address(ASSET), VAULT_ADDRESS, 1 ether);
+            IERC20(ASSET).approve(address(aaveStrategy), 1000);
+            aaveStrategy.deposit(ASSET, 1000);
+        vm.stopPrank(); 
+    }
+
+    function test_checkRewardEarned() public {
+       uint256 reward = aaveStrategy.checkRewardEarned();
+       assert(reward == 0);
+    }
 
     function test_checkBalance() public {
         (uint256 balance,  uint256 intLiqThreshold) = aaveStrategy.assetInfo(ASSET);
@@ -289,6 +340,12 @@ contract MiscellaneousTest is AaveStrategyTest {
     }
 
     function test_checkAvailableBalance() public {
-        aaveStrategy.checkBalance(ASSET);
+        uint256 bal = aaveStrategy.checkAvailableBalance(ASSET);
+        assert(bal > 0);
+    }
+
+    function test_collectReward() public {
+        vm.expectRevert("No reward incentive for AAVE");
+        aaveStrategy.collectReward();
     }
 }
