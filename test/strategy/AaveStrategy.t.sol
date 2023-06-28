@@ -2,77 +2,293 @@
 pragma solidity 0.8.16;
 
 import {BaseTest} from "../BaseTest.sol";
+import {UpgradeUtil} from "../utils/UpgradeUtil.sol";
 import {AaveStrategy} from "../../contracts/strategies/aave/AaveStrategy.sol";
+import {InitializableAbstractStrategy} from "../../contracts/strategies/InitializableAbstractStrategy.sol";
 import "forge-std/console.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
+
+address constant AAVE_POOL_PROVIDER = 0xa97684ead0e402dC232d5A977953DF7ECBaB3CDb;
+address constant VAULT_ADDRESS = 0xa97684ead0e402dC232d5A977953DF7ECBaB3CDb;
+address constant ASSET = 0x82aF49447D8a07e3bd95BD0d56f35241523fBab1;
+address constant P_TOKEN = 0xe50fA9b3c56FfB159cB0FCA61F5c9D750e8128c8;
 
 
 contract AaveStrategyTest is BaseTest { 
-    AaveStrategy public aaveStrategy;
+    AaveStrategy internal aaveStrategy;
+    AaveStrategy internal impl;
+    UpgradeUtil internal upgradeUtil;
+    address internal proxyAddress;
 
+    function setUp() public virtual override {
+        super.setUp();
+        setArbitrumFork();
+        vm.startPrank(USDS_OWNER);
+            impl = new AaveStrategy();
+            upgradeUtil = new UpgradeUtil();
+            proxyAddress = upgradeUtil.deployErc1967Proxy(address(impl));
+
+            aaveStrategy = AaveStrategy(proxyAddress);
+        vm.stopPrank();
+    }
+
+    function _initializeStrategy() internal {
+        aaveStrategy.initialize(
+            AAVE_POOL_PROVIDER,
+            VAULT_ADDRESS
+        );
+    }
+
+    function _deposit() internal {
+
+        aaveStrategy.setPTokenAddress(
+                ASSET, 
+                P_TOKEN, 0
+        );
+        changePrank(VAULT_ADDRESS);
+            deal(address(ASSET), VAULT_ADDRESS, 1 ether);
+            IERC20(ASSET).approve(address(aaveStrategy), 1000);
+            aaveStrategy.deposit(ASSET, 1);
+        changePrank(USDS_OWNER);  
+    }
+}
+
+
+contract InitializeTests is AaveStrategyTest {
+
+    function test_empty_address() public useKnownActor(USDS_OWNER) {
+        vm.expectRevert("Invalid address");
+
+        aaveStrategy.initialize(
+            address(0), 
+            VAULT_ADDRESS
+        );
+
+        vm.expectRevert("Invalid address");
+
+        aaveStrategy.initialize(
+            AAVE_POOL_PROVIDER,
+            address(0)
+        );
+
+    } 
+
+    function test_revertsWhen_unAuthorized() public useActor(0) {
+        aaveStrategy.initialize(
+            AAVE_POOL_PROVIDER,
+            VAULT_ADDRESS
+        );
+    }
+
+    function test_success() public {
+        _initializeStrategy();
+        assert(true);
+    }
+
+
+} 
+
+contract PtokenTest is AaveStrategyTest {
     event PTokenAdded(address indexed asset, address pToken);
     event IntLiqThresholdChanged(
         address indexed asset,
         uint256 intLiqThreshold
     );
 
-    function setUp() override public {
+    function setUp() public override { 
         super.setUp();
-        setArbitrumFork();
-        aaveStrategy = deployAaveStratedgy();
         vm.startPrank(USDS_OWNER);
-            aaveStrategy.initialize(
-                0xa97684ead0e402dC232d5A977953DF7ECBaB3CDb, 
-                0xa97684ead0e402dC232d5A977953DF7ECBaB3CDb
-                );
+            _initializeStrategy();
         vm.stopPrank();
     }
 
-
-    function test_revertsWhen_unAuthorized_SetPtoken() external useActor(0){
+    function test_revertsWhen_unAuthorized_SetPtoken() public useActor(0){
         vm.expectRevert("Ownable: caller is not the owner");
         aaveStrategy.setPTokenAddress(
-            0x82aF49447D8a07e3bd95BD0d56f35241523fBab1, 
-            0xe50fA9b3c56FfB159cB0FCA61F5c9D750e8128c8, 0
+            ASSET, 
+            P_TOKEN, 0
         );
     }
 
-
-    function test_SetPtoken()  external useKnownActor(USDS_OWNER) {
+    function test_SetPtoken()  public useKnownActor(USDS_OWNER) {
 
         vm.expectEmit(true, false, false, false);
 
-        emit PTokenAdded(address(0x82aF49447D8a07e3bd95BD0d56f35241523fBab1), address(0xe50fA9b3c56FfB159cB0FCA61F5c9D750e8128c8));
+        emit PTokenAdded(address(ASSET), address(P_TOKEN));
 
         aaveStrategy.setPTokenAddress(
-            0x82aF49447D8a07e3bd95BD0d56f35241523fBab1, 
-            0xe50fA9b3c56FfB159cB0FCA61F5c9D750e8128c8, 0
+            ASSET, 
+            P_TOKEN, 0
         );
     }
 
-
-    function test_revertsWhen_unAuthorized_updateIntLiqThreshold() external useActor(0) {
+    function test_revertsWhen_unAuthorized_updateIntLiqThreshold() public useActor(0) {
         vm.expectRevert("Ownable: caller is not the owner");
 
-        aaveStrategy.updateIntLiqThreshold(0xe50fA9b3c56FfB159cB0FCA61F5c9D750e8128c8, 2);
+        aaveStrategy.updateIntLiqThreshold(P_TOKEN, 2);
     }
 
-    function test_revert_Collateral_not_supported_updateIntLiqThreshold() external useKnownActor(USDS_OWNER) {
+    function test_revert_Collateral_not_supported_updateIntLiqThreshold() public useKnownActor(USDS_OWNER) {
         vm.expectRevert("Collateral not supported");
 
-        aaveStrategy.updateIntLiqThreshold(0xe50fA9b3c56FfB159cB0FCA61F5c9D750e8128c8, 2);
+        aaveStrategy.updateIntLiqThreshold(P_TOKEN, 2);
     }
 
-    function test_updateIntLiqThreshold() external useKnownActor(USDS_OWNER) {      
+    function test_updateIntLiqThreshold() public useKnownActor(USDS_OWNER) {      
         aaveStrategy.setPTokenAddress(
-            0x82aF49447D8a07e3bd95BD0d56f35241523fBab1, 
-            0xe50fA9b3c56FfB159cB0FCA61F5c9D750e8128c8, 0
+            ASSET, 
+            P_TOKEN, 0
         );
 
         vm.expectEmit(true, false, false, false);
 
-        emit IntLiqThresholdChanged(address(0x82aF49447D8a07e3bd95BD0d56f35241523fBab1), uint256(2));
-        aaveStrategy.updateIntLiqThreshold(0x82aF49447D8a07e3bd95BD0d56f35241523fBab1, 2);
+        emit IntLiqThresholdChanged(address(ASSET), uint256(2));
+        aaveStrategy.updateIntLiqThreshold(ASSET, 2);
     }
 
+    function test_RemovePToken_failures() public {
+        vm.expectRevert("Ownable: caller is not the owner");
+        aaveStrategy.removePToken(0);
+
+        vm.startPrank(USDS_OWNER);
+            vm.expectRevert("Invalid index");
+            aaveStrategy.removePToken(5);
+
+            _deposit();
+
+            vm.expectRevert("Collateral allocted");
+            aaveStrategy.removePToken(0);
+
+        vm.stopPrank();
+    }
+
+    function test_RemovePToken() public  useKnownActor(USDS_OWNER){
+        aaveStrategy.setPTokenAddress(
+            ASSET, 
+            P_TOKEN, 0
+        );
+
+        (uint256 a, uint256 b) = aaveStrategy.assetInfo(ASSET);
+        assert(a == 0);
+        assert(b == 0);
+    }
+}
+
+contract DepositTest is AaveStrategyTest {
+
+    function setUp() public override { 
+        super.setUp();
+        vm.startPrank(USDS_OWNER);     
+            _initializeStrategy();
+            aaveStrategy.setPTokenAddress(
+                ASSET, 
+                P_TOKEN, 0
+            );
+        vm.stopPrank();
+    }
+
+    function test_deposit()  useKnownActor(VAULT_ADDRESS) public  {
+
+        deal(address(ASSET), VAULT_ADDRESS, 1 ether);
+
+        IERC20(ASSET).approve(address(aaveStrategy), 1000);
+
+        aaveStrategy.deposit(ASSET, 1);
+    }
+
+}
+
+
+contract collect_interestTest is AaveStrategyTest {
+    address public yieldReceiver;
+
+    function setUp() public override {
+        super.setUp();
+        yieldReceiver = actors[0];
+        vm.startPrank(USDS_OWNER);
+            _initializeStrategy();
+            aaveStrategy.setPTokenAddress(
+                ASSET, 
+                P_TOKEN, 0
+            );
+       
+        changePrank(VAULT_ADDRESS);
+            deal(address(ASSET), VAULT_ADDRESS, 1 ether);
+            IERC20(ASSET).approve(address(aaveStrategy), 1000);
+            aaveStrategy.deposit(ASSET, 1000);
+        vm.stopPrank(); 
+    }
+
+    function test_collect_interest()  useKnownActor(VAULT_ADDRESS) public  {
+
+        vm.warp(block.timestamp + 10 days);
+        vm.roll(block.number + 1000);
+
+        uint256 initial_bal = IERC20(ASSET).balanceOf(yieldReceiver);
+
+        console.log(initial_bal);
+
+        vm.mockCall(
+            VAULT_ADDRESS,
+            abi.encodeWithSignature("yieldReceiver()"),
+            abi.encode(yieldReceiver)
+        );
+
+        uint256 interestEarned =  aaveStrategy.checkInterestEarned(ASSET);
+
+   
+        (uint256 a, uint256 b) = aaveStrategy.assetInfo(ASSET);
+ 
+        (address[] memory interestAssets, uint256[] memory interestAmts) = aaveStrategy.collectInterest(ASSET);
+
+        uint256 current_bal = IERC20(ASSET).balanceOf(yieldReceiver);
+
+        assert(current_bal  == (initial_bal + interestAmts[0]));
+    }
+
+}
+
+
+contract WithdrawTest is AaveStrategyTest {
+    address public yieldReceiver;
+
+    function setUp() public override {
+        super.setUp();
+        yieldReceiver = actors[0];
+        vm.startPrank(USDS_OWNER);
+            _initializeStrategy();
+            aaveStrategy.setPTokenAddress(
+                ASSET, 
+                P_TOKEN, 0
+            );
+       
+        changePrank(VAULT_ADDRESS);
+            deal(address(ASSET), VAULT_ADDRESS, 1 ether);
+            IERC20(ASSET).approve(address(aaveStrategy), 1000);
+            aaveStrategy.deposit(ASSET, 1000);
+        vm.stopPrank(); 
+    }
+
+    function test_collect_interest()  useKnownActor(VAULT_ADDRESS) public  {
+
+        vm.warp(block.timestamp + 10 days);
+        vm.roll(block.number + 1000);
+ 
+        aaveStrategy.withdraw(VAULT_ADDRESS, ASSET, 1);
+    }
+
+}
+
+contract MiscellaneousTest is AaveStrategyTest {
+
+    function test_checkBalance() public {
+        (uint256 balance,  uint256 intLiqThreshold) = aaveStrategy.assetInfo(ASSET);
+        uint256 bal = aaveStrategy.checkBalance(ASSET);
+        assert(bal == balance);
+    }
+
+    function test_checkAvailableBalance() public {
+        aaveStrategy.checkBalance(ASSET);
+    }
 }

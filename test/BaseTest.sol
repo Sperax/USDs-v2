@@ -58,23 +58,5 @@ abstract contract BaseTest is Test {
         arbFork = vm.createFork(ARBITRUM_RPC_URL);        
         vm.selectFork(arbFork);
         if (FORK_BLOCK != 0) vm.rollFork(FORK_BLOCK);
-    } 
-
-
-    function deployAaveStratedgy() public returns (AaveStrategy) {
-        address deployed_contract = deployCode("AaveStrategy.sol");
-        
-        address proxy = deployCode(
-            "TransparentUpgradeableProxy.sol",
-            abi.encode(
-               deployed_contract,
-               PROXY_ADMIN,
-               bytes("")
-            )
-        );
-
-        AaveStrategy  wrappedProxyV1 = AaveStrategy(address(proxy));
-
-        return wrappedProxyV1;
     }
 }
