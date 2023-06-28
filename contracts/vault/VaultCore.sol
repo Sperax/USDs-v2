@@ -91,15 +91,6 @@ contract VaultCore is
         emit OracleChanged(oracle);
     }
 
-    function rebase() external nonReentrant {
-        uint256 rebaseAmt = IRebaseManager(rebaseManager).fetchRebaseAmt();
-        uint256 usdsOldSupply = IERC20Upgradeable(USDS).totalSupply();
-        IUSDs(USDS).burnExclFromOutFlow(rebaseAmt);
-        IUSDs(USDS).changeSupply(usdsOldSupply);
-        IRebaseManager(rebaseManager).updateLastRebaseTS();
-        emit RebasedUSDs(rebaseAmt);
-    }
-
     function allocate(
         address _collateral,
         address _strategy,
@@ -114,7 +105,10 @@ contract VaultCore is
             ),
             "Allocation not allowed"
         );
-
+        IERC20Upgradeable(_collateral).safeIncreaseAllowance(
+            _strategy,
+            _amount
+        );
         IStrategy(_strategy).deposit(_collateral, _amount);
     }
 
@@ -137,7 +131,6 @@ contract VaultCore is
         uint256 _deadline
     ) external nonReentrant {
         require(block.timestamp <= _deadline, "Deadline passed");
-
         _mint(_collateral, _collateralAmt, _minUSDSAmt);
     }
 
@@ -162,13 +155,28 @@ contract VaultCore is
         _redeem(_collateral, _usdsAmt, _minCollAmt, _strategy);
     }
 
+    function rebase() public {
+        uint256 rebaseAmt = IRebaseManager(rebaseManager).fetchRebaseAmt();
+        if (rebaseAmt > 0) {
+            IUSDs(USDS).rebase(rebaseAmt);
+            emit RebasedUSDs(rebaseAmt);
+        }
+    }
+
     function mintView(
         address _collateral,
         uint256 _collateralAmt
     ) public view returns (uint256, uint256) {
+        ICollateralManager.CollateralMintData
+            memory collateralMintData = ICollateralManager(collateralManager)
+                .getMintParams(_collateral);
         IOracle.PriceData memory collateralPriceData = IOracle(oracle).getPrice(
             _collateral
         );
+        // Downside peg check
+        if (collateralPriceData.price < collateralMintData.downsidePeg) {
+            return (0, 0);
+        }
         (uint256 feePerc, uint256 feePercPrecision) = IFeeCalculator(
             feeCalculator
         ).getFeeIn(_collateral);
@@ -235,28 +243,19 @@ contract VaultCore is
                 .getMintParams(_collateral);
         require(collateralMintData.mintAllowed, "Mint not allowed");
 
-        IOracle.PriceData memory collateralPriceData = IOracle(oracle).getPrice(
-            _collateral
-        );
-        require(
-            collateralPriceData.price >= collateralMintData.downsidePeg,
-            "Collateral price too low"
-        );
-
         (uint256 toMinterAmt, uint256 feeAmt) = mintView(
             _collateral,
             _collateralAmt
         );
         require(toMinterAmt >= _minUSDSAmt, "Slippage screwed you");
+        require(toMinterAmt > 0, "Mint failed");
 
         IERC20Upgradeable(_collateral).safeTransferFrom(
             msg.sender,
             address(this),
             _collateralAmt
         );
-        if (toMinterAmt > 0) {
-            IUSDs(USDS).mint(msg.sender, toMinterAmt);
-        }
+        IUSDs(USDS).mint(msg.sender, toMinterAmt);
         if (feeAmt > 0) {
             IUSDs(USDS).mint(feeVault, feeAmt);
         }
@@ -327,13 +326,10 @@ contract VaultCore is
         }
 
         require(collateralAmt >= _minCollateralAmt, "Slippage screwed you");
+        require(collateralAmt > 0, "Redeem failed");
 
-        if (collateralAmt > 0) {
-            IERC20Upgradeable(_collateral).safeTransfer(
-                msg.sender,
-                collateralAmt
-            );
-        }
+        IERC20Upgradeable(_collateral).safeTransfer(msg.sender, collateralAmt);
+
         if (burnAmt > 0) {
             IERC20Upgradeable(USDS).safeTransferFrom(
                 msg.sender,

@@ -11,6 +11,7 @@ contract RebaseManager is Ownable {
     using SafeMath for uint256;
 
     address public constant USDS = 0xD74f5255D557944cf7Dd0E45FF521520002D5748;
+    uint256 private constant ONE_YEAR = 3153600000;
 
     address public vault;
     address public dripper;
@@ -18,12 +19,16 @@ contract RebaseManager is Ownable {
     uint256 public gap;
     uint256 public aprCap;
     uint256 public aprBottom;
-
     uint256 public lastRebaseTS;
 
     event DripperChanged(address dripper);
     event GapChanged(uint256 gap);
     event APRChanged(uint256 aprCap, uint256 aprBottom);
+
+    modifier onlyVault() {
+        require(msg.sender == vault, "Unauthorized caller");
+        _;
+    }
 
     constructor(
         address _vault,
@@ -37,8 +42,6 @@ contract RebaseManager is Ownable {
         aprBottom = _aprBottom;
         lastRebaseTS = block.timestamp;
     }
-
-    // Admin functions
 
     function setDripper(address _dripper) external onlyOwner {
         require(_dripper != address(0), "Illegal input");
@@ -57,34 +60,33 @@ contract RebaseManager is Ownable {
         emit APRChanged(_aprCap, _aprBottom);
     }
 
-    function updateLastRebaseTS() external {
-        require(msg.sender == vault, "unauthorized caller");
-        lastRebaseTS = block.timestamp;
-    }
-
-    function fetchRebaseAmt() external returns (uint256) {
-        // Skip when the time passed is not enough
-        if (block.timestamp <= lastRebaseTS + gap) {
+    function fetchRebaseAmt() external onlyVault returns (uint256) {
+        uint256 rebaseableAmt = getRebaseableAmt();
+        (uint256 minRebaseAmt, uint256 maxRebaseAmt) = getMinAndMaxRebaseAmt();
+        uint256 rebaseAmt = (rebaseableAmt > maxRebaseAmt)
+            ? maxRebaseAmt
+            : rebaseableAmt;
+        // Skip if insufficient USDs to rebase or insufficient time has elapsed
+        if (rebaseAmt < minRebaseAmt || block.timestamp <= lastRebaseTS + gap) {
             return 0;
         }
         IDripper(dripper).collect();
-        uint256 balance = IERC20(USDS).balanceOf(vault);
-        (uint256 minRebaseAmt, uint256 maxRebaseAmt) = _getMinAndMaxRebaseAmt();
-        uint256 rebaseAmt = (balance > maxRebaseAmt) ? maxRebaseAmt : balance;
-        // Skip when not enough USDs to rebase
-        if (rebaseAmt < minRebaseAmt) {
-            return 0;
-        }
+        lastRebaseTS = block.timestamp;
         return rebaseAmt;
     }
 
-    function _getMinAndMaxRebaseAmt() private view returns (uint256, uint256) {
+    function getRebaseableAmt() public view returns (uint256) {
+        uint256 collectableAmt = IDripper(dripper).getCollectableAmt();
+        uint256 currBalance = IERC20(USDS).balanceOf(vault);
+        return currBalance + collectableAmt;
+    }
+
+    function getMinAndMaxRebaseAmt() public view returns (uint256, uint256) {
         uint256 principal = IUSDs(USDS).totalSupply() -
             IUSDs(USDS).nonRebasingSupply();
         uint256 timeElapsed = block.timestamp - lastRebaseTS;
-        uint256 minRebaseAmt = (principal * aprBottom * timeElapsed) /
-            3153600000;
-        uint256 maxRebaseAmt = (principal * aprCap * timeElapsed) / 3153600000;
+        uint256 minRebaseAmt = (principal * aprBottom * timeElapsed) / ONE_YEAR;
+        uint256 maxRebaseAmt = (principal * aprCap * timeElapsed) / ONE_YEAR;
         return (minRebaseAmt, maxRebaseAmt);
     }
 }

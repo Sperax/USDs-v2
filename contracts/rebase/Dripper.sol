@@ -42,7 +42,7 @@ contract Dripper is Initializable, OwnableUpgradeable {
         emit DripDurationChanged(dripDuration);
     }
 
-    function collect() public returns (uint256) {
+    function collect() external returns (uint256) {
         _isNonZeroAddr(recipient);
         require(
             _msgSender() == recipient || _msgSender() == owner(),

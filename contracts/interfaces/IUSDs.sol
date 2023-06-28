@@ -6,9 +6,7 @@ interface IUSDs {
 
     function burn(uint256 _amount) external;
 
-    function burnExclFromOutFlow(uint256 _amount) external;
-
-    function changeSupply(uint256 _newTotalSupply) external;
+    function rebase(uint256 _rebaseAmt) external;
 
     function totalSupply() external view returns (uint256);
 
