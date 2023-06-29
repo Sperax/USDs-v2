@@ -22,6 +22,8 @@ contract AaveStrategyTest is BaseTest {
     UpgradeUtil internal upgradeUtil;
     address internal proxyAddress;
 
+    event InterestCollected(address indexed asset, address recipient, uint256 amount);
+
     function setUp() public virtual override {
         super.setUp();
         setArbitrumFork();
@@ -75,19 +77,19 @@ contract InitializeTests is AaveStrategyTest {
 
     } 
 
-    function test_revertsWhen_unAuthorized() public useActor(0) {
-        aaveStrategy.initialize(
-            AAVE_POOL_PROVIDER,
-            VAULT_ADDRESS
-        );
-    }
+    function test_success() public  useKnownActor(USDS_OWNER){
+        
+        assertEq(impl.owner(), address(0));
+        assertEq(aaveStrategy.owner(), address(0));
+    
 
-    function test_success() public {
         _initializeStrategy();
-        assert(true);
+
+        assertEq(impl.owner(), address(0));
+        assertEq(aaveStrategy.owner(), USDS_OWNER);
+        assertEq(aaveStrategy.vaultAddress(), VAULT_ADDRESS);
+        assertNotEq(aaveStrategy.aavePool.address, address(0));
     }
-
-
 } 
 
 contract PtokenTest is AaveStrategyTest {
@@ -112,12 +114,36 @@ contract PtokenTest is AaveStrategyTest {
         );
     }
 
+    function test_setPtoken_invalid_pair() public useKnownActor(USDS_OWNER) {
+        vm.expectRevert("Incorrect asset-pToken pair");
+        aaveStrategy.setPTokenAddress(ASSET, 0x625E7708f30cA75bfd92586e17077590C60eb4cD, 0);
+    }
+
     function test_SetPtoken()  public useKnownActor(USDS_OWNER) {
 
         vm.expectEmit(true, false, false, false);
+        assertEq(aaveStrategy.assetToPToken(ASSET), address(0));
 
         emit PTokenAdded(address(ASSET), address(P_TOKEN));
 
+        aaveStrategy.setPTokenAddress(
+            ASSET, 
+            P_TOKEN, 0
+        );
+
+        (uint256 allocatedAmt, uint256 intLiqThreshold) = aaveStrategy.assetInfo(ASSET);
+
+        assertEq(intLiqThreshold, 0);
+        assertEq(aaveStrategy.assetToPToken(ASSET), P_TOKEN);
+        assertTrue(aaveStrategy.supportsCollateral(ASSET));
+    }
+
+    function test_revert_ptoken_already_set() public useKnownActor(USDS_OWNER) {
+        aaveStrategy.setPTokenAddress(
+            ASSET, 
+            P_TOKEN, 0
+        );
+        vm.expectRevert("pToken already set");
         aaveStrategy.setPTokenAddress(
             ASSET, 
             P_TOKEN, 0
@@ -136,6 +162,7 @@ contract PtokenTest is AaveStrategyTest {
         aaveStrategy.updateIntLiqThreshold(P_TOKEN, 2);
     }
 
+
     function test_updateIntLiqThreshold() public useKnownActor(USDS_OWNER) {      
         aaveStrategy.setPTokenAddress(
             ASSET, 
@@ -146,6 +173,9 @@ contract PtokenTest is AaveStrategyTest {
 
         emit IntLiqThresholdChanged(address(ASSET), uint256(2));
         aaveStrategy.updateIntLiqThreshold(ASSET, 2);
+
+        (, uint256 intLiqThreshold) = aaveStrategy.assetInfo(ASSET);
+        assertEq(intLiqThreshold, 2);
     }
 
     function test_RemovePToken_failures() public {
@@ -167,12 +197,16 @@ contract PtokenTest is AaveStrategyTest {
     function test_RemovePToken() public  useKnownActor(USDS_OWNER){
         aaveStrategy.setPTokenAddress(
             ASSET, 
-            P_TOKEN, 0
+            P_TOKEN, 1
         );
         aaveStrategy.removePToken(0);
-        (uint256 a, uint256 b) = aaveStrategy.assetInfo(ASSET);
-        assert(a == 0);
-        assert(b == 0);
+       
+        (uint256 allocatedAmt, uint256 intLiqThreshold) = aaveStrategy.assetInfo(ASSET);
+
+        assertEq(allocatedAmt, 0);
+        assertEq(intLiqThreshold, 0);
+        assertEq(aaveStrategy.assetToPToken(ASSET), address(0));
+        assertFalse(aaveStrategy.supportsCollateral(ASSET));
     }
 }
 
@@ -189,6 +223,12 @@ contract DepositTest is AaveStrategyTest {
         vm.stopPrank();
     }
 
+
+    function test_deposit_unauthorized_call() public useActor(0) {
+        vm.expectRevert("Caller is not the Vault");
+        aaveStrategy.deposit(DUMMY_ADDRESS, 1);
+    }
+
     function test_deposit_failures() public useKnownActor(VAULT_ADDRESS) {
         vm.expectRevert("Collateral not supported");
         aaveStrategy.deposit(DUMMY_ADDRESS, 1);
@@ -198,9 +238,14 @@ contract DepositTest is AaveStrategyTest {
     }
 
     function test_deposit()  useKnownActor(VAULT_ADDRESS) public  {
+        uint256 initial_bal = aaveStrategy.checkBalance(ASSET);
+
         deal(address(ASSET), VAULT_ADDRESS, 1 ether);
         IERC20(ASSET).approve(address(aaveStrategy), 1000);
         aaveStrategy.deposit(ASSET, 1);
+
+        uint256 newl_bal = aaveStrategy.checkBalance(ASSET);
+        assertEq(initial_bal + 1, newl_bal);
     }
 
 }
@@ -238,8 +283,6 @@ contract collect_interestTest is AaveStrategyTest {
 
         uint256 initial_bal = IERC20(ASSET).balanceOf(yieldReceiver);
 
-        console.log(initial_bal);
-
         vm.mockCall(
             VAULT_ADDRESS,
             abi.encodeWithSignature("yieldReceiver()"),
@@ -248,14 +291,19 @@ contract collect_interestTest is AaveStrategyTest {
 
         uint256 interestEarned =  aaveStrategy.checkInterestEarned(ASSET);
 
+        assert(interestEarned > 0);
    
-        (uint256 a, uint256 b) = aaveStrategy.assetInfo(ASSET);
+        vm.expectEmit(true, false, false, true);
+        emit InterestCollected(ASSET, aaveStrategy.assetToPToken(ASSET), interestEarned);
  
         (address[] memory interestAssets, uint256[] memory interestAmts) = aaveStrategy.collectInterest(ASSET);
 
         uint256 current_bal = IERC20(ASSET).balanceOf(yieldReceiver);
 
-        assert(current_bal  == (initial_bal + interestAmts[0]));
+        uint256 newinterestEarned =  aaveStrategy.checkInterestEarned(ASSET);
+
+        assertEq(newinterestEarned, 0);
+        assertEq(current_bal, (initial_bal + interestAmts[0]));
     }
 
 }
@@ -323,8 +371,7 @@ contract MiscellaneousTest is AaveStrategyTest {
     }
 
     function test_checkRewardEarned() public {
-       uint256 reward = aaveStrategy.checkRewardEarned();
-       assert(reward == 0);
+      assert(aaveStrategy.checkRewardEarned() == 0);
     }
 
     function test_checkBalance() public {

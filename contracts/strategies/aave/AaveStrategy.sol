@@ -74,6 +74,7 @@ contract AaveStrategy is InitializableAbstractStrategy {
 
         assetsMapped[_assetIndex] = assetsMapped[numAssets - 1];
         assetsMapped.pop();
+        delete assetToPToken[asset];
         delete assetInfo[asset];
         emit PTokenRemoved(asset, pToken);
     }
