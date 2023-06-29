@@ -7,9 +7,28 @@ import {stdStorage, StdStorage} from "forge-std/StdStorage.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 import {StargateStrategy, ILPStaking, IStargatePool} from "../../contracts/strategies/stargate/StargateStrategy.sol";
-import "forge-std/Vm.sol";
+import {VmSafe} from "forge-std/Vm.sol";
 
-contract StargateStrategyTest is BaseTest {
+contract BaseStrategy {
+    event VaultUpdated(address newVaultAddr);
+    event YieldReceiverUpdated(address newYieldReceiver);
+    event PTokenAdded(address indexed asset, address pToken);
+    event PTokenRemoved(address indexed asset, address pToken);
+    event Deposit(address indexed asset, address pToken, uint256 amount);
+    event Withdrawal(address indexed asset, address pToken, uint256 amount);
+    event InterestCollected(
+        address indexed asset,
+        address recipient,
+        uint256 amount
+    );
+    event RewardTokenCollected(
+        address indexed rwdToken,
+        address recipient,
+        uint256 amount
+    );
+}
+
+contract StargateStrategyTest is BaseStrategy, BaseTest {
     struct AssetData {
         string name;
         address asset;
@@ -33,6 +52,14 @@ contract StargateStrategyTest is BaseTest {
     StargateStrategy internal impl;
     StargateStrategy internal strategy;
     address internal proxyAddress;
+
+    // Test events
+    event SkipRwdValidationStatus(bool status);
+    event SlippageChanged(uint256 depositSlippage, uint256 withdrawSlippage);
+    event IntLiqThresholdChanged(
+        address indexed asset,
+        uint256 intLiqThreshold
+    );
 
     function setUp() public virtual override {
         super.setUp();
@@ -125,7 +152,7 @@ contract StargateStrategyTest is BaseTest {
 }
 
 contract StrategyInitializationTest is StargateStrategyTest {
-    function test_validInitialization() external useKnownActor(USDS_OWNER) {
+    function test_validInitialization() public useKnownActor(USDS_OWNER) {
         // Test state variables pre initialization
         assertEq(impl.owner(), address(0));
         assertEq(strategy.owner(), address(0));
@@ -142,6 +169,27 @@ contract StrategyInitializationTest is StargateStrategyTest {
         assertEq(strategy.depositSlippage(), BASE_DEPOSIT_SLIPPAGE);
         assertEq(strategy.withdrawSlippage(), BASE_WITHDRAW_SLIPPAGE);
         assertEq(strategy.rewardTokenAddress(0), STG);
+    }
+
+    function test_invalidInitialization() public useKnownActor(USDS_OWNER) {
+        vm.expectRevert("Invalid address");
+        strategy.initialize(
+            address(0),
+            address(0),
+            STG,
+            STARGATE_FARM,
+            BASE_DEPOSIT_SLIPPAGE,
+            BASE_WITHDRAW_SLIPPAGE
+        );
+    }
+
+    function test_updateVaultCore() public useKnownActor(USDS_OWNER) {
+        _initializeStrategy();
+
+        address newVault = address(1);
+        vm.expectEmit(true, true, false, true);
+        emit VaultUpdated(newVault);
+        strategy.updateVaultCore(newVault);
     }
 }
 
@@ -160,6 +208,8 @@ contract StrategySetPToken is StargateStrategyTest {
             assertEq(strategy.assetToPToken(data[i].asset), address(0));
             assertFalse(strategy.supportsCollateral(data[i].asset));
 
+            vm.expectEmit(true, true, false, true);
+            emit PTokenAdded(data[i].asset, data[i].pToken);
             strategy.setPTokenAddress(
                 data[i].asset,
                 data[i].pToken,
@@ -277,10 +327,12 @@ contract StrategyRemovePToken is StargateStrategyTest {
     }
 
     function test_removePToken() public useKnownActor(USDS_OWNER) {
-        AssetData[] memory data = _getAssetConfig();
-        assertTrue(strategy.supportsCollateral(data[0].asset));
+        AssetData memory data = _getAssetConfig()[0];
+        assertTrue(strategy.supportsCollateral(data.asset));
+        vm.expectEmit(true, true, false, true);
+        emit PTokenRemoved(data.asset, data.pToken);
         strategy.removePToken(0);
-        assertFalse(strategy.supportsCollateral(data[0].asset));
+        assertFalse(strategy.supportsCollateral(data.asset));
     }
 
     function test_revertsWhen_notOwner() public {
@@ -327,6 +379,8 @@ contract StrategyUpdateIntLiqThreshold is StargateStrategyTest {
     function test_updateIntLiqThreshold() public useKnownActor(USDS_OWNER) {
         AssetData memory data = _getAssetConfig()[0];
         uint256 newThreshold = 100e18;
+        vm.expectEmit(true, true, false, true);
+        emit IntLiqThresholdChanged(data.asset, newThreshold);
         strategy.updateIntLiqThreshold(data.asset, newThreshold);
         (, uint256 intLiqThreshold, , ) = strategy.assetInfo(data.asset);
         assertEq(intLiqThreshold, newThreshold);
@@ -359,7 +413,7 @@ contract StrategyUpdateIntLiqThreshold is StargateStrategyTest {
 
 contract StrategyChangeSlippage is StargateStrategyTest {
     uint256 public updatedDepositSippage = 100;
-    uint256 public updatedWithdrawSippage = 100;
+    uint256 public updatedWithdrawSippage = 200;
 
     function setUp() public override {
         super.setUp();
@@ -369,6 +423,8 @@ contract StrategyChangeSlippage is StargateStrategyTest {
     }
 
     function test_changeSlippage() public useKnownActor(USDS_OWNER) {
+        vm.expectEmit(true, false, false, true);
+        emit SlippageChanged(updatedDepositSippage, updatedWithdrawSippage);
         strategy.changeSlippage(updatedDepositSippage, updatedWithdrawSippage);
         assertEq(strategy.depositSlippage(), updatedDepositSippage);
         assertEq(strategy.withdrawSlippage(), updatedWithdrawSippage);
@@ -559,6 +615,8 @@ contract StrategyCollecReward is StrategyHarvestTest {
         uint256 currentRewards = strategy.checkRewardEarned();
         assert(currentRewards > 0);
 
+        vm.expectEmit(true, false, false, true);
+        emit RewardTokenCollected(STG, yieldReceiver, currentRewards);
         strategy.collectReward();
 
         assertEq(ERC20(STG).balanceOf(yieldReceiver), currentRewards);
@@ -597,10 +655,19 @@ contract StrategyCollectIntererst is StrategyHarvestTest {
                 strategy.checkAvailableBalance(data[i].asset),
                 intialAvailableBal
             );
+            uint256 interestEarned = strategy.checkInterestEarned(
+                data[i].asset
+            );
             assertEq(strategy.checkBalance(data[i].asset), initialBal);
             assertEq(strategy.checkLPTokenBalance(data[i].asset), mockBal);
-            assertTrue(strategy.checkInterestEarned(data[i].asset) > 0);
+            assertTrue(interestEarned > 0);
 
+            vm.expectEmit(true, false, false, false);
+            emit InterestCollected(
+                data[i].asset,
+                yieldReceiver,
+                interestEarned
+            );
             strategy.collectInterest(data[i].asset);
             assertEq(strategy.checkLPTokenBalance(data[i].asset), initialLPBal);
         }
@@ -643,11 +710,13 @@ contract StrategyWithdraw is StargateStrategyTest {
             uint256 initialBal = strategy.checkBalance(data[i].asset);
             uint256 initialVaultBal = collateral.balanceOf(VAULT);
 
+            vm.expectEmit(true, false, false, false);
+            emit Withdrawal(data[i].asset, data[i].pToken, initialBal);
             strategy.withdraw(VAULT, data[i].asset, initialBal);
             assertApproxEqAbs(
                 collateral.balanceOf(VAULT),
                 initialVaultBal + initialBal,
-                1 * IStargatePool(data[i].pToken).convertRate()
+                IStargatePool(data[i].pToken).convertRate()
             );
         }
     }
@@ -659,6 +728,8 @@ contract StrategyWithdraw is StargateStrategyTest {
             uint256 initialBal = strategy.checkBalance(data[i].asset);
             uint256 initialVaultBal = collateral.balanceOf(VAULT);
 
+            vm.expectEmit(true, false, false, false);
+            emit Withdrawal(data[i].asset, data[i].pToken, initialBal);
             strategy.withdrawToVault(data[i].asset, initialBal);
             assertApproxEqAbs(
                 collateral.balanceOf(VAULT),
