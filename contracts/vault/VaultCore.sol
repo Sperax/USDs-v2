@@ -260,6 +260,8 @@ contract VaultCore is
             IUSDs(USDS).mint(feeVault, feeAmt);
         }
 
+        rebase();
+
         emit Minted(
             msg.sender,
             _collateral,
@@ -345,6 +347,8 @@ contract VaultCore is
                 feeAmt
             );
         }
+
+        rebase();
 
         emit Redeemed(msg.sender, _collateral, burnAmt, collateralAmt, feeAmt);
     }
