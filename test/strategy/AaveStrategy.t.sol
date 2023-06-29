@@ -264,7 +264,7 @@ contract DepositTest is AaveStrategyTest {
 }
 
 
-contract collect_interestTest is AaveStrategyTest {
+contract CollectInterestTest is AaveStrategyTest {
     address public yieldReceiver;
 
     function setUp() public override {
