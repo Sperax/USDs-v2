@@ -320,12 +320,6 @@ contract MiscellaneousTest is AaveStrategyTest {
                 ASSET, 
                 P_TOKEN, 0
             );
-       
-        changePrank(VAULT_ADDRESS);
-            deal(address(ASSET), VAULT_ADDRESS, 1 ether);
-            IERC20(ASSET).approve(address(aaveStrategy), 1000);
-            aaveStrategy.deposit(ASSET, 1000);
-        vm.stopPrank(); 
     }
 
     function test_checkRewardEarned() public {
@@ -340,12 +334,28 @@ contract MiscellaneousTest is AaveStrategyTest {
     }
 
     function test_checkAvailableBalance() public {
-        uint256 bal = aaveStrategy.checkAvailableBalance(ASSET);
-        assert(bal > 0);
+
+        uint256 bal_before = aaveStrategy.checkAvailableBalance(ASSET);
+
+        assert(bal_before == 0);
+
+        vm.startPrank(VAULT_ADDRESS);
+            deal(address(ASSET), VAULT_ADDRESS, 1 ether);
+            IERC20(ASSET).approve(address(aaveStrategy), 1000);
+            aaveStrategy.deposit(ASSET, 1000);
+        vm.stopPrank(); 
+
+        uint256 bal_after = aaveStrategy.checkAvailableBalance(ASSET);
+        assert(bal_after > 0);
     }
 
     function test_collectReward() public {
         vm.expectRevert("No reward incentive for AAVE");
         aaveStrategy.collectReward();
+    }
+
+    function test_checkInterestEarned_empty() public {
+        uint256 interest =  aaveStrategy.checkInterestEarned(ASSET);
+        assert(interest == 0);
     }
 }
