@@ -6,6 +6,10 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {ICollateralManager} from "./interfaces/ICollateralManager.sol";
 import {IStrategy} from "./interfaces/IStrategy.sol";
 
+interface IERC20Custom is IERC20 {
+    function decimals() external view returns (uint8);
+}
+
 contract CollateralManager is ICollateralManager, Ownable {
     struct CollateralData {
         bool mintAllowed;
@@ -18,6 +22,7 @@ contract CollateralManager is ICollateralManager, Ownable {
         uint16 downsidePeg;
         uint16 collateralCompostion;
         uint16 collateralCapacityUsed;
+        uint256 conversionFactor;
     }
 
     struct StrategyData {
@@ -80,7 +85,8 @@ contract CollateralManager is ICollateralManager, Ownable {
             downsidePeg: _data.downsidePeg,
             collateralCapacityUsed: 0,
             collateralCompostion: _data.collateralCompostion,
-            exists: true
+            exists: true,
+            conversionFactor: 10 ** (18 - IERC20Custom(_collateral).decimals())
         });
 
         collaterals.push(_collateral);
@@ -352,7 +358,8 @@ contract CollateralManager is ICollateralManager, Ownable {
             CollateralMintData({
                 mintAllowed: collateralStorageData.mintAllowed,
                 baseFeeIn: collateralStorageData.baseFeeIn,
-                downsidePeg: collateralStorageData.downsidePeg
+                downsidePeg: collateralStorageData.downsidePeg,
+                conversionFactor: collateralStorageData.conversionFactor
             });
     }
 
@@ -374,7 +381,8 @@ contract CollateralManager is ICollateralManager, Ownable {
             CollateralRedeemData({
                 redeemAllowed: collateralStorageData.redeemAllowed,
                 defaultStrategy: collateralStorageData.defaultStrategy,
-                baseFeeOut: collateralStorageData.baseFeeOut
+                baseFeeOut: collateralStorageData.baseFeeOut,
+                conversionFactor: collateralStorageData.conversionFactor
             });
     }
 

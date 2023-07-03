@@ -16,12 +16,14 @@ interface ICollateralManager {
         bool mintAllowed;
         uint16 baseFeeIn;
         uint16 downsidePeg;
+        uint256 conversionFactor;
     }
 
     struct CollateralRedeemData {
         bool redeemAllowed;
         address defaultStrategy;
         uint16 baseFeeOut;
+        uint256 conversionFactor;
     }
 
     /// @notice Validate allocation for a collateral
