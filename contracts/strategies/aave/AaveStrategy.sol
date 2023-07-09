@@ -38,11 +38,12 @@ contract AaveStrategy is InitializableAbstractStrategy {
         aavePool = IAaveLendingPool(
             IPoolAddressesProvider(_platformAddress).getPool()
         ); // aave Lending Pool 0x794a61358D6845594F94dc1DB02A252b5b4814aD
-
+        uint16 depositSlippage = 0;
+        uint16 withdrawSlippage = 0;
         InitializableAbstractStrategy._initialize(
             _vaultAddress,
-            new address[](0),
-            new address[](0)
+            depositSlippage,
+            withdrawSlippage
         );
     }
 
@@ -66,16 +67,9 @@ contract AaveStrategy is InitializableAbstractStrategy {
     ///      This method can only be called by the system owner
     /// @param _assetIndex Index of the asset to be removed
     function removePToken(uint256 _assetIndex) external onlyOwner {
-        uint256 numAssets = assetsMapped.length;
-        require(_assetIndex < numAssets, "Invalid index");
-        address asset = assetsMapped[_assetIndex];
-        require(assetInfo[asset].allocatedAmt == 0, "Collateral allocted");
-        address pToken = assetToPToken[asset];
-
-        assetsMapped[_assetIndex] = assetsMapped[numAssets - 1];
-        assetsMapped.pop();
+        address asset = _removePTokenAddress(_assetIndex);
+        require(assetInfo[asset].allocatedAmt == 0, "Collateral allocated");
         delete assetInfo[asset];
-        emit PTokenRemoved(asset, pToken);
     }
 
     /// @notice Update the interest liquidity threshold for an asset.
@@ -131,37 +125,28 @@ contract AaveStrategy is InitializableAbstractStrategy {
     /// @inheritdoc InitializableAbstractStrategy
     function collectInterest(
         address _asset
-    )
-        external
-        override
-        onlyVault
-        nonReentrant
-        returns (address[] memory interestAssets, uint256[] memory interestAmts)
-    {
+    ) external override onlyVault nonReentrant {
         address yieldReceiver = IVault(vaultAddress).yieldReceiver();
-        address aToken = _getATokenFor(_asset);
+        address harvestor = msg.sender;
         uint256 assetInterest = checkInterestEarned(_asset);
-        interestAssets = new address[](1);
-        interestAmts = new uint256[](1);
         if (assetInterest > assetInfo[_asset].intLiqThreshold) {
-            uint256 actual = aavePool.withdraw(
+            uint256 interestCollected = aavePool.withdraw(
                 _asset,
                 assetInterest,
                 yieldReceiver
             );
-            interestAssets[0] = _asset;
-            interestAmts[0] = assetInterest;
-            emit InterestCollected(_asset, aToken, actual);
+            uint256 harvestAmt = _splitAndSendReward(
+                _asset,
+                yieldReceiver,
+                harvestor,
+                interestCollected
+            );
+            emit InterestCollected(_asset, yieldReceiver, harvestAmt);
         }
     }
 
     /// @inheritdoc InitializableAbstractStrategy
-    function collectReward()
-        external
-        pure
-        override
-        returns (address[] memory, uint256[] memory)
-    {
+    function collectReward() external pure override {
         revert("No reward incentive for AAVE");
         // No reward token for Aave
     }
