@@ -16,14 +16,21 @@ contract BaseStrategy {
     event PTokenRemoved(address indexed asset, address pToken);
     event Deposit(address indexed asset, address pToken, uint256 amount);
     event Withdrawal(address indexed asset, address pToken, uint256 amount);
+    event SlippageChanged(uint16 depositSlippage, uint16 withdrawSlippage);
+    event HarvestIncentiveCollected(
+        address indexed token,
+        address indexed harvestor,
+        uint256 amount
+    );
+    event HarvestIncentiveRateUpdated(uint16 newRate);
     event InterestCollected(
         address indexed asset,
-        address recipient,
+        address indexed recipient,
         uint256 amount
     );
     event RewardTokenCollected(
         address indexed rwdToken,
-        address recipient,
+        address indexed recipient,
         uint256 amount
     );
 }
@@ -44,8 +51,8 @@ contract StargateStrategyTest is BaseStrategy, BaseTest {
     address public constant STG = 0x6694340fc020c5E6B96567843da2df01b2CE1eb6;
     address public constant STARGATE_FARM =
         0xeA8DfEE1898a7e0a59f7527F076106d7e44c2176;
-    uint256 public constant BASE_DEPOSIT_SLIPPAGE = 20;
-    uint256 public constant BASE_WITHDRAW_SLIPPAGE = 20;
+    uint16 public constant BASE_DEPOSIT_SLIPPAGE = 20;
+    uint16 public constant BASE_WITHDRAW_SLIPPAGE = 20;
 
     // Test variables
     UpgradeUtil internal upgradeUtil;
@@ -55,7 +62,6 @@ contract StargateStrategyTest is BaseStrategy, BaseTest {
 
     // Test events
     event SkipRwdValidationStatus(bool status);
-    event SlippageChanged(uint256 depositSlippage, uint256 withdrawSlippage);
     event IntLiqThresholdChanged(
         address indexed asset,
         uint256 intLiqThreshold
@@ -190,6 +196,22 @@ contract StrategyInitializationTest is StargateStrategyTest {
         vm.expectEmit(true, true, false, true);
         emit VaultUpdated(newVault);
         strategy.updateVaultCore(newVault);
+    }
+
+    function test_updateHarvestIncentiveRate()
+        public
+        useKnownActor(USDS_OWNER)
+    {
+        uint16 newRate = 100;
+        _initializeStrategy();
+
+        vm.expectEmit(true, false, false, true);
+        emit HarvestIncentiveRateUpdated(newRate);
+        strategy.updateHarvestIncentiveRate(newRate);
+
+        newRate = 10001;
+        vm.expectRevert("Invalid value");
+        strategy.updateHarvestIncentiveRate(newRate);
     }
 }
 
@@ -412,8 +434,8 @@ contract StrategyUpdateIntLiqThreshold is StargateStrategyTest {
 }
 
 contract StrategyChangeSlippage is StargateStrategyTest {
-    uint256 public updatedDepositSippage = 100;
-    uint256 public updatedWithdrawSippage = 200;
+    uint16 public updatedDepositSippage = 100;
+    uint16 public updatedWithdrawSippage = 200;
 
     function setUp() public override {
         super.setUp();
@@ -604,8 +626,12 @@ contract StrategyHarvestTest is StargateStrategyTest {
 }
 
 contract StrategyCollecReward is StrategyHarvestTest {
-    function test_collectReward() public {
+    function test_collectReward(uint16 _harvestIncentiveRate) public {
+        _harvestIncentiveRate = uint16(bound(_harvestIncentiveRate, 0, 10000));
+        vm.prank(USDS_OWNER);
+        strategy.updateHarvestIncentiveRate(_harvestIncentiveRate);
         uint256 initialRewards = strategy.checkRewardEarned();
+
         assert(initialRewards == 0);
 
         // Do a time travel & mine dummy blocks for accumulating some rewards
@@ -614,12 +640,22 @@ contract StrategyCollecReward is StrategyHarvestTest {
 
         uint256 currentRewards = strategy.checkRewardEarned();
         assert(currentRewards > 0);
+        uint256 incentiveAmt = (currentRewards *
+            strategy.harvestIncentiveRate()) / strategy.PERCENTAGE_PREC();
+        uint256 harvestAmt = currentRewards - incentiveAmt;
+        address caller = actors[1];
 
-        vm.expectEmit(true, false, false, true);
-        emit RewardTokenCollected(STG, yieldReceiver, currentRewards);
+        if (incentiveAmt > 0) {
+            vm.expectEmit(true, true, false, true);
+            emit HarvestIncentiveCollected(STG, caller, incentiveAmt);
+        }
+        vm.expectEmit(true, true, false, true);
+        emit RewardTokenCollected(STG, yieldReceiver, harvestAmt);
+        vm.prank(caller);
         strategy.collectReward();
 
-        assertEq(ERC20(STG).balanceOf(yieldReceiver), currentRewards);
+        assertEq(ERC20(STG).balanceOf(yieldReceiver), harvestAmt);
+        assertEq(ERC20(STG).balanceOf(caller), incentiveAmt);
 
         currentRewards = strategy.checkRewardEarned();
         assert(currentRewards == 0);
