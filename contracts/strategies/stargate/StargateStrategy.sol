@@ -60,25 +60,25 @@ contract StargateStrategy is InitializableAbstractStrategy {
     /// @notice Provide support for asset by passing its pToken address.
     ///      This method can only be called by the system owner
     /// @param _asset    Address for the asset
-    /// @param _pToken   Address for the corresponding platform token
+    /// @param _lpToken   Address for the corresponding platform token
     /// @param _pid   Pool Id for the asset
     /// @param _rewardPid   Farm Pool Id for the asset
     /// @param _intLiqThreshold   Liquidity threshold for interest
     function setPTokenAddress(
         address _asset,
-        address _pToken,
+        address _lpToken,
         uint16 _pid,
         uint256 _rewardPid,
         uint256 _intLiqThreshold
     ) external onlyOwner {
         require(
-            IStargatePool(_pToken).token() == _asset,
+            IStargatePool(_lpToken).token() == _asset,
             "Incorrect asset & pToken pair"
         );
-        require(IStargatePool(_pToken).poolId() == _pid, "Incorrect pool id");
+        require(IStargatePool(_lpToken).poolId() == _pid, "Incorrect pool id");
         (IERC20 lpToken, , , ) = ILPStaking(farm).poolInfo(_rewardPid);
-        require(address(lpToken) == _pToken, "Incorrect reward pid");
-        _setPTokenAddress(_asset, _pToken);
+        require(address(lpToken) == _lpToken, "Incorrect reward pid");
+        _setPTokenAddress(_asset, _lpToken);
         assetInfo[_asset] = AssetInfo({
             allocatedAmt: 0,
             pid: _pid,
