@@ -9,13 +9,14 @@ interface ICollateralManager {
         uint16 baseFeeIn;
         uint16 baseFeeOut;
         uint16 downsidePeg;
-        uint16 collateralCompostion;
+        uint16 desiredCollateralCompostion;
     }
 
     struct CollateralMintData {
         bool mintAllowed;
         uint16 baseFeeIn;
         uint16 downsidePeg;
+        uint16 desiredCollateralComposition;
         uint256 conversionFactor;
     }
 
@@ -23,6 +24,7 @@ interface ICollateralManager {
         bool redeemAllowed;
         address defaultStrategy;
         uint16 baseFeeOut;
+        uint16 desiredCollateralComposition;
         uint256 conversionFactor;
     }
 

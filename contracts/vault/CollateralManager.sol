@@ -20,7 +20,7 @@ contract CollateralManager is ICollateralManager, Ownable {
         uint16 baseFeeIn;
         uint16 baseFeeOut;
         uint16 downsidePeg;
-        uint16 collateralCompostion;
+        uint16 desiredCollateralCompostion;
         uint16 collateralCapacityUsed;
         uint256 conversionFactor;
     }
@@ -30,18 +30,14 @@ contract CollateralManager is ICollateralManager, Ownable {
         bool exists;
     }
 
-    uint256 public constant PERC_PRECISION = 10 ** 4;
+    uint256 public constant PERC_PRECISION = 1e4;
 
-    uint32 public numCollaterals;
-    uint32 public numCollateralStrategy;
     uint16 private collateralCompostionUsed;
-
-    address public vaultCore;
+    address public immutable vaultCore;
     address[] private collaterals;
     mapping(address => CollateralData) public collateralInfo;
     mapping(address => mapping(address => StrategyData))
         private collateralStrategyInfo;
-
     mapping(address => address[]) private collateralStrategies;
 
     event CollateralAdded(address collateral, CollateralBaseData data);
@@ -50,6 +46,10 @@ contract CollateralManager is ICollateralManager, Ownable {
     event CollateralStrategyAdded(address collateral, address strategy);
     event CollateralStrategyUpdated(address collateral, address strategy);
     event CollateralStrategyRemoved(address collateral, address strategy);
+
+    constructor(address _vaultCore) {
+        vaultCore = _vaultCore;
+    }
 
     /// @notice Register a collateral for mint & redeem in USDs
     /// @param _collateral Address of the collateral
@@ -70,7 +70,7 @@ contract CollateralManager is ICollateralManager, Ownable {
         _validatePrecision(_data.baseFeeOut);
 
         require(
-            _data.collateralCompostion <=
+            _data.desiredCollateralCompostion <=
                 (PERC_PRECISION - collateralCompostionUsed),
             "CollateralCompostion exceeded"
         );
@@ -84,13 +84,13 @@ contract CollateralManager is ICollateralManager, Ownable {
             baseFeeOut: _data.baseFeeOut,
             downsidePeg: _data.downsidePeg,
             collateralCapacityUsed: 0,
-            collateralCompostion: _data.collateralCompostion,
+            desiredCollateralCompostion: _data.desiredCollateralCompostion,
             exists: true,
             conversionFactor: 10 ** (18 - IERC20Custom(_collateral).decimals())
         });
 
         collaterals.push(_collateral);
-        collateralCompostionUsed += _data.collateralCompostion;
+        collateralCompostionUsed += _data.desiredCollateralCompostion;
 
         emit CollateralAdded(_collateral, _data);
     }
@@ -113,8 +113,8 @@ contract CollateralManager is ICollateralManager, Ownable {
         CollateralData storage data = collateralInfo[_collateral];
 
         uint16 newCapacityUsed = (collateralCompostionUsed -
-            data.collateralCompostion +
-            _updateData.collateralCompostion);
+            data.desiredCollateralCompostion +
+            _updateData.desiredCollateralCompostion);
 
         require(
             newCapacityUsed <= PERC_PRECISION,
@@ -127,7 +127,8 @@ contract CollateralManager is ICollateralManager, Ownable {
         data.baseFeeIn = _updateData.baseFeeIn;
         data.baseFeeOut = _updateData.baseFeeOut;
         data.downsidePeg = _updateData.downsidePeg;
-        data.collateralCompostion = _updateData.collateralCompostion;
+        data.desiredCollateralCompostion = _updateData
+            .desiredCollateralCompostion;
 
         collateralCompostionUsed = newCapacityUsed;
 
@@ -150,7 +151,7 @@ contract CollateralManager is ICollateralManager, Ownable {
                 collaterals[i] = collaterals[numCollateral - 1];
                 collaterals.pop();
                 collateralCompostionUsed -= collateralInfo[_collateral]
-                    .collateralCompostion;
+                    .desiredCollateralCompostion;
                 delete (collateralInfo[_collateral]);
                 break;
             }
@@ -359,6 +360,8 @@ contract CollateralManager is ICollateralManager, Ownable {
                 mintAllowed: collateralStorageData.mintAllowed,
                 baseFeeIn: collateralStorageData.baseFeeIn,
                 downsidePeg: collateralStorageData.downsidePeg,
+                desiredCollateralComposition: collateralStorageData
+                    .desiredCollateralCompostion,
                 conversionFactor: collateralStorageData.conversionFactor
             });
     }
@@ -382,6 +385,8 @@ contract CollateralManager is ICollateralManager, Ownable {
                 redeemAllowed: collateralStorageData.redeemAllowed,
                 defaultStrategy: collateralStorageData.defaultStrategy,
                 baseFeeOut: collateralStorageData.baseFeeOut,
+                desiredCollateralComposition: collateralStorageData
+                    .desiredCollateralCompostion,
                 conversionFactor: collateralStorageData.conversionFactor
             });
     }
