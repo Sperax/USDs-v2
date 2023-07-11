@@ -19,6 +19,8 @@ contract VaultCore is
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
     bytes32 private constant ALLOCATOR_ROLE = keccak256("ALLOCATOR_ROLE");
+    bytes32 private constant FACILITATOR_ROLE = keccak256("FACILITATOR_ROLE");
+
     address public constant USDS = 0xD74f5255D557944cf7Dd0E45FF521520002D5748;
 
     address public feeVault;
@@ -265,7 +267,7 @@ contract VaultCore is
     ) public view returns (uint256, uint256) {
         // Get mint configuration
         ICollateralManager.CollateralMintData
-            memory collateralMintData = ICollateralManager(collateralManager)
+            memory collateralMintConfig = ICollateralManager(collateralManager)
                 .getMintParams(_collateral);
 
         // Fetch the latest price of the collateral
@@ -275,20 +277,29 @@ contract VaultCore is
 
         // Downside peg check
         if (
-            collateralPriceData.price < collateralMintData.downsidePeg ||
-            !collateralMintData.mintAllowed
+            collateralPriceData.price < collateralMintConfig.downsidePeg ||
+            !collateralMintConfig.mintAllowed
         ) {
             return (0, 0);
         }
 
-        // Calculate mint fee based on collateral data
-        (uint256 feePerc, uint256 feePercPrecision) = IFeeCalculator(
-            feeCalculator
-        ).getFeeIn(_collateral);
+        // Skip fee collection for Facilitator
+        uint256 feePerc = 0;
+        uint256 feePercPrecision = 1;
+        if (!hasRole(FACILITATOR_ROLE, msg.sender)) {
+            // Calculate mint fee based on collateral data
+            (feePerc, feePercPrecision) = IFeeCalculator(feeCalculator)
+                .getFeeIn(
+                    _collateral,
+                    _collateralAmt,
+                    collateralMintConfig,
+                    collateralPriceData
+                );
+        }
 
         // Normalize _collateralAmt to be of decimals 18
         uint256 normalizedCollateralAmt = _collateralAmt *
-            collateralMintData.conversionFactor;
+            collateralMintConfig.conversionFactor;
 
         // Calculate total USDs amount
         uint256 usdsAmt = normalizedCollateralAmt;
@@ -298,97 +309,11 @@ contract VaultCore is
                 collateralPriceData.precision;
         }
 
-        // Calculate the fee amount
+        // Calculate the fee amount and usds to mint
         uint256 feeAmt = (usdsAmt * feePerc) / feePercPrecision;
         uint256 toMinterAmt = usdsAmt - feeAmt;
 
         return (toMinterAmt, feeAmt);
-    }
-
-    /// @notice Get the expected redeem result
-    /// @param _collateral desired collateral address
-    /// @param _usdsAmt amount of usds to be redeemed
-    /// @param _strategyAddr address of the strategy to redeem from
-    /// @return calculatedCollateralAmt expected amount of collateral to be released
-    ///                          based on the price calculation
-    /// @return usdsBurnAmt expected amount of USDs to be burnt in the process
-    /// @return feeAmt amount of USDs collected as fee for redemption
-    /// @return vaultAmt amount of Collateral released from Vault
-    /// @return strategyAmt amount of Collateral to withdraw from strategy
-    /// @return strategy Strategy to withdraw collateral from
-    function _redeemView(
-        address _collateral,
-        uint256 _usdsAmt,
-        address _strategyAddr
-    )
-        public
-        view
-        returns (
-            uint256 calculatedCollateralAmt,
-            uint256 usdsBurnAmt,
-            uint256 feeAmt,
-            uint256 vaultAmt,
-            uint256 strategyAmt,
-            IStrategy strategy
-        )
-    {
-        ICollateralManager.CollateralRedeemData
-            memory collateralRedeemData = ICollateralManager(collateralManager)
-                .getRedeemParams(_collateral);
-
-        require(collateralRedeemData.redeemAllowed, "Redeem not allowed");
-
-        IOracle.PriceData memory collateralPriceData = IOracle(oracle).getPrice(
-            _collateral
-        );
-        (uint256 feePerc, uint256 feePercPrecision) = IFeeCalculator(
-            feeCalculator
-        ).getFeeOut(_collateral);
-
-        feeAmt = (_usdsAmt * feePerc) / feePercPrecision;
-        usdsBurnAmt = _usdsAmt - feeAmt;
-
-        // Calculate collateral amount
-        calculatedCollateralAmt = usdsBurnAmt;
-        if (collateralPriceData.price >= collateralPriceData.precision) {
-            // Apply downside peg
-            calculatedCollateralAmt =
-                (usdsBurnAmt * collateralPriceData.precision) /
-                collateralPriceData.price;
-        }
-
-        // Normalize collateral amount to be of base decimal
-        calculatedCollateralAmt =
-            calculatedCollateralAmt /
-            collateralRedeemData.conversionFactor;
-
-        vaultAmt = IERC20Upgradeable(_collateral).balanceOf(address(this));
-
-        if (calculatedCollateralAmt > vaultAmt) {
-            strategyAmt = calculatedCollateralAmt - vaultAmt;
-            // Withdraw from default strategy
-            if (_strategyAddr == address(0)) {
-                require(
-                    collateralRedeemData.defaultStrategy != address(0),
-                    "Insufficient collateral"
-                );
-                strategy = IStrategy(collateralRedeemData.defaultStrategy);
-                // Withdraw from specified strategy
-            } else {
-                require(
-                    ICollateralManager(collateralManager).isValidStrategy(
-                        _collateral,
-                        _strategyAddr
-                    ),
-                    "Invalid strategy"
-                );
-                strategy = IStrategy(_strategyAddr);
-            }
-            require(
-                strategy.checkAvailableBalance(_collateral) >= strategyAmt,
-                "Insufficient collateral"
-            );
-        }
     }
 
     /// @notice mint USDs
@@ -481,6 +406,104 @@ contract VaultCore is
         IERC20Upgradeable(_collateral).safeTransfer(msg.sender, collateralAmt);
         rebase();
         emit Redeemed(msg.sender, _collateral, burnAmt, collateralAmt, feeAmt);
+    }
+
+    /// @notice Get the expected redeem result
+    /// @param _collateral desired collateral address
+    /// @param _usdsAmt amount of usds to be redeemed
+    /// @param _strategyAddr address of the strategy to redeem from
+    /// @return calculatedCollateralAmt expected amount of collateral to be released
+    ///                          based on the price calculation
+    /// @return usdsBurnAmt expected amount of USDs to be burnt in the process
+    /// @return feeAmt amount of USDs collected as fee for redemption
+    /// @return vaultAmt amount of Collateral released from Vault
+    /// @return strategyAmt amount of Collateral to withdraw from strategy
+    /// @return strategy Strategy to withdraw collateral from
+    function _redeemView(
+        address _collateral,
+        uint256 _usdsAmt,
+        address _strategyAddr
+    )
+        private
+        view
+        returns (
+            uint256 calculatedCollateralAmt,
+            uint256 usdsBurnAmt,
+            uint256 feeAmt,
+            uint256 vaultAmt,
+            uint256 strategyAmt,
+            IStrategy strategy
+        )
+    {
+        ICollateralManager.CollateralRedeemData
+            memory collateralRedeemConfig = ICollateralManager(
+                collateralManager
+            ).getRedeemParams(_collateral);
+
+        require(collateralRedeemConfig.redeemAllowed, "Redeem not allowed");
+
+        IOracle.PriceData memory collateralPriceData = IOracle(oracle).getPrice(
+            _collateral
+        );
+
+        // Skip fee collection for Facilitator
+        uint256 feePerc = 0;
+        uint256 feePercPrecision = 1;
+        if (!hasRole(FACILITATOR_ROLE, msg.sender)) {
+            (feePerc, feePercPrecision) = IFeeCalculator(feeCalculator)
+                .getFeeOut(
+                    _collateral,
+                    _usdsAmt,
+                    collateralRedeemConfig,
+                    collateralPriceData
+                );
+        }
+
+        // Calculate actual fee and burn amount in terms of USDs
+        feeAmt = (_usdsAmt * feePerc) / feePercPrecision;
+        usdsBurnAmt = _usdsAmt - feeAmt;
+
+        // Calculate collateral amount
+        calculatedCollateralAmt = usdsBurnAmt;
+        if (collateralPriceData.price >= collateralPriceData.precision) {
+            // Apply downside peg
+            calculatedCollateralAmt =
+                (usdsBurnAmt * collateralPriceData.precision) /
+                collateralPriceData.price;
+        }
+
+        // Normalize collateral amount to be of base decimal
+        calculatedCollateralAmt =
+            calculatedCollateralAmt /
+            collateralRedeemConfig.conversionFactor;
+
+        vaultAmt = IERC20Upgradeable(_collateral).balanceOf(address(this));
+
+        if (calculatedCollateralAmt > vaultAmt) {
+            strategyAmt = calculatedCollateralAmt - vaultAmt;
+            // Withdraw from default strategy
+            if (_strategyAddr == address(0)) {
+                require(
+                    collateralRedeemConfig.defaultStrategy != address(0),
+                    "Insufficient collateral"
+                );
+                strategy = IStrategy(collateralRedeemConfig.defaultStrategy);
+                // Withdraw from specified strategy
+            } else {
+                require(
+                    ICollateralManager(collateralManager).isValidStrategy(
+                        _collateral,
+                        _strategyAddr
+                    ),
+                    "Invalid strategy"
+                );
+                strategy = IStrategy(_strategyAddr);
+            }
+            require(
+                strategy.checkAvailableBalance(_collateral) >= strategyAmt,
+                "Insufficient collateral"
+            );
+        }
     }
 
     function _isNonZeroAddr(address _addr) private pure {
