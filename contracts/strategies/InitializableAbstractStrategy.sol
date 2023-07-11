@@ -4,13 +4,21 @@ pragma solidity 0.8.16;
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 abstract contract InitializableAbstractStrategy is
     Initializable,
     OwnableUpgradeable,
     ReentrancyGuardUpgradeable
 {
+    using SafeERC20 for IERC20;
+
+    uint256 public constant PERCENTAGE_PREC = 10000;
     address public vaultAddress;
+    uint16 public withdrawSlippage;
+    uint16 public depositSlippage;
+    uint16 public harvestIncentiveRate;
     address[] internal assetsMapped;
     address[] public rewardTokenAddress;
     mapping(address => address) public assetToPToken;
@@ -23,14 +31,21 @@ abstract contract InitializableAbstractStrategy is
     event PTokenRemoved(address indexed asset, address pToken);
     event Deposit(address indexed asset, address pToken, uint256 amount);
     event Withdrawal(address indexed asset, address pToken, uint256 amount);
+    event SlippageChanged(uint16 depositSlippage, uint16 withdrawSlippage);
+    event HarvestIncentiveCollected(
+        address indexed token,
+        address indexed harvestor,
+        uint256 amount
+    );
+    event HarvestIncentiveRateUpdated(uint16 newRate);
     event InterestCollected(
         address indexed asset,
-        address recipient,
+        address indexed recipient,
         uint256 amount
     );
     event RewardTokenCollected(
         address indexed rwdToken,
-        address recipient,
+        address indexed recipient,
         uint256 amount
     );
 
@@ -52,10 +67,20 @@ abstract contract InitializableAbstractStrategy is
         _disableInitializers();
     }
 
+    /// @notice Update the linked vault contract
+    /// @param _newVault Address of the new Vaule
     function updateVaultCore(address _newVault) external onlyOwner {
         _isNonZeroAddr(_newVault);
         vaultAddress = _newVault;
         emit VaultUpdated(_newVault);
+    }
+
+    /// @notice Updates the HarvestIncentive rate for the user
+    /// @param _newRate new Desired rate
+    function updateHarvestIncentiveRate(uint16 _newRate) external onlyOwner {
+        require(_newRate <= PERCENTAGE_PREC, "Invalid value");
+        harvestIncentiveRate = _newRate;
+        emit HarvestIncentiveRateUpdated(_newRate);
     }
 
     /// @dev Deposit an amount of asset into the platform
@@ -85,25 +110,10 @@ abstract contract InitializableAbstractStrategy is
 
     /// @notice Withdraw the interest earned of asset from the platform.
     /// @param _asset Address of the asset
-    /// @return interestAssets Token composition of the received interests
-    /// @return interestAmts The amount of each token in the received interests
-    function collectInterest(
-        address _asset
-    )
-        external
-        virtual
-        returns (
-            address[] memory interestAssets,
-            uint256[] memory interestAmts
-        );
+    function collectInterest(address _asset) external virtual;
 
     /// @notice Collect accumulated reward token and send to Vault
-    /// @return rewardAssets Token composition of the received rewards
-    /// @return rewardAmts The amount of each token in the received rewards
-    function collectReward()
-        external
-        virtual
-        returns (address[] memory rewardAssets, uint256[] memory rewardAmts);
+    function collectReward() external virtual;
 
     /// @notice Get the amount of a specific asset held in the strategy,
     ///           excluding the interest
@@ -148,21 +158,38 @@ abstract contract InitializableAbstractStrategy is
         address _asset
     ) external view virtual returns (bool);
 
+    /// @notice Change to a new depositSlippage & withdrawSlippage
+    /// @param _depositSlippage Slilppage tolerance for allocation
+    /// @param _withdrawSlippage Slippage tolerance for withdrawal
+    function changeSlippage(
+        uint16 _depositSlippage,
+        uint16 _withdrawSlippage
+    ) public onlyOwner {
+        require(
+            _depositSlippage <= PERCENTAGE_PREC &&
+                _withdrawSlippage <= PERCENTAGE_PREC,
+            "Slippage exceeds 100%"
+        );
+        depositSlippage = _depositSlippage;
+        withdrawSlippage = _withdrawSlippage;
+        emit SlippageChanged(depositSlippage, withdrawSlippage);
+    }
+
+    /// @notice Initialize the base properties of the strategy
+    /// @param _vaultAddress Address of the USDs Vault
+    /// @param _depositSlippage Allowed max slippage for Deposit
+    /// @param _withdrawSlippage Allowed max slippage for withdraw
     function _initialize(
         address _vaultAddress,
-        address[] memory _assets,
-        address[] memory _pTokens
+        uint16 _depositSlippage,
+        uint16 _withdrawSlippage
     ) internal {
         OwnableUpgradeable.__Ownable_init();
         ReentrancyGuardUpgradeable.__ReentrancyGuard_init();
         _isNonZeroAddr(_vaultAddress);
+        changeSlippage(_depositSlippage, _withdrawSlippage);
         vaultAddress = _vaultAddress;
-        for (uint8 i = 0; i < _assets.length; ) {
-            _setPTokenAddress(_assets[i], _pTokens[i]);
-            unchecked {
-                ++i;
-            }
-        }
+        harvestIncentiveRate = 10;
     }
 
     ///  @notice Provide support for asset by passing its pToken address.
@@ -181,6 +208,43 @@ abstract contract InitializableAbstractStrategy is
         emit PTokenAdded(_asset, _pToken);
         // Perform any strategy specific logic.
         _abstractSetPToken(_asset, _pToken);
+    }
+
+    /// @notice Remove a supported asset by passing its index.
+    ///      This method can only be called by the system owner
+    /// @param _assetIndex Index of the asset to be removed
+    function _removePTokenAddress(
+        uint256 _assetIndex
+    ) internal returns (address asset) {
+        uint256 numAssets = assetsMapped.length;
+        require(_assetIndex < numAssets, "Invalid index");
+        asset = assetsMapped[_assetIndex];
+        address pToken = assetToPToken[asset];
+
+        assetsMapped[_assetIndex] = assetsMapped[numAssets - 1];
+        assetsMapped.pop();
+        delete assetToPToken[asset];
+
+        emit PTokenRemoved(asset, pToken);
+    }
+
+    function _splitAndSendReward(
+        address _token,
+        address _yieldReceiver,
+        address _harvestor,
+        uint256 _amount
+    ) internal returns (uint256) {
+        if (harvestIncentiveRate > 0) {
+            uint256 incentiveAmt = (_amount * harvestIncentiveRate) /
+                PERCENTAGE_PREC;
+            uint256 harvestedAmt = _amount - incentiveAmt;
+            IERC20(_token).safeTransfer(_harvestor, incentiveAmt);
+            IERC20(_token).safeTransfer(_yieldReceiver, _amount - incentiveAmt);
+            emit HarvestIncentiveCollected(_token, _harvestor, incentiveAmt);
+            return harvestedAmt;
+        }
+        IERC20(_token).safeTransfer(_yieldReceiver, _amount);
+        return _amount;
     }
 
     /// @notice Call the necessary approvals for the underlying strategy
