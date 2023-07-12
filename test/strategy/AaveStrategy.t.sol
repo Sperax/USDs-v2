@@ -281,20 +281,19 @@ contract CollectInterestTest is AaveStrategyTest {
 
         assert(interestEarned > 0);
 
-        uint256 harvestAmount = (interestEarned * 10) / 10000;
+        uint256 incentiveAmt = (interestEarned * 10) / 10000;
+        uint256 harvestAmount = interestEarned - incentiveAmt;
 
-        //vm.expectEmit(true, false, false, true);
-
-        //emit InterestCollected(ASSET, yieldReceiver, harvestAmount);
+        vm.expectEmit(true, false, false, true);
+        emit InterestCollected(ASSET, yieldReceiver, harvestAmount);
 
         aaveStrategy.collectInterest(ASSET);
 
         uint256 current_bal = IERC20(ASSET).balanceOf(yieldReceiver);
-
         uint256 newinterestEarned = aaveStrategy.checkInterestEarned(ASSET);
 
         assertEq(newinterestEarned, 0);
-        //assertEq(current_bal, (initial_bal + interestAmts[0]));
+        assertEq(current_bal, (initial_bal + harvestAmount));
     }
 }
 
