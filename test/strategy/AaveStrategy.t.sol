@@ -5,7 +5,6 @@ import {BaseTest} from "../utils/BaseTest.sol";
 import {UpgradeUtil} from "../utils/UpgradeUtil.sol";
 import {AaveStrategy} from "../../contracts/strategies/aave/AaveStrategy.sol";
 import {InitializableAbstractStrategy} from "../../contracts/strategies/InitializableAbstractStrategy.sol";
-import "forge-std/console.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 address constant AAVE_POOL_PROVIDER = 0xa97684ead0e402dC232d5A977953DF7ECBaB3CDb;
@@ -279,8 +278,6 @@ contract CollectInterestTest is AaveStrategyTest {
         );
 
         uint256 interestEarned = aaveStrategy.checkInterestEarned(ASSET);
-
-        console.log(interestEarned);
 
         assert(interestEarned > 0);
 

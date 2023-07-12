@@ -3,7 +3,6 @@ pragma solidity 0.8.16;
 import {Test} from "forge-std/Test.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
-import "forge-std/console.sol";
 import "forge-std/StdCheats.sol";
 import {stdStorage, StdStorage} from "forge-std/StdStorage.sol";
 
