@@ -2,6 +2,8 @@ pragma solidity 0.8.16;
 
 import {Test} from "forge-std/Test.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
+import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import "forge-std/StdCheats.sol";
 import {stdStorage, StdStorage} from "forge-std/StdStorage.sol";
 
 abstract contract BaseTest is Test {
@@ -15,6 +17,8 @@ abstract contract BaseTest is Test {
     address public constant SPA = 0x5575552988A3A80504bBaeB1311674fCFd40aD4B;
     address public constant USDS_OWNER =
         0x5b12d9846F8612E439730d18E1C12634753B1bF1;
+    address public constant PROXY_ADMIN =
+        0x3E49925A79CbFb68BAa5bc9DFb4f7D955D1ddF25;
     address public constant VAULT = 0xF783DD830A4650D2A8594423F123250652340E3f;
 
     // Define fork networks
