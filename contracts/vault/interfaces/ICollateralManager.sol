@@ -9,19 +9,23 @@ interface ICollateralManager {
         uint16 baseFeeIn;
         uint16 baseFeeOut;
         uint16 downsidePeg;
-        uint16 collateralCompostion;
+        uint16 desiredCollateralCompostion;
     }
 
     struct CollateralMintData {
         bool mintAllowed;
         uint16 baseFeeIn;
         uint16 downsidePeg;
+        uint16 desiredCollateralComposition;
+        uint256 conversionFactor;
     }
 
     struct CollateralRedeemData {
         bool redeemAllowed;
         address defaultStrategy;
         uint16 baseFeeOut;
+        uint16 desiredCollateralComposition;
+        uint256 conversionFactor;
     }
 
     /// @notice Validate allocation for a collateral
@@ -66,4 +70,13 @@ interface ICollateralManager {
     function getCollateralInVault(
         address _collateral
     ) external view returns (uint256 amountInVault);
+
+    /// @notice Verify if a strategy is linked to a collateral
+    /// @param _collateral Address of the collateral
+    /// @param _strategy Address of the strategy
+    /// @return boolean true if the strategy is linked to the collateral
+    function isValidStrategy(
+        address _collateral,
+        address _strategy
+    ) external view returns (bool);
 }
