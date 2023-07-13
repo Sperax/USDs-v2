@@ -133,7 +133,7 @@ contract AaveStrategy is InitializableAbstractStrategy {
             uint256 interestCollected = aavePool.withdraw(
                 _asset,
                 assetInterest,
-                yieldReceiver
+                address(this)
             );
             uint256 harvestAmt = _splitAndSendReward(
                 _asset,
