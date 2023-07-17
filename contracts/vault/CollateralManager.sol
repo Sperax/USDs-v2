@@ -72,7 +72,7 @@ contract CollateralManager is ICollateralManager, Ownable {
         require(
             _data.desiredCollateralCompostion <=
                 (PERC_PRECISION - collateralCompostionUsed),
-            "CollateralCompostion exceeded"
+            "Collateral Compostion exceeded"
         );
 
         collateralInfo[_collateral] = CollateralData({
@@ -118,7 +118,7 @@ contract CollateralManager is ICollateralManager, Ownable {
 
         require(
             newCapacityUsed <= PERC_PRECISION,
-            "Collaterlcompostion exceeded"
+            "Collateral compostion exceeded"
         );
 
         data.mintAllowed = _updateData.mintAllowed;
