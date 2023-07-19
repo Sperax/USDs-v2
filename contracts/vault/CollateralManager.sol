@@ -336,8 +336,16 @@ contract CollateralManager is ICollateralManager, Ownable {
             (getCollateralInVault(_collateral) +
                 getCollateralInStrategies(_collateral))) / PERC_PRECISION;
 
-        return ((maxCollateralUsage -
-            IStrategy(_strategy).checkBalance(_collateral)) >= _amount);
+        uint256 collateralBalance = IStrategy(_strategy).checkBalance(
+            _collateral
+        );
+
+        if (maxCollateralUsage >= collateralBalance) {
+            return ((maxCollateralUsage -
+                IStrategy(_strategy).checkBalance(_collateral)) >= _amount);
+        }
+
+        return false;
     }
 
     /// @notice Get the required data for mint
