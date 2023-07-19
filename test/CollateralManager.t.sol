@@ -335,7 +335,7 @@ contract CollateralManager_addCollateralStrategy_Test is CollateralManagerTest {
         manager.addCollateralStrategy(USDCe, stargate, 2000);
     }
 
-    function test_revertsWhen_updateCollateralstrategyNotSupported(
+    function test_revertsWhen_addCollateralstrategyNotSupported(
         uint16 _baseFeeIn,
         uint16 _baseFeeOut,
         uint16 _downsidePeg,
@@ -361,7 +361,7 @@ contract CollateralManager_addCollateralStrategy_Test is CollateralManagerTest {
         manager.addCollateralStrategy(USDT, stargate, 2000);
     }
 
-    function test_revertsWhen_updateCollateralstrategyAllocationPerExceeded(
+    function test_revertsWhen_addCollateralstrategyAllocationPerExceeded(
         uint16 _baseFeeIn,
         uint16 _baseFeeOut,
         uint16 _downsidePeg,
@@ -399,7 +399,7 @@ contract CollateralManager_updateCollateralStrategy_Test is
         manager.addCollateralStrategy(USDCe, stargate, 1000);
     }
 
-    function test_revertsWhen_addCollateralstrategyWhenAlreadyMapped(
+    function test_revertsWhen_updateCollateralstrategyWhenAlreadyMapped(
         uint16 _baseFeeIn,
         uint16 _baseFeeOut,
         uint16 _downsidePeg,
@@ -451,7 +451,7 @@ contract CollateralManager_updateCollateralStrategy_Test is
         manager.updateCollateralStrategy(USDCe, stargate, 3500);
     }
 
-    function test_revertsWhen_addCollateralstrategyAllocationPerExceeded(
+    function test_revertsWhen_updateCollateralstrategyAllocationPerExceeded(
         uint16 _baseFeeIn,
         uint16 _baseFeeOut,
         uint16 _downsidePeg,
@@ -477,29 +477,33 @@ contract CollateralManager_updateCollateralStrategy_Test is
         vm.expectRevert("AllocationPer exceeded");
         manager.updateCollateralStrategy(USDCe, stargate, 10001);
     }
-    // function test_revertsWhen_addCollateralstrategyAllocationPerNotValid(uint16 _baseFeeIn, uint16 _baseFeeOut, uint16 _downsidePeg,uint16 _collateralCompostion) external useKnownActor(USDS_OWNER){
-    //     vm.assume(_baseFeeIn <= manager.PERC_PRECISION());
-    //     vm.assume(_baseFeeOut <= manager.PERC_PRECISION());
-    //     vm.assume(_downsidePeg <= manager.PERC_PRECISION());
-    //     vm.assume(_collateralCompostion <= manager.PERC_PRECISION());
 
-    //     ICollateralManager.CollateralBaseData memory _data = ICollateralManager.CollateralBaseData(
-    //         {
-    //             mintAllowed: true,
-    //             redeemAllowed: true,
-    //             allocationAllowed: true,
-    //             baseFeeIn: _baseFeeIn,
-    //             baseFeeOut: _baseFeeOut,
-    //             downsidePeg: _downsidePeg,
-    //             desiredCollateralCompostion: 1000
-    //         }
-    //     );
-    //     manager.addCollateral(USDCe,_data);
-    //     manager.addCollateralStrategy(USDCe,stargate,2000);
-    //     vm.expectRevert("AllocationPer not valid");
-    //     manager.updateCollateralStrategy(USDCe,stargate,0);
+    function test_revertsWhen_updateCollateralstrategyAllocationNotValid(
+        uint16 _baseFeeIn,
+        uint16 _baseFeeOut,
+        uint16 _downsidePeg,
+        uint16 _collateralCompostion
+    ) external useKnownActor(USDS_OWNER) {
+        vm.assume(_baseFeeIn <= manager.PERC_PRECISION());
+        vm.assume(_baseFeeOut <= manager.PERC_PRECISION());
+        vm.assume(_downsidePeg <= manager.PERC_PRECISION());
+        vm.assume(_collateralCompostion <= manager.PERC_PRECISION());
 
-    // }
+        ICollateralManager.CollateralBaseData memory _data = ICollateralManager
+            .CollateralBaseData({
+                mintAllowed: true,
+                redeemAllowed: true,
+                allocationAllowed: true,
+                baseFeeIn: _baseFeeIn,
+                baseFeeOut: _baseFeeOut,
+                downsidePeg: _downsidePeg,
+                desiredCollateralCompostion: 1000
+            });
+        manager.addCollateral(USDCe, _data);
+        manager.addCollateralStrategy(USDCe, stargate, 1);
+        vm.expectRevert("AllocationPer not valid");
+        manager.updateCollateralStrategy(USDCe, stargate, 10000);
+    }
 }
 
 contract CollateralManager_removeCollateralStrategy_Test is
@@ -692,8 +696,34 @@ contract CollateralManager_validateAllocation_test is CollateralManagerTest {
                 desiredCollateralCompostion: 1000
             });
         manager.addCollateral(USDCe, _data);
-        manager.addCollateralStrategy(USDCe, AAVE, 2000);
-        manager.validateAllocation(USDCe, AAVE, 1000);
+        manager.addCollateralStrategy(USDCe, stargate, 2000);
+        manager.validateAllocation(USDCe, stargate, 1000);
+    }
+
+    function test_validateAllocationMaxCollateralUsageSup(
+        uint16 _baseFeeIn,
+        uint16 _baseFeeOut,
+        uint16 _downsidePeg,
+        uint16 _collateralCompostion
+    ) external useKnownActor(USDS_OWNER) {
+        vm.assume(_baseFeeIn <= manager.PERC_PRECISION());
+        vm.assume(_baseFeeOut <= manager.PERC_PRECISION());
+        vm.assume(_downsidePeg <= manager.PERC_PRECISION());
+        vm.assume(_collateralCompostion <= manager.PERC_PRECISION());
+
+        ICollateralManager.CollateralBaseData memory _data = ICollateralManager
+            .CollateralBaseData({
+                mintAllowed: true,
+                redeemAllowed: true,
+                allocationAllowed: true,
+                baseFeeIn: _baseFeeIn,
+                baseFeeOut: _baseFeeOut,
+                downsidePeg: _downsidePeg,
+                desiredCollateralCompostion: 1000
+            });
+        manager.addCollateral(USDCe, _data);
+        manager.addCollateralStrategy(USDCe, stargate, 10000);
+        manager.validateAllocation(USDCe, stargate, 11000000000);
     }
 
     function test_getAllCollaterals(
