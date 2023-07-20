@@ -36,13 +36,16 @@ contract USDs is
     uint256 private constant RESOLUTION_INCREASE = 1e9;
 
     uint256 internal _totalSupply; // the total supply of USDs
-    uint256[4] private unused1; // @note deprecated variables place holders
+    uint256 public _deprecated_totalMinted; // the total num of USDs minted so far
+    uint256 public _deprecated_totalBurnt; // the total num of USDs burnt so far
+    uint256 public _deprecated_mintedViaGateway; // the total num of USDs minted so far
+    uint256 public _deprecated_burntViaGateway; // the total num of USDs burnt so far
     mapping(address => mapping(address => uint256)) private _allowances;
     address public vaultAddress; // the address where (i) all collaterals of USDs protocol reside, e.g. USDT, USDC, ETH, etc and (ii) major actions like USDs minting are initiated
     // an user's balance of USDs is based on her balance of "credits."
     // in a rebase process, her USDs balance will change according to her credit balance and the rebase ratio
     mapping(address => uint256) private _creditBalances;
-    uint256 private unused2; // @note deprecated variables place holders
+    uint256 private _deprecated_rebasingCredits;
     uint256 public rebasingCreditsPerToken; // the rebase ratio = num of credits / num of USDs
     // Frozen address/credits are non rebasing (value is held in contracts which
     // do not receive yield unless they explicitly opt in)
@@ -50,7 +53,7 @@ contract USDs is
     // @note nonRebasingCreditsPerToken value is set as 1
     mapping(address => uint256) public nonRebasingCreditsPerToken; // the rebase ratio of non-rebasing accounts just before they opt out
     mapping(address => RebaseOptions) public rebaseState; // the rebase state of each account, i.e. opt in or opt out
-    address[2] private unused3; // @note deprecated variables place holders
+    address[2] private _deprecated_gatewayAddr;
     mapping(address => bool) public isUpgraded;
     bool public paused;
 
