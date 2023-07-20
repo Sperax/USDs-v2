@@ -72,7 +72,7 @@ contract CollateralManager is ICollateralManager, Ownable {
         require(
             _data.desiredCollateralCompostion <=
                 (PERC_PRECISION - collateralCompostionUsed),
-            "Collateral Compostion exceeded"
+            "Collateral compostion exceeded"
         );
 
         collateralInfo[_collateral] = CollateralData({

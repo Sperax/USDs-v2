@@ -103,7 +103,7 @@ contract CollateralManager_AddCollateral_Test is CollateralManagerTest {
                 desiredCollateralCompostion: 1001
             });
         manager.addCollateral(USDCe, _data);
-        vm.expectRevert("Collateral Compostion exceeded");
+        vm.expectRevert("Collateral compostion exceeded");
         manager.addCollateral(DAI, _data2);
     }
 
