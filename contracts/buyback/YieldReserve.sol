@@ -108,12 +108,12 @@ contract YieldReserve is ReentrancyGuard, Ownable {
         address _token,
         bool _isAllowed
     ) external onlyOwner {
-        require(isAllowedSrc[_token] != _isAllowed, "Already in desired state");
+        require(isAllowedDst[_token] != _isAllowed, "Already in desired state");
         if (_isAllowed) {
             // Ensure that there is a valid price feed for the _token
             IOracle(oracle).getPrice(_token);
         }
-        isAllowedSrc[_token] = _isAllowed;
+        isAllowedDst[_token] = _isAllowed;
         emit DstTokenPermissionUpdated(_token, _isAllowed);
     }
 

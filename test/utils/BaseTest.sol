@@ -20,6 +20,11 @@ abstract contract BaseTest is Test {
     address public constant PROXY_ADMIN =
         0x3E49925A79CbFb68BAa5bc9DFb4f7D955D1ddF25;
     address public constant VAULT = 0xF783DD830A4650D2A8594423F123250652340E3f;
+    address public constant ORACLE = 0xf3f98086f7B61a32be4EdF8d8A4b964eC886BBcd;
+    address public constant DRIPPER =
+        0xf3f98086f7B61a32be4EdF8d8A4b964eC886BBcd;
+    address public constant BUYBACK =
+        0xf3f98086f7B61a32be4EdF8d8A4b964eC886BBcd;
 
     // Define fork networks
     uint256 internal arbFork;
