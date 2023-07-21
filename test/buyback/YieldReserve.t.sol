@@ -128,23 +128,76 @@ contract YieldReserveTest is BaseTest {
         assertEq(yieldReserve.buybackPercentage(), perc);
     }
 
+    function test_updateBuybackAddress_auth_error() public useActor(0) {
+        vm.expectRevert("Ownable: caller is not the owner");
+        yieldReserve.updateBuybackAddress(VAULT);
+    }
+
+    function test_updateBuybackAddress_inputs()
+        public
+        useKnownActor(USDS_OWNER)
+    {
+        vm.expectRevert("Invalid address");
+        yieldReserve.updateBuybackAddress(address(0));
+    }
+
     function test_updateBuybackAddress() public useKnownActor(USDS_OWNER) {
         yieldReserve.updateBuybackAddress(VAULT);
+        assertEq(yieldReserve.buyback(), VAULT);
+    }
+
+    function test_updateOracleAddress_auth_error() public useActor(0) {
+        vm.expectRevert("Ownable: caller is not the owner");
+        yieldReserve.updateOracleAddress(VAULT);
+    }
+
+    function test_updateOracleAddress_inputs()
+        public
+        useKnownActor(USDS_OWNER)
+    {
+        vm.expectRevert("Invalid address");
+        yieldReserve.updateOracleAddress(address(0));
     }
 
     function test_updateOracleAddress() public useKnownActor(USDS_OWNER) {
         yieldReserve.updateOracleAddress(VAULT);
+        assertEq(yieldReserve.oracle(), VAULT);
+    }
+
+    function test_updateDripperAddress_auth_error() public useActor(0) {
+        vm.expectRevert("Ownable: caller is not the owner");
+        yieldReserve.updateDripperAddress(VAULT);
+    }
+
+    function test_updateDripperAddress_inputs()
+        public
+        useKnownActor(USDS_OWNER)
+    {
+        vm.expectRevert("Invalid address");
+        yieldReserve.updateDripperAddress(address(0));
     }
 
     function test_updateDripperAddress() public useKnownActor(USDS_OWNER) {
         yieldReserve.updateDripperAddress(VAULT);
+        assertEq(yieldReserve.dripper(), VAULT);
+    }
+
+    function test_updateVaultAddress_auth_error() public useActor(0) {
+        vm.expectRevert("Ownable: caller is not the owner");
+        yieldReserve.updateVaultAddress(VAULT);
+    }
+
+    function test_updateVaultAddress_inputs() public useKnownActor(USDS_OWNER) {
+        vm.expectRevert("Invalid address");
+        yieldReserve.updateVaultAddress(address(0));
     }
 
     function test_updateVaultAddress() public useKnownActor(USDS_OWNER) {
         yieldReserve.updateVaultAddress(ORACLE);
+        assertEq(yieldReserve.vault(), ORACLE);
     }
 
-    function test_getTokenBforTokenA() public useKnownActor(USDS_OWNER) {
+    function test_getTokenBforTokenA_inputs() public useKnownActor(USDS_OWNER) {
         vm.mockCall(
             ORACLE,
             abi.encodeWithSignature("getPrice(address)", USDCe),
@@ -157,10 +210,39 @@ contract YieldReserveTest is BaseTest {
             abi.encode([10, 1000000])
         );
 
+        vm.expectRevert("Source token is not allowed");
+        yieldReserve.getTokenBforTokenA(USDS, 10000, USDCe);
+        yieldReserve.toggleSrcTokenPermission(USDS, true);
+
+        vm.expectRevert("Destination token is not allowed");
+        yieldReserve.getTokenBforTokenA(USDS, 10000, USDCe);
+        yieldReserve.toggleDstTokenPermission(USDCe, true);
+
+        vm.expectRevert("Invalid amount");
+        yieldReserve.getTokenBforTokenA(USDS, 0, USDCe);
+    }
+
+    // require(isAllowedSrc[_tokenA], "Source token is not allowed");
+    // require(isAllowedDst[_tokenB], "Destination token is not allowed");
+    function test_getTokenBforTokenA() public useKnownActor(USDS_OWNER) {
+        vm.mockCall(
+            ORACLE,
+            abi.encodeWithSignature("getPrice(address)", USDCe),
+            abi.encode([1, 1000000])
+        );
+
+        vm.mockCall(
+            ORACLE,
+            abi.encodeWithSignature("getPrice(address)", USDS),
+            abi.encode([1, 1000000])
+        );
+
         yieldReserve.toggleSrcTokenPermission(USDS, true);
         yieldReserve.toggleDstTokenPermission(USDCe, true);
 
-        yieldReserve.getTokenBforTokenA(USDS, 10000, USDCe);
+        uint256 amount = yieldReserve.getTokenBforTokenA(USDS, 10000000, USDCe);
+
+        assertEq(amount, 10000000);
     }
 }
 
@@ -185,13 +267,21 @@ contract SwapTest is YieldReserveTest {
         vm.stopPrank();
     }
 
-    function test_swap() public useKnownActor(USDS_OWNER) {
+    function test_swap_slippage_error() public useKnownActor(USDS_OWNER) {
         IERC20(USDS).approve(address(yieldReserve), 1000);
 
         yieldReserve.toggleSrcTokenPermission(USDS, true);
         yieldReserve.toggleDstTokenPermission(USDCe, true);
 
+        vm.expectRevert("Slippage more than expected");
+        yieldReserve.swap(USDS, USDCe, 1000, 10001);
+    }
+
+    function test_swap() public useKnownActor(USDS_OWNER) {
         IERC20(USDS).approve(address(yieldReserve), 1000);
+
+        yieldReserve.toggleSrcTokenPermission(USDS, true);
+        yieldReserve.toggleDstTokenPermission(USDCe, true);
 
         yieldReserve.swap(USDS, USDCe, 1000, 0);
     }

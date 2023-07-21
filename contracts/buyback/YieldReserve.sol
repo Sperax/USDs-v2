@@ -237,8 +237,8 @@ contract YieldReserve is ReentrancyGuard, Ownable {
         // Calculating the value
         uint256 totalUSDvalueIn = (_amountIn * tokenAPriceData.price) /
             tokenAPriceData.precision;
-        uint256 tokenBOut = (totalUSDvalueIn * tokenBPriceData.price) /
-            tokenBPriceData.precision;
+        uint256 tokenBOut = (totalUSDvalueIn * tokenBPriceData.precision) /
+            tokenBPriceData.price;
         return tokenBOut;
     }
 
