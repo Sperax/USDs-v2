@@ -11,11 +11,12 @@ interface IStrategy {
     /// @param _recipient Address of the recipient
     /// @param _asset Address of the asset
     /// @param _amount Amount to be withdrawn
+    /// @return amountReceived The actual amount received
     function withdraw(
         address _recipient,
         address _asset,
         uint256 _amount
-    ) external;
+    ) external returns (uint256);
 
     /// @notice Check if collateral allocation is supported by the strategy
     function supportsCollateral(address _asset) external view returns (bool);
@@ -29,7 +30,7 @@ interface IStrategy {
 
     /// @notice Gets the amount of asset withdrawable at any given time
     /// @param _asset Address of the asset
-    function checdkAvailableBalance(
+    function checkAvailableBalance(
         address _asset
     ) external view returns (uint256);
 }
