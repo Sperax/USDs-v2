@@ -70,7 +70,7 @@ contract CollateralManager is ICollateralManager, Ownable {
         _validatePrecision(_data.baseFeeOut);
 
         require(
-            _data.desiredCollateralCompostion <=
+            _data.desiredCollateralComposition <=
                 (PERC_PRECISION - collateralCompostionUsed),
             "Collateral compostion exceeded"
         );
@@ -84,13 +84,13 @@ contract CollateralManager is ICollateralManager, Ownable {
             baseFeeOut: _data.baseFeeOut,
             downsidePeg: _data.downsidePeg,
             collateralCapacityUsed: 0,
-            desiredCollateralCompostion: _data.desiredCollateralCompostion,
+            desiredCollateralCompostion: _data.desiredCollateralComposition,
             exists: true,
             conversionFactor: 10 ** (18 - IERC20Custom(_collateral).decimals())
         });
 
         collaterals.push(_collateral);
-        collateralCompostionUsed += _data.desiredCollateralCompostion;
+        collateralCompostionUsed += _data.desiredCollateralComposition;
 
         emit CollateralAdded(_collateral, _data);
     }
@@ -114,7 +114,7 @@ contract CollateralManager is ICollateralManager, Ownable {
 
         uint16 newCapacityUsed = (collateralCompostionUsed -
             data.desiredCollateralCompostion +
-            _updateData.desiredCollateralCompostion);
+            _updateData.desiredCollateralComposition);
 
         require(
             newCapacityUsed <= PERC_PRECISION,
@@ -128,7 +128,7 @@ contract CollateralManager is ICollateralManager, Ownable {
         data.baseFeeOut = _updateData.baseFeeOut;
         data.downsidePeg = _updateData.downsidePeg;
         data.desiredCollateralCompostion = _updateData
-            .desiredCollateralCompostion;
+            .desiredCollateralComposition;
 
         collateralCompostionUsed = newCapacityUsed;
 
