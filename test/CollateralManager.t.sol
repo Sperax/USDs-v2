@@ -5,7 +5,6 @@ import {BaseTest} from "./utils/BaseTest.sol";
 import {CollateralManager} from "../contracts/vault/CollateralManager.sol";
 import {ICollateralManager} from "../contracts/vault/interfaces/ICollateralManager.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import{console} from "forge-std/console.sol";
 
 contract CollateralManagerTest is BaseTest {
     //  Init Variables.
@@ -645,14 +644,14 @@ contract CollateralManager_validateAllocation_test is CollateralManagerTest {
         manager.isValidStrategy(USDCe, AAVE);
         manager.isValidStrategy(USDT, USDCe);
 
-        address[] memory collateralsList = manager.getCollateralStrategies(USDCe);
-            for (uint8 i = 0; i < collateralsList.length; i++) {
+        address[] memory collateralsList = manager.getCollateralStrategies(
+            USDCe
+        );
+        for (uint8 i = 0; i < collateralsList.length; i++) {
             assertEq(collateralsList[0], AAVE);
             assertEq(collateralsList[1], stargate);
         }
-
     }
-
 }
 
 contract CollateralManager_mintRedeemParams_test is CollateralManagerTest {
@@ -680,12 +679,15 @@ contract CollateralManager_mintRedeemParams_test is CollateralManagerTest {
         manager.addCollateral(USDCe, _data);
         manager.addCollateralStrategy(USDCe, stargate, 2000);
         manager.addCollateralStrategy(USDCe, AAVE, 2000);
-        ICollateralManager.CollateralMintData memory mintData = manager.getMintParams(USDCe);
-        assertEq(mintData.mintAllowed,_data.mintAllowed);
-        assertEq(mintData.baseFeeIn,_data.baseFeeIn);
-        assertEq(mintData.downsidePeg,_data.downsidePeg);
-        assertEq(mintData.desiredCollateralComposition,_data.desiredCollateralComposition);
-        console.logUint(mintData.conversionFactor);
+        ICollateralManager.CollateralMintData memory mintData = manager
+            .getMintParams(USDCe);
+        assertEq(mintData.mintAllowed, _data.mintAllowed);
+        assertEq(mintData.baseFeeIn, _data.baseFeeIn);
+        assertEq(mintData.downsidePeg, _data.downsidePeg);
+        assertEq(
+            mintData.desiredCollateralComposition,
+            _data.desiredCollateralComposition
+        );
     }
 
     function test_revertsWhen_getMintParams_collateralDoesntExist()
@@ -721,15 +723,17 @@ contract CollateralManager_mintRedeemParams_test is CollateralManagerTest {
         manager.addCollateral(DAI, _data);
         manager.addCollateralStrategy(USDCe, stargate, 2000);
         manager.addCollateralStrategy(USDCe, AAVE, 2000);
-        manager.updateCollateralDefaultStrategy(USDCe,stargate);
+        manager.updateCollateralDefaultStrategy(USDCe, stargate);
 
-        ICollateralManager.CollateralRedeemData memory redeemData = manager.getRedeemParams(USDCe);
-        assertEq(redeemData.redeemAllowed,_data.redeemAllowed);
-        assertEq(redeemData.baseFeeOut,_data.baseFeeOut);
-        assertEq(redeemData.defaultStrategy,stargate);
-        assertEq(redeemData.desiredCollateralComposition,_data.desiredCollateralComposition);
-        console.logUint(redeemData.conversionFactor);
-    
+        ICollateralManager.CollateralRedeemData memory redeemData = manager
+            .getRedeemParams(USDCe);
+        assertEq(redeemData.redeemAllowed, _data.redeemAllowed);
+        assertEq(redeemData.baseFeeOut, _data.baseFeeOut);
+        assertEq(redeemData.defaultStrategy, stargate);
+        assertEq(
+            redeemData.desiredCollateralComposition,
+            _data.desiredCollateralComposition
+        );
     }
 
     function test_revertsWhen_getRedeemParams_collateralDoesntExist()
