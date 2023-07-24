@@ -278,9 +278,9 @@ contract CollateralManager_removeCollateral_Test is CollateralManagerTest {
 
 contract CollateralManager_addCollateralStrategy_Test is CollateralManagerTest {
     function test_revertsWhen_collateralDoesntExist(
-        uint16 _collateralCompostion
+        uint16 _collateralComposition
     ) external useKnownActor(USDS_OWNER) {
-        vm.assume(_collateralCompostion <= manager.PERC_PRECISION());
+        vm.assume(_collateralComposition <= manager.PERC_PRECISION());
         vm.expectRevert("Collateral doesn't exist");
         manager.addCollateralStrategy(USDCe, stargate, 1000);
     }
@@ -587,12 +587,12 @@ contract CollateralManager_validateAllocation_test is CollateralManagerTest {
         uint16 _baseFeeIn,
         uint16 _baseFeeOut,
         uint16 _downsidePeg,
-        uint16 _collateralCompostion
+        uint16 _collateralComposition
     ) external useKnownActor(USDS_OWNER) {
         vm.assume(_baseFeeIn <= manager.PERC_PRECISION());
         vm.assume(_baseFeeOut <= manager.PERC_PRECISION());
         vm.assume(_downsidePeg <= manager.PERC_PRECISION());
-        vm.assume(_collateralCompostion <= manager.PERC_PRECISION());
+        vm.assume(_collateralComposition <= manager.PERC_PRECISION());
 
         ICollateralManager.CollateralBaseData memory _data = ICollateralManager
             .CollateralBaseData({
@@ -659,12 +659,12 @@ contract CollateralManager_mintRedeemParams_test is CollateralManagerTest {
         uint16 _baseFeeIn,
         uint16 _baseFeeOut,
         uint16 _downsidePeg,
-        uint16 _collateralCompostion
+        uint16 _collateralComposition
     ) external useKnownActor(USDS_OWNER) {
         vm.assume(_baseFeeIn <= manager.PERC_PRECISION());
         vm.assume(_baseFeeOut <= manager.PERC_PRECISION());
         vm.assume(_downsidePeg <= manager.PERC_PRECISION());
-        vm.assume(_collateralCompostion <= manager.PERC_PRECISION());
+        vm.assume(_collateralComposition <= manager.PERC_PRECISION());
 
         ICollateralManager.CollateralBaseData memory _data = ICollateralManager
             .CollateralBaseData({
@@ -702,12 +702,12 @@ contract CollateralManager_mintRedeemParams_test is CollateralManagerTest {
         uint16 _baseFeeIn,
         uint16 _baseFeeOut,
         uint16 _downsidePeg,
-        uint16 _collateralCompostion
+        uint16 _collateralComposition
     ) external useKnownActor(USDS_OWNER) {
         vm.assume(_baseFeeIn <= manager.PERC_PRECISION());
         vm.assume(_baseFeeOut <= manager.PERC_PRECISION());
         vm.assume(_downsidePeg <= manager.PERC_PRECISION());
-        vm.assume(_collateralCompostion <= manager.PERC_PRECISION());
+        vm.assume(_collateralComposition <= manager.PERC_PRECISION());
 
         ICollateralManager.CollateralBaseData memory _data = ICollateralManager
             .CollateralBaseData({
@@ -718,6 +718,7 @@ contract CollateralManager_mintRedeemParams_test is CollateralManagerTest {
                 baseFeeOut: _baseFeeOut,
                 downsidePeg: _downsidePeg,
                 desiredCollateralComposition: 1000
+
             });
         manager.addCollateral(USDCe, _data);
         manager.addCollateral(DAI, _data);
