@@ -115,7 +115,7 @@ contract CollateralManager_AddCollateral_Test is CollateralManagerTest {
         vm.assume(_downsidePeg <= manager.PERC_PRECISION());
 
         collateralSetUp(USDCe, 9000, _baseFeeIn, _baseFeeOut, _downsidePeg);
-        vm.expectRevert("Collateral compostion exceeded");
+        vm.expectRevert("Collateral composition exceeded");
         collateralSetUp(USDT, 1001, _baseFeeIn, _baseFeeOut, _downsidePeg);
     }
 
@@ -177,7 +177,7 @@ contract CollateralManager_updateCollateral_Test is CollateralManagerTest {
         vm.assume(_colComp2 > manager.PERC_PRECISION());
 
         collateralSetUp(USDT, _colComp, _baseFeeIn, _baseFeeOut, _downsidePeg);
-        vm.expectRevert("Collateral compostion exceeded");
+        vm.expectRevert("Collateral composition exceeded");
 
         collateralUpdate(
             USDT,
@@ -718,7 +718,6 @@ contract CollateralManager_mintRedeemParams_test is CollateralManagerTest {
                 baseFeeOut: _baseFeeOut,
                 downsidePeg: _downsidePeg,
                 desiredCollateralComposition: 1000
-
             });
         manager.addCollateral(USDCe, _data);
         manager.addCollateral(DAI, _data);
