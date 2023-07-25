@@ -40,7 +40,7 @@ contract RebaseManager is Ownable {
         uint256 _aprBottom
     ) {
         vault = _vault;
-        gap = _gap;
+        gap = _gap; // // @note Initially setting: 12 hrs
         aprCap = _aprCap;
         aprBottom = _aprBottom;
         lastRebaseTS = block.timestamp;
