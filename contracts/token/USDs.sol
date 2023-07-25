@@ -23,6 +23,7 @@ contract USDs is
     ReentrancyGuardUpgradeable,
     IUSDs
 {
+    // @todo validate upgrade with Openzeppelin's upgradeValidation lib
     using SafeMathUpgradeable for uint256;
     using StableMath for uint256;
 
@@ -36,10 +37,10 @@ contract USDs is
     uint256 private constant RESOLUTION_INCREASE = 1e9;
 
     uint256 internal _totalSupply; // the total supply of USDs
-    uint256 public _deprecated_totalMinted; // the total num of USDs minted so far
-    uint256 public _deprecated_totalBurnt; // the total num of USDs burnt so far
-    uint256 public _deprecated_mintedViaGateway; // the total num of USDs minted so far
-    uint256 public _deprecated_burntViaGateway; // the total num of USDs burnt so far
+    uint256 private deprecated_totalMinted; // the total num of USDs minted so far
+    uint256 private deprecated_totalBurnt; // the total num of USDs burnt so far
+    uint256 private deprecated_mintedViaGateway; // the total num of USDs minted so far
+    uint256 private deprecated_burntViaGateway; // the total num of USDs burnt so far
     mapping(address => mapping(address => uint256)) private _allowances;
     address public vaultAddress; // the address where (i) all collaterals of USDs protocol reside, e.g. USDT, USDC, ETH, etc and (ii) major actions like USDs minting are initiated
     // an user's balance of USDs is based on her balance of "credits."
@@ -50,11 +51,11 @@ contract USDs is
     // Frozen address/credits are non rebasing (value is held in contracts which
     // do not receive yield unless they explicitly opt in)
     uint256 public nonRebasingSupply; // num of USDs that are not affected by rebase
-    // @note nonRebasingCreditsPerToken value is set as 1
+    // @note nonRebasingCreditsPerToken value is set as 1 for each account
     mapping(address => uint256) public nonRebasingCreditsPerToken; // the rebase ratio of non-rebasing accounts just before they opt out
     mapping(address => RebaseOptions) public rebaseState; // the rebase state of each account, i.e. opt in or opt out
     address[2] private _deprecated_gatewayAddr;
-    mapping(address => bool) public _deprecated_isUpgraded;
+    mapping(address => bool) private deprecated_isUpgraded;
     bool public paused;
 
     event TotalSupplyUpdated(
