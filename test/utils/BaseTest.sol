@@ -20,6 +20,8 @@ abstract contract BaseTest is Test {
     address public constant PROXY_ADMIN =
         0x3E49925A79CbFb68BAa5bc9DFb4f7D955D1ddF25;
     address public constant VAULT = 0xF783DD830A4650D2A8594423F123250652340E3f;
+    address public constant USDS_FUNDER =
+        0x25af636b72f9e1F63B18de140d4B568c3891d295;
 
     // Define fork networks
     uint256 internal arbFork;
