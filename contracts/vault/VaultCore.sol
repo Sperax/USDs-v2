@@ -22,6 +22,7 @@ contract VaultCore is
     bytes32 private constant FACILITATOR_ROLE = keccak256("FACILITATOR_ROLE");
 
     address public constant USDS = 0xD74f5255D557944cf7Dd0E45FF521520002D5748;
+    uint256 public constant PERC_PRECISION = 1e4;
 
     address public feeVault;
     address public yieldReceiver;
@@ -34,6 +35,7 @@ contract VaultCore is
     event YieldReceiverChanged(address newYieldReceiver);
     event CollateralManagerChanged(address newCollateralManagerChanged);
     event FeeCalculatorChanged(address newFeeCalculator);
+    event RebaseManagerChanged(address newRebaseManager);
     event OracleChanged(address newOracle);
     event Minted(
         address indexed wallet,
@@ -54,6 +56,16 @@ contract VaultCore is
     modifier onlyOwner() {
         require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "Unauthorized caller");
         _;
+    }
+
+    constructor() {
+        _disableInitializers();
+    }
+
+    function initialize() external initializer {
+        __AccessControl_init();
+        _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
+        __ReentrancyGuard_init();
     }
 
     /// @notice Updates the address receiving fee
@@ -80,6 +92,14 @@ contract VaultCore is
         _isNonZeroAddr(_collateralManager);
         collateralManager = _collateralManager;
         emit CollateralManagerChanged(collateralManager);
+    }
+
+    /// @notice Updates the address having the config for rebase
+    /// @param _rebaseManager new desired address
+    function updateRebaseManager(address _rebaseManager) external onlyOwner {
+        _isNonZeroAddr(_rebaseManager);
+        rebaseManager = _rebaseManager;
+        emit RebaseManagerChanged(rebaseManager);
     }
 
     /// @notice Updates the fee calculator library
@@ -274,10 +294,13 @@ contract VaultCore is
         IOracle.PriceData memory collateralPriceData = IOracle(oracle).getPrice(
             _collateral
         );
+        // Calculate the downside peg
+        uint256 downsidePeg = (collateralPriceData.precision *
+            collateralMintConfig.downsidePeg) / PERC_PRECISION;
 
         // Downside peg check
         if (
-            collateralPriceData.price < collateralMintConfig.downsidePeg ||
+            collateralPriceData.price < downsidePeg ||
             !collateralMintConfig.mintAllowed
         ) {
             return (0, 0);
