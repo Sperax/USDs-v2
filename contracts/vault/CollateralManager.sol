@@ -32,7 +32,7 @@ contract CollateralManager is ICollateralManager, Ownable {
 
     uint256 public constant PERC_PRECISION = 1e4;
 
-    uint16 private collateralcompositionUsed;
+    uint16 public collateralcompositionUsed;
     address public immutable vaultCore;
     address[] private collaterals;
     mapping(address => CollateralData) public collateralInfo;
