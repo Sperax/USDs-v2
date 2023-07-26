@@ -41,8 +41,8 @@ contract RebaseManager is Ownable {
         uint256 _aprCap, // 1000 = 10%
         uint256 _aprBottom // 800 = 8%
     ) {
-        _isValidAddress(vault);
-        _isValidAddress(dripper);
+        _isValidAddress(_vault);
+        _isValidAddress(_dripper);
         vault = _vault;
         dripper = _dripper;
         gap = _gap;
