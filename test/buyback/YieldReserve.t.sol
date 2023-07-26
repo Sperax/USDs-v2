@@ -1,19 +1,18 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.16;
 
-import {BaseTest} from "../utils/BaseTest.sol";
 import {YieldReserve} from "../../contracts/buyback/YieldReserve.sol";
 import {IVault} from "../../contracts/interfaces/IVault.sol";
+import {VaultCore} from "../../contracts/vault/VaultCore.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {PreMigrationSetup} from "../utils/DeploymentSetup.sol";
 
-contract YieldReserveTest is BaseTest {
+contract YieldReserveTest is PreMigrationSetup {
     YieldReserve internal yieldReserve;
-    address public constant USDCe = 0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8;
+    IVault internal vault;
 
     function setUp() public virtual override {
         super.setUp();
-
-        setArbitrumFork();
         vm.startPrank(USDS_OWNER);
         yieldReserve = new YieldReserve(BUYBACK, VAULT, ORACLE, DRIPPER);
         vm.stopPrank();
@@ -251,18 +250,19 @@ contract SwapTest is YieldReserveTest {
         super.setUp();
         vm.startPrank(USDS_OWNER);
         deal(address(USDCe), USDS_OWNER, 1 ether);
-        mintUSDs(1000000);
+        deal(address(USDCe), address(yieldReserve), 1 ether);
 
         vm.mockCall(
             ORACLE,
             abi.encodeWithSignature("getPrice(address)", USDCe),
-            abi.encode([10, 1000000])
+            abi.encode([1e8, 1e8])
         );
         vm.mockCall(
             ORACLE,
             abi.encodeWithSignature("getPrice(address)", USDS),
-            abi.encode([10, 1000000])
+            abi.encode([1e8, 1e8])
         );
+        mintUSDs(1e7);
 
         vm.stopPrank();
     }
