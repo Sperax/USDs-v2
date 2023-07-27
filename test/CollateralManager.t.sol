@@ -481,19 +481,51 @@ contract CollateralManager_addCollateralStrategy_Test is CollateralManagerTest {
         uint16 _baseFeeIn,
         uint16 _baseFeeOut,
         uint16 _downsidePeg,
-        uint16 _colComp
+        uint16 _colComp,
+        uint16 _allocCap
     ) external useKnownActor(USDS_OWNER) {
         vm.assume(_baseFeeIn <= manager.PERC_PRECISION());
         vm.assume(_baseFeeOut <= manager.PERC_PRECISION());
         vm.assume(_downsidePeg <= manager.PERC_PRECISION());
         vm.assume(_colComp <= manager.PERC_PRECISION());
+        vm.assume(_allocCap <= manager.PERC_PRECISION());
 
         collateralSetUp(USDCe, _colComp, _baseFeeIn, _baseFeeOut, _downsidePeg);
 
         vm.expectEmit(true, true, false, true);
         emit CollateralStrategyAdded(USDCe, stargate);
 
-        manager.addCollateralStrategy(USDCe, stargate, _colComp);
+        manager.addCollateralStrategy(USDCe, stargate, _allocCap);
+    }
+
+    function test_addMultipleCollateralStrategies(
+        uint16 _baseFeeIn,
+        uint16 _baseFeeOut,
+        uint16 _downsidePeg,
+        uint16 _colComp,
+        uint16 _allocCap
+    ) external useKnownActor(USDS_OWNER) {
+        address[2] memory strategies = [AAVE, stargate];
+        vm.assume(_baseFeeIn <= manager.PERC_PRECISION());
+        vm.assume(_baseFeeOut <= manager.PERC_PRECISION());
+        vm.assume(_downsidePeg <= manager.PERC_PRECISION());
+        vm.assume(_colComp <= manager.PERC_PRECISION());
+        vm.assume(_allocCap <= manager.PERC_PRECISION() / strategies.length);
+
+        collateralSetUp(USDCe, _colComp, _baseFeeIn, _baseFeeOut, _downsidePeg);
+        (, , , , , , , , , uint16 collateralCapacityUsedBfr, ) = manager
+            .collateralInfo(USDCe);
+        assertEq(collateralCapacityUsedBfr, 0);
+
+        for (uint8 i = 0; i < strategies.length; i++) {
+            vm.expectEmit(true, true, false, true);
+            emit CollateralStrategyAdded(USDCe, strategies[i]);
+
+            manager.addCollateralStrategy(USDCe, strategies[i], _allocCap);
+            (, , , , , , , , , uint16 collateralCapacityUsed, ) = manager
+                .collateralInfo(USDCe);
+            assertEq(collateralCapacityUsed, _allocCap * (i + 1));
+        }
     }
 }
 
@@ -554,12 +586,14 @@ contract CollateralManager_updateCollateralStrategy_Test is
         uint16 _baseFeeIn,
         uint16 _baseFeeOut,
         uint16 _downsidePeg,
-        uint16 _colComp
+        uint16 _colComp,
+        uint16 _allocCap
     ) external useKnownActor(USDS_OWNER) {
         vm.assume(_baseFeeIn <= manager.PERC_PRECISION());
         vm.assume(_baseFeeOut <= manager.PERC_PRECISION());
         vm.assume(_downsidePeg <= manager.PERC_PRECISION());
         vm.assume(_colComp <= manager.PERC_PRECISION());
+        vm.assume(_allocCap <= manager.PERC_PRECISION());
 
         collateralSetUp(USDCe, _colComp, _baseFeeIn, _baseFeeOut, _downsidePeg);
         manager.addCollateralStrategy(USDCe, stargate, _colComp);
@@ -567,7 +601,51 @@ contract CollateralManager_updateCollateralStrategy_Test is
         vm.expectEmit(true, true, false, true);
         emit CollateralStrategyUpdated(USDCe, stargate);
 
-        manager.updateCollateralStrategy(USDCe, stargate, 3500);
+        manager.updateCollateralStrategy(USDCe, stargate, _allocCap);
+    }
+
+    function test_updateMultipleCollateralStrategies(
+        uint16 _baseFeeIn,
+        uint16 _baseFeeOut,
+        uint16 _downsidePeg,
+        uint16 _colComp
+    ) external useKnownActor(USDS_OWNER) {
+        address[2] memory strategies = [AAVE, stargate];
+        vm.assume(_baseFeeIn <= manager.PERC_PRECISION());
+        vm.assume(_baseFeeOut <= manager.PERC_PRECISION());
+        vm.assume(_downsidePeg <= manager.PERC_PRECISION());
+        vm.assume(_colComp <= manager.PERC_PRECISION());
+
+        collateralSetUp(USDCe, _colComp, _baseFeeIn, _baseFeeOut, _downsidePeg);
+        (, , , , , , , , , uint16 collateralCapacityUsedBfr, ) = manager
+            .collateralInfo(USDCe);
+        assertEq(collateralCapacityUsedBfr, 0);
+
+        for (uint8 i = 0; i < strategies.length; i++) {
+            vm.expectEmit(true, true, false, true);
+            emit CollateralStrategyAdded(USDCe, strategies[i]);
+
+            manager.addCollateralStrategy(USDCe, strategies[i], 3500);
+            (, , , , , , , , , uint16 collateralCapacityUsed, ) = manager
+                .collateralInfo(USDCe);
+            assertEq(collateralCapacityUsed, 3500 * (i + 1));
+        }
+
+        // for (uint8 i = 0; i < strategies.length; i++) {
+        //     (, , , , , , , , , uint16 collateralCapacityUsedBfrUp, ) = manager
+        //         .collateralInfo(USDCe);
+        //     // vm.expectEmit(true, true, false, true);
+        //     // emit CollateralStrategyUpdated(USDCe, strategies[i]);
+
+        //     manager.updateCollateralStrategy(USDCe, strategies[i], 4500);
+
+        //     uint16 alocAfter = collateralCapacityUsedBfrUp -
+        //         3500 +
+        //         4500;
+        //     (, , , , , , , , , uint16 collateralCapacityUsedAftrUp, ) = manager
+        //         .collateralInfo(USDCe);
+        //     assertEq(collateralCapacityUsedAftrUp, alocAfter);
+        // }
     }
 }
 
