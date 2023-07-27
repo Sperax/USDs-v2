@@ -30,7 +30,7 @@ abstract contract BaseTest is Test {
     address public constant stargate =
         0xF30Db0F56674b51050630e53043c403f8E162Bf2;
     address public constant AAVE = 0xF2badbB9817A40D29393fa88951415a4A334a898;
-    address public constant USDTTWOPOOLSTRATEGY =
+    address public constant USDT_TWO_POOL_STRATEGY =
         0xdc118F2F00812326Fe0De5c9c74c1c0c609d1eB4;
 
     // Define fork networks

@@ -687,9 +687,9 @@ contract CollateralManager_validateAllocation_test is CollateralManagerTest {
                 desiredCollateralComposition: 1000
             });
         manager.addCollateral(USDT, _data);
-        manager.addCollateralStrategy(USDT, USDTTWOPOOLSTRATEGY, 2000);
+        manager.addCollateralStrategy(USDT, USDT_TWO_POOL_STRATEGY, 2000);
         vm.expectRevert("Allocation not allowed");
-        manager.validateAllocation(USDT, USDTTWOPOOLSTRATEGY, 1);
+        manager.validateAllocation(USDT, USDT_TWO_POOL_STRATEGY, 1);
     }
 
     function test_validateAllocation(
