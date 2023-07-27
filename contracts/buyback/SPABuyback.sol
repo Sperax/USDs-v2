@@ -86,31 +86,6 @@ contract SPABuyback is
         ERC20BurnableUpgradeable(_token).safeTransfer(_receiver, _amount);
     }
 
-    /// @notice Sends available SPA in this contract to rewarder based on rewardPercentage and burns the rest
-    function distributeAndBurnSPA() external nonReentrant {
-        uint256 balance = ERC20BurnableUpgradeable(SPA).balanceOf(
-            address(this)
-        );
-
-        // Calculating the amount to reward based on rewardPercentage
-        uint256 toReward = (balance * rewardPercentage) / MAX_PERCENTAGE;
-
-        // Remaining balance will be burned
-        uint256 toBurn = balance - toReward;
-
-        // Transferring SPA tokens
-        if (toReward > 0) {
-            ERC20BurnableUpgradeable(SPA).safeTransfer(veSpaRewarder, toReward);
-            emit SPARewarded(toReward);
-        }
-
-        // Burning SPA tokens
-        if (toBurn > 0) {
-            ERC20BurnableUpgradeable(SPA).burn(toBurn);
-            emit SPABurned(toBurn);
-        }
-    }
-
     /// @notice Changes the reward percentage
     /// @param _newRewardPercentage New Reward Percentage
     /// @dev Example value for _newRewardPercentage = 5000 for 50%
@@ -186,7 +161,31 @@ contract SPABuyback is
             address(this),
             _spaIn
         );
+        distributeAndBurnSPA();
         ERC20BurnableUpgradeable(USDS).safeTransfer(_receiver, usdsToSend);
+    }
+
+    /// @notice Sends available SPA in this contract to rewarder based on rewardPercentage and burns the rest
+    function distributeAndBurnSPA() public {
+        uint256 balance = ERC20BurnableUpgradeable(SPA).balanceOf(
+            address(this)
+        );
+
+        // Calculating the amount to reward based on rewardPercentage
+        uint256 toReward = (balance * rewardPercentage) / MAX_PERCENTAGE;
+
+        // Remaining balance will be burned
+        uint256 toBurn = balance - toReward;
+
+        // Transferring SPA tokens
+        ERC20BurnableUpgradeable(SPA).safeTransfer(veSpaRewarder, toReward);
+        emit SPARewarded(toReward);
+
+        // Burning SPA tokens
+        if (toBurn > 0) {
+            ERC20BurnableUpgradeable(SPA).burn(toBurn);
+            emit SPABurned(toBurn);
+        }
     }
 
     /// @notice Returns the amount of USDS for SPA amount in
