@@ -115,7 +115,7 @@ contract CollateralManager_AddCollateral_Test is CollateralManagerTest {
         vm.assume(_downsidePeg <= manager.PERC_PRECISION());
 
         collateralSetUp(USDCe, 9000, _baseFeeIn, _baseFeeOut, _downsidePeg);
-        vm.expectRevert("Collateral composition exceeded");
+        vm.expectRevert("Collateral Composition exceeded");
         collateralSetUp(USDT, 1001, _baseFeeIn, _baseFeeOut, _downsidePeg);
     }
 
@@ -144,6 +144,59 @@ contract CollateralManager_AddCollateral_Test is CollateralManagerTest {
         emit CollateralAdded(USDCe, _data);
 
         manager.addCollateral(USDCe, _data);
+        assertEq(manager.collateralCompositionUsed(), _colComp);
+
+        (
+            ,
+            ,
+            ,
+            bool exists,
+            address defaultStrategy,
+            ,
+            ,
+            ,
+            ,
+            uint16 collateralCapacityUsed,
+            uint256 conversionFactor
+        ) = manager.collateralInfo(USDCe);
+
+        assertEq(exists, true);
+        assertEq(defaultStrategy, address(0));
+        assertEq(collateralCapacityUsed, 0);
+        assertEq(conversionFactor, 10 ** 12); //USDC has 6 Decimals (18-6)=12
+    }
+
+    function test_addMultipleCollaterals(
+        uint16 _baseFeeIn,
+        uint16 _baseFeeOut,
+        uint16 _downsidePeg,
+        uint16 _colComp
+    ) external useKnownActor(USDS_OWNER) {
+        address[5] memory collaterals = [USDCe, USDT, VST, FRAX, DAI];
+        vm.assume(_baseFeeIn <= manager.PERC_PRECISION());
+        vm.assume(_baseFeeOut <= manager.PERC_PRECISION());
+        vm.assume(_downsidePeg <= manager.PERC_PRECISION());
+        vm.assume(_colComp <= manager.PERC_PRECISION() / collaterals.length);
+        ICollateralManager.CollateralBaseData memory _data = ICollateralManager
+            .CollateralBaseData({
+                mintAllowed: true,
+                redeemAllowed: true,
+                allocationAllowed: true,
+                baseFeeIn: _baseFeeIn,
+                baseFeeOut: _baseFeeOut,
+                downsidePeg: _downsidePeg,
+                desiredCollateralComposition: _colComp
+            });
+
+        assertEq(manager.collateralCompositionUsed(), 0);
+
+        for (uint8 i = 0; i < collaterals.length; i++) {
+            vm.expectEmit(true, true, false, true);
+            emit CollateralAdded(collaterals[i], _data);
+            manager.addCollateral(collaterals[i], _data);
+
+            assertEq(manager.collateralCompositionUsed(), _colComp * (i + 1));
+        }
     }
 }
 
@@ -177,7 +230,7 @@ contract CollateralManager_updateCollateral_Test is CollateralManagerTest {
         vm.assume(_colComp2 > manager.PERC_PRECISION());
 
         collateralSetUp(USDT, _colComp, _baseFeeIn, _baseFeeOut, _downsidePeg);
-        vm.expectRevert("Collateral composition exceeded");
+        vm.expectRevert("Collateral Composition exceeded");
 
         collateralUpdate(
             USDT,
@@ -192,12 +245,20 @@ contract CollateralManager_updateCollateral_Test is CollateralManagerTest {
         uint16 _baseFeeIn,
         uint16 _baseFeeOut,
         uint16 _downsidePeg,
-        uint16 _colComp
+        uint16 _colComp,
+        uint16 _colComp2
     ) external useKnownActor(USDS_OWNER) {
         vm.assume(_baseFeeIn <= manager.PERC_PRECISION());
         vm.assume(_baseFeeOut <= manager.PERC_PRECISION());
         vm.assume(_downsidePeg <= manager.PERC_PRECISION());
         vm.assume(_colComp <= manager.PERC_PRECISION());
+        vm.assume(_colComp2 <= manager.PERC_PRECISION());
+
+        assertEq(manager.collateralCompositionUsed(), 0);
+        collateralSetUp(USDCe, _colComp, _baseFeeIn, _baseFeeOut, _downsidePeg);
+        assertEq(manager.collateralCompositionUsed(), _colComp);
+
+        uint16 compBeforeUpdate = manager.collateralCompositionUsed();
 
         ICollateralManager.CollateralBaseData
             memory _dataUpdated = ICollateralManager.CollateralBaseData({
@@ -207,14 +268,65 @@ contract CollateralManager_updateCollateral_Test is CollateralManagerTest {
                 baseFeeIn: _baseFeeIn,
                 baseFeeOut: _baseFeeOut,
                 downsidePeg: _downsidePeg,
-                desiredCollateralComposition: _colComp
+                desiredCollateralComposition: _colComp2
             });
-        collateralSetUp(USDCe, _colComp, _baseFeeIn, _baseFeeOut, _downsidePeg);
-
+        uint16 compAfterUpdate = compBeforeUpdate - _colComp + _colComp2;
         vm.expectEmit(true, true, false, true);
         emit CollateralInfoUpdated(USDCe, _dataUpdated);
 
         manager.updateCollateralData(USDCe, _dataUpdated);
+
+        assertEq(manager.collateralCompositionUsed(), compAfterUpdate);
+    }
+
+    function test_updateMultipleCollaterals(
+        uint16 _baseFeeIn,
+        uint16 _baseFeeOut,
+        uint16 _downsidePeg,
+        uint16 _colComp,
+        uint16 _colComp2
+    ) external useKnownActor(USDS_OWNER) {
+        address[5] memory collaterals = [USDCe, USDT, VST, FRAX, DAI];
+        vm.assume(_baseFeeIn <= manager.PERC_PRECISION());
+        vm.assume(_baseFeeOut <= manager.PERC_PRECISION());
+        vm.assume(_downsidePeg <= manager.PERC_PRECISION());
+        vm.assume(_colComp <= manager.PERC_PRECISION() / collaterals.length);
+        vm.assume(_colComp2 <= manager.PERC_PRECISION() / collaterals.length);
+
+        assertEq(manager.collateralCompositionUsed(), 0);
+
+        for (uint8 i = 0; i < collaterals.length; i++) {
+            collateralSetUp(
+                collaterals[i],
+                _colComp,
+                _baseFeeIn,
+                _baseFeeOut,
+                _downsidePeg
+            );
+            assertEq(manager.collateralCompositionUsed(), _colComp * (i + 1));
+        }
+
+        ICollateralManager.CollateralBaseData
+            memory _dataUpdated = ICollateralManager.CollateralBaseData({
+                mintAllowed: true,
+                redeemAllowed: true,
+                allocationAllowed: true,
+                baseFeeIn: _baseFeeIn,
+                baseFeeOut: _baseFeeOut,
+                downsidePeg: _downsidePeg,
+                desiredCollateralComposition: _colComp2
+            });
+
+        for (uint8 i = 0; i < collaterals.length; i++) {
+            uint16 compBeforeUpdate = manager.collateralCompositionUsed();
+
+            vm.expectEmit(true, true, false, true);
+            emit CollateralInfoUpdated(collaterals[i], _dataUpdated);
+
+            manager.updateCollateralData(collaterals[i], _dataUpdated);
+            uint16 compAfterUpdate = compBeforeUpdate - _colComp + _colComp2;
+            assertEq(manager.collateralCompositionUsed(), compAfterUpdate);
+        }
     }
 }
 
@@ -232,30 +344,59 @@ contract CollateralManager_removeCollateral_Test is CollateralManagerTest {
         uint16 _baseFeeOut,
         uint16 _downsidePeg
     ) external useKnownActor(USDS_OWNER) {
+        address[5] memory collaterals = [USDCe, USDT, VST, FRAX, DAI];
         vm.assume(_baseFeeIn <= manager.PERC_PRECISION());
         vm.assume(_baseFeeOut <= manager.PERC_PRECISION());
         vm.assume(_downsidePeg <= manager.PERC_PRECISION());
+        uint16 colComp = 1000;
 
-        collateralSetUp(USDCe, 1000, _baseFeeIn, _baseFeeOut, _downsidePeg);
-        collateralSetUp(USDT, 1500, _baseFeeIn, _baseFeeOut, _downsidePeg);
-        collateralSetUp(DAI, 2000, _baseFeeIn, _baseFeeOut, _downsidePeg);
-        collateralSetUp(VST, 3000, _baseFeeIn, _baseFeeOut, _downsidePeg);
+        //increasing Removal
+        for (uint8 i = 0; i < collaterals.length; i++) {
+            collateralSetUp(
+                collaterals[i],
+                colComp + (500 * i),
+                _baseFeeIn,
+                _baseFeeOut,
+                _downsidePeg
+            );
+        }
+        for (uint8 i = 0; i < collaterals.length; i++) {
+            uint16 compBfr = manager.collateralCompositionUsed();
+            (, , , , , , , , uint16 desiredCollateralComposition, , ) = manager
+                .collateralInfo(collaterals[i]);
 
-        vm.expectEmit(true, true, false, true);
-        emit CollateralRemoved(USDT);
-        manager.removeCollateral(USDT);
+            vm.expectEmit(true, true, false, true);
+            emit CollateralRemoved(collaterals[i]);
+            manager.removeCollateral(collaterals[i]);
 
-        vm.expectEmit(true, true, false, true);
-        emit CollateralRemoved(USDCe);
-        manager.removeCollateral(USDCe);
+            assertEq(
+                manager.collateralCompositionUsed(),
+                compBfr - desiredCollateralComposition
+            );
+        }
+        //Decreasing Removal
+        for (uint8 i = 0; i < collaterals.length; i++) {
+            collateralSetUp(
+                collaterals[i],
+                colComp + (500 * i),
+                _baseFeeIn,
+                _baseFeeOut,
+                _downsidePeg
+            );
+        }
+        for (uint256 i = collaterals.length; i < 1; i--) {
+            uint16 compBfr = manager.collateralCompositionUsed();
+            (, , , , , , , , uint16 desiredCollateralComposition, , ) = manager
+                .collateralInfo(collaterals[i]);
+            vm.expectEmit(true, true, false, true);
+            emit CollateralRemoved(collaterals[i]);
+            manager.removeCollateral(collaterals[i]);
 
-        vm.expectEmit(true, true, false, true);
-        emit CollateralRemoved(VST);
-        manager.removeCollateral(VST);
-
-        vm.expectEmit(true, true, false, true);
-        emit CollateralRemoved(DAI);
-        manager.removeCollateral(DAI);
+            assertEq(
+                manager.collateralCompositionUsed(),
+                compBfr - desiredCollateralComposition
+            );
+        }
     }
 
     function test_revertsWhen_removeStrategyCollateralStrategyExists(
@@ -593,6 +734,7 @@ contract CollateralManager_validateAllocation_test is CollateralManagerTest {
         vm.assume(_baseFeeOut <= manager.PERC_PRECISION());
         vm.assume(_downsidePeg <= manager.PERC_PRECISION());
         vm.assume(_collateralComposition <= manager.PERC_PRECISION());
+        address[5] memory collaterals = [USDCe, USDT, VST, FRAX, DAI];
 
         ICollateralManager.CollateralBaseData memory _data = ICollateralManager
             .CollateralBaseData({
@@ -604,21 +746,16 @@ contract CollateralManager_validateAllocation_test is CollateralManagerTest {
                 downsidePeg: _downsidePeg,
                 desiredCollateralComposition: 1000
             });
-        manager.addCollateral(USDCe, _data);
-        manager.addCollateral(USDT, _data);
-        manager.addCollateral(VST, _data);
-        manager.addCollateral(FRAX, _data);
-        manager.addCollateral(DAI, _data);
+        for (uint8 i = 0; i < collaterals.length; i++) {
+            manager.addCollateral(collaterals[i], _data);
+        }
+
         manager.addCollateralStrategy(USDCe, AAVE, 2000);
 
         address[] memory collateralsList = manager.getAllCollaterals();
 
         for (uint8 i = 0; i < collateralsList.length; i++) {
-            assertEq(collateralsList[0], USDCe);
-            assertEq(collateralsList[1], USDT);
-            assertEq(collateralsList[2], VST);
-            assertEq(collateralsList[3], FRAX);
-            assertEq(collateralsList[4], DAI);
+            assertEq(collateralsList[i], collaterals[i]);
         }
     }
 
@@ -637,19 +774,19 @@ contract CollateralManager_validateAllocation_test is CollateralManagerTest {
         vm.assume(_baseFeeOut <= manager.PERC_PRECISION());
         vm.assume(_downsidePeg <= manager.PERC_PRECISION());
         vm.assume(_colComp <= manager.PERC_PRECISION());
+        address[2] memory strategies = [AAVE, stargate];
 
         collateralSetUp(USDCe, _colComp, _baseFeeIn, _baseFeeOut, _downsidePeg);
-        manager.addCollateralStrategy(USDCe, AAVE, 2000);
-        manager.addCollateralStrategy(USDCe, stargate, 2000);
+        for (uint8 i = 0; i < strategies.length; i++) {
+            manager.addCollateralStrategy(USDCe, strategies[i], 2000);
+        }
         manager.isValidStrategy(USDCe, AAVE);
         manager.isValidStrategy(USDT, USDCe);
 
-        address[] memory collateralsList = manager.getCollateralStrategies(
-            USDCe
-        );
-        for (uint8 i = 0; i < collateralsList.length; i++) {
-            assertEq(collateralsList[0], AAVE);
-            assertEq(collateralsList[1], stargate);
+        address[] memory collateralStrategiesList = manager
+            .getCollateralStrategies(USDCe);
+        for (uint8 i = 0; i < collateralStrategiesList.length; i++) {
+            assertEq(collateralStrategiesList[i], strategies[i]);
         }
     }
 }
