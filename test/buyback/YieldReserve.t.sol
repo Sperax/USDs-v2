@@ -10,6 +10,9 @@ import {PreMigrationSetup} from "../utils/DeploymentSetup.sol";
 contract YieldReserveTest is PreMigrationSetup {
     YieldReserve internal yieldReserve;
     IVault internal vault;
+    uint256 USDCePrecesion = 10 ** 6;
+    uint256 SPAPrecesion = 10 ** 18;
+    uint256 USDsPrecesion = 10 ** 18;
 
     function setUp() public virtual override {
         super.setUp();
@@ -19,7 +22,7 @@ contract YieldReserveTest is PreMigrationSetup {
     }
 
     function mintUSDs(uint256 amountIn) public {
-        deal(address(USDCe), USDS_OWNER, 1 ether);
+        deal(address(USDCe), USDS_OWNER, 100 * USDCePrecesion);
         IERC20(USDCe).approve(VAULT, amountIn);
         IVault(VAULT).mintBySpecifyingCollateralAmt(
             USDCe,
@@ -30,17 +33,21 @@ contract YieldReserveTest is PreMigrationSetup {
         );
     }
 
+    function mockPrice(address token, uint256 price, uint256 precision) public {
+        vm.mockCall(
+            ORACLE,
+            abi.encodeWithSignature("getPrice(address)", token),
+            abi.encode([price, precision])
+        );
+    }
+
     function test_toggleSrcTokenPermission_auth_error() public useActor(0) {
         vm.expectRevert("Ownable: caller is not the owner");
         yieldReserve.toggleSrcTokenPermission(SPA, true);
     }
 
     function test_toggleSrcTokenPermission() public useKnownActor(USDS_OWNER) {
-        vm.mockCall(
-            ORACLE,
-            abi.encodeWithSignature("getPrice(address)", SPA),
-            abi.encode([10, 1000000])
-        );
+        mockPrice(SPA, 10, SPAPrecesion);
 
         yieldReserve.toggleSrcTokenPermission(SPA, true);
 
@@ -56,11 +63,7 @@ contract YieldReserveTest is PreMigrationSetup {
     }
 
     function test_toggleDstTokenPermission() public useKnownActor(USDS_OWNER) {
-        vm.mockCall(
-            ORACLE,
-            abi.encodeWithSignature("getPrice(address)", SPA),
-            abi.encode([10, 1000000])
-        );
+        mockPrice(SPA, 10, SPAPrecesion);
 
         yieldReserve.toggleDstTokenPermission(SPA, true);
 
@@ -98,9 +101,6 @@ contract YieldReserveTest is PreMigrationSetup {
 
         assertEq(inputBal + initialBal, newBal);
     }
-
-    // require(_toBuyback <= MAX_PERCENTAGE, "% exceeds 100%");
-    // require(_toBuyback > 0, "% must be > 0");
 
     function test_updateBuybackPercentage_auth_error() public useActor(0) {
         vm.expectRevert("Ownable: caller is not the owner");
@@ -197,17 +197,8 @@ contract YieldReserveTest is PreMigrationSetup {
     }
 
     function test_getTokenBforTokenA_inputs() public useKnownActor(USDS_OWNER) {
-        vm.mockCall(
-            ORACLE,
-            abi.encodeWithSignature("getPrice(address)", USDCe),
-            abi.encode([10, 1000000])
-        );
-
-        vm.mockCall(
-            ORACLE,
-            abi.encodeWithSignature("getPrice(address)", USDS),
-            abi.encode([10, 1000000])
-        );
+        mockPrice(USDCe, 10, USDCePrecesion);
+        mockPrice(USDS, 10, USDsPrecesion);
 
         vm.expectRevert("Source token is not allowed");
         yieldReserve.getTokenBforTokenA(USDS, 10000, USDCe);
@@ -221,27 +212,21 @@ contract YieldReserveTest is PreMigrationSetup {
         yieldReserve.getTokenBforTokenA(USDS, 0, USDCe);
     }
 
-    // require(isAllowedSrc[_tokenA], "Source token is not allowed");
-    // require(isAllowedDst[_tokenB], "Destination token is not allowed");
     function test_getTokenBforTokenA() public useKnownActor(USDS_OWNER) {
-        vm.mockCall(
-            ORACLE,
-            abi.encodeWithSignature("getPrice(address)", USDCe),
-            abi.encode([1, 1000000])
-        );
-
-        vm.mockCall(
-            ORACLE,
-            abi.encodeWithSignature("getPrice(address)", USDS),
-            abi.encode([1, 1000000])
-        );
+        uint256 amountIn = 100;
+        mockPrice(USDCe, 1, USDCePrecesion);
+        mockPrice(USDS, 1, USDsPrecesion);
 
         yieldReserve.toggleSrcTokenPermission(USDS, true);
         yieldReserve.toggleDstTokenPermission(USDCe, true);
 
-        uint256 amount = yieldReserve.getTokenBforTokenA(USDS, 10000000, USDCe);
+        uint256 amount = yieldReserve.getTokenBforTokenA(
+            USDS,
+            amountIn * USDsPrecesion,
+            USDCe
+        );
 
-        assertEq(amount, 10000000);
+        assertEq(amount, amountIn * USDCePrecesion);
     }
 }
 
@@ -252,47 +237,52 @@ contract SwapTest is YieldReserveTest {
         deal(address(USDCe), USDS_OWNER, 1 ether);
         deal(address(USDCe), address(yieldReserve), 1 ether);
 
-        vm.mockCall(
-            ORACLE,
-            abi.encodeWithSignature("getPrice(address)", USDCe),
-            abi.encode([1e8, 1e8])
-        );
-        vm.mockCall(
-            ORACLE,
-            abi.encodeWithSignature("getPrice(address)", USDS),
-            abi.encode([1e8, 1e8])
-        );
+        mockPrice(USDCe, 1e8, USDCePrecesion);
+        mockPrice(USDS, 1e8, USDsPrecesion);
+
         mintUSDs(1e7);
 
         vm.stopPrank();
     }
 
     function test_swap_slippage_error() public useKnownActor(USDS_OWNER) {
-        IERC20(USDS).approve(address(yieldReserve), 1000);
+        uint256 amt = 10;
+        IERC20(USDS).approve(address(yieldReserve), amt * USDsPrecesion);
 
         yieldReserve.toggleSrcTokenPermission(USDS, true);
         yieldReserve.toggleDstTokenPermission(USDCe, true);
 
         vm.expectRevert("Slippage more than expected");
-        yieldReserve.swap(USDS, USDCe, 1000, 10001);
+        yieldReserve.swap(
+            USDS,
+            USDCe,
+            amt * USDsPrecesion,
+            (amt + 1) * USDCePrecesion
+        );
     }
 
     function test_swap() public useKnownActor(USDS_OWNER) {
-        IERC20(USDS).approve(address(yieldReserve), 1000);
+        uint256 amt = 10;
+        IERC20(USDS).approve(address(yieldReserve), amt * USDsPrecesion);
 
         yieldReserve.toggleSrcTokenPermission(USDS, true);
         yieldReserve.toggleDstTokenPermission(USDCe, true);
 
-        yieldReserve.swap(USDS, USDCe, 1000, 0);
+        yieldReserve.swap(USDS, USDCe, amt * USDsPrecesion, 0);
     }
 
     function test_swap_non_USDS() public useKnownActor(USDS_OWNER) {
         yieldReserve.toggleSrcTokenPermission(USDCe, true);
         yieldReserve.toggleDstTokenPermission(USDS, true);
+        uint256 amt = 10;
 
         vm.mockCall(
             VAULT,
-            abi.encodeWithSignature("mintView(address, uint256)", USDCe, 1000),
+            abi.encodeWithSignature(
+                "mintView(address, uint256)",
+                USDCe,
+                amt * USDCePrecesion
+            ),
             abi.encode(10)
         );
 
@@ -302,14 +292,14 @@ contract SwapTest is YieldReserveTest {
             abi.encodeWithSignature(
                 "mint(address, uint256, uint256, uint256)",
                 USDCe,
-                1000,
-                10,
+                amt * USDCePrecesion,
+                10 * USDsPrecesion,
                 timestamp
             ),
             abi.encode()
         );
 
-        IERC20(USDCe).approve(address(yieldReserve), 1000);
-        yieldReserve.swap(USDCe, USDS, 1000, 0);
+        IERC20(USDCe).approve(address(yieldReserve), amt * USDCePrecesion);
+        yieldReserve.swap(USDCe, USDS, amt * USDCePrecesion, 0);
     }
 }
