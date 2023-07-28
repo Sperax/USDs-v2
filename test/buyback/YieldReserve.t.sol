@@ -22,7 +22,7 @@ contract YieldReserveTest is PreMigrationSetup {
     }
 
     function mintUSDs(uint256 amountIn) public {
-        deal(address(USDCe), USDS_OWNER, 100 * USDCePrecesion);
+        deal(address(USDCe), USDS_OWNER, amountIn * USDCePrecesion);
         IERC20(USDCe).approve(VAULT, amountIn);
         IVault(VAULT).mintBySpecifyingCollateralAmt(
             USDCe,
@@ -91,7 +91,7 @@ contract YieldReserveTest is PreMigrationSetup {
 
     function test_withdraw() public useKnownActor(USDS_OWNER) {
         uint256 inputBal = 10000;
-        deal(address(SPA), address(yieldReserve), 1 ether);
+        deal(address(SPA), address(yieldReserve), inputBal * SPAPrecesion);
 
         uint256 initialBal = IERC20(SPA).balanceOf(USDS_OWNER);
 
