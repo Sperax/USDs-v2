@@ -6,7 +6,7 @@ import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 abstract contract Setup is Test {
     // Define global constants | Test config
     // @dev Make it 0 to test on latest
-    uint256 public constant FORK_BLOCK = 96_705_562;
+    uint256 public constant FORK_BLOCK = 111_452_357;
     uint256 public constant NUM_ACTORS = 5;
 
     // Define Collateral constants here
@@ -31,6 +31,13 @@ abstract contract Setup is Test {
     address internal DRIPPER;
     address internal REBASE_MANAGER;
     address internal BUYBACK;
+
+    // Define Strategies Constants here
+    address public constant stargate =
+        0xF30Db0F56674b51050630e53043c403f8E162Bf2;
+    address public constant AAVE = 0xF2badbB9817A40D29393fa88951415a4A334a898;
+    address public constant USDT_TWO_POOL_STRATEGY =
+        0xdc118F2F00812326Fe0De5c9c74c1c0c609d1eB4;
 
     // Define fork networks
     uint256 internal arbFork;
