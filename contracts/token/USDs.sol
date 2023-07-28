@@ -94,7 +94,7 @@ contract USDs is
     /// @notice Add a contract address to the non rebasing exception list. I.e. the
     ///  address's balance will be part of rebases so the account will be exposed
     ///  to upside and downside.
-    function rebaseOptIn(address toOptIn) external onlyOwner nonReentrant {
+    function rebaseOptIn(address toOptIn) external nonReentrant {
         require(_isNonRebasingAccount(toOptIn), "Account has not opted out");
 
         uint256 bal = _balanceOf(toOptIn);
@@ -112,7 +112,7 @@ contract USDs is
     }
 
     /// @notice Remove a contract address to the non rebasing exception list.
-    function rebaseOptOut(address toOptOut) external onlyOwner nonReentrant {
+    function rebaseOptOut(address toOptOut) external nonReentrant {
         require(!_isNonRebasingAccount(toOptOut), "Account has not opted in");
 
         uint256 bal = _balanceOf(toOptOut);
@@ -177,13 +177,13 @@ contract USDs is
 
     /// @notice change the vault address
     /// @param newVault the new vault address
-    function changeVault(address newVault) external onlyOwner {
+    function changeVault(address newVault) external {
         vaultAddress = newVault;
     }
 
     /// @notice Called by the owner to pause | unpause the contract
     /// @param _pause pauseSwitch state.
-    function pauseSwitch(bool _pause) external onlyOwner {
+    function pauseSwitch(bool _pause) external {
         require(paused != _pause, "Already in required state");
         paused = _pause;
         emit Paused(_pause);
