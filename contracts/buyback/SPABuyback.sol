@@ -182,10 +182,8 @@ contract SPABuyback is
         emit SPARewarded(toReward);
 
         // Burning SPA tokens
-        if (toBurn > 0) {
-            ERC20BurnableUpgradeable(SPA).burn(toBurn);
-            emit SPABurned(toBurn);
-        }
+        ERC20BurnableUpgradeable(SPA).burn(toBurn);
+        emit SPABurned(toBurn);
     }
 
     /// @notice Returns the amount of USDS for SPA amount in
