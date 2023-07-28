@@ -68,7 +68,7 @@ abstract contract PreMigrationSetup is Setup {
                 baseFeeIn: 0,
                 baseFeeOut: 500,
                 downsidePeg: 10000,
-                desiredCollateralCompostion: 5000
+                desiredCollateralComposition: 5000
             });
 
         collateralManager.addCollateral(USDCe, _data);
