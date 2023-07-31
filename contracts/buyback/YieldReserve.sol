@@ -8,7 +8,7 @@ import {IVault} from "../interfaces/IVault.sol";
 import {IOracle} from "../interfaces/IOracle.sol";
 
 /// @title YieldReserve of USDs protocol
-/// @notice The contract allows user's to swap the supported stablecoins against yield earned by USDs protocol
+/// @notice The contract allows user's to swap the supported stable coins against yield earned by USDs protocol
 ///         It sends USDs to dripper for rebase, and to Buyback Contract for buyback.
 /// @author Sperax Foundation
 contract YieldReserve is ReentrancyGuard, Ownable {
@@ -191,7 +191,7 @@ contract YieldReserve is ReentrancyGuard, Ownable {
         address receiver
     ) public nonReentrant {
         _isValidAddress(receiver);
-        uint256 amountToSend = getTokenBforTokenA(srcToken, amountIn, dstToken);
+        uint256 amountToSend = getTokenBForTokenA(srcToken, dstToken, amountIn);
         require(amountToSend >= minAmountOut, "Slippage more than expected");
         IERC20(srcToken).safeTransferFrom(msg.sender, address(this), amountIn);
         if (srcToken != USDS) {
@@ -217,12 +217,12 @@ contract YieldReserve is ReentrancyGuard, Ownable {
 
     /// @notice A function to get estimated output
     /// @param _tokenA Input token address
-    /// @param _amountIn Input amount of _tokenA
     /// @param _tokenB Output token address
-    function getTokenBforTokenA(
+    /// @param _amountIn Input amount of _tokenA
+    function getTokenBForTokenA(
         address _tokenA,
-        uint256 _amountIn,
-        address _tokenB
+        address _tokenB,
+        uint256 _amountIn
     ) public view returns (uint256) {
         require(isAllowedSrc[_tokenA], "Source token is not allowed");
         require(isAllowedDst[_tokenB], "Destination token is not allowed");
@@ -235,9 +235,9 @@ contract YieldReserve is ReentrancyGuard, Ownable {
             _tokenB
         );
         // Calculating the value
-        uint256 totalUSDvalueIn = (_amountIn * tokenAPriceData.price) /
+        uint256 totalUSDValueIn = (_amountIn * tokenAPriceData.price) /
             tokenAPriceData.precision;
-        uint256 tokenBOut = (totalUSDvalueIn * tokenBPriceData.precision) /
+        uint256 tokenBOut = (totalUSDValueIn * tokenBPriceData.precision) /
             tokenBPriceData.price;
         return tokenBOut;
     }
