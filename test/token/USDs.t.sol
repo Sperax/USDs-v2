@@ -5,12 +5,16 @@ import {BaseTest} from "../utils/BaseTest.sol";
 import {UpgradeUtil} from "../utils/UpgradeUtil.sol";
 import {USDs} from "../../contracts/token/USDs.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 
 contract USDsTest is BaseTest {
     USDs internal usds;
     USDs internal impl;
     UpgradeUtil internal upgradeUtil;
     address internal proxyAddress;
+    address internal OWNER;
+    address internal USER1 = 0xFb09ED8F4bd4C4D7D06Ad229cEb18e7CCB900A4c;
+    address internal USER2 = 0xde627cDeD2A7241B1f3679821588dB42B62f7699;
 
     function setUp() public virtual override {
         super.setUp();
@@ -19,7 +23,6 @@ contract USDsTest is BaseTest {
         impl = new USDs();
         upgradeUtil = new UpgradeUtil();
         proxyAddress = upgradeUtil.deployErc1967Proxy(address(impl));
-
         usds = USDs(proxyAddress);
         usds.changeVault(VAULT);
         vm.stopPrank();
@@ -53,6 +56,23 @@ contract USDsTest is BaseTest {
     }
 
     function test_rebase() public useKnownActor(VAULT) {
+        uint256 amount = 100000;
+        usds.mint(VAULT, amount);
         usds.rebase(10000);
+    }
+
+    function test_transfer() public useKnownActor(VAULT) {
+        uint256 amount = 100000;
+        usds.mint(USER1, amount);
+        changePrank(USER1);
+        usds.balanceOf(USER1);
+        usds.transfer(USER1, amount);
+    }
+
+    function test_transfer_from() public useKnownActor(VAULT) {
+        uint256 amount = 100000;
+        usds.mint(USER1, amount);
+        usds.approve(VAULT, amount);
+        usds.transferFrom(USER1, USER2, amount);
     }
 }
