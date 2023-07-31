@@ -22,7 +22,7 @@ contract Dripper is Ownable {
 
     constructor(address _vault, uint256 _dripDuration) {
         vault = _vault;
-        dripDuration = _dripDuration;
+        dripDuration = _dripDuration; // @note Initially setting: 7 days
         lastCollectTS = block.timestamp;
     }
 
