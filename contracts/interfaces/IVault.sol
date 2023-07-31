@@ -2,6 +2,14 @@
 pragma solidity 0.8.16;
 
 interface IVault {
+    function mintBySpecifyingCollateralAmt(
+        address collateralAddr,
+        uint256 collateralAmtToLock,
+        uint256 minUSDsMinted,
+        uint256 maxSPAburnt,
+        uint256 deadline
+    ) external;
+
     /// @notice mint USDs by depositing collateral
     /// @param _collateral address of the collateral
     /// @param _collateralAmt amount of collateral to mint USDs with
