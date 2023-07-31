@@ -23,6 +23,7 @@ contract USDs is
     ReentrancyGuardUpgradeable,
     IUSDs
 {
+    // @todo validate upgrade with Openzeppelin's upgradeValidation lib
     using SafeMathUpgradeable for uint256;
     using StableMath for uint256;
 
@@ -33,25 +34,27 @@ contract USDs is
     }
 
     uint256 private constant MAX_SUPPLY = ~uint128(0); // (2^128) - 1
-    uint256 private constant RESOLUTION_INCREASE = 1e9;
 
     uint256 internal _totalSupply; // the total supply of USDs
-    uint256[4] private unused1; // @note deprecated variables place holders
+    uint256 private _deprecated_totalMinted; // the total num of USDs minted so far
+    uint256 private _deprecated_totalBurnt; // the total num of USDs burnt so far
+    uint256 private _deprecated_mintedViaGateway; // the total num of USDs minted so far
+    uint256 private _deprecated_burntViaGateway; // the total num of USDs burnt so far
     mapping(address => mapping(address => uint256)) private _allowances;
     address public vaultAddress; // the address where (i) all collaterals of USDs protocol reside, e.g. USDT, USDC, ETH, etc and (ii) major actions like USDs minting are initiated
     // an user's balance of USDs is based on her balance of "credits."
     // in a rebase process, her USDs balance will change according to her credit balance and the rebase ratio
     mapping(address => uint256) private _creditBalances;
-    uint256 private unused2; // @note deprecated variables place holders
+    uint256 private _deprecated_rebasingCredits;
     uint256 public rebasingCreditsPerToken; // the rebase ratio = num of credits / num of USDs
     // Frozen address/credits are non rebasing (value is held in contracts which
     // do not receive yield unless they explicitly opt in)
     uint256 public nonRebasingSupply; // num of USDs that are not affected by rebase
-    // @note nonRebasingCreditsPerToken value is set as 1
+    // @note nonRebasingCreditsPerToken value is set as 1 for each account
     mapping(address => uint256) public nonRebasingCreditsPerToken; // the rebase ratio of non-rebasing accounts just before they opt out
     mapping(address => RebaseOptions) public rebaseState; // the rebase state of each account, i.e. opt in or opt out
-    address[2] private unused3; // @note deprecated variables place holders
-    mapping(address => bool) public isUpgraded;
+    address[2] private _deprecated_gatewayAddr;
+    mapping(address => bool) private _deprecated_isUpgraded;
     bool public paused;
 
     event TotalSupplyUpdated(
@@ -78,12 +81,12 @@ contract USDs is
     function mint(
         address _account,
         uint256 _amount
-    ) external override onlyVault {
+    ) external override onlyVault nonReentrant {
         _mint(_account, _amount);
     }
 
     /// @notice Burns tokens, decreasing totalSupply.
-    function burn(uint256 amount) external override {
+    function burn(uint256 amount) external override nonReentrant {
         _burn(msg.sender, amount);
     }
 
@@ -91,7 +94,6 @@ contract USDs is
     ///  address's balance will be part of rebases so the account will be exposed
     ///  to upside and downside.
     function rebaseOptIn(address toOptIn) external onlyOwner nonReentrant {
-        if (!isUpgraded[toOptIn]) _upgradeAccount(toOptIn);
         require(_isNonRebasingAccount(toOptIn), "Account has not opted out");
 
         uint256 bal = _balanceOf(toOptIn);
@@ -110,7 +112,6 @@ contract USDs is
 
     /// @notice Remove a contract address to the non rebasing exception list.
     function rebaseOptOut(address toOptOut) external onlyOwner nonReentrant {
-        if (!isUpgraded[toOptOut]) _upgradeAccount(toOptOut);
         require(!_isNonRebasingAccount(toOptOut), "Account has not opted in");
 
         uint256 bal = _balanceOf(toOptOut);
@@ -140,15 +141,14 @@ contract USDs is
         require(_totalSupply > 0, "Cannot increase 0 supply");
 
         // Compute the existing rebasing credits,
-        uint256 rebasingCreds = (_totalSupply - nonRebasingSupply).mulTruncate(
-            rebasingCreditsPerToken
-        );
+        uint256 rebasingCredits = (_totalSupply - nonRebasingSupply)
+            .mulTruncate(rebasingCreditsPerToken);
 
         // special case: if the total supply remains the same
         if (_totalSupply == prevTotalSupply) {
             emit TotalSupplyUpdated(
                 _totalSupply,
-                rebasingCreds,
+                rebasingCredits,
                 rebasingCreditsPerToken
             );
             return;
@@ -160,7 +160,7 @@ contract USDs is
             : prevTotalSupply;
 
         // calculate the new rebase ratio, i.e. credits per token
-        rebasingCreditsPerToken = rebasingCreds.divPrecisely(
+        rebasingCreditsPerToken = rebasingCredits.divPrecisely(
             _totalSupply - nonRebasingSupply
         );
 
@@ -168,21 +168,9 @@ contract USDs is
 
         emit TotalSupplyUpdated(
             _totalSupply,
-            rebasingCreds,
+            rebasingCredits,
             rebasingCreditsPerToken
         );
-    }
-
-    /// @notice Upgrades accounts in bulk.
-    /// @notice Only owner of the contract can call this.
-    /// @param accounts Array of account addr to be upgraded.
-    function upgradeAccounts(address[] calldata accounts) external onlyOwner {
-        uint256 numAcc = accounts.length;
-        for (uint256 i = 0; i < numAcc; ++i) {
-            address account = accounts[i];
-            if (account != address(0) && !isUpgraded[account])
-                _upgradeAccount(account);
-        }
     }
 
     /// @notice change the vault address
@@ -232,7 +220,7 @@ contract USDs is
         require(_to != address(0), "Transfer to zero address");
         require(_value <= balanceOf(_from), "Transfer greater than balance");
 
-        // notice: allowance balnce check depends on "sub" non-negative check
+        // notice: allowance balance check depends on "sub" non-negative check
         _allowances[_from][msg.sender] =
             _allowances[_from][msg.sender] -
             _value;
@@ -312,14 +300,6 @@ contract USDs is
     function balanceOf(
         address _account
     ) public view override returns (uint256) {
-        if (!isUpgraded[_account]) {
-            uint256 credits = _creditBalances[_account];
-            if (credits == 0) return 0;
-            return
-                (credits * RESOLUTION_INCREASE).divPrecisely(
-                    _creditsPerToken(_account)
-                );
-        }
         return _balanceOf(_account);
     }
 
@@ -330,12 +310,6 @@ contract USDs is
     function creditsBalanceOf(
         address _account
     ) public view returns (uint256, uint256) {
-        if (!isUpgraded[_account]) {
-            return (
-                _creditBalances[_account] * RESOLUTION_INCREASE,
-                _creditsPerToken(_account)
-            );
-        }
         return (_creditBalances[_account], _creditsPerToken(_account));
     }
 
@@ -360,13 +334,9 @@ contract USDs is
     ///  - `to` cannot be the zero address.
     /// @param _account the account address the newly minted USDs will be attributed to
     /// @param _amount the amount of USDs that will be minted
-    function _mint(
-        address _account,
-        uint256 _amount
-    ) internal override nonReentrant {
+    function _mint(address _account, uint256 _amount) internal override {
         _isNotPaused();
         require(_account != address(0), "Mint to the zero address");
-        if (!isUpgraded[_account]) _upgradeAccount(_account);
 
         // notice: If the account is non rebasing and doesn't have a set creditsPerToken
         //          then set it i.e. this is a mint from a fresh contract
@@ -399,13 +369,9 @@ contract USDs is
     ///
     ///  - `_account` cannot be the zero address.
     ///  - `_account` must have at least `_amount` tokens.
-    function _burn(
-        address _account,
-        uint256 _amount
-    ) internal override nonReentrant {
+    function _burn(address _account, uint256 _amount) internal override {
         _isNotPaused();
         require(_account != address(0), "Burn from the zero address");
-        if (!isUpgraded[_account]) _upgradeAccount(_account);
         if (_amount == 0) {
             return;
         }
@@ -448,9 +414,6 @@ contract USDs is
         uint256 _value
     ) private {
         _isNotPaused();
-        if (!isUpgraded[_to]) _upgradeAccount(_to);
-        if (!isUpgraded[_from]) _upgradeAccount(_from);
-
         bool isNonRebasingTo = _isNonRebasingAccount(_to);
         bool isNonRebasingFrom = _isNonRebasingAccount(_from);
 
@@ -491,33 +454,6 @@ contract USDs is
 
             _creditBalances[_to] = _creditBalances[_to] + creditsCredited;
         }
-    }
-
-    /// @notice Upgrades an individual account
-    /// @dev Ensure this function is called for a non upgraded account only!
-    /// @param _account Address of the account.
-    function _upgradeAccount(address _account) private {
-        // Handle special for non-rebasing accounts
-        uint256 nrc = nonRebasingCreditsPerToken[_account];
-        uint256 credits = _creditBalances[_account];
-        isUpgraded[_account] = true;
-        if (nrc > 0) {
-            // Update data for a nonRebasingAccount.
-            // Credit balance now stores the actual balance of the account.
-            _creditBalances[_account] = credits == 0
-                ? 0
-                : credits.divPrecisely(nrc);
-
-            // nonRebasingCreditsPerToken now is just used to validate a nonRebasing acc.
-            nonRebasingCreditsPerToken[_account] = 1;
-            emit AccountUpgraded(_account, true);
-            return;
-        }
-        if (credits > 0) {
-            // Upgrade credit balance for a rebasing account.
-            _creditBalances[_account] = credits.mul(RESOLUTION_INCREASE);
-        }
-        emit AccountUpgraded(_account, false);
     }
 
     /// @notice Is an account using rebasing accounting or non-rebasing accounting?
@@ -565,9 +501,6 @@ contract USDs is
     function _creditsPerToken(address _account) private view returns (uint256) {
         uint256 nrc = nonRebasingCreditsPerToken[_account];
         if (nrc != 0) {
-            if (!isUpgraded[_account]) {
-                return nrc * RESOLUTION_INCREASE;
-            }
             return nrc;
         } else {
             return rebasingCreditsPerToken;

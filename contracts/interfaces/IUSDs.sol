@@ -11,8 +11,4 @@ interface IUSDs {
     function totalSupply() external view returns (uint256);
 
     function nonRebasingSupply() external view returns (uint256);
-
-    // function mintedViaUsers() external view returns (uint256);
-
-    // function burntViaUsers() external view returns (uint256);
 }
