@@ -17,6 +17,7 @@ contract USDsOracle is BaseUniOracle {
         uint24 _feeTier,
         uint32 _maPeriod
     ) public {
+        _isNonZeroAddr(_masterOracle);
         masterOracle = _masterOracle;
         setUniMAPriceData(USDS, _quoteToken, _feeTier, _maPeriod);
     }
@@ -28,7 +29,6 @@ contract USDsOracle is BaseUniOracle {
         }
         uint256 quoteTokenAmtPerUSDs = _getUniMAPrice(
             USDS,
-            quoteToken,
             USDS_PRICE_PRECISION
         );
         (

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 pragma solidity 0.6.12;
 pragma experimental ABIEncoderV2;
 
@@ -30,7 +31,8 @@ contract SPAOracle is BaseUniOracle {
         uint32 _maPeriod,
         uint256 _weightDIA
     ) public {
-        masterOracle = _masterOracle;
+        _isNonZeroAddr(_masterOracle);
+        _isNonZeroAddr(_diaOracle);
         setUniMAPriceData(SPA, _quoteToken, _feeTier, _maPeriod);
         updateDIAConfig(_diaOracle, _weightDIA);
     }
@@ -63,6 +65,7 @@ contract SPAOracle is BaseUniOracle {
         address _diaOracle,
         uint256 _weightDIA
     ) public onlyOwner {
+        _isNonZeroAddr(_diaOracle);
         require(_weightDIA <= 100, "Invalid weights");
         diaOracle = _diaOracle;
         weightDIA = _weightDIA;
@@ -73,11 +76,7 @@ contract SPAOracle is BaseUniOracle {
     /// @return uint256 SPA Uni price with precision DIA_PRECISION
     function _getSPAUniPrice() private view returns (uint256) {
         require(pool != address(0), "SPA price unavailable");
-        uint256 quoteTokenAmtPerSPA = _getUniMAPrice(
-            SPA,
-            quoteToken,
-            SPA_PRICE_PRECISION
-        );
+        uint256 quoteTokenAmtPerSPA = _getUniMAPrice(SPA, SPA_PRICE_PRECISION);
         (
             uint256 quoteTokenPrice,
             uint256 quoteTokenPricePrecision

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 pragma solidity 0.6.12;
 pragma experimental ABIEncoderV2;
 
@@ -13,14 +14,6 @@ interface IMasterPriceOracle {
 
 abstract contract BaseUniOracle is Ownable {
     using SafeMath for uint256;
-
-    struct UniMAPriceData {
-        address tokenAddr;
-        address quoteToken;
-        uint256 quoteTokenPrecision;
-        uint24 feeTier;
-        uint32 maPeriod;
-    }
 
     address public constant UNISWAP_FACTORY =
         0x1F98431c8aD98523631AE4a59f267346ea31F984;
@@ -44,6 +37,7 @@ abstract contract BaseUniOracle is Ownable {
     /// @notice Updates the master price oracle
     /// @param _newOracle Address of the desired oracle
     function updateOracle(address _newOracle) public onlyOwner {
+        _isNonZeroAddr(_newOracle);
         masterOracle = _newOracle;
         IMasterPriceOracle(_newOracle).getPrice(quoteToken);
         emit MasterOracleUpdated(_newOracle);
@@ -86,13 +80,11 @@ abstract contract BaseUniOracle is Ownable {
 
     /// @notice get the Uniswap V3 Moving Average (MA) of tokenBPerTokenA
     /// @param _tokenA is baseToken
-    /// @param _tokenB is quoteToken
     /// @dev e.g. for USDsPerSPA, _tokenA = SPA and tokenB = USDs
     /// @param _tokenAPrecision Token a decimal precision (18 decimals -> 1e18, 6 decimals -> 1e6 ... etc)
     /// @dev tokenBPerTokenA has the same precision as tokenB
     function _getUniMAPrice(
         address _tokenA,
-        address _tokenB,
         uint128 _tokenAPrecision
     ) internal view returns (uint256) {
         // get MA tick
@@ -107,8 +99,12 @@ abstract contract BaseUniOracle is Ownable {
             timeWeightedAverageTick,
             _tokenAPrecision,
             _tokenA,
-            _tokenB
+            quoteToken
         );
         return tokenBPerTokenA;
+    }
+
+    function _isNonZeroAddr(address _addr) internal pure {
+        require(_addr != address(0), "Invalid Address");
     }
 }
