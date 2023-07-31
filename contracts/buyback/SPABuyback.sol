@@ -99,7 +99,7 @@ contract SPABuyback is
         uint256 toBurn = balance - toReward;
 
         // Transferring SPA tokens
-        if (toBurn > 0) {
+        if (toReward > 0) {
             ERC20BurnableUpgradeable(SPA).safeTransfer(veSpaRewarder, toReward);
             emit SPARewarded(toReward);
         }

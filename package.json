@@ -5,6 +5,9 @@
   "main": "index.js",
   "scripts": {
     "test": "forge test -vvv",
+    "test-contract": "forge test -vvv --match-contract",
+    "test-file": "forge test -vvv --match-path",
+    "test-function": "forge test -vvv --match-test",
     "install-pip-packages": "pip3 install -r pip-requirements.txt",
     "install-husky": "husky install",
     "prepare": "npm-run-all install-husky",
