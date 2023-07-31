@@ -4,18 +4,22 @@ pragma solidity 0.8.16;
 import {YieldReserve} from "../../contracts/buyback/YieldReserve.sol";
 import {IVault} from "../../contracts/interfaces/IVault.sol";
 import {VaultCore} from "../../contracts/vault/VaultCore.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {IERC20, ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {PreMigrationSetup} from "../utils/DeploymentSetup.sol";
 
 contract YieldReserveTest is PreMigrationSetup {
     YieldReserve internal yieldReserve;
     IVault internal vault;
-    uint256 USDCePrecesion = 10 ** 6;
-    uint256 SPAPrecesion = 10 ** 18;
-    uint256 USDsPrecesion = 10 ** 18;
+    uint256 USDCePrecesion;
+    uint256 SPAPrecesion;
+    uint256 USDsPrecesion;
 
     function setUp() public virtual override {
         super.setUp();
+        USDsPrecesion = ERC20(USDS).decimals();
+        USDCePrecesion = ERC20(USDCe).decimals();
+        SPAPrecesion = ERC20(SPA).decimals();
+
         vm.startPrank(USDS_OWNER);
         yieldReserve = new YieldReserve(BUYBACK, VAULT, ORACLE, DRIPPER);
         vm.stopPrank();
