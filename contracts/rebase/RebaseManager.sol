@@ -54,7 +54,7 @@ contract RebaseManager is Ownable {
     /// @notice Updates the dripper for USDs vault
     /// @param _dripper address of the new dripper contract
     function setDripper(address _dripper) external onlyOwner {
-        require(_dripper != address(0), "Illegal input");
+        _isValidAddress(dripper);
         dripper = _dripper;
         emit DripperChanged(dripper);
     }
