@@ -38,6 +38,10 @@ abstract contract Setup is Test {
     address public constant AAVE = 0xF2badbB9817A40D29393fa88951415a4A334a898;
     address public constant USDT_TWO_POOL_STRATEGY =
         0xdc118F2F00812326Fe0De5c9c74c1c0c609d1eB4;
+    address public constant USDS_FUNDER =
+        0x25af636b72f9e1F63B18de140d4B568c3891d295;
+    address public constant SPA_FUNDER =
+        0x9aD82b087481E0647454E02616d62E66fD2aB3E3;
 
     // Define fork networks
     uint256 internal arbFork;

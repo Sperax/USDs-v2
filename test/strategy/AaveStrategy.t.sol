@@ -365,6 +365,7 @@ contract MiscellaneousTest is AaveStrategyTest {
         vm.startPrank(USDS_OWNER);
         _initializeStrategy();
         aaveStrategy.setPTokenAddress(ASSET, P_TOKEN, 0);
+        vm.stopPrank();
     }
 
     function test_checkRewardEarned() public {
