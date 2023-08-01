@@ -26,7 +26,7 @@ contract TestGetters is BuybackTestSetup {
     }
 
     function testCannotIfInvalidAmount() public mockOracle {
-        vm.expectRevert("Invalid amount");
+        vm.expectRevert("Invalid Amount");
         spaBuyback.getUsdsOutForSpa(0);
     }
 }
