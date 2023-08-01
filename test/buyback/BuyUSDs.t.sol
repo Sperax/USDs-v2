@@ -78,54 +78,44 @@ contract TestBuyUSDs is BuybackTestSetup {
         assertEq(spaTotalSupply.balBefore - spaTotalSupply.balAfter, spaIn / 2);
     }
 
-    // @todo check and fix reverts on fuzzing
     // Testing with fuzzing
-    // function testBuyUSDs(
-    //     uint256 spaIn,
-    //     uint256 spaPrice,
-    //     uint256 usdsPrice
-    // ) public {
-    //     uint256 spaBalance = IERC20(SPA).balanceOf(SPA_FUNDER);
-    //     emit log_named_uint("SPA Balance", spaBalance);
-    //     uint256 usdsBalance = IERC20(USDS).balanceOf(USDS_FUNDER);
-    //     emit log_named_uint("USDs Balance", usdsBalance);
-    //     bound(usdsPrice, 7e17, 13e17);
-    //     bound(spaPrice, 1e15, 1e20);
-    //     bound(spaIn, 50e18, spaBalance);
-    //     if (((spaIn * spaPrice) / 1e18) > 1e18) {
-    //         // bound(usdsOut, min, max);
-    //         vm.mockCall(
-    //             address(ORACLE),
-    //             abi.encodeWithSignature("getPrice(address)", USDS),
-    //             abi.encode(usdsPrice, 1e18)
-    //         );
-    //         vm.mockCall(
-    //             address(ORACLE),
-    //             abi.encodeWithSignature("getPrice(address)", SPA),
-    //             abi.encode(spaPrice, 1e18)
-    //         );
-    //         minUSDsOut = spaBuyback.getUsdsOutForSpa(spaIn);
-    //         vm.prank(USDS_FUNDER);
-    //         IERC20(USDS).transfer(address(spaBuyback), minUSDsOut + 10E18);
-    //         uint256 usdsBal.balBefore = IERC20(USDS).balanceOf(SPA_FUNDER);
-    //         spaData = IOracle(ORACLE).getPrice(SPA);
-    //         usdsData = IOracle(ORACLE).getPrice(USDS);
-    //         vm.startPrank(SPA_FUNDER);
-    //         IERC20(SPA).approve(address(spaBuyback), 100000e18);
-    //         vm.expectEmit(true, true, true, false, address(spaBuyback));
-    //         emit BoughtBack(
-    //             SPA_FUNDER,
-    //             SPA_FUNDER,
-    //             spaData.price,
-    //             spaIn,
-    //             minUSDsOut
-    //         );
-    //         spaBuyback.buyUSDs(100000e18, 1);
-    //         vm.stopPrank();
-    //         vm.clearMockedCalls();
-    //         uint256 usdsBal.balAfter = IERC20(USDS).balanceOf(SPA_FUNDER);
-    //         emit log_named_uint("SPA spent", spaIn);
-    //         emit log_named_uint("USDS received", usdsBal.balAfter - usdsBal.balBefore);
-    //     }
-    // }
+    function testBuyUSDs(
+        uint256 spaIn,
+        uint256 spaPrice,
+        uint256 usdsPrice
+    ) public {
+        bound(usdsPrice, 7e17, 13e17);
+        bound(spaPrice, 1e15, 1e20);
+        bound(spaIn, 1e18, 1e27);
+        uint256 swapValue = (spaIn * spaPrice) / 1e18;
+        if (swapValue > 1e18 && minUSDsOut > 1e18) {
+            vm.mockCall(
+                address(ORACLE),
+                abi.encodeWithSignature("getPrice(address)", USDS),
+                abi.encode(usdsPrice, 1e18)
+            );
+            vm.mockCall(
+                address(ORACLE),
+                abi.encodeWithSignature("getPrice(address)", SPA),
+                abi.encode(spaPrice, 1e18)
+            );
+            minUSDsOut = _calculateUSDsForSpaIn(spaIn);
+            deal(USDS, address(spaBuyback), minUSDsOut);
+            deal(SPA, SPA_FUNDER, spaIn);
+            vm.startPrank(SPA_FUNDER);
+            IERC20(SPA).approve(address(spaBuyback), spaIn);
+            vm.expectEmit(true, true, true, false, address(spaBuyback));
+            emit BoughtBack(
+                SPA_FUNDER,
+                SPA_FUNDER,
+                spaData.price,
+                spaIn,
+                minUSDsOut
+            );
+            spaBuyback.buyUSDs(spaIn, minUSDsOut);
+            vm.stopPrank();
+            vm.clearMockedCalls();
+            emit log_named_uint("SPA spent", spaIn);
+        }
+    }
 }
