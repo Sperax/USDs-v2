@@ -17,9 +17,10 @@ contract SPAOracle is BaseUniOracle {
     address public constant SPA = 0x5575552988A3A80504bBaeB1311674fCFd40aD4B;
     uint128 private constant SPA_PRICE_PRECISION = 1e18;
     uint256 private constant DIA_PRECISION = 1e8;
+    uint256 public constant MAX_WEIGHT = 100;
 
-    address diaOracle;
-    uint256 weightDIA;
+    address public diaOracle;
+    uint256 public weightDIA;
 
     event DIAConfigUpdated(address diaOracle, uint256 weightDIA);
 
@@ -33,6 +34,7 @@ contract SPAOracle is BaseUniOracle {
     ) public {
         _isNonZeroAddr(_masterOracle);
         _isNonZeroAddr(_diaOracle);
+        masterOracle = _masterOracle;
         setUniMAPriceData(SPA, _quoteToken, _feeTier, _maPeriod);
         updateDIAConfig(_diaOracle, _weightDIA);
     }
@@ -42,7 +44,7 @@ contract SPAOracle is BaseUniOracle {
     ///      price
     /// @return uint256 SPA price with precision SPA_PRICE_PRECISION (10^18)
     function getPrice() external view override returns (uint256, uint256) {
-        uint256 weightUNI = 100 - weightDIA;
+        uint256 weightUNI = MAX_WEIGHT - weightDIA;
         // calculate weighted UNI USDsPerSPA
         uint256 weightedSPAUniPrice = weightUNI.mul(_getSPAUniPrice());
 
@@ -50,7 +52,7 @@ contract SPAOracle is BaseUniOracle {
         (uint128 spaDiaPrice, ) = IDiaOracle(diaOracle).getValue("SPA/USD");
         uint256 weightedSPADiaPrice = weightDIA.mul(spaDiaPrice);
         uint256 spaPrice = weightedSPAUniPrice.add(weightedSPADiaPrice).div(
-            100
+            MAX_WEIGHT
         );
         spaPrice = spaPrice.mul(SPA_PRICE_PRECISION).div(DIA_PRECISION);
         return (spaPrice, SPA_PRICE_PRECISION);
@@ -66,7 +68,7 @@ contract SPAOracle is BaseUniOracle {
         uint256 _weightDIA
     ) public onlyOwner {
         _isNonZeroAddr(_diaOracle);
-        require(_weightDIA <= 100, "Invalid weights");
+        require(_weightDIA <= MAX_WEIGHT, "Invalid weights");
         diaOracle = _diaOracle;
         weightDIA = _weightDIA;
         emit DIAConfigUpdated(_diaOracle, _weightDIA);

@@ -18,11 +18,11 @@ interface IVstOracle {
 contract VSTOracle {
     address public constant PRICE_FEED =
         0x46bAc6210DcB43b4269ffe766f31B36267C41EdE;
-    uint256 public constant PRICE_PRECISION = 1e8;
+    uint256 public constant VST_PRICE_PRECISION = 1e8;
 
     /// @notice Gets the price feed for vst
     function getPrice() external view returns (uint256 price, uint256) {
         (price, , ) = IVstOracle(PRICE_FEED).getPriceData();
-        return (price, PRICE_PRECISION);
+        return (price, VST_PRICE_PRECISION);
     }
 }
