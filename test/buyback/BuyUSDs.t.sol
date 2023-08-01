@@ -84,23 +84,24 @@ contract TestBuyUSDs is BuybackTestSetup {
         uint256 spaPrice,
         uint256 usdsPrice
     ) public {
-        bound(usdsPrice, 7e17, 13e17);
-        bound(spaPrice, 1e15, 1e20);
-        bound(spaIn, 1e18, 1e27);
+        usdsPrice = bound(usdsPrice, 7e17, 13e17);
+        spaPrice = bound(spaPrice, 1e15, 1e20);
+        spaIn = bound(spaIn, 1e18, 1e27);
         uint256 swapValue = (spaIn * spaPrice) / 1e18;
+        vm.mockCall(
+            address(ORACLE),
+            abi.encodeWithSignature("getPrice(address)", USDS),
+            abi.encode(usdsPrice, 1e18)
+        );
+        vm.mockCall(
+            address(ORACLE),
+            abi.encodeWithSignature("getPrice(address)", SPA),
+            abi.encode(spaPrice, 1e18)
+        );
+        minUSDsOut = _calculateUSDsForSpaIn(spaIn);
         if (swapValue > 1e18 && minUSDsOut > 1e18) {
-            vm.mockCall(
-                address(ORACLE),
-                abi.encodeWithSignature("getPrice(address)", USDS),
-                abi.encode(usdsPrice, 1e18)
-            );
-            vm.mockCall(
-                address(ORACLE),
-                abi.encodeWithSignature("getPrice(address)", SPA),
-                abi.encode(spaPrice, 1e18)
-            );
-            minUSDsOut = _calculateUSDsForSpaIn(spaIn);
-            deal(USDS, address(spaBuyback), minUSDsOut);
+            vm.prank(VAULT);
+            IUSDs(USDS).mint(address(spaBuyback), minUSDsOut);
             deal(SPA, SPA_FUNDER, spaIn);
             vm.startPrank(SPA_FUNDER);
             IERC20(SPA).approve(address(spaBuyback), spaIn);
