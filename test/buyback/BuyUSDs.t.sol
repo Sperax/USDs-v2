@@ -105,7 +105,7 @@ contract TestBuyUSDs is BuybackTestSetup {
             deal(SPA, SPA_FUNDER, spaIn);
             vm.startPrank(SPA_FUNDER);
             IERC20(SPA).approve(address(spaBuyback), spaIn);
-            vm.expectEmit(true, true, true, false, address(spaBuyback));
+            vm.expectEmit(true, true, true, true, address(spaBuyback));
             emit BoughtBack(
                 SPA_FUNDER,
                 SPA_FUNDER,
@@ -113,6 +113,10 @@ contract TestBuyUSDs is BuybackTestSetup {
                 spaIn,
                 minUSDsOut
             );
+            vm.expectEmit(true, true, true, false, address(spaBuyback));
+            emit SPARewarded(spaIn / 2);
+            vm.expectEmit(true, true, true, false, address(spaBuyback));
+            emit SPABurned(spaIn / 2);
             spaBuyback.buyUSDs(spaIn, minUSDsOut);
             vm.stopPrank();
             vm.clearMockedCalls();
