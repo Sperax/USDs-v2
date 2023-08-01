@@ -62,11 +62,11 @@ contract SetVault is DripperTest {
 }
 
 contract SetDripDuration is DripperTest {
-    function test_revertsWhen_illegalInput(
+    function test_revertsWhen_invalidInput(
         uint256 dripDuration
     ) external useKnownActor(USDS_OWNER) {
         vm.assume(dripDuration == 0);
-        vm.expectRevert("Illegal input");
+        vm.expectRevert("Invalid input");
         dripper.setDripDuration(dripDuration);
     }
 
