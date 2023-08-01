@@ -22,6 +22,8 @@ contract Dripper is Ownable {
     event DripDurationChanged(uint256 dripDuration);
 
     constructor(address _vault, uint256 _dripDuration) {
+        _isNonZeroAddr(_vault);
+        require(_dripDuration != 0, "Invalid input");
         vault = _vault;
         dripDuration = _dripDuration;
         lastCollectTS = block.timestamp;
@@ -38,7 +40,7 @@ contract Dripper is Ownable {
 
     /// @notice Updates the dripDuration
     function setDripDuration(uint256 _dripDuration) external onlyOwner {
-        require(_dripDuration > 0, "Illegal input");
+        require(_dripDuration != 0, "Invalid input");
         dripDuration = _dripDuration;
         emit DripDurationChanged(dripDuration);
     }
