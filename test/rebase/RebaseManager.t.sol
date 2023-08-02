@@ -128,21 +128,7 @@ contract FetchRebaseAmt is RebaseManagerTest {
         console.log("1", min / (10 ** 18), "max", max / (10 ** 18));
         uint256 collectable0 = dripper.getCollectableAmt();
         console.log("collectable0", collectable0 / 10 ** 18);
-
         vm.startPrank(VAULT);
-        skip(86400 * 10);
-
         rebaseManager.fetchRebaseAmt();
-        (uint256 min2, uint256 max2) = rebaseManager.getMinAndMaxRebaseAmt();
-        console.log("2", min2 / (10 ** 18), "max", max2 / (10 ** 18));
-        dripper.collect();
-        uint256 collectable = dripper.getCollectableAmt();
-        console.log("collectable", collectable / 10 ** 18);
-        skip(86400 * 10);
-        uint256 rebaseAmt = rebaseManager.getAvailableRebaseAmt();
-        console.log("Rebase Amount", rebaseAmt / 10 ** 18);
-        rebaseManager.fetchRebaseAmt();
-        (uint256 min3, uint256 max3) = rebaseManager.getMinAndMaxRebaseAmt();
-        console.log("3", min3 / (10 ** 18), "max", max3 / (10 ** 18));
     }
 }
