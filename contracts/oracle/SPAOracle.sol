@@ -15,6 +15,8 @@ interface IDiaOracle {
 /// @author Sperax Inc
 contract SPAOracle is BaseUniOracle {
     address public constant SPA = 0x5575552988A3A80504bBaeB1311674fCFd40aD4B;
+    address public constant DIA_ORACLE =
+        0x7919D08e0f41398cBc1e0A8950Df831e4895c19b;
     uint128 private constant SPA_PRICE_PRECISION = 1e18;
     uint256 private constant DIA_PRECISION = 1e8;
     uint256 public constant MAX_WEIGHT = 100;
@@ -22,21 +24,19 @@ contract SPAOracle is BaseUniOracle {
     address public diaOracle;
     uint256 public weightDIA;
 
-    event DIAConfigUpdated(address diaOracle, uint256 weightDIA);
+    event DIAWeightUpdated(uint256 weightDIA);
 
     constructor(
         address _masterOracle,
-        address _diaOracle,
         address _quoteToken,
         uint24 _feeTier,
         uint32 _maPeriod,
         uint256 _weightDIA
     ) public {
         _isNonZeroAddr(_masterOracle);
-        _isNonZeroAddr(_diaOracle);
         masterOracle = _masterOracle;
         setUniMAPriceData(SPA, _quoteToken, _feeTier, _maPeriod);
-        updateDIAConfig(_diaOracle, _weightDIA);
+        updateDIAWeight(_weightDIA);
     }
 
     /// @notice Get SPA price
@@ -49,7 +49,7 @@ contract SPAOracle is BaseUniOracle {
         uint256 weightedSPAUniPrice = weightUNI.mul(_getSPAUniPrice());
 
         // calculate weighted DIA USDsPerSPA
-        (uint128 spaDiaPrice, ) = IDiaOracle(diaOracle).getValue("SPA/USD");
+        (uint128 spaDiaPrice, ) = IDiaOracle(DIA_ORACLE).getValue("SPA/USD");
         uint256 weightedSPADiaPrice = weightDIA.mul(spaDiaPrice);
         uint256 spaPrice = weightedSPAUniPrice.add(weightedSPADiaPrice).div(
             MAX_WEIGHT
@@ -63,21 +63,15 @@ contract SPAOracle is BaseUniOracle {
     ///     price
     /// @dev _weightDIA = 70 and _weightUNI = 30 would result in a 70% and 30%
     ///     weights on SPA's final price
-    function updateDIAConfig(
-        address _diaOracle,
-        uint256 _weightDIA
-    ) public onlyOwner {
-        _isNonZeroAddr(_diaOracle);
-        require(_weightDIA <= MAX_WEIGHT, "Invalid weights");
-        diaOracle = _diaOracle;
+    function updateDIAWeight(uint256 _weightDIA) public onlyOwner {
+        require(_weightDIA <= MAX_WEIGHT, "Invalid weight");
         weightDIA = _weightDIA;
-        emit DIAConfigUpdated(_diaOracle, _weightDIA);
+        emit DIAWeightUpdated(_weightDIA);
     }
 
     /// @notice Query SPA price according to a UniV3 SPA pool
     /// @return uint256 SPA Uni price with precision DIA_PRECISION
     function _getSPAUniPrice() private view returns (uint256) {
-        require(pool != address(0), "SPA price unavailable");
         uint256 quoteTokenAmtPerSPA = _getUniMAPrice(SPA, SPA_PRICE_PRECISION);
         (
             uint256 quoteTokenPrice,

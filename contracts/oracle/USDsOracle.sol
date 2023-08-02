@@ -24,9 +24,6 @@ contract USDsOracle is BaseUniOracle {
 
     /// @notice Gets the USDs price from chainlink
     function getPrice() external view override returns (uint256, uint256) {
-        if (pool == address(0)) {
-            return (USDS_PRICE_PRECISION, USDS_PRICE_PRECISION);
-        }
         uint256 quoteTokenAmtPerUSDs = _getUniMAPrice(
             USDS,
             USDS_PRICE_PRECISION
