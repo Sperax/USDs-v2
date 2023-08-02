@@ -27,26 +27,6 @@ contract Dripper is Ownable {
         lastCollectTS = block.timestamp;
     }
 
-    // Admin functions
-
-    /// @notice Update the vault address
-    function setVault(address _vault) public onlyOwner returns (address) {
-        _isNonZeroAddr(_vault);
-        vault = _vault;
-        emit VaultChanged(vault);
-        return (vault);
-    }
-
-    /// @notice Updates the dripDuration
-    function setDripDuration(
-        uint256 _dripDuration
-    ) public onlyOwner returns (uint256) {
-        require(_dripDuration != 0, "Invalid input");
-        dripDuration = _dripDuration;
-        emit DripDurationChanged(dripDuration);
-        return dripDuration;
-    }
-
     /// @notice Emergency fund recovery function
     /// @param _asset Address of the asset
     /// @dev Transfers the asset to the owner of the contract.
@@ -68,6 +48,24 @@ contract Dripper is Ownable {
         }
         dripRate = IERC20(USDS).balanceOf(address(this)) / dripDuration;
         return collectableAmt;
+    }
+
+    /// @notice Update the vault address
+    function setVault(address _vault) public onlyOwner returns (address) {
+        _isNonZeroAddr(_vault);
+        vault = _vault;
+        emit VaultChanged(vault);
+        return (vault);
+    }
+
+    /// @notice Updates the dripDuration
+    function setDripDuration(
+        uint256 _dripDuration
+    ) public onlyOwner returns (uint256) {
+        require(_dripDuration != 0, "Invalid input");
+        dripDuration = _dripDuration;
+        emit DripDurationChanged(dripDuration);
+        return dripDuration;
     }
 
     /// @notice Gets the collectible amount of token at current time
