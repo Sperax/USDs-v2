@@ -32,8 +32,6 @@ contract TestFeeCalculator is BaseTest {
         );
         assertEq(feeIn, _baseFeeIn, "Fee in mismatch");
         assertEq(precision, PERCENT_PRECISION, "Precision mismatch");
-        vm.prank(VAULT);
-        IUSDs(USDS).mint(USDCe, 10E18);
     }
 
     function testGetFeeOut() public {
