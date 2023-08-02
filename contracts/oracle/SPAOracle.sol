@@ -21,7 +21,6 @@ contract SPAOracle is BaseUniOracle {
     uint256 private constant DIA_PRECISION = 1e8;
     uint256 public constant MAX_WEIGHT = 100;
 
-    address public diaOracle;
     uint256 public weightDIA;
 
     event DIAWeightUpdated(uint256 weightDIA);
