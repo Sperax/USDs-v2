@@ -17,7 +17,8 @@ contract SPABuybackTestSetup is BaseTest {
     IOracle.PriceData internal spaData;
 
     address internal user;
-    address internal constant VESPA_REWARDER = 0x2CaB3abfC1670D1a452dF502e216a66883cDf079;
+    address internal constant VESPA_REWARDER =
+        0x2CaB3abfC1670D1a452dF502e216a66883cDf079;
     uint256 internal constant MAX_PERCENTAGE = 10000;
     uint256 internal rewardPercentage;
     uint256 internal minUSDsOut;
@@ -25,10 +26,14 @@ contract SPABuybackTestSetup is BaseTest {
 
     modifier mockOracle() {
         vm.mockCall(
-            address(ORACLE), abi.encodeWithSignature("getPrice(address)", USDS), abi.encode(995263234350000000, 1e18)
+            address(ORACLE),
+            abi.encodeWithSignature("getPrice(address)", USDS),
+            abi.encode(995263234350000000, 1e18)
         );
         vm.mockCall(
-            address(ORACLE), abi.encodeWithSignature("getPrice(address)", SPA), abi.encode(4729390000000000, 1e18)
+            address(ORACLE),
+            abi.encodeWithSignature("getPrice(address)", SPA),
+            abi.encode(4729390000000000, 1e18)
         );
         _;
         vm.clearMockedCalls();
@@ -58,10 +63,13 @@ contract SPABuybackTestSetup is BaseTest {
         return ((totalSpaValue * usdsData.precision) / usdsData.price);
     }
 
-    function _calculateSpaReqdForUSDs(uint256 _usdsAmount) internal returns (uint256) {
+    function _calculateSpaReqdForUSDs(
+        uint256 _usdsAmount
+    ) internal returns (uint256) {
         usdsData = IOracle(ORACLE).getPrice(USDS);
         spaData = IOracle(ORACLE).getPrice(SPA);
-        uint256 totalUSDsValue = (_usdsAmount * usdsData.price) / usdsData.precision;
+        uint256 totalUSDsValue = (_usdsAmount * usdsData.price) /
+            usdsData.precision;
         return (totalUSDsValue * spaData.precision) / spaData.price;
     }
 }
@@ -86,7 +94,10 @@ contract TestInit is SPABuybackTestSetup {
         spaBuyback.initialize(VESPA_REWARDER, rewardPercentage);
     }
 
-    function testCannotInitializeImplementation() public useKnownActor(USDS_OWNER) {
+    function testCannotInitializeImplementation()
+        public
+        useKnownActor(USDS_OWNER)
+    {
         vm.expectRevert("Initializable: contract is already initialized");
         spaBuybackImpl.initialize(VESPA_REWARDER, rewardPercentage);
     }
@@ -126,8 +137,14 @@ contract TestGetters is SPABuybackTestSetup {
 }
 
 contract TestSetters is SPABuybackTestSetup {
-    event RewardPercentageUpdated(uint256 oldRewardPercentage, uint256 newRewardPercentage);
-    event VeSpaRewarderUpdated(address oldVeSpaRewarder, address newVeSpaRewarder);
+    event RewardPercentageUpdated(
+        uint256 oldRewardPercentage,
+        uint256 newRewardPercentage
+    );
+    event VeSpaRewarderUpdated(
+        address oldVeSpaRewarder,
+        address newVeSpaRewarder
+    );
 
     function testCannotIfCallerNotOwner() external useActor(0) {
         vm.expectRevert("Ownable: caller is not the owner");
@@ -142,7 +159,10 @@ contract TestSetters is SPABuybackTestSetup {
         spaBuyback.updateRewardPercentage(0);
     }
 
-    function testCannotIfPercentageMoreThanMax() external useKnownActor(USDS_OWNER) {
+    function testCannotIfPercentageMoreThanMax()
+        external
+        useKnownActor(USDS_OWNER)
+    {
         vm.expectRevert("Reward percentage cannot be > 100%");
         spaBuyback.updateRewardPercentage(10001);
     }
@@ -176,7 +196,11 @@ contract TestWithdraw is SPABuybackTestSetup {
     address private token;
     uint256 private amount;
 
-    event Withdrawn(address indexed token, address indexed receiver, uint256 amount);
+    event Withdrawn(
+        address indexed token,
+        address indexed receiver,
+        uint256 amount
+    );
 
     function setUp() public override {
         super.setUp();
@@ -198,7 +222,10 @@ contract TestWithdraw is SPABuybackTestSetup {
         spaBuyback.withdraw(token, user, amount);
     }
 
-    function testCannotWithdrawMoreThanBalance() public useKnownActor(USDS_OWNER) {
+    function testCannotWithdrawMoreThanBalance()
+        public
+        useKnownActor(USDS_OWNER)
+    {
         amount = IERC20(USDS).balanceOf(address(spaBuyback));
         amount = amount + 100e18;
         vm.expectRevert("Transfer greater than balance");
@@ -283,13 +310,25 @@ contract TestBuyUSDs is SPABuybackTestSetup {
     }
 
     // Testing with fuzzing
-    function testBuyUSDs(uint256 spaIn, uint256 spaPrice, uint256 usdsPrice) public {
+    function testBuyUSDs(
+        uint256 spaIn,
+        uint256 spaPrice,
+        uint256 usdsPrice
+    ) public {
         usdsPrice = bound(usdsPrice, 7e17, 13e17);
         spaPrice = bound(spaPrice, 1e15, 1e20);
         spaIn = bound(spaIn, 1e18, 1e27);
         uint256 swapValue = (spaIn * spaPrice) / 1e18;
-        vm.mockCall(address(ORACLE), abi.encodeWithSignature("getPrice(address)", USDS), abi.encode(usdsPrice, 1e18));
-        vm.mockCall(address(ORACLE), abi.encodeWithSignature("getPrice(address)", SPA), abi.encode(spaPrice, 1e18));
+        vm.mockCall(
+            address(ORACLE),
+            abi.encodeWithSignature("getPrice(address)", USDS),
+            abi.encode(usdsPrice, 1e18)
+        );
+        vm.mockCall(
+            address(ORACLE),
+            abi.encodeWithSignature("getPrice(address)", SPA),
+            abi.encode(spaPrice, 1e18)
+        );
         minUSDsOut = _calculateUSDsForSpaIn(spaIn);
         if (swapValue > 1e18 && minUSDsOut > 1e18) {
             vm.prank(VAULT);
