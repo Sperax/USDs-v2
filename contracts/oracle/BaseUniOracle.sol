@@ -36,7 +36,7 @@ abstract contract BaseUniOracle is Ownable {
 
     /// @notice Updates the master price oracle
     /// @param _newOracle Address of the desired oracle
-    function updateOracle(address _newOracle) public onlyOwner {
+    function updateMasterOracle(address _newOracle) public onlyOwner {
         _isNonZeroAddr(_newOracle);
         masterOracle = _newOracle;
         IMasterPriceOracle(_newOracle).getPrice(quoteToken);

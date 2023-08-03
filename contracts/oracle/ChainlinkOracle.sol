@@ -7,9 +7,13 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 contract ChainlinkOracle is Ownable {
     struct TokenData {
-        address tokenAddr;
         address priceFeed;
         uint256 pricePrecision;
+    }
+
+    struct SetupTokenData {
+        address token;
+        TokenData data;
     }
 
     address public constant CHAINLINK_SEQ_UPTIME_FEED =
@@ -33,18 +37,22 @@ contract ChainlinkOracle is Ownable {
         uint256 pricePrecision
     );
 
-    constructor(TokenData[] memory _priceFeedData) {
+    constructor(SetupTokenData[] memory _priceFeedData) {
         for (uint256 i = 0; i < _priceFeedData.length; ++i) {
-            setTokenData(_priceFeedData[i]);
+            setTokenData(_priceFeedData[i].token, _priceFeedData[i].data);
         }
     }
 
     /// @notice Configures chainlink price feed for an asset
+    /// @param _token Address of the desired token
     /// @param _tokenData Token price feed configuration
-    function setTokenData(TokenData memory _tokenData) public onlyOwner {
-        getTokenData[_tokenData.tokenAddr] = _tokenData;
+    function setTokenData(
+        address _token,
+        TokenData memory _tokenData
+    ) public onlyOwner {
+        getTokenData[_token] = _tokenData;
         emit TokenDataChanged(
-            _tokenData.tokenAddr,
+            _token,
             _tokenData.priceFeed,
             _tokenData.pricePrecision
         );
@@ -61,7 +69,6 @@ contract ChainlinkOracle is Ownable {
         (, int256 answer, uint256 startedAt, , ) = AggregatorV3Interface(
             CHAINLINK_SEQ_UPTIME_FEED
         ).latestRoundData();
-
         // Answer == 0: Sequencer is up
         // Answer == 1: Sequencer is down
         bool isSequencerUp = answer == 0;
@@ -72,7 +79,7 @@ contract ChainlinkOracle is Ownable {
         // Make sure the grace period has passed after the sequencer is back up.
         uint256 timeSinceUp = block.timestamp - startedAt;
         if (timeSinceUp <= GRACE_PERIOD_TIME) {
-            revert("Chainlink sequencer down");
+            revert("Grace period not passed");
         }
 
         (, int256 price, , , ) = AggregatorV3Interface(collateralInfo.priceFeed)

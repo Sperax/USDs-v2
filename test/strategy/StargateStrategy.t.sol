@@ -705,7 +705,12 @@ contract StrategyCollectIntererst is StrategyHarvestTest {
                 interestEarned
             );
             strategy.collectInterest(data[i].asset);
-            assertEq(strategy.checkLPTokenBalance(data[i].asset), initialLPBal);
+            /// @note precision Error from stargate
+            assertApproxEqAbs(
+                strategy.checkLPTokenBalance(data[i].asset),
+                initialLPBal,
+                1
+            );
         }
     }
 
