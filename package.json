@@ -51,8 +51,12 @@
     "typescript": "^5.0.4"
   },
   "dependencies": {
+    "@chainlink/contracts": "^0.6.1",
     "@openzeppelin/contracts": "^4.8.3",
+    "@openzeppelin/contracts_v3.4.2": "npm:@openzeppelin/contracts@^3.4.2",
     "@openzeppelin/contracts-upgradeable": "^4.9.0",
+    "@uniswap/v3-core": "^1.0.1",
+    "@uniswap/v3-periphery": "^1.4.3",
     "npm-run-all": "^4.1.5",
     "tslint": "^6.1.3",
     "tslint-plugin-prettier": "^2.3.0"
