@@ -17,7 +17,7 @@ interface IFeeCalculator {
         IOracle.PriceData calldata _collateralPriceData
     ) external view returns (uint256, uint256);
 
-    /// @notice Calculates fee to be collected for minting
+    /// @notice Calculates fee to be collected for redeeming
     /// @param _collateralAddr Address of the collateral
     /// @param  _usdsAmt Amount of USDs to burn
     /// @param _redeemData Redeem configuration for the collateral
