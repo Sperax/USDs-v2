@@ -94,11 +94,13 @@ contract RebaseManager is Ownable {
         if (rebaseAmt < minRebaseAmt || block.timestamp <= lastRebaseTS + gap) {
             return 0;
         }
-        // Collect the dripped USDs amount for rebase
-        IDripper(dripper).collect();
 
         // update the rebase timestamp
         lastRebaseTS = block.timestamp;
+
+        // Collect the dripped USDs amount for rebase
+        IDripper(dripper).collect();
+
         return rebaseAmt;
     }
 
