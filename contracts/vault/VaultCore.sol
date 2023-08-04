@@ -156,8 +156,7 @@ contract VaultCore is
         uint256 _minUSDSAmt,
         uint256 _deadline
     ) external nonReentrant {
-        require(block.timestamp <= _deadline, "Deadline passed");
-        _mint(_collateral, _collateralAmt, _minUSDSAmt);
+        _mint(_collateral, _collateralAmt, _minUSDSAmt, _deadline);
     }
 
     /// @notice mint USDs by depositing collateral
@@ -173,8 +172,7 @@ contract VaultCore is
         uint256, // deprecated
         uint256 _deadline
     ) external nonReentrant {
-        require(block.timestamp <= _deadline, "Deadline passed");
-        _mint(_collateral, _collateralAmt, _minUSDSAmt);
+        _mint(_collateral, _collateralAmt, _minUSDSAmt, _deadline);
     }
 
     /// @notice redeem USDs for `_collateral`
@@ -190,8 +188,7 @@ contract VaultCore is
         uint256 _minCollAmt,
         uint256 _deadline
     ) external nonReentrant {
-        require(block.timestamp <= _deadline, "Deadline passed");
-        _redeem(_collateral, _usdsAmt, _minCollAmt, address(0));
+        _redeem(_collateral, _usdsAmt, _minCollAmt, address(0), _deadline);
     }
 
     /// @notice redeem USDs for `_collateral`
@@ -207,8 +204,7 @@ contract VaultCore is
         uint256 _deadline,
         address _strategy
     ) external nonReentrant {
-        require(block.timestamp <= _deadline, "Deadline passed");
-        _redeem(_collateral, _usdsAmt, _minCollAmt, _strategy);
+        _redeem(_collateral, _usdsAmt, _minCollAmt, _strategy, _deadline);
     }
 
     /// @notice Get the expected redeem result
@@ -347,8 +343,10 @@ contract VaultCore is
     function _mint(
         address _collateral,
         uint256 _collateralAmt,
-        uint256 _minUSDSAmt
+        uint256 _minUSDSAmt,
+        uint256 _deadline
     ) private {
+        _checkDeadline(_deadline);
         (uint256 toMinterAmt, uint256 feeAmt) = mintView(
             _collateral,
             _collateralAmt
@@ -387,8 +385,10 @@ contract VaultCore is
         address _collateral,
         uint256 _usdsAmt,
         uint256 _minCollateralAmt,
-        address _strategyAddr
+        address _strategyAddr,
+        uint256 _deadline
     ) private {
+        _checkDeadline(_deadline);
         (
             uint256 collateralAmt,
             uint256 burnAmt,
@@ -528,6 +528,10 @@ contract VaultCore is
                 "Insufficient collateral"
             );
         }
+    }
+
+    function _checkDeadline(uint256 _deadline) private view {
+        require(block.timestamp <= _deadline, "Deadline passed");
     }
 
     function _isNonZeroAddr(address _addr) private pure {
