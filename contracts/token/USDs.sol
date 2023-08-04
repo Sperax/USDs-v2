@@ -34,13 +34,12 @@ contract USDs is
     }
 
     uint256 private constant MAX_SUPPLY = ~uint128(0); // (2^128) - 1
-    uint256 private constant RESOLUTION_INCREASE = 1e9;
 
     uint256 internal _totalSupply; // the total supply of USDs
-    uint256 private deprecated_totalMinted; // the total num of USDs minted so far
-    uint256 private deprecated_totalBurnt; // the total num of USDs burnt so far
-    uint256 private deprecated_mintedViaGateway; // the total num of USDs minted so far
-    uint256 private deprecated_burntViaGateway; // the total num of USDs burnt so far
+    uint256 private _deprecated_totalMinted; // the total num of USDs minted so far
+    uint256 private _deprecated_totalBurnt; // the total num of USDs burnt so far
+    uint256 private _deprecated_mintedViaGateway; // the total num of USDs minted so far
+    uint256 private _deprecated_burntViaGateway; // the total num of USDs burnt so far
     mapping(address => mapping(address => uint256)) private _allowances;
     address public vaultAddress; // the address where (i) all collaterals of USDs protocol reside, e.g. USDT, USDC, ETH, etc and (ii) major actions like USDs minting are initiated
     // an user's balance of USDs is based on her balance of "credits."
@@ -55,7 +54,7 @@ contract USDs is
     mapping(address => uint256) public nonRebasingCreditsPerToken; // the rebase ratio of non-rebasing accounts just before they opt out
     mapping(address => RebaseOptions) public rebaseState; // the rebase state of each account, i.e. opt in or opt out
     address[2] private _deprecated_gatewayAddr;
-    mapping(address => bool) private deprecated_isUpgraded;
+    mapping(address => bool) private _deprecated_isUpgraded;
     bool public paused;
 
     event TotalSupplyUpdated(
@@ -82,19 +81,19 @@ contract USDs is
     function mint(
         address _account,
         uint256 _amount
-    ) external override onlyVault {
+    ) external override onlyVault nonReentrant {
         _mint(_account, _amount);
     }
 
     /// @notice Burns tokens, decreasing totalSupply.
-    function burn(uint256 amount) external override {
+    function burn(uint256 amount) external override nonReentrant {
         _burn(msg.sender, amount);
     }
 
     /// @notice Add a contract address to the non rebasing exception list. I.e. the
     ///  address's balance will be part of rebases so the account will be exposed
     ///  to upside and downside.
-    function rebaseOptIn(address toOptIn) external nonReentrant {
+    function rebaseOptIn(address toOptIn) external onlyOwner nonReentrant {
         require(_isNonRebasingAccount(toOptIn), "Account has not opted out");
 
         uint256 bal = _balanceOf(toOptIn);
@@ -112,7 +111,7 @@ contract USDs is
     }
 
     /// @notice Remove a contract address to the non rebasing exception list.
-    function rebaseOptOut(address toOptOut) external nonReentrant {
+    function rebaseOptOut(address toOptOut) external onlyOwner nonReentrant {
         require(!_isNonRebasingAccount(toOptOut), "Account has not opted in");
 
         uint256 bal = _balanceOf(toOptOut);
@@ -142,15 +141,14 @@ contract USDs is
         require(_totalSupply > 0, "Cannot increase 0 supply");
 
         // Compute the existing rebasing credits,
-        uint256 rebasingCreds = (_totalSupply - nonRebasingSupply).mulTruncate(
-            rebasingCreditsPerToken
-        );
+        uint256 rebasingCredits = (_totalSupply - nonRebasingSupply)
+            .mulTruncate(rebasingCreditsPerToken);
 
         // special case: if the total supply remains the same
         if (_totalSupply == prevTotalSupply) {
             emit TotalSupplyUpdated(
                 _totalSupply,
-                rebasingCreds,
+                rebasingCredits,
                 rebasingCreditsPerToken
             );
             return;
@@ -162,7 +160,7 @@ contract USDs is
             : prevTotalSupply;
 
         // calculate the new rebase ratio, i.e. credits per token
-        rebasingCreditsPerToken = rebasingCreds.divPrecisely(
+        rebasingCreditsPerToken = rebasingCredits.divPrecisely(
             _totalSupply - nonRebasingSupply
         );
 
@@ -170,20 +168,20 @@ contract USDs is
 
         emit TotalSupplyUpdated(
             _totalSupply,
-            rebasingCreds,
+            rebasingCredits,
             rebasingCreditsPerToken
         );
     }
 
     /// @notice change the vault address
     /// @param newVault the new vault address
-    function changeVault(address newVault) external {
+    function changeVault(address newVault) external onlyOwner {
         vaultAddress = newVault;
     }
 
     /// @notice Called by the owner to pause | unpause the contract
     /// @param _pause pauseSwitch state.
-    function pauseSwitch(bool _pause) external {
+    function pauseSwitch(bool _pause) external onlyOwner {
         require(paused != _pause, "Already in required state");
         paused = _pause;
         emit Paused(_pause);
@@ -222,7 +220,7 @@ contract USDs is
         require(_to != address(0), "Transfer to zero address");
         require(_value <= balanceOf(_from), "Transfer greater than balance");
 
-        // notice: allowance balnce check depends on "sub" non-negative check
+        // notice: allowance balance check depends on "sub" non-negative check
         _allowances[_from][msg.sender] =
             _allowances[_from][msg.sender] -
             _value;
@@ -336,10 +334,7 @@ contract USDs is
     ///  - `to` cannot be the zero address.
     /// @param _account the account address the newly minted USDs will be attributed to
     /// @param _amount the amount of USDs that will be minted
-    function _mint(
-        address _account,
-        uint256 _amount
-    ) internal override nonReentrant {
+    function _mint(address _account, uint256 _amount) internal override {
         _isNotPaused();
         require(_account != address(0), "Mint to the zero address");
 
@@ -374,10 +369,7 @@ contract USDs is
     ///
     ///  - `_account` cannot be the zero address.
     ///  - `_account` must have at least `_amount` tokens.
-    function _burn(
-        address _account,
-        uint256 _amount
-    ) internal override nonReentrant {
+    function _burn(address _account, uint256 _amount) internal override {
         _isNotPaused();
         require(_account != address(0), "Burn from the zero address");
         if (_amount == 0) {

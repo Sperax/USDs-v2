@@ -15,13 +15,14 @@ contract RebaseManager is Ownable {
 
     address public constant USDS = 0xD74f5255D557944cf7Dd0E45FF521520002D5748;
     uint256 private constant ONE_YEAR = 365 days;
+    uint256 private constant PERC_PRECISION = 10000;
 
     address public vault; // address of the vault
     address public dripper; // address of the dripper for collecting USDs
 
     uint256 public gap; // min gap between two consecutive rebases
-    uint256 public aprCap; // max allowed APR for a rebase
-    uint256 public aprBottom; // min allowed APR for a rebase
+    uint256 public aprCap; // max allowed APR% for a rebase
+    uint256 public aprBottom; // min allowed APR% for a rebase
     uint256 public lastRebaseTS; // timestamp of the last rebase transaction
 
     event DripperChanged(address dripper);
@@ -35,12 +36,16 @@ contract RebaseManager is Ownable {
 
     constructor(
         address _vault,
+        address _dripper,
         uint256 _gap,
-        uint256 _aprCap,
-        uint256 _aprBottom
+        uint256 _aprCap, // 1000 = 10%
+        uint256 _aprBottom // 800 = 8%
     ) {
+        _isValidAddress(_vault);
+        _isValidAddress(_dripper);
         vault = _vault;
-        gap = _gap; // // @note Initially setting: 12 hrs
+        dripper = _dripper;
+        gap = _gap;
         aprCap = _aprCap;
         aprBottom = _aprBottom;
         lastRebaseTS = block.timestamp;
@@ -111,8 +116,14 @@ contract RebaseManager is Ownable {
         uint256 principal = IUSDs(USDS).totalSupply() -
             IUSDs(USDS).nonRebasingSupply();
         uint256 timeElapsed = block.timestamp - lastRebaseTS;
-        uint256 minRebaseAmt = (principal * aprBottom * timeElapsed) / ONE_YEAR;
-        uint256 maxRebaseAmt = (principal * aprCap * timeElapsed) / ONE_YEAR;
+        uint256 minRebaseAmt = (principal * aprBottom * timeElapsed) /
+            (ONE_YEAR * PERC_PRECISION);
+        uint256 maxRebaseAmt = (principal * aprCap * timeElapsed) /
+            (ONE_YEAR * PERC_PRECISION);
         return (minRebaseAmt, maxRebaseAmt);
+    }
+
+    function _isValidAddress(address _address) private pure {
+        require(_address != address(0), "Invalid Address");
     }
 }
