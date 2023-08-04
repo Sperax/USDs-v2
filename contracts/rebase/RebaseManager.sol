@@ -54,7 +54,7 @@ contract RebaseManager is Ownable {
     /// @notice Updates the dripper for USDs vault
     /// @param _dripper address of the new dripper contract
     function setDripper(address _dripper) external onlyOwner {
-        _isValidAddress(dripper);
+        _isValidAddress(_dripper);
         dripper = _dripper;
         emit DripperChanged(dripper);
     }
@@ -80,8 +80,6 @@ contract RebaseManager is Ownable {
     /// @dev Function is called by vault while rebasing
     /// @return returns the available amount for rebasing USDs
     function fetchRebaseAmt() external onlyVault returns (uint256) {
-        // Collect the dripped USDs amount for rebase
-        IDripper(dripper).collect();
         uint256 rebaseFund = getAvailableRebaseAmt();
         // Get the current min and max amount based on APR config
         (uint256 minRebaseAmt, uint256 maxRebaseAmt) = getMinAndMaxRebaseAmt();
@@ -95,6 +93,8 @@ contract RebaseManager is Ownable {
         if (rebaseAmt < minRebaseAmt || block.timestamp <= lastRebaseTS + gap) {
             return 0;
         }
+        // Collect the dripped USDs amount for rebase
+        IDripper(dripper).collect();
 
         // update the rebase timestamp
         lastRebaseTS = block.timestamp;
