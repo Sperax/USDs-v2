@@ -6,7 +6,6 @@ import {RebaseManager} from "../../contracts/rebase/RebaseManager.sol";
 import {IERC20, ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {console} from "forge-std/console.sol";
 import {IVault} from "../../contracts/interfaces/IVault.sol";
-address constant WHALE_USDS = 0x50450351517117Cb58189edBa6bbaD6284D45902;
 
 contract RebaseManagerTest is PreMigrationSetup {
     //  Init Variables.
@@ -70,10 +69,10 @@ contract SetDripper is RebaseManagerTest {
     }
 
     function test_revertsWhen_callerIsNotOwner() external useActor(0) {
-        address newVaultAddress = address(1);
+        address newDripperAddress = address(1);
 
         vm.expectRevert("Ownable: caller is not the owner");
-        rebaseManager.setDripper(newVaultAddress);
+        rebaseManager.setDripper(newDripperAddress);
     }
 
     function test_setDripper() external useKnownActor(USDS_OWNER) {
@@ -141,7 +140,7 @@ contract FetchRebaseAmt is RebaseManagerTest {
         rebaseManager.fetchRebaseAmt();
     }
 
-    function test_fetchRebaseAmt_zeroAmt() external {
+    function test_fetchRebaseAmt_scenario() external {
         vm.prank(VAULT);
         rebaseManager.fetchRebaseAmt();
         skip(86400 * 10);
@@ -151,34 +150,45 @@ contract FetchRebaseAmt is RebaseManagerTest {
         IERC20(USDS).transfer(address(dripper), 1e22);
 
         vm.startPrank(VAULT);
-        //Transferring USDs from Whale
-        // vm.startPrank(WHALE_USDS);
-        // IERC20(USDS).approve(WHALE_USDS, 100000 * 10 ** 18);
-        // IERC20(USDS).transfer(address(dripper), 10000 * 10 ** 18);
         dripper.collect();
-
+        console.log("Day 1 After Minting USDs");
         skip(86400 * 1);
         (uint256 min, uint256 max) = rebaseManager.getMinAndMaxRebaseAmt();
-        console.log("1", min / (10 ** 18), "max", max / (10 ** 18));
+        console.log(
+            "Min Rebase Amt",
+            min / (10 ** 18),
+            "max Rebase Amt",
+            max / (10 ** 18)
+        );
         uint256 collectable0 = dripper.getCollectableAmt();
         console.log("collectable0", collectable0 / 10 ** 18);
-        skip(86400 * 10);
-
+        skip(86400 * 1);
+        console.log("Day 2 After Minting USDs");
         (uint256 min2, uint256 max2) = rebaseManager.getMinAndMaxRebaseAmt();
-        console.log("2", min2 / (10 ** 18), "max", max2 / (10 ** 18));
+        console.log(
+            "Min Rebase Amt",
+            min2 / (10 ** 18),
+            "max Rebase Amt",
+            max2 / (10 ** 18)
+        );
         uint256 collectable = dripper.getCollectableAmt();
         console.log("collectable1", collectable / 10 ** 18);
         uint256 rebaseAmt1 = rebaseManager.fetchRebaseAmt();
         console.log("Rebase Amount", rebaseAmt1 / 10 ** 18);
-
-        skip(86400 * 10);
-        uint256 collectable2 = dripper.getCollectableAmt();
-        console.log("collectable2", collectable2 / 10 ** 18);
-
-        uint256 rebaseAmt = rebaseManager.getAvailableRebaseAmt();
-        console.log("Rebase Amount", rebaseAmt / 10 ** 18);
-        rebaseManager.fetchRebaseAmt();
+        // Trying to collect from dripper after rebase
+        dripper.collect();
+        skip(86400 * 1);
+        console.log("Day 3 After Minting USDs");
         (uint256 min3, uint256 max3) = rebaseManager.getMinAndMaxRebaseAmt();
-        console.log("3", min3 / (10 ** 18), "max", max3 / (10 ** 18));
+        console.log(
+            "Min Rebase Amt",
+            min3 / (10 ** 18),
+            "max Rebase Amt",
+            max3 / (10 ** 18)
+        );
+        uint256 collectable3 = dripper.getCollectableAmt();
+        console.log("collectable3", collectable3 / 10 ** 18);
+        uint256 rebaseAmt3 = rebaseManager.fetchRebaseAmt();
+        console.log("Rebase Amount", rebaseAmt3 / 10 ** 18);
     }
 }
