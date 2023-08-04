@@ -351,8 +351,8 @@ contract VaultCore is
             _collateral,
             _collateralAmt
         );
-        require(toMinterAmt >= _minUSDSAmt, "Slippage screwed you");
         require(toMinterAmt > 0, "Mint failed");
+        require(toMinterAmt >= _minUSDSAmt, "Slippage screwed you");
 
         rebase();
 
