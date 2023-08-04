@@ -11,4 +11,8 @@ interface IUSDs {
     function totalSupply() external view returns (uint256);
 
     function nonRebasingSupply() external view returns (uint256);
+
+    function creditsBalanceOf(
+        address _account
+    ) external view returns (uint256, uint256);
 }

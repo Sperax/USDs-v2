@@ -9,6 +9,38 @@ import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.s
 import {ITransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import {SafeMathUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/math/SafeMathUpgradeable.sol";
 import {StableMath} from "../../contracts/libraries/StableMath.sol";
+import {IUSDs} from "../../contracts/interfaces/IUSDs.sol";
+
+contract USDsUpgradabilityTest is BaseTest {
+    USDs internal usds;
+
+    function setUp() public virtual override {
+        super.setUp();
+        setArbitrumFork();
+    }
+
+    function test_data() public {
+        uint256 totalSupply = IUSDs(USDS).totalSupply();
+        (uint256 vaultBalance, ) = IUSDs(USDS).creditsBalanceOf(VAULT);
+        uint256 nonRebasingSupply = IUSDs(USDS).nonRebasingSupply();
+
+        USDs usdsImpl = new USDs();
+        vm.prank(ProxyAdmin(PROXY_ADMIN).owner());
+        ProxyAdmin(PROXY_ADMIN).upgrade(
+            ITransparentUpgradeableProxy(USDS),
+            address(usdsImpl)
+        );
+
+        vm.startPrank(USDS_OWNER);
+        usds = USDs(USDS);
+
+        (uint256 vaultBalanceModified, ) = usds.creditsBalanceOf(VAULT);
+
+        assertEq(totalSupply, usds.totalSupply());
+        assertEq(vaultBalance, vaultBalanceModified);
+        assertEq(nonRebasingSupply, usds.nonRebasingSupply());
+    }
+}
 
 contract USDsTest is BaseTest {
     using StableMath for uint256;
