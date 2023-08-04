@@ -25,9 +25,9 @@ contract RebaseManager is Ownable {
     uint256 public aprBottom; // min allowed APR% for a rebase
     uint256 public lastRebaseTS; // timestamp of the last rebase transaction
 
-    event DripperChanged(address dripper);
-    event GapChanged(uint256 gap);
-    event APRChanged(uint256 aprBottom, uint256 aprCap);
+    event DripperUpdated(address dripper);
+    event GapUpdated(uint256 gap);
+    event APRUpdated(uint256 aprBottom, uint256 aprCap);
 
     modifier onlyVault() {
         require(msg.sender == vault, "Unauthorized caller");
@@ -56,14 +56,14 @@ contract RebaseManager is Ownable {
     function setDripper(address _dripper) external onlyOwner {
         require(_dripper != address(0), "Illegal input");
         dripper = _dripper;
-        emit DripperChanged(dripper);
+        emit DripperUpdated(_dripper);
     }
 
     /// @notice Update the minimum gap required b/w two rebases
     /// @param _gap updated gap time
     function setGap(uint256 _gap) external onlyOwner {
         gap = _gap;
-        emit GapChanged(gap);
+        emit GapUpdated(_gap);
     }
 
     /// @notice Update the APR requirements for each rebase
@@ -73,7 +73,7 @@ contract RebaseManager is Ownable {
         require(_aprCap >= _aprBottom, "Invalid APR config");
         aprCap = _aprCap;
         aprBottom = _aprBottom;
-        emit APRChanged(_aprBottom, _aprCap);
+        emit APRUpdated(_aprBottom, _aprCap);
     }
 
     /// @notice Get the current amount valid for rebase
