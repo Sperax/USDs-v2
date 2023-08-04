@@ -1,14 +1,14 @@
 pragma solidity 0.8.16;
 
-import {BaseTest} from ".././utils/BaseTest.sol";
+import {PreMigrationSetup} from ".././utils/DeploymentSetup.sol";
 import {Dripper} from "../../contracts/rebase/Dripper.sol";
 import {RebaseManager} from "../../contracts/rebase/RebaseManager.sol";
 import {IERC20, ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import {console} from "../../forge-std/console.sol";
+import {console} from "forge-std/console.sol";
 import {IVault} from "../../contracts/interfaces/IVault.sol";
 address constant WHALE_USDS = 0x50450351517117Cb58189edBa6bbaD6284D45902;
 
-contract RebaseManagerTest is BaseTest {
+contract RebaseManagerTest is PreMigrationSetup {
     //  Init Variables.
     Dripper public dripper;
     RebaseManager public rebaseManager;
@@ -23,22 +23,30 @@ contract RebaseManagerTest is BaseTest {
 
     function setUp() public override {
         super.setUp();
-        setArbitrumFork();
+        USDCePrecision = 10 ** ERC20(USDCe).decimals();
         USDsPrecision = 10 ** ERC20(USDS).decimals();
         vm.startPrank(USDS_OWNER);
-        dripper = new Dripper(VAULT, (86400 * 7));
-        rebaseManager = new RebaseManager(
-            VAULT,
-            address(dripper),
-            86400 * 7, // set Minimum Gap time
-            1000,
-            800
-        );
+        dripper = Dripper(DRIPPER);
+        rebaseManager = RebaseManager(REBASE_MANAGER);
         vm.stopPrank();
     }
 
+    function mockPrice(address token, uint256 price, uint256 precision) public {
+        vm.mockCall(
+            ORACLE,
+            abi.encodeWithSignature("getPrice(address)", token),
+            abi.encode([price, precision])
+        );
+    }
+
     function mintUSDs(uint256 amountIn) public {
-        deal(address(USDCe), USDS_OWNER, amountIn * USDCePrecision);
+        mockPrice(USDCe, 1e8, 1e8);
+        mockPrice(USDS, 1e18, 1e18);
+
+        vm.startPrank(USDS_OWNER);
+
+        deal(address(USDCe), USDS_OWNER, amountIn);
+
         IERC20(USDCe).approve(VAULT, amountIn);
         IVault(VAULT).mintBySpecifyingCollateralAmt(
             USDCe,
@@ -47,11 +55,12 @@ contract RebaseManagerTest is BaseTest {
             0,
             block.timestamp + 1200
         );
+        vm.stopPrank();
     }
 }
 
 contract SetDripper is RebaseManagerTest {
-    function test_revertsWhen_vaultIsZeroAddress()
+    function test_revertsWhen_dripperIsZeroAddress()
         external
         useKnownActor(USDS_OWNER)
     {
@@ -132,37 +141,39 @@ contract FetchRebaseAmt is RebaseManagerTest {
         rebaseManager.fetchRebaseAmt();
     }
 
-    function test_fetchRebaseAmt_zeroAmt() external useKnownActor(VAULT) {
+    function test_fetchRebaseAmt_zeroAmt() external {
+        vm.prank(VAULT);
         rebaseManager.fetchRebaseAmt();
         skip(86400 * 10);
         // Minting USDs
-        // mintUSDs(1e5);
-        // IERC20(USDS).approve(VAULT, 1e5);
-        // IERC20(USDS).transfer(address(dripper), 1e5);
+        mintUSDs(1e11);
+        vm.prank(USDS_OWNER);
+        IERC20(USDS).transfer(address(dripper), 1e22);
 
+        vm.startPrank(VAULT);
         //Transferring USDs from Whale
-        vm.startPrank(WHALE_USDS);
-        IERC20(USDS).approve(WHALE_USDS, 100000 * 10 ** 18);
-        IERC20(USDS).transfer(address(dripper), 10000 * 10 ** 18);
-        vm.stopPrank();
+        // vm.startPrank(WHALE_USDS);
+        // IERC20(USDS).approve(WHALE_USDS, 100000 * 10 ** 18);
+        // IERC20(USDS).transfer(address(dripper), 10000 * 10 ** 18);
+        dripper.collect();
+
+        skip(86400 * 1);
         (uint256 min, uint256 max) = rebaseManager.getMinAndMaxRebaseAmt();
         console.log("1", min / (10 ** 18), "max", max / (10 ** 18));
         uint256 collectable0 = dripper.getCollectableAmt();
         console.log("collectable0", collectable0 / 10 ** 18);
-        vm.startPrank(VAULT);
         skip(86400 * 10);
 
-        rebaseManager.fetchRebaseAmt();
         (uint256 min2, uint256 max2) = rebaseManager.getMinAndMaxRebaseAmt();
         console.log("2", min2 / (10 ** 18), "max", max2 / (10 ** 18));
         uint256 collectable = dripper.getCollectableAmt();
-        console.log("collectable", collectable / 10 ** 18);
-        dripper.collect();
+        console.log("collectable1", collectable / 10 ** 18);
+        uint256 rebaseAmt1 = rebaseManager.fetchRebaseAmt();
+        console.log("Rebase Amount", rebaseAmt1 / 10 ** 18);
 
         skip(86400 * 10);
         uint256 collectable2 = dripper.getCollectableAmt();
-        console.log("collectable1", collectable2 / 10 ** 18);
-        dripper.collect();
+        console.log("collectable2", collectable2 / 10 ** 18);
 
         uint256 rebaseAmt = rebaseManager.getAvailableRebaseAmt();
         console.log("Rebase Amount", rebaseAmt / 10 ** 18);
