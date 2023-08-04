@@ -17,10 +17,11 @@ contract Dripper is Ownable {
     uint256 public lastCollectTS; // last collection ts
 
     event Collected(uint256 amount);
-    event VaultChanged(address vault);
-    event DripDurationChanged(uint256 dripDuration);
+    event VaultUpdated(address vault);
+    event DripDurationUpdated(uint256 dripDuration);
 
     constructor(address _vault, uint256 _dripDuration) {
+        _isNonZeroAddr(_vault);
         vault = _vault;
         dripDuration = _dripDuration; // @note Initially setting: 7 days
         lastCollectTS = block.timestamp;
@@ -29,17 +30,19 @@ contract Dripper is Ownable {
     // Admin functions
 
     /// @notice Update the vault address
+    /// @param _vault Address of the desired vault
     function setVault(address _vault) external onlyOwner {
         _isNonZeroAddr(_vault);
         vault = _vault;
-        emit VaultChanged(vault);
+        emit VaultUpdated(_vault);
     }
 
     /// @notice Updates the dripDuration
+    /// @param _dripDuration Desired drip duration
     function setDripDuration(uint256 _dripDuration) external onlyOwner {
         require(_dripDuration > 0, "Illegal input");
         dripDuration = _dripDuration;
-        emit DripDurationChanged(dripDuration);
+        emit DripDurationUpdated(_dripDuration);
     }
 
     /// @notice Emergency fund recovery function
