@@ -341,8 +341,7 @@ contract CollateralManager is ICollateralManager, Ownable {
         );
 
         if (maxCollateralUsage >= collateralBalance) {
-            return ((maxCollateralUsage -
-                IStrategy(_strategy).checkBalance(_collateral)) >= _amount);
+            return ((maxCollateralUsage - collateralBalance) >= _amount);
         }
 
         return false;
