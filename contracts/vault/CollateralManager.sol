@@ -353,14 +353,13 @@ contract CollateralManager is ICollateralManager, Ownable {
     function getMintParams(
         address _collateral
     ) external view returns (CollateralMintData memory mintData) {
-        require(collateralInfo[_collateral].exists, "Collateral doesn't exist");
-
-        // Check if collateral exists
         // Compose and return collateral mint params
-
         CollateralData memory collateralStorageData = collateralInfo[
             _collateral
         ];
+
+        // Check if collateral exists
+        require(collateralInfo[_collateral].exists, "Collateral doesn't exist");
 
         return
             CollateralMintData({
