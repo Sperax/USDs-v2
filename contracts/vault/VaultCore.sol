@@ -31,12 +31,12 @@ contract VaultCore is
     address public oracle;
     address public rebaseManager;
 
-    event FeeVaultChanged(address newFeeManager);
-    event YieldReceiverChanged(address newYieldReceiver);
-    event CollateralManagerChanged(address newCollateralManagerChanged);
-    event FeeCalculatorChanged(address newFeeCalculator);
-    event RebaseManagerChanged(address newRebaseManager);
-    event OracleChanged(address newOracle);
+    event FeeVaultUpdated(address newFeeManager);
+    event YieldReceiverUpdated(address newYieldReceiver);
+    event CollateralManagerUpdated(address newCollateralManager);
+    event FeeCalculatorUpdated(address newFeeCalculator);
+    event RebaseManagerUpdated(address newRebaseManager);
+    event OracleUpdated(address newOracle);
     event Minted(
         address indexed wallet,
         address indexed collateralAddr,
@@ -73,7 +73,7 @@ contract VaultCore is
     function updateFeeVault(address _feeVault) external onlyOwner {
         _isNonZeroAddr(_feeVault);
         feeVault = _feeVault;
-        emit FeeVaultChanged(_feeVault);
+        emit FeeVaultUpdated(_feeVault);
     }
 
     /// @notice Updates the address receiving yields from strategies
@@ -81,7 +81,7 @@ contract VaultCore is
     function updateYieldReceiver(address _yieldReceiver) external onlyOwner {
         _isNonZeroAddr(_yieldReceiver);
         yieldReceiver = _yieldReceiver;
-        emit YieldReceiverChanged(_yieldReceiver);
+        emit YieldReceiverUpdated(_yieldReceiver);
     }
 
     /// @notice Updates the address having the config for collaterals
@@ -91,7 +91,7 @@ contract VaultCore is
     ) external onlyOwner {
         _isNonZeroAddr(_collateralManager);
         collateralManager = _collateralManager;
-        emit CollateralManagerChanged(_collateralManager);
+        emit CollateralManagerUpdated(_collateralManager);
     }
 
     /// @notice Updates the address having the config for rebase
@@ -99,7 +99,7 @@ contract VaultCore is
     function updateRebaseManager(address _rebaseManager) external onlyOwner {
         _isNonZeroAddr(_rebaseManager);
         rebaseManager = _rebaseManager;
-        emit RebaseManagerChanged(_rebaseManager);
+        emit RebaseManagerUpdated(_rebaseManager);
     }
 
     /// @notice Updates the fee calculator library
@@ -107,14 +107,15 @@ contract VaultCore is
     function updateFeeCalculator(address _feeCalculator) external onlyOwner {
         _isNonZeroAddr(_feeCalculator);
         feeCalculator = _feeCalculator;
-        emit FeeCalculatorChanged(_feeCalculator);
+        emit FeeCalculatorUpdated(_feeCalculator);
     }
 
-    /// @notice Updates the price oracle address.
+    /// @notice Updates the price oracle address
+    /// @param _oracle new desired address
     function updateOracle(address _oracle) external onlyOwner {
         _isNonZeroAddr(_oracle);
         oracle = _oracle;
-        emit OracleChanged(oracle);
+        emit OracleUpdated(_oracle);
     }
 
     /// @notice Allocate `_amount` of`_collateral` to `_strategy`
