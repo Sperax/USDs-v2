@@ -221,9 +221,11 @@ contract USDs is
         require(_value <= balanceOf(_from), "Transfer greater than balance");
 
         // notice: allowance balance check depends on "sub" non-negative check
-        _allowances[_from][msg.sender] =
-            _allowances[_from][msg.sender] -
-            _value;
+
+        _allowances[_from][msg.sender] = _allowances[_from][msg.sender].sub(
+            _value,
+            "Insufficient allowance"
+        );
 
         _executeTransfer(_from, _to, _value);
 
@@ -428,7 +430,7 @@ contract USDs is
                 nonRebasingSupply = nonRebasingSupply.sub(_value);
             }
         } else {
-            uint256 creditsDeducted = _value.mulTruncate(
+            uint256 creditsDeducted = _value.mulTruncateCeil(
                 rebasingCreditsPerToken
             );
             _creditBalances[_from] = _creditBalances[_from].sub(

@@ -91,7 +91,7 @@ contract TestTransfer is USDsTest {
 
         usds.transfer(USER2, amountToTransfer);
 
-        //assertEq(prevBalUser1 - amountToTransfer, usds.balanceOf(USER1)); failing
+        assertEq(prevBalUser1 - amountToTransfer, usds.balanceOf(USER1));
         assertEq(prevBalUser2 + amountToTransfer, usds.balanceOf(USER2));
     }
 
@@ -110,7 +110,7 @@ contract TestTransfer is USDsTest {
 
         usds.transferFrom(USER1, USER2, amountToTransfer);
 
-        // assertEq(prevBalUser1 - amountToTransfer, usds.balanceOf(USER1));  Failing
+        assertEq(prevBalUser1 - amountToTransfer, usds.balanceOf(USER1));
         assertEq(prevBalUser2 + amountToTransfer, usds.balanceOf(USER2));
     }
 
@@ -118,7 +118,7 @@ contract TestTransfer is USDsTest {
         uint256 amount = 100000;
         usds.mint(USER1, amount);
 
-        uint amountToTransfer = usds.balanceOf(USER1);
+        vm.expectRevert(bytes("Insufficient allowance"));
 
         usds.transferFrom(USER1, USER2, usds.balanceOf(USER1));
     }
@@ -142,7 +142,7 @@ contract TestTransfer is USDsTest {
 
         usds.transfer(USER2, amountToTransfer);
 
-        // assertEq(prevBalUser1 - amountToTransfer, usds.balanceOf(USER1));
+        assertEq(prevBalUser1 - amountToTransfer, usds.balanceOf(USER1));
         assertEq(prevBalUser2 + amountToTransfer, usds.balanceOf(USER2));
 
         vm.expectRevert("Transfer greater than balance");
@@ -170,7 +170,7 @@ contract TestTransfer is USDsTest {
 
         usds.transfer(USER2, amountToTransfer);
 
-        // assertEq(prevBalUser1 - amountToTransfer, usds.balanceOf(USER1));
+        assertEq(prevBalUser1 - amountToTransfer, usds.balanceOf(USER1));
         assertEq(prevBalUser2 + amountToTransfer, usds.balanceOf(USER2));
 
         vm.expectRevert("Transfer greater than balance");
@@ -198,7 +198,7 @@ contract TestTransfer is USDsTest {
 
         usds.transfer(USER2, amountToTransfer);
 
-        // assertEq(prevBalUser1 - amountToTransfer, usds.balanceOf(USER1));
+        assertEq(prevBalUser1 - amountToTransfer, usds.balanceOf(USER1));
         assertEq(prevBalUser2 + amountToTransfer, usds.balanceOf(USER2));
 
         vm.expectRevert("Transfer greater than balance");
