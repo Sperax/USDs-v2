@@ -1,5 +1,4 @@
 [profile.default]
-solc = '0.8.16'
 src = 'contracts'
 out = 'out'
 build_info = true

@@ -1,7 +1,6 @@
-pragma solidity 0.8.16;
-
+pragma solidity >=0.6.2 <0.9.0;
+pragma experimental ABIEncoderV2;
 import {Test} from "forge-std/Test.sol";
-import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 
 abstract contract Setup is Test {
     // Define global constants | Test config
@@ -38,7 +37,6 @@ abstract contract Setup is Test {
     address public constant AAVE = 0xF2badbB9817A40D29393fa88951415a4A334a898;
     address public constant USDT_TWO_POOL_STRATEGY =
         0xdc118F2F00812326Fe0De5c9c74c1c0c609d1eB4;
-
     // Define fork networks
     uint256 internal arbFork;
 
@@ -65,8 +63,10 @@ abstract contract Setup is Test {
     /// @notice Initialize global test configuration.
     function setUp() public virtual {
         /// @dev Initialize actors for testing.
-        for (uint256 i = 0; i < NUM_ACTORS; ++i) {
-            actors.push(makeAddr(Strings.toString(i)));
+        string memory mnemonic = vm.envString("TEST_MNEMONIC");
+        for (uint32 i = 0; i < NUM_ACTORS; ++i) {
+            (address act, ) = deriveRememberKey(mnemonic, i);
+            actors.push(act);
         }
     }
 
