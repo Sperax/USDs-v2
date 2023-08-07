@@ -13,9 +13,26 @@ import {SPABuyback} from "../../contracts/buyback/SPABuyback.sol";
 import {YieldReserve} from "../../contracts/buyback/YieldReserve.sol";
 import {Dripper} from "../../contracts/rebase/Dripper.sol";
 import {RebaseManager} from "../../contracts/rebase/RebaseManager.sol";
+import {MasterPriceOracle} from "../../contracts/oracle/MasterPriceOracle.sol";
+import {ChainlinkOracle} from "../../contracts/oracle/ChainlinkOracle.sol";
+import {VSTOracle} from "../../contracts/oracle/VSTOracle.sol";
+
+interface ICustomOracle {
+    function getPrice() external view returns (uint256, uint256);
+}
 
 abstract contract PreMigrationSetup is Setup {
+    struct PriceFeedData {
+        address token;
+        address source;
+        bytes msgData;
+    }
     UpgradeUtil internal upgradeUtil;
+    MasterPriceOracle masterOracle;
+    ChainlinkOracle chainlinkOracle;
+    VSTOracle vstOracle;
+    address spaOracle;
+    address usdsOracle;
 
     function setUp() public virtual override {
         super.setUp();
@@ -60,6 +77,29 @@ abstract contract PreMigrationSetup is Setup {
         vault.updateOracle(ORACLE);
         vault.updateRebaseManager(REBASE_MANAGER);
 
+        vstOracle = new VSTOracle();
+        masterOracle = MasterPriceOracle(ORACLE);
+        // A pre-requisite for initializing SPA and USDs oracles
+        deployAndConfigureChainlink();
+        masterOracle.updateTokenPriceFeed(
+            USDCe,
+            address(chainlinkOracle),
+            abi.encodeWithSelector(
+                ChainlinkOracle.getTokenPrice.selector,
+                USDCe
+            )
+        );
+        spaOracle = deployCode(
+            "SPAOracle.sol:SPAOracle",
+            abi.encode(address(masterOracle), USDCe, 10000, 600, 70)
+        );
+        usdsOracle = deployCode(
+            "USDsOracle.sol",
+            abi.encode(address(masterOracle), USDCe, 500, 600)
+        );
+
+        updatePriceFeeds();
+
         ICollateralManager.CollateralBaseData memory _data = ICollateralManager
             .CollateralBaseData({
                 mintAllowed: true,
@@ -67,11 +107,75 @@ abstract contract PreMigrationSetup is Setup {
                 allocationAllowed: true,
                 baseFeeIn: 0,
                 baseFeeOut: 500,
-                downsidePeg: 10000,
+                downsidePeg: 9800,
                 desiredCollateralComposition: 5000
             });
 
         collateralManager.addCollateral(USDCe, _data);
         vm.stopPrank();
+    }
+
+    function deployAndConfigureChainlink() private {
+        ChainlinkOracle.SetupTokenData[]
+            memory chainlinkFeeds = new ChainlinkOracle.SetupTokenData[](3);
+        chainlinkFeeds[0] = ChainlinkOracle.SetupTokenData(
+            USDCe,
+            ChainlinkOracle.TokenData(
+                0x50834F3163758fcC1Df9973b6e91f0F0F0434aD3,
+                1e8
+            )
+        );
+        chainlinkFeeds[1] = ChainlinkOracle.SetupTokenData(
+            FRAX,
+            ChainlinkOracle.TokenData(
+                0x0809E3d38d1B4214958faf06D8b1B1a2b73f2ab8,
+                1e8
+            )
+        );
+        chainlinkFeeds[2] = ChainlinkOracle.SetupTokenData(
+            DAI,
+            ChainlinkOracle.TokenData(
+                0xc5C8E77B397E531B8EC06BFb0048328B30E9eCfB,
+                1e8
+            )
+        );
+        chainlinkOracle = new ChainlinkOracle(chainlinkFeeds);
+    }
+
+    function updatePriceFeeds() private {
+        PriceFeedData[] memory feedData = new PriceFeedData[](5);
+        feedData[0] = PriceFeedData(
+            FRAX,
+            address(chainlinkOracle),
+            abi.encodeWithSelector(ChainlinkOracle.getTokenPrice.selector, FRAX)
+        );
+        feedData[1] = PriceFeedData(
+            DAI,
+            address(chainlinkOracle),
+            abi.encodeWithSelector(ChainlinkOracle.getTokenPrice.selector, DAI)
+        );
+        feedData[2] = PriceFeedData(
+            VST,
+            address(vstOracle),
+            abi.encodeWithSelector(VSTOracle.getPrice.selector)
+        );
+        feedData[3] = PriceFeedData(
+            SPA,
+            spaOracle,
+            abi.encodeWithSelector(ICustomOracle.getPrice.selector)
+        );
+        feedData[4] = PriceFeedData(
+            USDS,
+            usdsOracle,
+            abi.encodeWithSelector(ICustomOracle.getPrice.selector)
+        );
+        // feedData[0] = PriceFeedData(USDCe, address(chainlinkOracle), abi.encodeWithSelector(ChainlinkOracle.getTokenPrice.selector, USDCe));
+        for (uint8 i = 0; i < feedData.length; ++i) {
+            masterOracle.updateTokenPriceFeed(
+                feedData[i].token,
+                feedData[i].source,
+                feedData[i].msgData
+            );
+        }
     }
 }
