@@ -4,7 +4,7 @@ pragma solidity 0.8.16;
 import {BaseTest} from "../utils/BaseTest.sol";
 import {UpgradeUtil} from "../utils/UpgradeUtil.sol";
 import {USDs} from "../../contracts/token/USDs.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {IERC20, ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 import {ITransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import {SafeMathUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/math/SafeMathUpgradeable.sol";
@@ -20,9 +20,10 @@ contract USDsUpgradabilityTest is BaseTest {
     }
 
     function test_data() public {
-        uint256 totalSupply = IUSDs(USDS).totalSupply();
-        (uint256 vaultBalance, ) = IUSDs(USDS).creditsBalanceOf(VAULT);
-        uint256 nonRebasingSupply = IUSDs(USDS).nonRebasingSupply();
+        address USER = 0x9c140BE63db897E8D8b6AA42B6c1B5e5a37ce28c;
+        uint256 totalSupply = USDs(USDS).totalSupply();
+        (uint256 vaultBalance, ) = USDs(USDS).creditsBalanceOf(VAULT);
+        uint256 nonRebasingSupply = USDs(USDS).nonRebasingSupply();
 
         USDs usdsImpl = new USDs();
         vm.prank(ProxyAdmin(PROXY_ADMIN).owner());
@@ -44,6 +45,7 @@ contract USDsUpgradabilityTest is BaseTest {
 
 contract USDsTest is BaseTest {
     using StableMath for uint256;
+    uint256 USDsPrecision;
     USDs internal usds;
     USDs internal impl;
     UpgradeUtil internal upgradeUtil;
@@ -55,6 +57,7 @@ contract USDsTest is BaseTest {
     function setUp() public virtual override {
         super.setUp();
         setArbitrumFork();
+        USDsPrecision = 10 ** ERC20(USDS).decimals();
 
         USDs usdsImpl = new USDs();
         vm.prank(ProxyAdmin(PROXY_ADMIN).owner());
@@ -76,15 +79,18 @@ contract USDsTest is BaseTest {
 }
 
 contract TestTransfer is USDsTest {
+    uint256 amount;
+
     function setUp() public override {
         super.setUp();
+
+        amount = 10 * USDsPrecision;
+        vm.startPrank(VAULT);
+        usds.mint(USER1, amount);
+        vm.stopPrank();
     }
 
-    function test_transfer() public useKnownActor(VAULT) {
-        uint256 amount = 100000;
-        usds.mint(USER1, amount);
-        changePrank(USER1);
-
+    function test_transfer() public useKnownActor(USER1) {
         uint amountToTransfer = usds.balanceOf(USER1);
         uint256 prevBalUser1 = usds.balanceOf(USER1);
         uint256 prevBalUser2 = usds.balanceOf(USER2);
@@ -95,11 +101,7 @@ contract TestTransfer is USDsTest {
         assertEq(prevBalUser2 + amountToTransfer, usds.balanceOf(USER2));
     }
 
-    function test_transfer_from() public useKnownActor(VAULT) {
-        uint256 amount = 100000;
-        usds.mint(USER1, amount);
-        changePrank(USER1);
-
+    function test_transfer_from() public useKnownActor(USER1) {
         usds.approve(VAULT, amount);
 
         changePrank(VAULT);
@@ -115,9 +117,6 @@ contract TestTransfer is USDsTest {
     }
 
     function test_transfer_from_without_approval() public useKnownActor(VAULT) {
-        uint256 amount = 100000;
-        usds.mint(USER1, amount);
-
         vm.expectRevert(bytes("Insufficient allowance"));
 
         usds.transferFrom(USER1, USER2, usds.balanceOf(USER1));
@@ -130,10 +129,6 @@ contract TestTransfer is USDsTest {
         usds.rebaseOptOut(USER1);
         usds.rebaseOptIn(USER1);
 
-        changePrank(VAULT);
-
-        uint256 amount = 100000;
-        usds.mint(USER1, amount);
         changePrank(USER1);
 
         uint amountToTransfer = usds.balanceOf(USER1);
@@ -158,10 +153,6 @@ contract TestTransfer is USDsTest {
         usds.rebaseOptOut(USER2);
         usds.rebaseOptIn(USER2);
 
-        changePrank(VAULT);
-
-        uint256 amount = 100000;
-        usds.mint(USER1, amount);
         changePrank(USER1);
 
         uint amountToTransfer = usds.balanceOf(USER1);
@@ -186,10 +177,6 @@ contract TestTransfer is USDsTest {
 
         usds.rebaseOptOut(USER2);
 
-        changePrank(VAULT);
-
-        uint256 amount = 100000;
-        usds.mint(USER1, amount);
         changePrank(USER1);
 
         uint amountToTransfer = usds.balanceOf(USER1);
@@ -206,7 +193,6 @@ contract TestTransfer is USDsTest {
     }
 
     function test_increaseAllowance() public useKnownActor(USER1) {
-        uint256 amount = 100000;
         uint256 currentAllownace = usds.allowance(USER1, VAULT);
         usds.increaseAllowance(VAULT, amount);
 
@@ -214,8 +200,8 @@ contract TestTransfer is USDsTest {
     }
 
     function test_decreaseAllowance() public useKnownActor(USER1) {
-        uint256 increase_amount = 100000;
-        uint256 decrease_amount = 100;
+        uint256 increase_amount = 1000 * USDsPrecision;
+        uint256 decrease_amount = 100 * USDsPrecision;
 
         usds.increaseAllowance(VAULT, increase_amount);
 
@@ -238,19 +224,20 @@ contract TestTransfer is USDsTest {
 }
 
 contract TestMint is USDsTest {
+    uint256 amount;
+
     function setUp() public override {
         super.setUp();
+        amount = 10 * USDsPrecision;
     }
 
     function test_mint_owner_check() public useActor(0) {
         vm.expectRevert("Caller is not the Vault");
-        uint256 amount = 100000;
         usds.mint(USDS_OWNER, amount);
     }
 
     function test_mint_to_the_zero() public useKnownActor(VAULT) {
         vm.expectRevert("Mint to the zero address");
-        uint256 amount = 100000;
         usds.mint(address(0), amount);
     }
 
@@ -262,7 +249,6 @@ contract TestMint is USDsTest {
 
     function test_mint_puased() public useKnownActor(USDS_OWNER) {
         usds.pauseSwitch(true);
-        uint256 amount = 100000;
         changePrank(VAULT);
 
         vm.expectRevert("Contract paused");
@@ -277,7 +263,6 @@ contract TestMint is USDsTest {
     }
 
     function test_mint() public useKnownActor(VAULT) {
-        uint256 amount = 100000;
         usds.mint(USDS_OWNER, amount);
 
         assertEq(usds.balanceOf(USDS_OWNER), amount);
@@ -286,16 +271,17 @@ contract TestMint is USDsTest {
 
 contract TestBurn is USDsTest {
     using StableMath for uint256;
+    uint256 amount;
 
     function setUp() public override {
         super.setUp();
+        amount = 100000;
     }
 
     function test_burn_opt_in() public useKnownActor(USDS_OWNER) {
         usds.rebaseOptIn(VAULT);
         usds.rebaseOptOut(VAULT);
 
-        uint256 amount = 100000;
         uint256 prevSupply = usds.totalSupply();
         uint256 prevNonRebasingSupply = usds.nonRebasingSupply();
         uint256 preBalance = usds.balanceOf(VAULT);
@@ -315,8 +301,6 @@ contract TestBurn is USDsTest {
         usds.rebaseOptIn(VAULT);
         changePrank(VAULT);
 
-        uint256 amount = 100000;
-
         uint256 creditAmount = amount.mulTruncate(
             usds.rebasingCreditsPerToken()
         );
@@ -333,8 +317,6 @@ contract TestBurn is USDsTest {
         usds.rebaseOptIn(VAULT);
         changePrank(VAULT);
 
-        uint256 amount = 100000;
-
         usds.transfer(USER1, usds.balanceOf(VAULT));
         usds.mint(VAULT, amount);
 
@@ -349,12 +331,11 @@ contract TestBurn is USDsTest {
         changePrank(VAULT);
 
         vm.expectRevert("Remove exceeds balance");
-        uint256 amount = 1000000000000000000000000;
+        amount = 1000000000 * USDsPrecision;
         usds.burn(amount);
     }
 
     function test_burn() public useKnownActor(VAULT) {
-        uint256 amount = 100000;
         uint256 prevSupply = usds.totalSupply();
         usds.burn(amount);
         assertEq(usds.totalSupply(), prevSupply - amount);
@@ -385,11 +366,11 @@ contract TestRebase is USDsTest {
     }
 
     function test_rebase() public useKnownActor(VAULT) {
-        uint256 amount = 10000000000000000000000000000000000000;
+        uint256 amount = 1000000000 * USDsPrecision;
         usds.mint(VAULT, amount);
 
         uint256 prevSupply = usds.totalSupply();
-        usds.rebase(10000000000000000000000000);
+        usds.rebase(100000 * USDsPrecision);
 
         assertEq(prevSupply, usds.totalSupply());
     }
