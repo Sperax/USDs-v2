@@ -25,6 +25,7 @@ contract RebaseManager is Ownable {
     uint256 public aprBottom; // min allowed APR% for a rebase
     uint256 public lastRebaseTS; // timestamp of the last rebase transaction
 
+    event VaultChanged(address vault);
     event DripperChanged(address dripper);
     event GapChanged(uint256 gap);
     event APRChanged(uint256 aprBottom, uint256 aprCap);
@@ -41,39 +42,11 @@ contract RebaseManager is Ownable {
         uint256 _aprCap, // 1000 = 10%
         uint256 _aprBottom // 800 = 8%
     ) {
-        _isValidAddress(_vault);
-        _isValidAddress(_dripper);
-        vault = _vault;
-        dripper = _dripper;
-        gap = _gap;
-        aprCap = _aprCap;
-        aprBottom = _aprBottom;
+        setVault(_vault);
+        setDripper(_dripper);
+        setGap(_gap);
+        setAPR(_aprBottom, _aprCap);
         lastRebaseTS = block.timestamp;
-    }
-
-    /// @notice Updates the dripper for USDs vault
-    /// @param _dripper address of the new dripper contract
-    function setDripper(address _dripper) external onlyOwner {
-        _isValidAddress(_dripper);
-        dripper = _dripper;
-        emit DripperChanged(dripper);
-    }
-
-    /// @notice Update the minimum gap required b/w two rebases
-    /// @param _gap updated gap time
-    function setGap(uint256 _gap) external onlyOwner {
-        gap = _gap;
-        emit GapChanged(gap);
-    }
-
-    /// @notice Update the APR requirements for each rebase
-    /// @param _aprCap new MAX APR for rebase
-    /// @param _aprBottom new MIN APR for rebase
-    function setAPR(uint256 _aprBottom, uint256 _aprCap) external onlyOwner {
-        require(_aprCap >= _aprBottom, "Invalid APR config");
-        aprCap = _aprCap;
-        aprBottom = _aprBottom;
-        emit APRChanged(_aprBottom, _aprCap);
     }
 
     /// @notice Get the current amount valid for rebase
@@ -99,6 +72,39 @@ contract RebaseManager is Ownable {
         // update the rebase timestamp
         lastRebaseTS = block.timestamp;
         return rebaseAmt;
+    }
+
+    /// @notice Updates the vault address
+    /// @param _newVault Address of the new vault
+    function setVault(address _newVault) public onlyOwner {
+        _isValidAddress(_newVault);
+        vault = _newVault;
+        emit VaultChanged(_newVault);
+    }
+
+    /// @notice Updates the dripper for USDs vault
+    /// @param _dripper address of the new dripper contract
+    function setDripper(address _dripper) public onlyOwner {
+        _isValidAddress(_dripper);
+        dripper = _dripper;
+        emit DripperChanged(_dripper);
+    }
+
+    /// @notice Update the minimum gap required b/w two rebases
+    /// @param _gap updated gap time
+    function setGap(uint256 _gap) public onlyOwner {
+        gap = _gap;
+        emit GapChanged(_gap);
+    }
+
+    /// @notice Update the APR requirements for each rebase
+    /// @param _aprCap new MAX APR for rebase
+    /// @param _aprBottom new MIN APR for rebase
+    function setAPR(uint256 _aprBottom, uint256 _aprCap) public onlyOwner {
+        require(_aprCap >= _aprBottom, "Invalid APR config");
+        aprCap = _aprCap;
+        aprBottom = _aprBottom;
+        emit APRChanged(_aprBottom, _aprCap);
     }
 
     /// @notice Gets the current available rebase fund

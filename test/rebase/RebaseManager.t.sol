@@ -16,6 +16,7 @@ contract RebaseManagerTest is PreMigrationSetup {
     uint256 USDsPrecision;
 
     // Events from the actual contract.
+    event VaultChanged(address vault);
     event DripperChanged(address dripper);
     event GapChanged(uint256 gap);
     event APRChanged(uint256 aprBottom, uint256 aprCap);
@@ -44,6 +45,33 @@ contract RebaseManagerTest is PreMigrationSetup {
             block.timestamp + 1200
         );
         vm.stopPrank();
+    }
+}
+
+contract SetVault is RebaseManagerTest {
+    function test_revertsWhen_vaultIsZeroAddress()
+        external
+        useKnownActor(USDS_OWNER)
+    {
+        address newVaultAddress = address(0);
+        vm.expectRevert("Zero address");
+        rebaseManager.setVault(newVaultAddress);
+    }
+
+    // Can't set the fuzzer for address type
+    function test_setVault() external useKnownActor(USDS_OWNER) {
+        address newVaultAddress = address(1);
+        vm.expectEmit(true, true, false, true);
+        emit VaultChanged(address(1));
+
+        rebaseManager.setVault(newVaultAddress);
+    }
+
+    function test_revertsWhen_callerIsNotOwner() external useActor(0) {
+        address newVaultAddress = address(1);
+
+        vm.expectRevert("Ownable: caller is not the owner");
+        rebaseManager.setVault(newVaultAddress);
     }
 }
 
