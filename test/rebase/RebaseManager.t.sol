@@ -30,18 +30,7 @@ contract RebaseManagerTest is PreMigrationSetup {
         vm.stopPrank();
     }
 
-    function mockPrice(address token, uint256 price, uint256 precision) public {
-        vm.mockCall(
-            ORACLE,
-            abi.encodeWithSignature("getPrice(address)", token),
-            abi.encode([price, precision])
-        );
-    }
-
     function mintUSDs(uint256 amountIn) public {
-        mockPrice(USDCe, 1e8, 1e8);
-        mockPrice(USDS, 1e18, 1e18);
-
         vm.startPrank(USDS_OWNER);
 
         deal(address(USDCe), USDS_OWNER, amountIn);
