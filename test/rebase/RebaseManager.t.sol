@@ -54,7 +54,7 @@ contract SetVault is RebaseManagerTest {
         useKnownActor(USDS_OWNER)
     {
         address newVaultAddress = address(0);
-        vm.expectRevert("Zero address");
+        vm.expectRevert("Invalid Address");
         rebaseManager.setVault(newVaultAddress);
     }
 
