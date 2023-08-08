@@ -247,7 +247,7 @@ contract MasterPriceOracleTest is BaseTest {
         );
         feedData[4] = PriceFeedData(
             USDS,
-            spaOracle,
+            usdsOracle,
             abi.encodeWithSelector(ICustomOracle.getPrice.selector)
         );
         // feedData[0] = PriceFeedData(USDCe, address(chainlinkOracle), abi.encodeWithSelector(ChainlinkOracle.getTokenPrice.selector, USDCe));

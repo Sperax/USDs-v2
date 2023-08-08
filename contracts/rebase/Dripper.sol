@@ -17,33 +17,18 @@ contract Dripper is Ownable {
     uint256 public lastCollectTS; // last collection ts
 
     event Collected(uint256 amount);
+    event Recovered(address owner, uint256 amount);
     event VaultUpdated(address vault);
     event DripDurationUpdated(uint256 dripDuration);
 
     constructor(address _vault, uint256 _dripDuration) {
         _isNonZeroAddr(_vault);
-        vault = _vault;
-        dripDuration = _dripDuration; // @note Initially setting: 7 days
+        vault = setVault(_vault);
+        dripDuration = setDripDuration(_dripDuration);
         lastCollectTS = block.timestamp;
     }
 
     // Admin functions
-
-    /// @notice Update the vault address
-    /// @param _vault Address of the desired vault
-    function setVault(address _vault) external onlyOwner {
-        _isNonZeroAddr(_vault);
-        vault = _vault;
-        emit VaultUpdated(_vault);
-    }
-
-    /// @notice Updates the dripDuration
-    /// @param _dripDuration Desired drip duration
-    function setDripDuration(uint256 _dripDuration) external onlyOwner {
-        require(_dripDuration > 0, "Illegal input");
-        dripDuration = _dripDuration;
-        emit DripDurationUpdated(_dripDuration);
-    }
 
     /// @notice Emergency fund recovery function
     /// @param _asset Address of the asset
@@ -51,7 +36,8 @@ contract Dripper is Ownable {
     function recoverTokens(address _asset) external onlyOwner {
         uint256 bal = IERC20(_asset).balanceOf(address(this));
         require(bal > 0, "Nothing to recover");
-        IERC20(_asset).safeTransfer(owner(), bal);
+        IERC20(_asset).safeTransfer(msg.sender, bal);
+        emit Recovered(msg.sender, bal);
     }
 
     /// @notice Transfers the dripped tokens to the vault
@@ -65,6 +51,26 @@ contract Dripper is Ownable {
         }
         dripRate = IERC20(USDS).balanceOf(address(this)) / dripDuration;
         return collectableAmt;
+    }
+
+    /// @notice Update the vault address
+    /// @param _vault Address of the desired vault
+    function setVault(address _vault) public onlyOwner returns (address) {
+        _isNonZeroAddr(_vault);
+        vault = _vault;
+        emit VaultUpdated(vault);
+        return (vault);
+    }
+
+    /// @notice Updates the dripDuration
+    /// @param _dripDuration Desired drip duration
+    function setDripDuration(
+        uint256 _dripDuration
+    ) public onlyOwner returns (uint256) {
+        require(_dripDuration != 0, "Invalid input");
+        dripDuration = _dripDuration;
+        emit DripDurationUpdated(dripDuration);
+        return dripDuration;
     }
 
     /// @notice Gets the collectible amount of token at current time
