@@ -31,7 +31,7 @@ contract VaultCore is
     address public oracle;
     address public rebaseManager;
 
-    event FeeVaultUpdated(address newFeeManager);
+    event FeeVaultUpdated(address newFeeVault);
     event YieldReceiverUpdated(address newYieldReceiver);
     event CollateralManagerUpdated(address newCollateralManager);
     event FeeCalculatorUpdated(address newFeeCalculator);
