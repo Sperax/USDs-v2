@@ -22,6 +22,18 @@ interface IVault {
         uint256 _deadline
     ) external;
 
+    function updateFeeVault(address _feeVault) external;
+
+    function updateYieldReceiver(address _yieldReceiver) external;
+
+    function updateCollateralManager(address _collateralManager) external;
+
+    function updateRebaseManager(address _rebaseManager) external;
+
+    function updateFeeCalculator(address _feeCalculator) external;
+
+    function updateOracle(address _oracle) external;
+
     /// @notice Get the expected mint result (USDs amt, fee)
     /// @param _collateral address of the collateral
     /// @param _collateralAmt amount of collateral
