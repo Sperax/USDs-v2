@@ -22,9 +22,8 @@ contract Dripper is Ownable {
     event DripDurationUpdated(uint256 dripDuration);
 
     constructor(address _vault, uint256 _dripDuration) {
-        _isNonZeroAddr(_vault);
-        vault = setVault(_vault);
-        dripDuration = setDripDuration(_dripDuration);
+        setVault(_vault);
+        setDripDuration(_dripDuration);
         lastCollectTS = block.timestamp;
     }
 
@@ -55,22 +54,18 @@ contract Dripper is Ownable {
 
     /// @notice Update the vault address
     /// @param _vault Address of the desired vault
-    function setVault(address _vault) public onlyOwner returns (address) {
+    function setVault(address _vault) public onlyOwner {
         _isValidAddress(_vault);
         vault = _vault;
-        emit VaultUpdated(vault);
-        return (vault);
+        emit VaultUpdated(_vault);
     }
 
     /// @notice Updates the dripDuration
     /// @param _dripDuration Desired drip duration
-    function setDripDuration(
-        uint256 _dripDuration
-    ) public onlyOwner returns (uint256) {
+    function setDripDuration(uint256 _dripDuration) public onlyOwner {
         require(_dripDuration != 0, "Invalid input");
         dripDuration = _dripDuration;
-        emit DripDurationUpdated(dripDuration);
-        return dripDuration;
+        emit DripDurationUpdated(_dripDuration);
     }
 
     /// @notice Gets the collectible amount of token at current time
