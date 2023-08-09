@@ -22,6 +22,8 @@ interface IVault {
         uint256 _deadline
     ) external;
 
+    function rebase() external;
+
     function allocate(
         address _collateral,
         address _strategy,

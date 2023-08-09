@@ -28,6 +28,14 @@ interface ICollateralManager {
         uint256 conversionFactor;
     }
 
+    /// @notice Update existing collateral configuration
+    /// @param _collateral Address of the collateral
+    /// @param _updateData Updated configuration for the collateral
+    function updateCollateralData(
+        address _collateral,
+        CollateralBaseData memory _updateData
+    ) external;
+
     /// @notice Validate allocation for a collateral
     /// @param _collateral Address of the collateral
     /// @param _strategy Address of the desired strategy
