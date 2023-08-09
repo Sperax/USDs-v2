@@ -5,10 +5,19 @@ import {PreMigrationSetup} from "../utils/DeploymentSetup.sol";
 import {IAccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/IAccessControlUpgradeable.sol";
 import {IVault} from "../../contracts/interfaces/IVault.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {IOracle} from "../../contracts/interfaces/IOracle.sol";
+import {IRebaseManager} from "../../contracts/interfaces/IRebaseManager.sol";
+import {IDripper} from "../../contracts/interfaces/IDripper.sol";
+import {ICollateralManager} from "../../contracts/vault/interfaces/ICollateralManager.sol";
+import {IUSDs} from "../../contracts/interfaces/IUSDs.sol";
+import {console} from "forge-std/console.sol";
 
 contract VaultCoreTest is PreMigrationSetup {
+    uint256 internal USDC_PRECISION;
+
     function setUp() public virtual override {
         super.setUp();
+        USDC_PRECISION = 10 ** ERC20(USDCe).decimals();
     }
 }
 
@@ -176,7 +185,7 @@ contract TestMint is VaultCoreTest {
         super.setUp();
         minter = actors[1];
         _collateral = USDCe;
-        _collateralAmt = 1000e18;
+        _collateralAmt = 1000 * USDC_PRECISION;
         _deadline = block.timestamp + 300;
     }
 
@@ -196,7 +205,8 @@ contract TestMint is VaultCoreTest {
     }
 
     function test_RevertsIf_SlippageScrewsYou() public useKnownActor(minter) {
-        _minUSDSAmt = 1100e18;
+        (_minUSDSAmt, ) = IVault(VAULT).mintView(_collateral, _collateralAmt);
+        _minUSDSAmt += 10e18;
         vm.expectRevert("Slippage screwed you");
         IVault(VAULT).mint(_collateral, _collateralAmt, _minUSDSAmt, _deadline);
     }
@@ -238,5 +248,114 @@ contract TestMint is VaultCoreTest {
             _deadline
         );
         assertGe(ERC20(USDS).balanceOf(minter), _minUSDSAmt);
+    }
+}
+
+contract TestMintView is VaultCoreTest {
+    address private _collateral;
+    uint256 private _collateralAmt;
+    uint256 private _toMinter;
+    uint256 private _fee;
+
+    function setUp() public override {
+        super.setUp();
+        _collateral = USDCe;
+        _collateralAmt = 10000 * USDC_PRECISION;
+        ICollateralManager.CollateralBaseData memory _data = ICollateralManager
+            .CollateralBaseData({
+                mintAllowed: true,
+                redeemAllowed: true,
+                allocationAllowed: true,
+                baseFeeIn: 10,
+                baseFeeOut: 500,
+                downsidePeg: 9800,
+                desiredCollateralComposition: 5000
+            });
+        vm.prank(USDS_OWNER);
+        ICollateralManager(COLLATERAL_MANAGER).updateCollateralData(
+            USDCe,
+            _data
+        );
+    }
+
+    function test_MintView_Returns0When_PriceLowerThanDownsidePeg() public {
+        ICollateralManager.CollateralBaseData memory _data = ICollateralManager
+            .CollateralBaseData({
+                mintAllowed: true,
+                redeemAllowed: true,
+                allocationAllowed: true,
+                baseFeeIn: 0,
+                baseFeeOut: 500,
+                downsidePeg: 1e4,
+                desiredCollateralComposition: 5000
+            });
+        vm.prank(USDS_OWNER);
+        ICollateralManager(COLLATERAL_MANAGER).updateCollateralData(
+            USDCe,
+            _data
+        );
+        (_toMinter, _fee) = IVault(VAULT).mintView(_collateral, _collateralAmt);
+        assertEq(_toMinter, 0);
+        assertEq(_fee, 0);
+    }
+
+    function test_MintView_Returns0When_MintIsNotAllowed() public {
+        ICollateralManager.CollateralBaseData memory _data = ICollateralManager
+            .CollateralBaseData({
+                mintAllowed: false,
+                redeemAllowed: true,
+                allocationAllowed: true,
+                baseFeeIn: 0,
+                baseFeeOut: 500,
+                downsidePeg: 9800,
+                desiredCollateralComposition: 5000
+            });
+        vm.prank(USDS_OWNER);
+        ICollateralManager(COLLATERAL_MANAGER).updateCollateralData(
+            USDCe,
+            _data
+        );
+        (_toMinter, _fee) = IVault(VAULT).mintView(_collateral, _collateralAmt);
+        assertEq(_toMinter, 0);
+        assertEq(_fee, 0);
+    }
+
+    function test_Fee0If_CallerHasFacilitatorRole() public {
+        bytes32 facilitatorRole = keccak256("FACILITATOR_ROLE");
+        vm.prank(USDS_OWNER);
+        IAccessControlUpgradeable(VAULT).grantRole(facilitatorRole, actors[1]);
+        vm.prank(actors[1]);
+        (_toMinter, _fee) = IVault(VAULT).mintView(_collateral, _collateralAmt);
+        assertTrue(_toMinter > 98e20);
+        assertEq(_fee, 0);
+    }
+
+    function test_MintView() public {
+        (_toMinter, _fee) = IVault(VAULT).mintView(_collateral, _collateralAmt);
+        assertTrue(_toMinter > 98e20);
+        assertTrue(_fee > 0);
+    }
+}
+
+contract TestRebase is VaultCoreTest {
+    event RebasedUSDs(uint256 rebaseAmt);
+
+    function test_Rebase() public {
+        vm.startPrank(VAULT);
+        IRebaseManager(REBASE_MANAGER).fetchRebaseAmt();
+        skip(1 days);
+        IUSDs(USDS).mint(DRIPPER, 1e22);
+        IDripper(DRIPPER).collect();
+        skip(1 days);
+        (uint256 min, uint256 max) = IRebaseManager(REBASE_MANAGER)
+            .getMinAndMaxRebaseAmt();
+        vm.expectEmit(true, true, true, true, VAULT);
+        emit RebasedUSDs(max);
+        IVault(VAULT).rebase();
+        (min, max) = IRebaseManager(REBASE_MANAGER).getMinAndMaxRebaseAmt();
+        assertEq(min, 0);
+        assertEq(max, 0);
+        IVault(VAULT).rebase(); // When fetchRebaseAmt returns 0
+        vm.stopPrank();
     }
 }
