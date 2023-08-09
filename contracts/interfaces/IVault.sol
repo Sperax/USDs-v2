@@ -3,11 +3,11 @@ pragma solidity 0.8.16;
 
 interface IVault {
     function mintBySpecifyingCollateralAmt(
-        address collateralAddr,
-        uint256 collateralAmtToLock,
-        uint256 minUSDsMinted,
-        uint256 maxSPAburnt,
-        uint256 deadline
+        address _collateral,
+        uint256 _collateralAmt,
+        uint256 _minUSDSAmt,
+        uint256 _maxSPAburnt,
+        uint256 _deadline
     ) external;
 
     /// @notice mint USDs by depositing collateral
@@ -20,6 +20,12 @@ interface IVault {
         uint256 _collateralAmt,
         uint256 _minUSDSAmt,
         uint256 _deadline
+    ) external;
+
+    function allocate(
+        address _collateral,
+        address _strategy,
+        uint256 _amount
     ) external;
 
     function updateFeeVault(address _feeVault) external;
@@ -42,4 +48,16 @@ interface IVault {
         address _collateral,
         uint256 _collateralAmt
     ) external view returns (uint256, uint256);
+
+    function feeVault() external view returns (address);
+
+    function yieldReceiver() external view returns (address);
+
+    function collateralManager() external view returns (address);
+
+    function feeCalculator() external view returns (address);
+
+    function oracle() external view returns (address);
+
+    function rebaseManager() external view returns (address);
 }
