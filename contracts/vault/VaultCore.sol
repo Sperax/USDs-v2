@@ -52,6 +52,11 @@ contract VaultCore is
         uint256 feeAmt
     );
     event RebasedUSDs(uint256 rebaseAmt);
+    event Allocated(
+        address indexed collateral,
+        address indexed strategy,
+        uint256 amount
+    );
 
     modifier onlyOwner() {
         require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "Unauthorized caller");
@@ -143,6 +148,7 @@ contract VaultCore is
             _amount
         );
         IStrategy(_strategy).deposit(_collateral, _amount);
+        emit Allocated(_collateral, _strategy, _amount);
     }
 
     /// @notice mint USDs by depositing collateral
