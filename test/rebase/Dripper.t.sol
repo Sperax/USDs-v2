@@ -40,7 +40,7 @@ contract SetVault is DripperTest {
         useKnownActor(USDS_OWNER)
     {
         address newVaultAddress = address(0);
-        vm.expectRevert("Zero address");
+        vm.expectRevert("Invalid Address");
         dripper.setVault(newVaultAddress);
     }
 

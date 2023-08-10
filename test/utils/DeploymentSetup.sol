@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Unlicensed
+pragma solidity 0.8.16;
+
 import {Setup} from "./BaseTest.sol";
 import {UpgradeUtil} from "./UpgradeUtil.sol";
 import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
@@ -15,6 +18,8 @@ import {Dripper} from "../../contracts/rebase/Dripper.sol";
 import {RebaseManager} from "../../contracts/rebase/RebaseManager.sol";
 import {MasterPriceOracle} from "../../contracts/oracle/MasterPriceOracle.sol";
 import {ChainlinkOracle} from "../../contracts/oracle/ChainlinkOracle.sol";
+import {StargateStrategy} from "../../contracts/strategies/stargate/StargateStrategy.sol";
+import {AaveStrategy} from "../../contracts/strategies/aave/AaveStrategy.sol";
 import {VSTOracle} from "../../contracts/oracle/VSTOracle.sol";
 
 interface ICustomOracle {
@@ -31,8 +36,10 @@ abstract contract PreMigrationSetup is Setup {
     MasterPriceOracle masterOracle;
     ChainlinkOracle chainlinkOracle;
     VSTOracle vstOracle;
-    address spaOracle;
-    address usdsOracle;
+    address internal spaOracle;
+    address internal usdsOracle;
+    StargateStrategy internal stargateStrategy;
+    AaveStrategy internal aaveStrategy;
 
     function setUp() public virtual override {
         super.setUp();
@@ -45,6 +52,7 @@ abstract contract PreMigrationSetup is Setup {
         PROXY_ADMIN = 0x3E49925A79CbFb68BAa5bc9DFb4f7D955D1ddF25;
         SPA_BUYBACK = 0xFbc0d3cA777722d234FE01dba94DeDeDb277AFe3;
         BUYBACK = 0xf3f98086f7B61a32be4EdF8d8A4b964eC886BBcd;
+
         upgradeUtil = new UpgradeUtil();
 
         // Upgrade USDs contract
@@ -111,7 +119,56 @@ abstract contract PreMigrationSetup is Setup {
                 desiredCollateralComposition: 5000
             });
 
+        address stargateRouter = 0x53Bf833A5d6c4ddA888F69c22C88C9f356a41614;
+        address stg = 0x6694340fc020c5E6B96567843da2df01b2CE1eb6;
+        address stargateFarm = 0xeA8DfEE1898a7e0a59f7527F076106d7e44c2176;
+        StargateStrategy stargateStrategyImpl = new StargateStrategy();
+        stargateStrategy = StargateStrategy(
+            upgradeUtil.deployErc1967Proxy(address(stargateStrategyImpl))
+        );
+        stargateStrategy.initialize(
+            stargateRouter,
+            VAULT,
+            stg,
+            stargateFarm,
+            20,
+            20
+        );
+        stargateStrategy.setPTokenAddress(
+            USDCe,
+            0x892785f33CdeE22A30AEF750F285E18c18040c3e,
+            1,
+            0,
+            0
+        );
+
+        address aavePoolProvider = 0xa97684ead0e402dC232d5A977953DF7ECBaB3CDb;
+        AaveStrategy aaveStrategyImpl = new AaveStrategy();
+        aaveStrategy = AaveStrategy(
+            upgradeUtil.deployErc1967Proxy(address(aaveStrategyImpl))
+        );
+        aaveStrategy.initialize(aavePoolProvider, VAULT);
+        aaveStrategy.setPTokenAddress(
+            USDCe,
+            0x625E7708f30cA75bfd92586e17077590C60eb4cD,
+            0
+        );
+
         collateralManager.addCollateral(USDCe, _data);
+        collateralManager.addCollateralStrategy(
+            USDCe,
+            address(stargateStrategy),
+            3000
+        );
+        collateralManager.addCollateralStrategy(
+            USDCe,
+            address(aaveStrategy),
+            4000
+        );
+        collateralManager.updateCollateralDefaultStrategy(
+            USDCe,
+            address(stargateStrategy)
+        );
         vm.stopPrank();
     }
 

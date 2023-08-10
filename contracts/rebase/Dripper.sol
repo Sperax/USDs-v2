@@ -52,7 +52,7 @@ contract Dripper is Ownable {
 
     /// @notice Update the vault address
     function setVault(address _vault) public onlyOwner returns (address) {
-        _isNonZeroAddr(_vault);
+        _isValidAddress(_vault);
         vault = _vault;
         emit VaultChanged(vault);
         return (vault);
@@ -78,8 +78,8 @@ contract Dripper is Ownable {
     }
 
     /// @notice Address input sanity check function
-    /// @param _addr Address to be checked
-    function _isNonZeroAddr(address _addr) private pure {
-        require(_addr != address(0), "Zero address");
+    /// @param _address Address to be checked
+    function _isValidAddress(address _address) private pure {
+        require(_address != address(0), "Invalid Address");
     }
 }
