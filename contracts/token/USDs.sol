@@ -373,7 +373,6 @@ contract USDs is
     ///  - `_account` must have at least `_amount` tokens.
     function _burn(address _account, uint256 _amount) internal override {
         _isNotPaused();
-        require(_account != address(0), "Burn from the zero address");
         if (_amount == 0) {
             return;
         }
