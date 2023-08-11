@@ -4,17 +4,13 @@ node_modules
 .env
 coverage
 coverage.json
-typechain
-typechain-types
-
-# Hardhat files
-cache
-artifacts
-build
 
 # Foundry files
 out
 lib
 cache_forge
+
+# Brownie files
+build
 
 .DS_Store
