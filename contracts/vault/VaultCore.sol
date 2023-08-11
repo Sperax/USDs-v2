@@ -68,6 +68,13 @@ contract VaultCore is
         __ReentrancyGuard_init();
     }
 
+    //  @notice Transfers ownership of the contract to a new account (`newOwner`).
+    //  Can only be called by the current owner.
+    function transferAdminRole(address _newOwner) external onlyOwner {
+        grantRole(DEFAULT_ADMIN_ROLE, _newOwner);
+        revokeRole(DEFAULT_ADMIN_ROLE, _msgSender());
+    }
+
     /// @notice Updates the address receiving fee
     /// @param _feeVault updated address of the fee vault
     function updateFeeVault(address _feeVault) external onlyOwner {
