@@ -12,5 +12,10 @@ cache_forge
 
 # Brownie files
 build
+tests
+reports
+interfaces
+deployed/arbitrum-main-fork
+__pycache__
 
 .DS_Store

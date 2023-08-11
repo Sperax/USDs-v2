@@ -1,0 +1,20 @@
+# Brownie configuration file
+# https://eth-brownie.readthedocs.io/en/stable/config.html
+# required external contracts
+
+project-structure:
+  contracts: contract
+  tests: test
+  reports: coverage/reports
+
+compiler:
+    solc:
+        optimizer:
+          enabled: true
+          runs: 200
+        remappings:
+          - "@openzeppelin/contracts=node_modules/@openzeppelin/contracts"
+          - "@openzeppelin/contracts-upgradeable=node_modules/@openzeppelin/contracts-upgradeable"
+          - "@chainlink/contracts=node_modules/@chainlink/contracts"
+          - "@uniswap/v3-core/contracts=node_modules/@uniswap/v3-core/contracts"
+          - "@uniswap/v3-periphery/contracts=node_modules/@uniswap/v3-periphery/contracts"
