@@ -75,6 +75,7 @@ abstract contract PreMigrationSetup is Setup {
         ORACLE = address(new MasterPriceOracle());
         FEE_CALCULATOR = address(new FeeCalculator());
         COLLATERAL_MANAGER = address(collateralManager);
+        FEE_VAULT = makeAddr("FEEVAULT");
         DRIPPER = address(new Dripper(VAULT, 7 days));
         REBASE_MANAGER = address(
             new RebaseManager(VAULT, DRIPPER, 1 days, 1000, 800)
@@ -84,6 +85,7 @@ abstract contract PreMigrationSetup is Setup {
         vault.updateFeeCalculator(FEE_CALCULATOR);
         vault.updateOracle(ORACLE);
         vault.updateRebaseManager(REBASE_MANAGER);
+        vault.updateFeeVault(FEE_VAULT);
 
         vstOracle = new VSTOracle();
         masterOracle = MasterPriceOracle(ORACLE);
@@ -169,6 +171,8 @@ abstract contract PreMigrationSetup is Setup {
             USDCe,
             address(stargateStrategy)
         );
+        AAVE_STRATEGY = address(aaveStrategy);
+        STARGATE_STRATEGY = address(stargateStrategy);
         vm.stopPrank();
     }
 
