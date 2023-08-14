@@ -426,9 +426,7 @@ contract VaultCore is
             address(this),
             _usdsAmt
         );
-        if (burnAmt > 0) {
-            IUSDs(USDS).burn(burnAmt);
-        }
+        IUSDs(USDS).burn(burnAmt);
         if (feeAmt > 0) {
             IERC20Upgradeable(USDS).safeTransfer(feeVault, feeAmt);
         }
