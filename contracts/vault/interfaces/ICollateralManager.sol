@@ -36,6 +36,11 @@ interface ICollateralManager {
         CollateralBaseData memory _updateData
     ) external;
 
+    function updateCollateralDefaultStrategy(
+        address _collateral,
+        address _strategy
+    ) external;
+
     /// @notice Validate allocation for a collateral
     /// @param _collateral Address of the collateral
     /// @param _strategy Address of the desired strategy
