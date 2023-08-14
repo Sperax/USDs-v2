@@ -54,6 +54,16 @@ contract USDsTest is BaseTest {
     address internal USER1;
     address internal USER2;
 
+    modifier testTransfer(uint256 amountToTransfer) {
+        uint256 prevBalUser1 = usds.balanceOf(USER1);
+        uint256 prevBalUser2 = usds.balanceOf(USER2);
+
+        _;
+
+        assertEq(prevBalUser1 - amountToTransfer, usds.balanceOf(USER1));
+        assertEq(prevBalUser2 + amountToTransfer, usds.balanceOf(USER2));
+    }
+
     function setUp() public virtual override {
         super.setUp();
         setArbitrumFork();
@@ -78,16 +88,6 @@ contract USDsTest is BaseTest {
     function test_change_vault() public useKnownActor(USDS_OWNER) {
         usds.changeVault(USER1);
         assertEq(USER1, usds.vaultAddress());
-    }
-
-    modifier testTransfer(uint256 amountToTransfer) {
-        uint256 prevBalUser1 = usds.balanceOf(USER1);
-        uint256 prevBalUser2 = usds.balanceOf(USER2);
-
-        _;
-
-        assertEq(prevBalUser1 - amountToTransfer, usds.balanceOf(USER1));
-        assertEq(prevBalUser2 + amountToTransfer, usds.balanceOf(USER2));
     }
 }
 
