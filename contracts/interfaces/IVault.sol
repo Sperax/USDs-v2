@@ -22,6 +22,21 @@ interface IVault {
         uint256 _deadline
     ) external;
 
+    function redeem(
+        address _collateral,
+        uint256 _usdsAmt,
+        uint256 _minCollAmt,
+        uint256 _deadline,
+        address _strategy
+    ) external;
+
+    function redeem(
+        address _collateral,
+        uint256 _usdsAmt,
+        uint256 _minCollAmt,
+        uint256 _deadline
+    ) external;
+
     function rebase() external;
 
     function allocate(
@@ -50,6 +65,35 @@ interface IVault {
         address _collateral,
         uint256 _collateralAmt
     ) external view returns (uint256, uint256);
+
+    function redeemView(
+        address _collateral,
+        uint256 _usdsAmt,
+        address _strategyAddr
+    )
+        external
+        view
+        returns (
+            uint256 calculatedCollateralAmt,
+            uint256 usdsBurnAmt,
+            uint256 feeAmt,
+            uint256 vaultAmt,
+            uint256 strategyAmt
+        );
+
+    function redeemView(
+        address _collateral,
+        uint256 _usdsAmt
+    )
+        external
+        view
+        returns (
+            uint256 calculatedCollateralAmt,
+            uint256 usdsBurnAmt,
+            uint256 feeAmt,
+            uint256 vaultAmt,
+            uint256 strategyAmt
+        );
 
     function feeVault() external view returns (address);
 
