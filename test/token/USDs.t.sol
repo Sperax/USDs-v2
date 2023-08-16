@@ -59,9 +59,17 @@ contract USDsTest is BaseTest {
         uint256 prevBalUser2 = usds.balanceOf(USER2);
 
         _;
-
-        assertEq(prevBalUser1 - amountToTransfer, usds.balanceOf(USER1));
-        assertEq(prevBalUser2 + amountToTransfer, usds.balanceOf(USER2));
+        // @note account for precision error in USDs calculation for rebasing accounts
+        assertApproxEqAbs(
+            prevBalUser1 - amountToTransfer,
+            usds.balanceOf(USER1),
+            1
+        );
+        assertApproxEqAbs(
+            prevBalUser2 + amountToTransfer,
+            usds.balanceOf(USER2),
+            1
+        );
     }
 
     function setUp() public virtual override {
@@ -103,20 +111,25 @@ contract TestTransferFrom is USDsTest {
         vm.stopPrank();
     }
 
-    function test_transfer_from(
-        uint256 amount1
-    ) public useKnownActor(USER1) testTransfer(amount1) {
+    function test_transfer_from(uint256 amount1) public useKnownActor(USER1) {
+        amount1 = bound(amount1, 1, usds.balanceOf(USER1));
+        uint256 prevBalUser1 = usds.balanceOf(USER1);
+        uint256 prevBalUser2 = usds.balanceOf(USER2);
         usds.approve(VAULT, amount1);
 
         changePrank(VAULT);
         usds.transferFrom(USER1, USER2, amount1);
+
+        // @note account for precision error in USDs calculation for rebasing accounts
+        assertApproxEqAbs(prevBalUser1 - amount1, usds.balanceOf(USER1), 1);
+        assertApproxEqAbs(prevBalUser2 + amount1, usds.balanceOf(USER2), 1);
     }
 
     function test_transfer_from_without_approval() public useKnownActor(VAULT) {
-        uint256 amoutToTransfer = usds.balanceOf(USER1);
+        uint256 amountToTransfer = usds.balanceOf(USER1);
 
         vm.expectRevert(bytes("Insufficient allowance"));
-        usds.transferFrom(USER1, USER2, amoutToTransfer);
+        usds.transferFrom(USER1, USER2, amountToTransfer);
     }
 
     function test_revert_balance() public useKnownActor(VAULT) {
@@ -134,10 +147,10 @@ contract TestTransferFrom is USDsTest {
     }
 
     function test_increaseAllowance() public useKnownActor(USER1) {
-        uint256 currentAllownace = usds.allowance(USER1, VAULT);
+        uint256 currentAllowance = usds.allowance(USER1, VAULT);
         usds.increaseAllowance(VAULT, amount);
 
-        assertEq(currentAllownace + amount, usds.allowance(USER1, VAULT));
+        assertEq(currentAllowance + amount, usds.allowance(USER1, VAULT));
     }
 
     function test_decreaseAllowance() public useKnownActor(USER1) {
@@ -146,11 +159,11 @@ contract TestTransferFrom is USDsTest {
 
         usds.increaseAllowance(VAULT, increase_amount);
 
-        uint256 currentAllownace = usds.allowance(USER1, VAULT);
+        uint256 currentAllowance = usds.allowance(USER1, VAULT);
         usds.decreaseAllowance(VAULT, decrease_amount);
 
         assertEq(
-            currentAllownace - decrease_amount,
+            currentAllowance - decrease_amount,
             usds.allowance(USER1, VAULT)
         );
     }
@@ -165,17 +178,22 @@ contract TestTransfer is USDsTest {
 
     function setUp() public override {
         super.setUp();
-
-        amount = 10 * USDsPrecision;
+        amount = 1000 * USDsPrecision;
         vm.startPrank(VAULT);
         usds.mint(USER1, amount);
         vm.stopPrank();
     }
 
-    function test_transfer(
-        uint256 amount1
-    ) public useKnownActor(USER1) testTransfer(amount1) {
+    function test_transfer(uint256 amount1) public useKnownActor(USER1) {
+        amount1 = bound(amount1, 1, usds.balanceOf(USER1));
+        uint256 prevBalUser1 = usds.balanceOf(USER1);
+        uint256 prevBalUser2 = usds.balanceOf(USER2);
+
         usds.transfer(USER2, amount1);
+
+        // @note account for precision error in USDs calculation for rebasing accounts
+        assertApproxEqAbs(prevBalUser1 - amount1, usds.balanceOf(USER1), 1);
+        assertApproxEqAbs(prevBalUser2 + amount1, usds.balanceOf(USER2), 1);
     }
 
     function test_transfer_sender_non_rebasing_from()
@@ -261,7 +279,7 @@ contract TestMint is USDsTest {
         usds.mint(USDS_OWNER, MAX_SUPPLY);
     }
 
-    function test_mint_puased() public useKnownActor(USDS_OWNER) {
+    function test_mint_paused() public useKnownActor(USDS_OWNER) {
         usds.pauseSwitch(true);
         changePrank(VAULT);
 
@@ -334,10 +352,11 @@ contract TestBurn is USDsTest {
         usds.transfer(USER1, usds.balanceOf(VAULT));
         usds.mint(VAULT, amount);
 
+        uint256 bal = usds.balanceOf(VAULT);
         usds.burn(amount);
 
-        (uint256 currentCredits, ) = usds.creditsBalanceOf(VAULT);
-        assertEq(currentCredits, 0);
+        // account for mathematical
+        assertApproxEqAbs(bal - amount, usds.balanceOf(VAULT), 1);
     }
 
     function test_burn_case3() public useKnownActor(USDS_OWNER) {
