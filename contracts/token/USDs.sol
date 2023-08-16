@@ -102,7 +102,7 @@ contract USDs is
         nonRebasingSupply = nonRebasingSupply - bal;
 
         // convert the balance to credits
-        _creditBalances[toOptIn] = bal.mulTruncateCeil(rebasingCreditsPerToken);
+        _creditBalances[toOptIn] = bal.mulTruncate(rebasingCreditsPerToken);
 
         rebaseState[toOptIn] = RebaseOptions.OptIn;
 
@@ -342,20 +342,19 @@ contract USDs is
 
         // notice: If the account is non rebasing and doesn't have a set creditsPerToken
         //          then set it i.e. this is a mint from a fresh contract
+        // creditAmount for non-rebasing accounts = _amount
+        uint256 creditAmount = _amount;
 
         // update global stats
         if (_isNonRebasingAccount(_account)) {
             nonRebasingSupply = nonRebasingSupply + _amount;
-            _creditBalances[_account] = _creditBalances[_account] + _amount;
         } else {
-            uint256 creditAmount = _amount.mulTruncate(rebasingCreditsPerToken);
-            _creditBalances[_account] =
-                _creditBalances[_account] +
-                creditAmount;
+            creditAmount = _amount.mulTruncate(rebasingCreditsPerToken);
         }
+        // update credit balance for the account
+        _creditBalances[_account] = _creditBalances[_account] + creditAmount;
 
         _totalSupply = _totalSupply + _amount;
-        // totalMinted = totalMinted.add(_amount);
 
         require(_totalSupply < MAX_SUPPLY, "Max supply");
 
@@ -376,30 +375,20 @@ contract USDs is
         if (_amount == 0) {
             return;
         }
+        /// For non-rebasing accounts credit amount = _amount
+        uint256 creditAmount = _amount;
 
         // Remove from the credit tallies and non-rebasing supply
         if (_isNonRebasingAccount(_account)) {
             nonRebasingSupply = nonRebasingSupply - _amount;
-            _creditBalances[_account] = _creditBalances[_account] - _amount;
         } else {
-            uint256 creditAmount = _amount.mulTruncate(rebasingCreditsPerToken);
-            uint256 currentCredits = _creditBalances[_account];
-
-            // Remove the credits, burning rounding errors
-            if (
-                currentCredits == creditAmount ||
-                currentCredits - 1 == creditAmount
-            ) {
-                // Handle dust from rounding
-                _creditBalances[_account] = 0;
-            } else if (currentCredits > creditAmount) {
-                _creditBalances[_account] =
-                    _creditBalances[_account] -
-                    creditAmount;
-            } else {
-                revert("Remove exceeds balance");
-            }
+            creditAmount = _amount.mulTruncate(rebasingCreditsPerToken);
         }
+
+        _creditBalances[_account] = _creditBalances[_account].sub(
+            creditAmount,
+            "Insufficient balance"
+        );
 
         _totalSupply = _totalSupply - _amount;
         emit Transfer(_account, address(0), _amount);
@@ -417,6 +406,7 @@ contract USDs is
         _isNotPaused();
         bool isNonRebasingTo = _isNonRebasingAccount(_to);
         bool isNonRebasingFrom = _isNonRebasingAccount(_from);
+        uint256 creditAmount = _value.mulTruncate(rebasingCreditsPerToken);
 
         if (isNonRebasingFrom) {
             _creditBalances[_from] = _creditBalances[_from].sub(
@@ -425,15 +415,13 @@ contract USDs is
             );
             if (!isNonRebasingTo) {
                 // Transfer to rebasing account from non-rebasing account
-                // Decreasing non-rebasing credits by the amount that was sent
+                // Decreasing non-rebasing supply by the amount that was sent
                 nonRebasingSupply = nonRebasingSupply.sub(_value);
             }
         } else {
-            uint256 creditsDeducted = _value.mulTruncateCeil(
-                rebasingCreditsPerToken
-            );
+            // updating credit balance for rebasing account
             _creditBalances[_from] = _creditBalances[_from].sub(
-                creditsDeducted,
+                creditAmount,
                 "Transfer amount exceeds balance"
             );
         }
@@ -442,18 +430,13 @@ contract USDs is
             _creditBalances[_to] = _creditBalances[_to] + _value;
 
             if (!isNonRebasingFrom) {
-                // Transfer to non-rebasing account from rebasing account, credits
-                // are removed from the non rebasing tally
+                // Transfer to non-rebasing account from rebasing account,
+                // Increasing non-rebasing supply by the amount that was sent
                 nonRebasingSupply = nonRebasingSupply + _value;
             }
         } else {
-            // Credits deducted and credited might be different due to the
-            // differing creditsPerToken used by each account
-            uint256 creditsCredited = _value.mulTruncateCeil(
-                rebasingCreditsPerToken
-            );
-
-            _creditBalances[_to] = _creditBalances[_to] + creditsCredited;
+            // updating credit balance for rebasing account
+            _creditBalances[_to] = _creditBalances[_to] + creditAmount;
         }
     }
 
