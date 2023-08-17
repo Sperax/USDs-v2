@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.16;
 
-import {BaseTest} from "./utils/BaseTest.sol";
-import {CollateralManager} from "../contracts/vault/CollateralManager.sol";
-import {ICollateralManager} from "../contracts/vault/interfaces/ICollateralManager.sol";
+import {BaseTest} from "../utils/BaseTest.sol";
+import {CollateralManager} from "../../contracts/vault/CollateralManager.sol";
+import {ICollateralManager} from "../../contracts/vault/interfaces/ICollateralManager.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 contract CollateralManagerTest is BaseTest {

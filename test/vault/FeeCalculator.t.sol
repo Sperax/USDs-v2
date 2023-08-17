@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.16;
 
-import {BaseTest} from "./utils/BaseTest.sol";
-import {FeeCalculator} from "../contracts/vault/FeeCalculator.sol";
-import {ICollateralManager} from "../contracts/vault/interfaces/ICollateralManager.sol";
-import {IOracle} from "../contracts/interfaces/IOracle.sol";
+import {BaseTest} from "../utils/BaseTest.sol";
+import {FeeCalculator} from "../../contracts/vault/FeeCalculator.sol";
+import {ICollateralManager} from "../../contracts/vault/interfaces/ICollateralManager.sol";
+import {IOracle} from "../../contracts/interfaces/IOracle.sol";
 import {IUSDs} from "../../contracts/interfaces/IUSDs.sol";
 
 contract TestFeeCalculator is BaseTest {
