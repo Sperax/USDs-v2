@@ -363,7 +363,7 @@ contract TestBurn is USDsTest {
         usds.rebaseOptIn(VAULT);
         changePrank(VAULT);
 
-        vm.expectRevert("Remove exceeds balance");
+        vm.expectRevert("Insufficient balance");
         amount = 1000000000 * USDsPrecision;
         usds.burn(amount);
     }
