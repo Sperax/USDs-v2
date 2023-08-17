@@ -430,7 +430,7 @@ contract TestMintView is VaultCoreTest {
 
     function test_MintView_Returns0When_PriceLowerThanDownsidePeg()
         public
-        mockOracle(99e4)
+        mockOracle(99e6)
     {
         ICollateralManager.CollateralBaseData memory _data = ICollateralManager
             .CollateralBaseData({
@@ -479,7 +479,7 @@ contract TestMintView is VaultCoreTest {
         assertEq(_fee, 0);
     }
 
-    function test_MintView() public {
+    function test_MintView() public mockOracle(101e6) {
         uint256 expectedFee;
         uint256 expectedToMinter;
         (_toMinter, _fee) = IVault(VAULT).mintView(_collateral, _collateralAmt);
@@ -493,15 +493,20 @@ contract TestMintView is VaultCoreTest {
         if (priceData.price < downsidePeg) {
             expectedFee = 0;
             expectedToMinter = 0;
+        } else {
+            (uint256 feePerc, uint256 feePercPrecision) = IFeeCalculator(
+                FEE_CALCULATOR
+            ).getFeeIn(_collateral, _collateralAmt, _mintData, priceData);
+            uint256 normalizedCollateralAmt = _collateralAmt *
+                _mintData.conversionFactor;
+            uint256 usdsAmt = normalizedCollateralAmt;
+            expectedFee = (10 * (_toMinter + _fee)) / 1e4;
+            expectedToMinter = usdsAmt - expectedFee;
         }
-        (uint256 feePerc, uint256 feePercPrecision) = IFeeCalculator(
-            FEE_CALCULATOR
-        ).getFeeIn(_collateral, _collateralAmt, _mintData, priceData);
-        uint256 normalizedCollateralAmt = _collateralAmt *
-            _mintData.conversionFactor;
-        uint256 usdsAmt = normalizedCollateralAmt;
-        assertTrue(_toMinter > 98e20);
-        assertEq(_fee, (10 * (_toMinter + _fee)) / 1e4);
+        assertEq(_toMinter, expectedToMinter);
+        assertEq(_fee, expectedFee);
+        assertTrue(_toMinter != 0);
+        assertTrue(_fee != 0);
     }
 }
 
@@ -584,7 +589,41 @@ contract TestRedeemView is VaultCoreTest {
         assertEq(fee, 0);
     }
 
-    function test_RedeemViewApplyDownsidePeg() public mockOracle(101e4) {
+    function test_RedeemViewFee0AndCollAmtDownsidePegged()
+        public
+        mockOracle(99e6)
+    {
+        deal(USDCe, VAULT, (usdsAmt * 2) / 1e12);
+        vm.prank(USDS_OWNER);
+        IAccessControlUpgradeable(VAULT).grantRole(
+            keccak256("FACILITATOR_ROLE"),
+            redeemer
+        );
+        vm.prank(redeemer);
+        (uint256 calculatedCollateralAmt, , uint256 fee, , ) = IVault(VAULT)
+            .redeemView(_collateral, usdsAmt);
+        assertEq(fee, 0);
+        assertEq(calculatedCollateralAmt, usdsAmt / 1e12);
+    }
+
+    function test_RedeemViewFee0AndCollAmtNotDownsidePegged()
+        public
+        mockOracle(101e4)
+    {
+        deal(USDCe, VAULT, (usdsAmt * 2) / 1e12);
+        vm.prank(USDS_OWNER);
+        IAccessControlUpgradeable(VAULT).grantRole(
+            keccak256("FACILITATOR_ROLE"),
+            redeemer
+        );
+        vm.prank(redeemer);
+        (uint256 calculatedCollateralAmt, , uint256 fee, , ) = IVault(VAULT)
+            .redeemView(_collateral, usdsAmt);
+        assertEq(fee, 0);
+        assertEq(calculatedCollateralAmt, ((usdsAmt * 1e8) / 101e6) / 1e12);
+    }
+
+    function test_RedeemViewApplyDownsidePeg() public mockOracle(101e6) {
         deal(USDCe, VAULT, (usdsAmt * 2) / 1e12);
         (
             uint256 _calculatedCollateralAmt,
@@ -607,7 +646,7 @@ contract TestRedeemView is VaultCoreTest {
         assertEq(strategyAmt, 0);
     }
 
-    function test_RedeemViewWithoutDownsidePeg() public mockOracle(99e4) {
+    function test_RedeemViewWithoutDownsidePeg() public mockOracle(99e6) {
         deal(USDCe, VAULT, (usdsAmt * 2) / 1e12);
         (
             uint256 _calculatedCollateralAmt,
