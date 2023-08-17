@@ -22,6 +22,16 @@ contract VaultCoreTest is PreMigrationSetup {
     address internal defaultStrategy;
     address internal otherStrategy;
 
+    modifier mockOracle(uint256 _price) {
+        vm.mockCall(
+            address(ORACLE),
+            abi.encodeWithSignature("getPrice(address)", USDCe),
+            abi.encode(_price, 1e8)
+        );
+        _;
+        vm.clearMockedCalls();
+    }
+
     function setUp() public virtual override {
         super.setUp();
         USDC_PRECISION = 10 ** ERC20(USDCe).decimals();
@@ -418,7 +428,10 @@ contract TestMintView is VaultCoreTest {
         _updateCollateralData(_data);
     }
 
-    function test_MintView_Returns0When_PriceLowerThanDownsidePeg() public {
+    function test_MintView_Returns0When_PriceLowerThanDownsidePeg()
+        public
+        mockOracle(99e4)
+    {
         ICollateralManager.CollateralBaseData memory _data = ICollateralManager
             .CollateralBaseData({
                 mintAllowed: true,
@@ -521,16 +534,6 @@ contract TestRebase is VaultCoreTest {
 contract TestRedeemView is VaultCoreTest {
     address private redeemer;
     uint256 private usdsAmt;
-
-    modifier mockOracle(uint256 _price) {
-        vm.mockCall(
-            address(ORACLE),
-            abi.encodeWithSignature("getPrice(address)", USDCe),
-            abi.encode(_price, 1e6)
-        );
-        _;
-        vm.clearMockedCalls();
-    }
 
     function setUp() public override {
         super.setUp();
