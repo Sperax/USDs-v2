@@ -16,5 +16,5 @@ build
 out
 lib
 cache_forge
-
+lcov.info
 .DS_Store

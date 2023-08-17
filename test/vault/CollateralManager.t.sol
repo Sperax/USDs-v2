@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.16;
 
-import {BaseTest} from "./utils/BaseTest.sol";
-import {CollateralManager} from "../contracts/vault/CollateralManager.sol";
-import {ICollateralManager} from "../contracts/vault/interfaces/ICollateralManager.sol";
+import {BaseTest} from "../utils/BaseTest.sol";
+import {CollateralManager} from "../../contracts/vault/CollateralManager.sol";
+import {ICollateralManager} from "../../contracts/vault/interfaces/ICollateralManager.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 contract CollateralManagerTest is BaseTest {
@@ -411,7 +411,7 @@ contract CollateralManager_removeCollateral_Test is CollateralManagerTest {
         vm.assume(_colComp <= manager.PERC_PRECISION());
 
         collateralSetUp(USDCe, _colComp, _baseFeeIn, _baseFeeOut, _downsidePeg);
-        manager.addCollateralStrategy(USDCe, stargate, _colComp);
+        manager.addCollateralStrategy(USDCe, STARGATE, _colComp);
         vm.expectRevert("Strategy/ies exists");
         manager.removeCollateral(USDCe);
     }
@@ -423,7 +423,7 @@ contract CollateralManager_addCollateralStrategy_Test is CollateralManagerTest {
     ) external useKnownActor(USDS_OWNER) {
         vm.assume(_collateralComposition <= manager.PERC_PRECISION());
         vm.expectRevert("Collateral doesn't exist");
-        manager.addCollateralStrategy(USDCe, stargate, 1000);
+        manager.addCollateralStrategy(USDCe, STARGATE, 1000);
     }
 
     function test_revertsWhen_addCollateralstrategyWhenAlreadyMapped(
@@ -438,9 +438,9 @@ contract CollateralManager_addCollateralStrategy_Test is CollateralManagerTest {
         vm.assume(_colComp <= manager.PERC_PRECISION());
 
         collateralSetUp(USDCe, _colComp, _baseFeeIn, _baseFeeOut, _downsidePeg);
-        manager.addCollateralStrategy(USDCe, stargate, _colComp);
+        manager.addCollateralStrategy(USDCe, STARGATE, _colComp);
         vm.expectRevert("Strategy already mapped");
-        manager.addCollateralStrategy(USDCe, stargate, _colComp);
+        manager.addCollateralStrategy(USDCe, STARGATE, _colComp);
     }
 
     function test_revertsWhen_addCollateralstrategyNotSupported(
@@ -456,7 +456,7 @@ contract CollateralManager_addCollateralStrategy_Test is CollateralManagerTest {
 
         collateralSetUp(USDT, _colComp, _baseFeeIn, _baseFeeOut, _downsidePeg);
         vm.expectRevert("Collateral not supported");
-        manager.addCollateralStrategy(USDT, stargate, _colComp);
+        manager.addCollateralStrategy(USDT, STARGATE, _colComp);
     }
 
     function test_revertsWhen_addCollateralstrategyAllocationPerExceeded(
@@ -474,7 +474,7 @@ contract CollateralManager_addCollateralStrategy_Test is CollateralManagerTest {
 
         collateralSetUp(USDCe, _colComp, _baseFeeIn, _baseFeeOut, _downsidePeg);
         vm.expectRevert("AllocationPer exceeded");
-        manager.addCollateralStrategy(USDCe, stargate, _colComp2);
+        manager.addCollateralStrategy(USDCe, STARGATE, _colComp2);
     }
 
     function test_addCollateralStrategy(
@@ -493,9 +493,9 @@ contract CollateralManager_addCollateralStrategy_Test is CollateralManagerTest {
         collateralSetUp(USDCe, _colComp, _baseFeeIn, _baseFeeOut, _downsidePeg);
 
         vm.expectEmit(true, true, false, true);
-        emit CollateralStrategyAdded(USDCe, stargate);
+        emit CollateralStrategyAdded(USDCe, STARGATE);
 
-        manager.addCollateralStrategy(USDCe, stargate, _allocCap);
+        manager.addCollateralStrategy(USDCe, STARGATE, _allocCap);
     }
 
     function test_addMultipleCollateralStrategies(
@@ -505,7 +505,7 @@ contract CollateralManager_addCollateralStrategy_Test is CollateralManagerTest {
         uint16 _colComp,
         uint16 _allocCap
     ) external useKnownActor(USDS_OWNER) {
-        address[2] memory strategies = [AAVE, stargate];
+        address[2] memory strategies = [AAVE, STARGATE];
         vm.assume(_baseFeeIn <= manager.PERC_PRECISION());
         vm.assume(_baseFeeOut <= manager.PERC_PRECISION());
         vm.assume(_downsidePeg <= manager.PERC_PRECISION());
@@ -545,7 +545,7 @@ contract CollateralManager_updateCollateralStrategy_Test is
 
         collateralSetUp(USDCe, _colComp, _baseFeeIn, _baseFeeOut, _downsidePeg);
         vm.expectRevert("Strategy not mapped");
-        manager.updateCollateralStrategy(USDCe, stargate, 2000);
+        manager.updateCollateralStrategy(USDCe, STARGATE, 2000);
     }
 
     function test_revertsWhen_updateCollateralstrategyAllocationPerExceeded(
@@ -560,9 +560,9 @@ contract CollateralManager_updateCollateralStrategy_Test is
         vm.assume(_colComp <= manager.PERC_PRECISION());
 
         collateralSetUp(USDCe, _colComp, _baseFeeIn, _baseFeeOut, _downsidePeg);
-        manager.addCollateralStrategy(USDCe, stargate, 2000);
+        manager.addCollateralStrategy(USDCe, STARGATE, 2000);
         vm.expectRevert("AllocationPer exceeded");
-        manager.updateCollateralStrategy(USDCe, stargate, 10001);
+        manager.updateCollateralStrategy(USDCe, STARGATE, 10001);
     }
 
     function test_revertsWhen_updateCollateralstrategyAllocationNotValid(
@@ -577,9 +577,9 @@ contract CollateralManager_updateCollateralStrategy_Test is
         vm.assume(_colComp <= manager.PERC_PRECISION());
 
         collateralSetUp(USDCe, _colComp, _baseFeeIn, _baseFeeOut, _downsidePeg);
-        manager.addCollateralStrategy(USDCe, stargate, 1);
+        manager.addCollateralStrategy(USDCe, STARGATE, 1);
         vm.expectRevert("AllocationPer not valid");
-        manager.updateCollateralStrategy(USDCe, stargate, 10000);
+        manager.updateCollateralStrategy(USDCe, STARGATE, 10000);
     }
 
     function test_updateCollateralStrategy(
@@ -596,12 +596,12 @@ contract CollateralManager_updateCollateralStrategy_Test is
         vm.assume(_allocCap <= manager.PERC_PRECISION());
 
         collateralSetUp(USDCe, _colComp, _baseFeeIn, _baseFeeOut, _downsidePeg);
-        manager.addCollateralStrategy(USDCe, stargate, _colComp);
+        manager.addCollateralStrategy(USDCe, STARGATE, _colComp);
 
         vm.expectEmit(true, true, false, true);
-        emit CollateralStrategyUpdated(USDCe, stargate);
+        emit CollateralStrategyUpdated(USDCe, STARGATE);
 
-        manager.updateCollateralStrategy(USDCe, stargate, _allocCap);
+        manager.updateCollateralStrategy(USDCe, STARGATE, _allocCap);
     }
 
     function test_updateMultipleCollateralStrategies(
@@ -610,7 +610,7 @@ contract CollateralManager_updateCollateralStrategy_Test is
         uint16 _downsidePeg,
         uint16 _colComp
     ) external useKnownActor(USDS_OWNER) {
-        address[2] memory strategies = [AAVE, stargate];
+        address[2] memory strategies = [AAVE, STARGATE];
         vm.assume(_baseFeeIn <= manager.PERC_PRECISION());
         vm.assume(_baseFeeOut <= manager.PERC_PRECISION());
         vm.assume(_downsidePeg <= manager.PERC_PRECISION());
@@ -665,7 +665,7 @@ contract CollateralManager_removeCollateralStrategy_Test is
 
         collateralSetUp(USDCe, _colComp, _baseFeeIn, _baseFeeOut, _downsidePeg);
         vm.expectRevert("Strategy not mapped");
-        manager.removeCollateralStrategy(USDCe, stargate);
+        manager.removeCollateralStrategy(USDCe, STARGATE);
     }
 
     function test_removeCollateralStrategy(
@@ -681,7 +681,7 @@ contract CollateralManager_removeCollateralStrategy_Test is
 
         collateralSetUp(USDCe, _colComp, _baseFeeIn, _baseFeeOut, _downsidePeg);
         collateralSetUp(DAI, _colComp, _baseFeeIn, _baseFeeOut, _downsidePeg);
-        manager.addCollateralStrategy(USDCe, stargate, 2000);
+        manager.addCollateralStrategy(USDCe, STARGATE, 2000);
         manager.addCollateralStrategy(USDCe, AAVE, 2000);
 
         vm.expectEmit(true, true, false, true);
@@ -701,9 +701,9 @@ contract CollateralManager_removeCollateralStrategy_Test is
         vm.assume(_colComp <= manager.PERC_PRECISION());
 
         collateralSetUp(USDCe, _colComp, _baseFeeIn, _baseFeeOut, _downsidePeg);
-        manager.addCollateralStrategy(USDCe, stargate, 2000);
+        manager.addCollateralStrategy(USDCe, STARGATE, 2000);
         vm.expectRevert("Strategy in use");
-        manager.removeCollateralStrategy(USDCe, stargate);
+        manager.removeCollateralStrategy(USDCe, STARGATE);
     }
 
     function test_revertsWhen_DefaultStrategy(
@@ -718,10 +718,10 @@ contract CollateralManager_removeCollateralStrategy_Test is
         vm.assume(_colComp <= manager.PERC_PRECISION());
 
         collateralSetUp(USDCe, _colComp, _baseFeeIn, _baseFeeOut, _downsidePeg);
-        manager.addCollateralStrategy(USDCe, stargate, 2000);
-        manager.updateCollateralDefaultStrategy(USDCe, stargate);
+        manager.addCollateralStrategy(USDCe, STARGATE, 2000);
+        manager.updateCollateralDefaultStrategy(USDCe, STARGATE);
         vm.expectRevert("DS removal not allowed");
-        manager.removeCollateralStrategy(USDCe, stargate);
+        manager.removeCollateralStrategy(USDCe, STARGATE);
     }
 
     function test_revertsWhen_DefaultStrategyNotExist(
@@ -736,9 +736,9 @@ contract CollateralManager_removeCollateralStrategy_Test is
         vm.assume(_colComp <= manager.PERC_PRECISION() / 2);
 
         collateralSetUp(USDCe, _colComp, _baseFeeIn, _baseFeeOut, _downsidePeg);
-        manager.addCollateralStrategy(USDCe, stargate, 2000);
+        manager.addCollateralStrategy(USDCe, STARGATE, 2000);
         vm.expectRevert("Collateral doesn't exist");
-        manager.updateCollateralDefaultStrategy(VST, stargate);
+        manager.updateCollateralDefaultStrategy(VST, STARGATE);
     }
 }
 
@@ -782,8 +782,8 @@ contract CollateralManager_validateAllocation_test is CollateralManagerTest {
         vm.assume(_colComp <= manager.PERC_PRECISION());
 
         collateralSetUp(USDCe, _colComp, _baseFeeIn, _baseFeeOut, _downsidePeg);
-        manager.addCollateralStrategy(USDCe, stargate, 2000);
-        manager.validateAllocation(USDCe, stargate, 1000);
+        manager.addCollateralStrategy(USDCe, STARGATE, 2000);
+        manager.validateAllocation(USDCe, STARGATE, 1000);
     }
 
     function test_validateAllocationMaxCollateralUsageSup(
@@ -798,8 +798,8 @@ contract CollateralManager_validateAllocation_test is CollateralManagerTest {
         vm.assume(_colComp <= manager.PERC_PRECISION());
 
         collateralSetUp(USDCe, _colComp, _baseFeeIn, _baseFeeOut, _downsidePeg);
-        manager.addCollateralStrategy(USDCe, stargate, 10000);
-        manager.validateAllocation(USDCe, stargate, 11000000000);
+        manager.addCollateralStrategy(USDCe, STARGATE, 10000);
+        manager.validateAllocation(USDCe, STARGATE, 11000000000);
     }
 
     function test_getAllCollaterals(
@@ -852,7 +852,7 @@ contract CollateralManager_validateAllocation_test is CollateralManagerTest {
         vm.assume(_baseFeeOut <= manager.PERC_PRECISION());
         vm.assume(_downsidePeg <= manager.PERC_PRECISION());
         vm.assume(_colComp <= manager.PERC_PRECISION());
-        address[2] memory strategies = [AAVE, stargate];
+        address[2] memory strategies = [AAVE, STARGATE];
 
         collateralSetUp(USDCe, _colComp, _baseFeeIn, _baseFeeOut, _downsidePeg);
         for (uint8 i = 0; i < strategies.length; i++) {
@@ -892,7 +892,7 @@ contract CollateralManager_mintRedeemParams_test is CollateralManagerTest {
                 desiredCollateralComposition: 1000
             });
         manager.addCollateral(USDCe, _data);
-        manager.addCollateralStrategy(USDCe, stargate, 2000);
+        manager.addCollateralStrategy(USDCe, STARGATE, 2000);
         manager.addCollateralStrategy(USDCe, AAVE, 2000);
         ICollateralManager.CollateralMintData memory mintData = manager
             .getMintParams(USDCe);
@@ -936,15 +936,15 @@ contract CollateralManager_mintRedeemParams_test is CollateralManagerTest {
             });
         manager.addCollateral(USDCe, _data);
         manager.addCollateral(DAI, _data);
-        manager.addCollateralStrategy(USDCe, stargate, 2000);
+        manager.addCollateralStrategy(USDCe, STARGATE, 2000);
         manager.addCollateralStrategy(USDCe, AAVE, 2000);
-        manager.updateCollateralDefaultStrategy(USDCe, stargate);
+        manager.updateCollateralDefaultStrategy(USDCe, STARGATE);
 
         ICollateralManager.CollateralRedeemData memory redeemData = manager
             .getRedeemParams(USDCe);
         assertEq(redeemData.redeemAllowed, _data.redeemAllowed);
         assertEq(redeemData.baseFeeOut, _data.baseFeeOut);
-        assertEq(redeemData.defaultStrategy, stargate);
+        assertEq(redeemData.defaultStrategy, STARGATE);
         assertEq(
             redeemData.desiredCollateralComposition,
             _data.desiredCollateralComposition

@@ -30,9 +30,12 @@ abstract contract Setup is Test {
     address internal DRIPPER;
     address internal REBASE_MANAGER;
     address internal BUYBACK;
+    address internal STARGATE_STRATEGY;
+    address internal AAVE_STRATEGY;
+    address internal FEE_VAULT;
 
     // Define Strategies Constants here
-    address public constant stargate =
+    address public constant STARGATE =
         0xF30Db0F56674b51050630e53043c403f8E162Bf2;
     address public constant AAVE = 0xF2badbB9817A40D29393fa88951415a4A334a898;
     address public constant USDT_TWO_POOL_STRATEGY =
