@@ -22,8 +22,8 @@ contract DripperTest is BaseTest {
 
     // Events from the actual contract.
     event Collected(uint256 amount);
-    event VaultChanged(address vault);
-    event DripDurationChanged(uint256 dripDuration);
+    event VaultUpdated(address vault);
+    event DripDurationUpdated(uint256 dripDuration);
     event Recovered(address owner, uint256 amount);
 
     function setUp() public override {
@@ -48,7 +48,7 @@ contract SetVault is DripperTest {
     function test_setVault() external useKnownActor(USDS_OWNER) {
         address newVaultAddress = address(1);
         vm.expectEmit(true, true, false, true);
-        emit VaultChanged(address(1));
+        emit VaultUpdated(address(1));
 
         dripper.setVault(newVaultAddress);
     }
@@ -76,7 +76,7 @@ contract SetDripDuration is DripperTest {
     ) external useKnownActor(USDS_OWNER) {
         vm.assume(dripDuration != 0);
         vm.expectEmit(true, true, false, true);
-        emit DripDurationChanged(dripDuration);
+        emit DripDurationUpdated(dripDuration);
 
         dripper.setDripDuration(dripDuration);
     }

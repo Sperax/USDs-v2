@@ -31,12 +31,12 @@ contract VaultCore is
     address public oracle;
     address public rebaseManager;
 
-    event FeeVaultChanged(address newFeeManager);
-    event YieldReceiverChanged(address newYieldReceiver);
-    event CollateralManagerChanged(address newCollateralManagerChanged);
-    event FeeCalculatorChanged(address newFeeCalculator);
-    event RebaseManagerChanged(address newRebaseManager);
-    event OracleChanged(address newOracle);
+    event FeeVaultUpdated(address newFeeVault);
+    event YieldReceiverUpdated(address newYieldReceiver);
+    event CollateralManagerUpdated(address newCollateralManager);
+    event FeeCalculatorUpdated(address newFeeCalculator);
+    event RebaseManagerUpdated(address newRebaseManager);
+    event OracleUpdated(address newOracle);
     event Minted(
         address indexed wallet,
         address indexed collateralAddr,
@@ -52,6 +52,11 @@ contract VaultCore is
         uint256 feeAmt
     );
     event RebasedUSDs(uint256 rebaseAmt);
+    event Allocated(
+        address indexed collateral,
+        address indexed strategy,
+        uint256 amount
+    );
 
     modifier onlyOwner() {
         require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "Unauthorized caller");
@@ -80,7 +85,7 @@ contract VaultCore is
     function updateFeeVault(address _feeVault) external onlyOwner {
         _isNonZeroAddr(_feeVault);
         feeVault = _feeVault;
-        emit FeeVaultChanged(_feeVault);
+        emit FeeVaultUpdated(_feeVault);
     }
 
     /// @notice Updates the address receiving yields from strategies
@@ -88,7 +93,7 @@ contract VaultCore is
     function updateYieldReceiver(address _yieldReceiver) external onlyOwner {
         _isNonZeroAddr(_yieldReceiver);
         yieldReceiver = _yieldReceiver;
-        emit YieldReceiverChanged(_yieldReceiver);
+        emit YieldReceiverUpdated(_yieldReceiver);
     }
 
     /// @notice Updates the address having the config for collaterals
@@ -98,7 +103,7 @@ contract VaultCore is
     ) external onlyOwner {
         _isNonZeroAddr(_collateralManager);
         collateralManager = _collateralManager;
-        emit CollateralManagerChanged(_collateralManager);
+        emit CollateralManagerUpdated(_collateralManager);
     }
 
     /// @notice Updates the address having the config for rebase
@@ -106,7 +111,7 @@ contract VaultCore is
     function updateRebaseManager(address _rebaseManager) external onlyOwner {
         _isNonZeroAddr(_rebaseManager);
         rebaseManager = _rebaseManager;
-        emit RebaseManagerChanged(_rebaseManager);
+        emit RebaseManagerUpdated(_rebaseManager);
     }
 
     /// @notice Updates the fee calculator library
@@ -114,14 +119,15 @@ contract VaultCore is
     function updateFeeCalculator(address _feeCalculator) external onlyOwner {
         _isNonZeroAddr(_feeCalculator);
         feeCalculator = _feeCalculator;
-        emit FeeCalculatorChanged(_feeCalculator);
+        emit FeeCalculatorUpdated(_feeCalculator);
     }
 
-    /// @notice Updates the price oracle address.
+    /// @notice Updates the price oracle address
+    /// @param _oracle new desired address
     function updateOracle(address _oracle) external onlyOwner {
         _isNonZeroAddr(_oracle);
         oracle = _oracle;
-        emit OracleChanged(oracle);
+        emit OracleUpdated(_oracle);
     }
 
     /// @notice Allocate `_amount` of`_collateral` to `_strategy`
@@ -149,6 +155,7 @@ contract VaultCore is
             _amount
         );
         IStrategy(_strategy).deposit(_collateral, _amount);
+        emit Allocated(_collateral, _strategy, _amount);
     }
 
     /// @notice mint USDs by depositing collateral
@@ -162,8 +169,7 @@ contract VaultCore is
         uint256 _minUSDSAmt,
         uint256 _deadline
     ) external nonReentrant {
-        require(block.timestamp <= _deadline, "Deadline passed");
-        _mint(_collateral, _collateralAmt, _minUSDSAmt);
+        _mint(_collateral, _collateralAmt, _minUSDSAmt, _deadline);
     }
 
     /// @notice mint USDs by depositing collateral
@@ -179,8 +185,7 @@ contract VaultCore is
         uint256, // deprecated
         uint256 _deadline
     ) external nonReentrant {
-        require(block.timestamp <= _deadline, "Deadline passed");
-        _mint(_collateral, _collateralAmt, _minUSDSAmt);
+        _mint(_collateral, _collateralAmt, _minUSDSAmt, _deadline);
     }
 
     /// @notice redeem USDs for `_collateral`
@@ -196,8 +201,7 @@ contract VaultCore is
         uint256 _minCollAmt,
         uint256 _deadline
     ) external nonReentrant {
-        require(block.timestamp <= _deadline, "Deadline passed");
-        _redeem(_collateral, _usdsAmt, _minCollAmt, address(0));
+        _redeem(_collateral, _usdsAmt, _minCollAmt, address(0), _deadline);
     }
 
     /// @notice redeem USDs for `_collateral`
@@ -213,8 +217,7 @@ contract VaultCore is
         uint256 _deadline,
         address _strategy
     ) external nonReentrant {
-        require(block.timestamp <= _deadline, "Deadline passed");
-        _redeem(_collateral, _usdsAmt, _minCollAmt, _strategy);
+        _redeem(_collateral, _usdsAmt, _minCollAmt, _strategy, _deadline);
     }
 
     /// @notice Get the expected redeem result
@@ -353,14 +356,16 @@ contract VaultCore is
     function _mint(
         address _collateral,
         uint256 _collateralAmt,
-        uint256 _minUSDSAmt
+        uint256 _minUSDSAmt,
+        uint256 _deadline
     ) private {
+        _checkDeadline(_deadline);
         (uint256 toMinterAmt, uint256 feeAmt) = mintView(
             _collateral,
             _collateralAmt
         );
-        require(toMinterAmt >= _minUSDSAmt, "Slippage screwed you");
         require(toMinterAmt > 0, "Mint failed");
+        require(toMinterAmt >= _minUSDSAmt, "Slippage screwed you");
 
         rebase();
 
@@ -393,8 +398,10 @@ contract VaultCore is
         address _collateral,
         uint256 _usdsAmt,
         uint256 _minCollateralAmt,
-        address _strategyAddr
+        address _strategyAddr,
+        uint256 _deadline
     ) private {
+        _checkDeadline(_deadline);
         (
             uint256 collateralAmt,
             uint256 burnAmt,
@@ -426,9 +433,7 @@ contract VaultCore is
             address(this),
             _usdsAmt
         );
-        if (burnAmt > 0) {
-            IUSDs(USDS).burn(burnAmt);
-        }
+        IUSDs(USDS).burn(burnAmt);
         if (feeAmt > 0) {
             IERC20Upgradeable(USDS).safeTransfer(feeVault, feeAmt);
         }
@@ -534,6 +539,10 @@ contract VaultCore is
                 "Insufficient collateral"
             );
         }
+    }
+
+    function _checkDeadline(uint256 _deadline) private view {
+        require(block.timestamp <= _deadline, "Deadline passed");
     }
 
     function _isNonZeroAddr(address _addr) private pure {

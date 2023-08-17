@@ -17,5 +17,5 @@ reports
 interfaces
 deployed/arbitrum-main-fork
 __pycache__
-
+lcov.info
 .DS_Store

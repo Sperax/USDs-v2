@@ -179,11 +179,11 @@ contract AaveStrategy is InitializableAbstractStrategy {
         uint256 availableLiquidity = IERC20(_asset).balanceOf(
             _getPTokenFor(_asset)
         );
-        uint256 allocateValue = assetInfo[_asset].allocatedAmt;
-        if (availableLiquidity <= allocateValue) {
+        uint256 allocatedValue = assetInfo[_asset].allocatedAmt;
+        if (availableLiquidity <= allocatedValue) {
             return availableLiquidity;
         }
-        return allocateValue;
+        return allocatedValue;
     }
 
     /// @inheritdoc InitializableAbstractStrategy

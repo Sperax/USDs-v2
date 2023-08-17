@@ -18,14 +18,16 @@ contract Dripper is Ownable {
 
     event Collected(uint256 amount);
     event Recovered(address owner, uint256 amount);
-    event VaultChanged(address vault);
-    event DripDurationChanged(uint256 dripDuration);
+    event VaultUpdated(address vault);
+    event DripDurationUpdated(uint256 dripDuration);
 
     constructor(address _vault, uint256 _dripDuration) {
-        vault = setVault(_vault);
-        dripDuration = setDripDuration(_dripDuration);
+        setVault(_vault);
+        setDripDuration(_dripDuration);
         lastCollectTS = block.timestamp;
     }
+
+    // Admin functions
 
     /// @notice Emergency fund recovery function
     /// @param _asset Address of the asset
@@ -51,21 +53,19 @@ contract Dripper is Ownable {
     }
 
     /// @notice Update the vault address
-    function setVault(address _vault) public onlyOwner returns (address) {
+    /// @param _vault Address of the desired vault
+    function setVault(address _vault) public onlyOwner {
         _isValidAddress(_vault);
         vault = _vault;
-        emit VaultChanged(vault);
-        return (vault);
+        emit VaultUpdated(_vault);
     }
 
     /// @notice Updates the dripDuration
-    function setDripDuration(
-        uint256 _dripDuration
-    ) public onlyOwner returns (uint256) {
+    /// @param _dripDuration Desired drip duration
+    function setDripDuration(uint256 _dripDuration) public onlyOwner {
         require(_dripDuration != 0, "Invalid input");
         dripDuration = _dripDuration;
-        emit DripDurationChanged(dripDuration);
-        return dripDuration;
+        emit DripDurationUpdated(_dripDuration);
     }
 
     /// @notice Gets the collectible amount of token at current time
