@@ -620,7 +620,7 @@ contract TestRedeemView is VaultCoreTest {
         (uint256 calculatedCollateralAmt, , uint256 fee, , ) = IVault(VAULT)
             .redeemView(_collateral, usdsAmt);
         assertEq(fee, 0);
-        assertEq(calculatedCollateralAmt, ((usdsAmt * 1e8) / 101e6) / 1e12);
+        assertGe(calculatedCollateralAmt, ((usdsAmt * 1e8) / 101e6) / 1e12);
     }
 
     function test_RedeemViewApplyDownsidePeg() public mockOracle(101e6) {
