@@ -32,6 +32,7 @@ abstract contract PreMigrationSetup is Setup {
         address source;
         bytes msgData;
     }
+
     UpgradeUtil internal upgradeUtil;
     MasterPriceOracle masterOracle;
     ChainlinkOracle chainlinkOracle;
@@ -75,7 +76,7 @@ abstract contract PreMigrationSetup is Setup {
         ORACLE = address(new MasterPriceOracle());
         FEE_CALCULATOR = address(new FeeCalculator());
         COLLATERAL_MANAGER = address(collateralManager);
-        FEE_VAULT = makeAddr("FEEVAULT");
+        FEE_VAULT = 0xFbc0d3cA777722d234FE01dba94DeDeDb277AFe3;
         DRIPPER = address(new Dripper(VAULT, 7 days));
         REBASE_MANAGER = address(
             new RebaseManager(VAULT, DRIPPER, 1 days, 1000, 800)
