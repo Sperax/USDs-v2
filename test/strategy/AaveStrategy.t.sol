@@ -5,7 +5,7 @@ import {BaseTest} from "../utils/BaseTest.sol";
 import {UpgradeUtil} from "../utils/UpgradeUtil.sol";
 import {AaveStrategy} from "../../contracts/strategies/aave/AaveStrategy.sol";
 import {InitializableAbstractStrategy} from "../../contracts/strategies/InitializableAbstractStrategy.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {IERC20, ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 address constant AAVE_POOL_PROVIDER = 0xa97684ead0e402dC232d5A977953DF7ECBaB3CDb;
 address constant VAULT_ADDRESS = 0xa97684ead0e402dC232d5A977953DF7ECBaB3CDb;
@@ -17,6 +17,8 @@ contract AaveStrategyTest is BaseTest {
     AaveStrategy internal aaveStrategy;
     AaveStrategy internal impl;
     UpgradeUtil internal upgradeUtil;
+    uint256 internal assetPrecision;
+    uint256 internal depositAmount;
     address internal proxyAddress;
 
     event IntLiqThresholdChanged(
@@ -39,6 +41,8 @@ contract AaveStrategyTest is BaseTest {
         impl = new AaveStrategy();
         upgradeUtil = new UpgradeUtil();
         proxyAddress = upgradeUtil.deployErc1967Proxy(address(impl));
+        assetPrecision = 10 ** ERC20(ASSET).decimals();
+        depositAmount = 1 * assetPrecision;
 
         aaveStrategy = AaveStrategy(proxyAddress);
         vm.stopPrank();
@@ -51,8 +55,8 @@ contract AaveStrategyTest is BaseTest {
     function _deposit() internal {
         aaveStrategy.setPTokenAddress(ASSET, P_TOKEN, 0);
         changePrank(VAULT_ADDRESS);
-        deal(address(ASSET), VAULT_ADDRESS, 1 ether);
-        IERC20(ASSET).approve(address(aaveStrategy), 1000);
+        deal(address(ASSET), VAULT_ADDRESS, depositAmount);
+        IERC20(ASSET).approve(address(aaveStrategy), depositAmount);
         aaveStrategy.deposit(ASSET, 1);
         changePrank(USDS_OWNER);
     }
@@ -234,8 +238,8 @@ contract DepositTest is AaveStrategyTest {
     function test_deposit() public useKnownActor(VAULT_ADDRESS) {
         uint256 initial_bal = aaveStrategy.checkBalance(ASSET);
 
-        deal(address(ASSET), VAULT_ADDRESS, 1 ether);
-        IERC20(ASSET).approve(address(aaveStrategy), 1000);
+        deal(address(ASSET), VAULT_ADDRESS, depositAmount);
+        IERC20(ASSET).approve(address(aaveStrategy), depositAmount);
         aaveStrategy.deposit(ASSET, 1);
 
         uint256 newl_bal = aaveStrategy.checkBalance(ASSET);
@@ -254,9 +258,9 @@ contract CollectInterestTest is AaveStrategyTest {
         aaveStrategy.setPTokenAddress(ASSET, P_TOKEN, 0);
 
         changePrank(VAULT_ADDRESS);
-        deal(address(ASSET), VAULT_ADDRESS, 1 ether);
-        IERC20(ASSET).approve(address(aaveStrategy), 1000);
-        aaveStrategy.deposit(ASSET, 1000);
+        deal(address(ASSET), VAULT_ADDRESS, depositAmount);
+        IERC20(ASSET).approve(address(aaveStrategy), depositAmount);
+        aaveStrategy.deposit(ASSET, depositAmount);
         vm.stopPrank();
     }
 
@@ -308,9 +312,9 @@ contract WithdrawTest is AaveStrategyTest {
         aaveStrategy.setPTokenAddress(ASSET, P_TOKEN, 0);
 
         changePrank(VAULT_ADDRESS);
-        deal(address(ASSET), VAULT_ADDRESS, 1 ether);
-        IERC20(ASSET).approve(address(aaveStrategy), 1000);
-        aaveStrategy.deposit(ASSET, 1000);
+        deal(address(ASSET), VAULT_ADDRESS, depositAmount);
+        IERC20(ASSET).approve(address(aaveStrategy), depositAmount);
+        aaveStrategy.deposit(ASSET, depositAmount);
         vm.stopPrank();
     }
 
@@ -380,20 +384,20 @@ contract MiscellaneousTest is AaveStrategyTest {
 
     function test_checkAvailableBalance() public {
         vm.startPrank(VAULT_ADDRESS);
-        deal(address(ASSET), VAULT_ADDRESS, 1 ether);
-        IERC20(ASSET).approve(address(aaveStrategy), 1000);
-        aaveStrategy.deposit(ASSET, 1000);
+        deal(address(ASSET), VAULT_ADDRESS, depositAmount);
+        IERC20(ASSET).approve(address(aaveStrategy), depositAmount);
+        aaveStrategy.deposit(ASSET, depositAmount);
         vm.stopPrank();
 
         uint256 bal_after = aaveStrategy.checkAvailableBalance(ASSET);
-        assertEq(bal_after, 1000);
+        assertEq(bal_after, depositAmount);
     }
 
     function test_checkAvailableBalance_unsufficent_tokens() public {
         vm.startPrank(VAULT_ADDRESS);
-        deal(address(ASSET), VAULT_ADDRESS, 1 ether);
-        IERC20(ASSET).approve(address(aaveStrategy), 1000);
-        aaveStrategy.deposit(ASSET, 1000);
+        deal(address(ASSET), VAULT_ADDRESS, depositAmount);
+        IERC20(ASSET).approve(address(aaveStrategy), depositAmount);
+        aaveStrategy.deposit(ASSET, depositAmount);
         vm.stopPrank();
 
         _mockInsufficientAsset();

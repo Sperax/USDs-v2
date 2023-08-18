@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.16;
 
-import {BaseTest} from "../utils/BaseTest.sol";
+import {PreMigrationSetup} from "../utils/DeploymentSetup.sol";
 import {CollateralManager} from "../../contracts/vault/CollateralManager.sol";
 import {ICollateralManager} from "../../contracts/vault/interfaces/ICollateralManager.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
-contract CollateralManagerTest is BaseTest {
+contract CollateralManagerTest is PreMigrationSetup {
     //  Init Variables.
     CollateralManager public manager;
 
@@ -593,15 +593,15 @@ contract CollateralManager_updateCollateralStrategy_Test is
         vm.assume(_baseFeeOut <= manager.PERC_PRECISION());
         vm.assume(_downsidePeg <= manager.PERC_PRECISION());
         vm.assume(_colComp <= manager.PERC_PRECISION());
-        vm.assume(_allocCap <= manager.PERC_PRECISION());
+        vm.assume(_allocCap <= manager.PERC_PRECISION() - 100);
 
         collateralSetUp(USDCe, _colComp, _baseFeeIn, _baseFeeOut, _downsidePeg);
-        manager.addCollateralStrategy(USDCe, STARGATE, _colComp);
+        manager.addCollateralStrategy(USDCe, STARGATE, _allocCap);
 
         vm.expectEmit(true, true, false, true);
         emit CollateralStrategyUpdated(USDCe, STARGATE);
 
-        manager.updateCollateralStrategy(USDCe, STARGATE, _allocCap);
+        manager.updateCollateralStrategy(USDCe, STARGATE, _allocCap + 100);
     }
 
     function test_updateMultipleCollateralStrategies(
