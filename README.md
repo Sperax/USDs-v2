@@ -1,5 +1,5 @@
 
-<p align="center" style="font-size:50px"> <img src="./docs/Logo.png" width="50" align="center"> </t> <u>Sperax USDs Protocol</u> <img src="./docs/Logo.png" width="50" align="center"> </p>
+# <p align="center" style="font-size:50px"> <img src="./docs/Logo.png" width="50" align="center"> </t> <u>Sperax USDs Protocol</u> <img src="./docs/Logo.png" width="50" align="center"> </p>
 
 ![](./docs/arch/USDsV2_ArchDiagram.png)
 
