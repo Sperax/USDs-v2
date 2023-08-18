@@ -1,0 +1,228 @@
+<mxfile host="app.diagrams.net" modified="2023-08-17T11:49:31.521Z" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36" etag="h64g7iJ70n4JEEUZXoFV" version="21.6.8" type="device">
+  <diagram name="Page-1" id="EviniuX1Ltdm5HXk7WLD">
+    <mxGraphModel dx="1489" dy="1093" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="1mCdCc3LSYKOT6N_2Q-4-8" value="" style="rounded=0;whiteSpace=wrap;html=1;gradientDirection=east;gradientColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="36" y="26" width="1049" height="886" as="geometry" />
+        </mxCell>
+        <mxCell id="nnfW51y3eBxBFE6z6dwS-1" value="USDs" style="whiteSpace=wrap;html=1;aspect=fixed;fillColor=#dae8fc;strokeColor=#6c8ebf;rounded=1;" parent="1" vertex="1">
+          <mxGeometry x="246" y="64" width="80" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="nnfW51y3eBxBFE6z6dwS-3" style="edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;rounded=1;" parent="1" source="nnfW51y3eBxBFE6z6dwS-2" target="nnfW51y3eBxBFE6z6dwS-1" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="4KYoHvVteKYBKhFlibQs-3" value="Mint /&amp;nbsp; Burn USDs&lt;br&gt;Rebase USDs&lt;br&gt;Manage Collaterals" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" parent="nnfW51y3eBxBFE6z6dwS-3" vertex="1" connectable="0">
+          <mxGeometry x="-0.1833" y="2" relative="1" as="geometry">
+            <mxPoint x="12" y="-58" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="4KYoHvVteKYBKhFlibQs-5" style="edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.75;exitY=0;exitDx=0;exitDy=0;entryX=0;entryY=0.25;entryDx=0;entryDy=0;rounded=1;" parent="1" target="4KYoHvVteKYBKhFlibQs-4" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="313" y="319.5" as="sourcePoint" />
+            <mxPoint x="643" y="249.5" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="313" y="233.5" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="4KYoHvVteKYBKhFlibQs-6" value="Deposit idle&lt;br&gt;Collaterals&lt;br&gt;for earning yield &lt;br&gt;for usds holders" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" parent="4KYoHvVteKYBKhFlibQs-5" vertex="1" connectable="0">
+          <mxGeometry x="-0.1273" y="1" relative="1" as="geometry">
+            <mxPoint x="82" y="-11" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="nnfW51y3eBxBFE6z6dwS-2" value="VaultCore" style="whiteSpace=wrap;html=1;aspect=fixed;fillColor=#ffe6cc;strokeColor=#d79b00;rounded=1;" parent="1" vertex="1">
+          <mxGeometry x="226" y="319.5" width="120" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="nnfW51y3eBxBFE6z6dwS-15" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" parent="1" source="nnfW51y3eBxBFE6z6dwS-4" target="nnfW51y3eBxBFE6z6dwS-2" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="nnfW51y3eBxBFE6z6dwS-16" value="Get collateral &lt;br&gt;configuration" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" parent="nnfW51y3eBxBFE6z6dwS-15" vertex="1" connectable="0">
+          <mxGeometry x="0.075" y="-4" relative="1" as="geometry">
+            <mxPoint y="13" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="nnfW51y3eBxBFE6z6dwS-4" value="Collateral&lt;br&gt;Manager" style="whiteSpace=wrap;html=1;aspect=fixed;fillColor=#e1d5e7;strokeColor=#9673a6;rounded=1;" parent="1" vertex="1">
+          <mxGeometry x="246" y="589.5" width="80" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="4KYoHvVteKYBKhFlibQs-7" style="edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;html=1;rounded=1;" parent="1" source="nnfW51y3eBxBFE6z6dwS-5" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="346" y="419.5" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="426" y="419.5" />
+              <mxPoint x="346" y="419.5" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="4KYoHvVteKYBKhFlibQs-8" value="Get price feeds&amp;nbsp;&lt;br&gt;for collaterals" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" parent="4KYoHvVteKYBKhFlibQs-7" vertex="1" connectable="0">
+          <mxGeometry x="-0.4231" y="-1" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="nnfW51y3eBxBFE6z6dwS-5" value="Master&lt;br&gt;PriceOracle&lt;br&gt;" style="whiteSpace=wrap;html=1;aspect=fixed;fillColor=#e1d5e7;strokeColor=#9673a6;rounded=1;" parent="1" vertex="1">
+          <mxGeometry x="379.5" y="589.5" width="80" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="4KYoHvVteKYBKhFlibQs-1" style="edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;html=1;rounded=1;" parent="1" source="nnfW51y3eBxBFE6z6dwS-6" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="226" y="419.5" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="146" y="419.5" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="4KYoHvVteKYBKhFlibQs-2" value="Fee calculation &lt;br&gt;for mint/redeem of usds" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" parent="4KYoHvVteKYBKhFlibQs-1" vertex="1" connectable="0">
+          <mxGeometry y="-2" relative="1" as="geometry">
+            <mxPoint x="-7" y="53" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="nnfW51y3eBxBFE6z6dwS-6" value="Fee &lt;br&gt;Calculator" style="whiteSpace=wrap;html=1;aspect=fixed;fillColor=#e1d5e7;strokeColor=#9673a6;rounded=1;" parent="1" vertex="1">
+          <mxGeometry x="106" y="589.5" width="80" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="4KYoHvVteKYBKhFlibQs-44" style="edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;html=1;rounded=1;" parent="1" source="nnfW51y3eBxBFE6z6dwS-7" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="346" y="389.5" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="556" y="389.5" />
+              <mxPoint x="346" y="389.5" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="4KYoHvVteKYBKhFlibQs-45" value="Verify&amp;nbsp;&lt;br&gt;rebase conditions" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" parent="4KYoHvVteKYBKhFlibQs-44" vertex="1" connectable="0">
+          <mxGeometry x="-0.6488" y="2" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="nnfW51y3eBxBFE6z6dwS-7" value="Rebase&lt;br&gt;Manager" style="whiteSpace=wrap;html=1;aspect=fixed;fillColor=#e1d5e7;strokeColor=#9673a6;rounded=1;" parent="1" vertex="1">
+          <mxGeometry x="516" y="589.5" width="80" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="4KYoHvVteKYBKhFlibQs-22" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" source="nnfW51y3eBxBFE6z6dwS-8" target="nnfW51y3eBxBFE6z6dwS-10" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="4KYoHvVteKYBKhFlibQs-27" value="50% of USDs&lt;br&gt;for Auto yield" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" parent="4KYoHvVteKYBKhFlibQs-22" vertex="1" connectable="0">
+          <mxGeometry x="0.0909" y="3" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="4KYoHvVteKYBKhFlibQs-26" value="50% of USDs&lt;br&gt;for SPA buyback" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" source="nnfW51y3eBxBFE6z6dwS-8" target="4KYoHvVteKYBKhFlibQs-25" edge="1">
+          <mxGeometry x="0.3663" y="24" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="nnfW51y3eBxBFE6z6dwS-8" value="Yield Reserve" style="whiteSpace=wrap;html=1;aspect=fixed;fillColor=#d5e8d4;strokeColor=#82b366;rounded=1;" parent="1" vertex="1">
+          <mxGeometry x="703" y="403.5" width="80" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="4KYoHvVteKYBKhFlibQs-34" style="edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.25;entryDx=0;entryDy=0;rounded=1;" parent="1" source="nnfW51y3eBxBFE6z6dwS-10" target="nnfW51y3eBxBFE6z6dwS-2" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="703" y="629.5" />
+              <mxPoint x="646" y="629.5" />
+              <mxPoint x="646" y="349.5" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="4KYoHvVteKYBKhFlibQs-35" value="Drip the USDs&amp;nbsp;&lt;br&gt;in auto-yield reserve&lt;br&gt;at a preset rate" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" parent="4KYoHvVteKYBKhFlibQs-34" vertex="1" connectable="0">
+          <mxGeometry x="0.3276" y="-2" relative="1" as="geometry">
+            <mxPoint x="-25" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="nnfW51y3eBxBFE6z6dwS-10" value="Dripper" style="whiteSpace=wrap;html=1;aspect=fixed;fillColor=#e1d5e7;strokeColor=#9673a6;rounded=1;" parent="1" vertex="1">
+          <mxGeometry x="703" y="593.5" width="80" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="nnfW51y3eBxBFE6z6dwS-12" value="&amp;nbsp;Mint / Redeem USDs" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=0.5;exitDx=0;exitDy=0;exitPerimeter=0;" parent="1" source="nnfW51y3eBxBFE6z6dwS-11" target="nnfW51y3eBxBFE6z6dwS-2" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="nnfW51y3eBxBFE6z6dwS-11" value="Actor" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;fillColor=#fff2cc;strokeColor=#d6b656;" parent="1" vertex="1">
+          <mxGeometry x="66" y="349.5" width="30" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="4KYoHvVteKYBKhFlibQs-14" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" parent="1" source="4KYoHvVteKYBKhFlibQs-4" target="nnfW51y3eBxBFE6z6dwS-8" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="4KYoHvVteKYBKhFlibQs-15" value="Send earned &lt;br&gt;yields" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" parent="4KYoHvVteKYBKhFlibQs-14" vertex="1" connectable="0">
+          <mxGeometry x="-0.06" y="1" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="1mCdCc3LSYKOT6N_2Q-4-1" style="edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=1;exitDx=0;exitDy=0;entryX=1;entryY=0;entryDx=0;entryDy=0;rounded=1;" edge="1" parent="1" source="4KYoHvVteKYBKhFlibQs-4" target="nnfW51y3eBxBFE6z6dwS-2">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="346" y="293.5" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="1mCdCc3LSYKOT6N_2Q-4-5" value="Withdraw allocated &lt;br&gt;collateral&amp;nbsp;" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="1mCdCc3LSYKOT6N_2Q-4-1">
+          <mxGeometry x="-0.4286" y="1" relative="1" as="geometry">
+            <mxPoint x="-63" y="-3" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="4KYoHvVteKYBKhFlibQs-4" value="YieldEarning&lt;br&gt;Strategies" style="whiteSpace=wrap;html=1;aspect=fixed;fillColor=#d5e8d4;strokeColor=#82b366;rounded=1;" parent="1" vertex="1">
+          <mxGeometry x="703" y="213.5" width="80" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="4KYoHvVteKYBKhFlibQs-12" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" parent="1" source="4KYoHvVteKYBKhFlibQs-9" target="4KYoHvVteKYBKhFlibQs-4" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="4KYoHvVteKYBKhFlibQs-13" value="Harvest&amp;nbsp;&lt;br&gt;and get incentive" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" parent="4KYoHvVteKYBKhFlibQs-12" vertex="1" connectable="0">
+          <mxGeometry x="0.1238" y="2" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="4KYoHvVteKYBKhFlibQs-9" value="Yield harvestor" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;fillColor=#fff2cc;strokeColor=#d6b656;" parent="1" vertex="1">
+          <mxGeometry x="983" y="223.5" width="30" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="4KYoHvVteKYBKhFlibQs-17" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" parent="1" source="4KYoHvVteKYBKhFlibQs-16" target="nnfW51y3eBxBFE6z6dwS-8" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="4KYoHvVteKYBKhFlibQs-18" value="Buy various yield token &lt;br&gt;using USDs&lt;br&gt;without incurring &lt;br&gt;any slippage" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" parent="4KYoHvVteKYBKhFlibQs-17" vertex="1" connectable="0">
+          <mxGeometry x="0.3231" relative="1" as="geometry">
+            <mxPoint x="31" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="4KYoHvVteKYBKhFlibQs-28" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" parent="1" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1003" y="503.5" as="sourcePoint" />
+            <mxPoint x="913" y="633.5" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="1003" y="633.5" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="4KYoHvVteKYBKhFlibQs-29" value="Sell SPA to protocol&lt;br&gt;without incurring &lt;br&gt;any slippage" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" parent="4KYoHvVteKYBKhFlibQs-28" vertex="1" connectable="0">
+          <mxGeometry x="-0.2091" y="-1" relative="1" as="geometry">
+            <mxPoint y="-37" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="4KYoHvVteKYBKhFlibQs-16" value="Actor" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;fillColor=#fff2cc;strokeColor=#d6b656;" parent="1" vertex="1">
+          <mxGeometry x="983" y="413.5" width="30" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="4KYoHvVteKYBKhFlibQs-37" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;" parent="1" source="4KYoHvVteKYBKhFlibQs-25" target="4KYoHvVteKYBKhFlibQs-36" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="4KYoHvVteKYBKhFlibQs-41" value="Transfer 50%&lt;br&gt;of SPA as rewards&amp;nbsp;&lt;br&gt;for veSPA holders" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" parent="4KYoHvVteKYBKhFlibQs-37" vertex="1" connectable="0">
+          <mxGeometry x="0.2211" y="-2" relative="1" as="geometry">
+            <mxPoint x="22" y="21" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="4KYoHvVteKYBKhFlibQs-39" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;" parent="1" source="4KYoHvVteKYBKhFlibQs-25" target="4KYoHvVteKYBKhFlibQs-38" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="4KYoHvVteKYBKhFlibQs-40" value="Burn 50% &lt;br&gt;of bought back SPA" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" parent="4KYoHvVteKYBKhFlibQs-39" vertex="1" connectable="0">
+          <mxGeometry x="0.4842" relative="1" as="geometry">
+            <mxPoint x="-6" y="12" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="4KYoHvVteKYBKhFlibQs-25" value="Buyback&lt;br&gt;Manager" style="whiteSpace=wrap;html=1;aspect=fixed;fillColor=#d5e8d4;strokeColor=#82b366;rounded=1;" parent="1" vertex="1">
+          <mxGeometry x="833" y="593.5" width="80" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="4KYoHvVteKYBKhFlibQs-36" value="veSPA Rewarder" style="whiteSpace=wrap;html=1;aspect=fixed;fillColor=#d5e8d4;strokeColor=#82b366;rounded=1;" parent="1" vertex="1">
+          <mxGeometry x="913" y="783.5" width="80" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="4KYoHvVteKYBKhFlibQs-38" value="SPA" style="whiteSpace=wrap;html=1;aspect=fixed;fillColor=#dae8fc;strokeColor=#6c8ebf;rounded=1;" parent="1" vertex="1">
+          <mxGeometry x="753" y="783.5" width="80" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="1mCdCc3LSYKOT6N_2Q-4-27" value="&lt;h2&gt;&lt;b&gt;USDs V2 Architecture&lt;/b&gt;&lt;/h2&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="459.5" y="48" width="180" height="30" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
