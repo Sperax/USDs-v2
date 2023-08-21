@@ -33,7 +33,7 @@ contract CollateralManager is ICollateralManager, Ownable {
     uint256 public constant PERC_PRECISION = 1e4;
 
     uint16 public collateralCompositionUsed;
-    address public immutable vaultCore;
+    address public immutable VAULT;
     address[] private collaterals;
     mapping(address => CollateralData) public collateralInfo;
     mapping(address => mapping(address => StrategyData))
@@ -47,8 +47,8 @@ contract CollateralManager is ICollateralManager, Ownable {
     event CollateralStrategyUpdated(address collateral, address strategy);
     event CollateralStrategyRemoved(address collateral, address strategy);
 
-    constructor(address _vaultCore) {
-        vaultCore = _vaultCore;
+    constructor(address _vault) {
+        VAULT = _vault;
     }
 
     /// @notice Register a collateral for mint & redeem in USDs
@@ -452,7 +452,7 @@ contract CollateralManager is ICollateralManager, Ownable {
     function getCollateralInVault(
         address _collateral
     ) public view returns (uint256 amountInVault) {
-        return IERC20(_collateral).balanceOf(vaultCore);
+        return IERC20(_collateral).balanceOf(VAULT);
     }
 
     /// @notice Get the amount of collateral allocated in a strategy

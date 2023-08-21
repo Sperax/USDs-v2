@@ -155,7 +155,13 @@ contract SPABuyback is
                 ERC20BurnableUpgradeable(USDS).balanceOf(address(this)),
             "Insufficient USDs balance"
         );
-        emit BoughtBack(_receiver, msg.sender, spaPrice, _spaIn, usdsToSend);
+        emit BoughtBack({
+            receiverOfUSDs: _receiver,
+            senderOfSPA: msg.sender,
+            spaPrice: spaPrice,
+            spaAmount: _spaIn,
+            usdsAmount: usdsToSend
+        });
         ERC20BurnableUpgradeable(SPA).safeTransferFrom(
             msg.sender,
             address(this),
@@ -248,7 +254,7 @@ contract SPABuyback is
         require(_rewardPercentage > 0, "Reward percentage cannot be zero");
         require(
             _rewardPercentage <= MAX_PERCENTAGE,
-            "Reward percentage cannot be > 100%"
+            "Reward percentage > 100%"
         );
     }
 }

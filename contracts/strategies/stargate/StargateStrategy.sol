@@ -320,10 +320,13 @@ contract StargateStrategy is InitializableAbstractStrategy {
     }
 
     /// @inheritdoc InitializableAbstractStrategy
+    /* solhint-disable no-empty-blocks */
     function _abstractSetPToken(
         address _asset,
         address _pToken
     ) internal override {}
+
+    /* solhint-enable no-empty-blocks */
 
     /// @notice Convert amount of lpToken to collateral.
     /// @param _asset Address for the asset

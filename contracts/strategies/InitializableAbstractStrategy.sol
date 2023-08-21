@@ -23,7 +23,8 @@ abstract contract InitializableAbstractStrategy is
     address[] public rewardTokenAddress;
     mapping(address => address) public assetToPToken;
 
-    uint256[40] __gap__;
+    /* solhint-disable-next-line var-name-mixedcase*/
+    uint256[40] private __gap__;
 
     event VaultUpdated(address newVaultAddr);
     event YieldReceiverUpdated(address newYieldReceiver);

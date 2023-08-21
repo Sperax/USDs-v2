@@ -163,7 +163,7 @@ contract TestSetters is SPABuybackTestSetup {
         external
         useKnownActor(USDS_OWNER)
     {
-        vm.expectRevert("Reward percentage cannot be > 100%");
+        vm.expectRevert("Reward percentage > 100%");
         spaBuyback.updateRewardPercentage(10001);
     }
 

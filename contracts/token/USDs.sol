@@ -34,12 +34,9 @@ contract USDs is
     }
 
     uint256 private constant MAX_SUPPLY = ~uint128(0); // (2^128) - 1
-
+    // solhint-disable var-name-mixedcase
     uint256 internal _totalSupply; // the total supply of USDs
-    uint256 private _deprecated_totalMinted; // the total num of USDs minted so far
-    uint256 private _deprecated_totalBurnt; // the total num of USDs burnt so far
-    uint256 private _deprecated_mintedViaGateway; // the total num of USDs minted so far
-    uint256 private _deprecated_burntViaGateway; // the total num of USDs burnt so far
+    uint256[4] private _deprecated_vars; // totalMinted, totalBurnt, mintedViaGateway, burntViaGateway
     mapping(address => mapping(address => uint256)) private _allowances;
     address public vaultAddress; // the address where (i) all collaterals of USDs protocol reside, e.g. USDT, USDC, ETH, etc and (ii) major actions like USDs minting are initiated
     // an user's balance of USDs is based on her balance of "credits."
@@ -56,6 +53,7 @@ contract USDs is
     address[2] private _deprecated_gatewayAddr;
     mapping(address => bool) private _deprecated_isUpgraded;
     bool public paused;
+    // solhint-enable var-name-mixedcase
 
     event TotalSupplyUpdated(
         uint256 totalSupply,

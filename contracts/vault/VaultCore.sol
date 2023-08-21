@@ -201,7 +201,13 @@ contract VaultCore is
         uint256 _minCollAmt,
         uint256 _deadline
     ) external nonReentrant {
-        _redeem(_collateral, _usdsAmt, _minCollAmt, address(0), _deadline);
+        _redeem({
+            _collateral: _collateral,
+            _usdsAmt: _usdsAmt,
+            _minCollateralAmt: _minCollAmt,
+            _deadline: _deadline,
+            _strategyAddr: address(0)
+        });
     }
 
     /// @notice redeem USDs for `_collateral`
@@ -217,7 +223,13 @@ contract VaultCore is
         uint256 _deadline,
         address _strategy
     ) external nonReentrant {
-        _redeem(_collateral, _usdsAmt, _minCollAmt, _strategy, _deadline);
+        _redeem({
+            _collateral: _collateral,
+            _usdsAmt: _usdsAmt,
+            _minCollateralAmt: _minCollAmt,
+            _deadline: _deadline,
+            _strategyAddr: _strategy
+        });
     }
 
     /// @notice Get the expected redeem result
@@ -379,13 +391,13 @@ contract VaultCore is
             IUSDs(USDS).mint(feeVault, feeAmt);
         }
 
-        emit Minted(
-            msg.sender,
-            _collateral,
-            toMinterAmt,
-            _collateralAmt,
-            feeAmt
-        );
+        emit Minted({
+            wallet: msg.sender,
+            collateralAddr: _collateral,
+            usdsAmt: toMinterAmt,
+            collateralAmt: _collateralAmt,
+            feeAmt: feeAmt
+        });
     }
 
     /// @notice Redeem USDs
@@ -398,8 +410,8 @@ contract VaultCore is
         address _collateral,
         uint256 _usdsAmt,
         uint256 _minCollateralAmt,
-        address _strategyAddr,
-        uint256 _deadline
+        uint256 _deadline,
+        address _strategyAddr
     ) private {
         _checkDeadline(_deadline);
         (
@@ -440,7 +452,13 @@ contract VaultCore is
         // Transfer desired collateral to the user
         IERC20Upgradeable(_collateral).safeTransfer(msg.sender, collateralAmt);
         rebase();
-        emit Redeemed(msg.sender, _collateral, burnAmt, collateralAmt, feeAmt);
+        emit Redeemed({
+            wallet: msg.sender,
+            collateralAddr: _collateral,
+            usdsAmt: burnAmt,
+            collateralAmt: collateralAmt,
+            feeAmt: feeAmt
+        });
     }
 
     /// @notice Get the expected redeem result

@@ -110,5 +110,6 @@ interface IAToken is IERC20 {
      * @notice Returns the address of the underlying asset of this aToken (E.g. WETH for aWETH)
      * @return The address of the underlying asset
      **/
+    /* solhint-disable func-name-mixedcase */
     function UNDERLYING_ASSET_ADDRESS() external view returns (address);
 }

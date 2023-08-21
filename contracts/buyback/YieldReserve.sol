@@ -75,12 +75,19 @@ contract YieldReserve is ReentrancyGuard, Ownable {
 
     /// @notice Swap function to be called by front end
     function swap(
-        address srcToken,
-        address dstToken,
-        uint256 amountIn,
-        uint256 minAmountOut
+        address _srcToken,
+        address _dstToken,
+        uint256 _amountIn,
+        uint256 _minAmountOut
     ) external {
-        return swap(srcToken, dstToken, amountIn, minAmountOut, msg.sender);
+        return
+            swap({
+                _srcToken: _srcToken,
+                _dstToken: _dstToken,
+                _amountIn: _amountIn,
+                _minAmountOut: _minAmountOut,
+                _receiver: msg.sender
+            });
     }
 
     // ADMIN FUNCTIONS
@@ -178,41 +185,55 @@ contract YieldReserve is ReentrancyGuard, Ownable {
     }
 
     /// @notice Swap allowed src token to allowed dst token.
-    /// @param srcToken Source / Input token
-    /// @param dstToken Destination / Output token
-    /// @param amountIn Input token amount
-    /// @param minAmountOut Minimum output tokens expected
-    /// @param receiver Receiver of the tokens
+    /// @param _srcToken Source / Input token
+    /// @param _dstToken Destination / Output token
+    /// @param _amountIn Input token amount
+    /// @param _minAmountOut Minimum output tokens expected
+    /// @param _receiver Receiver of the tokens
     function swap(
-        address srcToken,
-        address dstToken,
-        uint256 amountIn,
-        uint256 minAmountOut,
-        address receiver
+        address _srcToken,
+        address _dstToken,
+        uint256 _amountIn,
+        uint256 _minAmountOut,
+        address _receiver
     ) public nonReentrant {
-        _isValidAddress(receiver);
-        uint256 amountToSend = getTokenBForTokenA(srcToken, dstToken, amountIn);
-        require(amountToSend >= minAmountOut, "Slippage more than expected");
-        IERC20(srcToken).safeTransferFrom(msg.sender, address(this), amountIn);
-        if (srcToken != USDS) {
+        _isValidAddress(_receiver);
+        uint256 amountToSend = getTokenBForTokenA(
+            _srcToken,
+            _dstToken,
+            _amountIn
+        );
+        require(amountToSend >= _minAmountOut, "Slippage more than expected");
+        IERC20(_srcToken).safeTransferFrom(
+            msg.sender,
+            address(this),
+            _amountIn
+        );
+        if (_srcToken != USDS) {
             // Mint USDs
-            IERC20(srcToken).safeApprove(vault, amountIn);
+            IERC20(_srcToken).safeApprove(vault, _amountIn);
             (uint256 _minUSDSAmt, ) = IVault(vault).mintView(
-                srcToken,
-                amountIn
+                _srcToken,
+                _amountIn
             );
             IVault(vault).mint(
-                srcToken,
-                amountIn,
+                _srcToken,
+                _amountIn,
                 _minUSDSAmt,
                 block.timestamp + 1200
             );
             // No need to do slippage check as it is our contract
             // and the vault does that.
         }
-        IERC20(dstToken).safeTransfer(receiver, amountToSend);
+        IERC20(_dstToken).safeTransfer(_receiver, amountToSend);
         _sendUSDs();
-        emit Swapped(srcToken, dstToken, receiver, amountIn, amountToSend);
+        emit Swapped({
+            srcToken: _srcToken,
+            dstToken: _dstToken,
+            dstReceiver: _receiver,
+            amountIn: _amountIn,
+            amountOut: amountToSend
+        });
     }
 
     /// @notice A function to get estimated output
