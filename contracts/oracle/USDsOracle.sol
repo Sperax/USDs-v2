@@ -9,7 +9,8 @@ import {BaseUniOracle} from "./BaseUniOracle.sol";
 /// @author Sperax Inc
 contract USDsOracle is BaseUniOracle {
     address public constant USDS = 0xD74f5255D557944cf7Dd0E45FF521520002D5748;
-    uint128 private constant USDS_PRICE_PRECISION = 1e18;
+    uint128 private constant USDS_PRECISION = 1e18;
+    uint128 private constant USDS_PRICE_PRECISION = 1e8;
 
     constructor(
         address _masterOracle,
@@ -24,10 +25,7 @@ contract USDsOracle is BaseUniOracle {
 
     /// @notice Gets the USDs price from chainlink
     function getPrice() external view override returns (uint256, uint256) {
-        uint256 quoteTokenAmtPerUSDs = _getUniMAPrice(
-            USDS,
-            USDS_PRICE_PRECISION
-        );
+        uint256 quoteTokenAmtPerUSDs = _getUniMAPrice(USDS, USDS_PRECISION);
         (
             uint256 quoteTokenPrice,
             uint256 quoteTokenPricePrecision
