@@ -74,6 +74,7 @@ abstract contract BaseUniOracleTest is BaseTest {
 contract SPAOracleTest is BaseUniOracleTest {
     address public constant DIA_ORACLE =
         0x7919D08e0f41398cBc1e0A8950Df831e4895c19b;
+    uint128 public constant SPA_PRICE_PRECISION = 1e8;
     uint24 public constant FEE_TIER = 10000;
     uint32 public constant MA_PERIOD = 600;
     uint256 public constant WEIGHT_DIA = 70;
@@ -109,7 +110,7 @@ contract Test_Init is SPAOracleTest {
 contract Test_FetchPrice is SPAOracleTest {
     function test_fetchPrice() public {
         (uint256 price, uint256 precision) = spaOracle.getPrice();
-        assertEq(precision, 1e18);
+        assertEq(precision, SPA_PRICE_PRECISION);
         assertGt(price, 0);
     }
 }
