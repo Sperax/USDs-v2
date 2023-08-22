@@ -1,7 +1,7 @@
 //SPDX-License-Identifier: MIT
 pragma solidity 0.8.16;
 
-import {AccessControlUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import {OwnableUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import {SafeERC20Upgradeable, IERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import {IFeeCalculator} from "./interfaces/IFeeCalculator.sol";
@@ -14,13 +14,10 @@ import {Helpers} from "../libraries/Helpers.sol";
 
 contract VaultCore is
     Initializable,
-    AccessControlUpgradeable,
+    OwnableUpgradeable,
     ReentrancyGuardUpgradeable
 {
     using SafeERC20Upgradeable for IERC20Upgradeable;
-
-    bytes32 private constant ALLOCATOR_ROLE = keccak256("ALLOCATOR_ROLE");
-    bytes32 private constant FACILITATOR_ROLE = keccak256("FACILITATOR_ROLE");
 
     address public feeVault; // SPABuyback contract
     address public yieldReceiver;
@@ -56,26 +53,13 @@ contract VaultCore is
         uint256 amount
     );
 
-    modifier onlyOwner() {
-        require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "Unauthorized caller");
-        _;
-    }
-
     constructor() {
         _disableInitializers();
     }
 
     function initialize() external initializer {
-        __AccessControl_init();
-        _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
+        __Ownable_init();
         __ReentrancyGuard_init();
-    }
-
-    //  @notice Transfers ownership of the contract to a new account (`newOwner`).
-    //  Can only be called by the current owner.
-    function transferAdminRole(address _newOwner) external onlyOwner {
-        grantRole(DEFAULT_ADMIN_ROLE, _newOwner);
-        revokeRole(DEFAULT_ADMIN_ROLE, _msgSender());
     }
 
     /// @notice Updates the address receiving fee
@@ -137,8 +121,6 @@ contract VaultCore is
         address _strategy,
         uint256 _amount
     ) external nonReentrant {
-        require(hasRole(ALLOCATOR_ROLE, msg.sender), "Unauthorized caller");
-
         // Validate the allocation is based on the desired configuration
         require(
             ICollateralManager(collateralManager).validateAllocation(
@@ -329,7 +311,7 @@ contract VaultCore is
         // Skip fee collection for Facilitator
         uint256 feePercentage = 0;
         uint256 feePercentagePrecision = 1;
-        if (!hasRole(FACILITATOR_ROLE, msg.sender)) {
+        if (msg.sender == owner()) {
             // Calculate mint fee based on collateral data
             (feePercentage, feePercentagePrecision) = IFeeCalculator(
                 feeCalculator
@@ -501,7 +483,7 @@ contract VaultCore is
         // Skip fee collection for Facilitator
         uint256 feePercentage = 0;
         uint256 feePercentagePrecision = 1;
-        if (!hasRole(FACILITATOR_ROLE, msg.sender)) {
+        if (msg.sender == owner()) {
             (feePercentage, feePercentagePrecision) = IFeeCalculator(
                 feeCalculator
             ).getFeeOut(
