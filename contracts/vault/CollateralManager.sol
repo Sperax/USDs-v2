@@ -46,6 +46,17 @@ contract CollateralManager is ICollateralManager, Ownable {
     event CollateralStrategyUpdated(address collateral, address strategy);
     event CollateralStrategyRemoved(address collateral, address strategy);
 
+    error CollateralExists();
+    error CollateralDoesNotExist();
+    error CollateralStrategyExists();
+    error CollateralStrategyMapped();
+    error CollateralStrategyNotMapped();
+    error CollateralNotSupportedByStrategy();
+    error CollateralAllocationPaused();
+    error CollateralStrategyInUse();
+    error AllocationPercentageLowerThanAllocatedAmt();
+    error IsDefaultStrategy();
+
     constructor(address _vault) {
         VAULT = _vault;
     }
@@ -59,19 +70,15 @@ contract CollateralManager is ICollateralManager, Ownable {
     ) external onlyOwner {
         // Test if collateral is already added
         // Initialize collateral storage data
-        require(
-            !collateralInfo[_collateral].exists,
-            "Collateral already exists"
-        );
+        if (collateralInfo[_collateral].exists) revert CollateralExists();
 
         Helpers._isLTEMaxPercentage(_data.downsidePeg);
         Helpers._isLTEMaxPercentage(_data.baseFeeIn);
         Helpers._isLTEMaxPercentage(_data.baseFeeOut);
 
-        require(
-            _data.desiredCollateralComposition <=
-                (PERC_PRECISION - collateralCompositionUsed),
-            "Collateral Composition exceeded"
+        Helpers._isLTEMaxPercentage(
+            _data.desiredCollateralComposition + collateralCompositionUsed,
+            "Collateral composition exceeded"
         );
 
         collateralInfo[_collateral] = CollateralData({
@@ -103,7 +110,8 @@ contract CollateralManager is ICollateralManager, Ownable {
     ) external onlyOwner {
         // Check if collateral added;
         // Update the collateral storage data
-        require(collateralInfo[_collateral].exists, "Collateral doesn't exist");
+        if (!collateralInfo[_collateral].exists)
+            revert CollateralDoesNotExist();
 
         Helpers._isLTEMaxPercentage(_updateData.downsidePeg);
         Helpers._isLTEMaxPercentage(_updateData.baseFeeIn);
@@ -115,9 +123,9 @@ contract CollateralManager is ICollateralManager, Ownable {
             data.desiredCollateralComposition +
             _updateData.desiredCollateralComposition);
 
-        require(
-            newCapacityUsed <= PERC_PRECISION,
-            "Collateral Composition exceeded"
+        Helpers._isLTEMaxPercentage(
+            newCapacityUsed,
+            "Collateral Composition Exceeded"
         );
 
         data.mintAllowed = _updateData.mintAllowed;
@@ -134,14 +142,13 @@ contract CollateralManager is ICollateralManager, Ownable {
         emit CollateralInfoUpdated(_collateral, _updateData);
     }
 
-    /// @notice Unlist a collateral
+    /// @notice Un-list a collateral
     /// @param _collateral Address of the collateral
     function removeCollateral(address _collateral) external onlyOwner {
-        require(collateralInfo[_collateral].exists, "Collateral doesn't exist");
-        require(
-            collateralStrategies[_collateral].length == 0,
-            "Strategy/ies exists"
-        );
+        if (!collateralInfo[_collateral].exists)
+            revert CollateralDoesNotExist();
+        if (collateralStrategies[_collateral].length != 0)
+            revert CollateralStrategyExists();
 
         uint256 numCollateral = collaterals.length;
 
@@ -173,28 +180,22 @@ contract CollateralManager is ICollateralManager, Ownable {
         uint16 _allocationCap
     ) external onlyOwner {
         // Check if the collateral is valid
-        // Check if collateral strategy not allready added.
-        // Check if _allocation Per <= 100 - collateralCapcityUsed
+        if (!collateralInfo[_collateral].exists)
+            revert CollateralDoesNotExist();
+        // Check if collateral strategy not already added.
+        if (collateralStrategyInfo[_collateral][_strategy].exists)
+            revert CollateralStrategyMapped();
         // Check if collateral is allocation is supported by the strategy.
+        if (!IStrategy(_strategy).supportsCollateral(_collateral))
+            revert CollateralNotSupportedByStrategy();
+
+        // Check if _allocation Per <= 100 - collateralCapacityUsed
+        Helpers._isLTEMaxPercentage(
+            _allocationCap + collateralInfo[_collateral].collateralCapacityUsed,
+            "Allocation percentage exceeded"
+        );
+
         // add info to collateral mapping
-
-        require(collateralInfo[_collateral].exists, "Collateral doesn't exist");
-        require(
-            !collateralStrategyInfo[_collateral][_strategy].exists,
-            "Strategy already mapped"
-        );
-        require(
-            IStrategy(_strategy).supportsCollateral(_collateral),
-            "Collateral not supported"
-        );
-
-        require(
-            _allocationCap <=
-                (PERC_PRECISION -
-                    collateralInfo[_collateral].collateralCapacityUsed),
-            "AllocationPer exceeded"
-        );
-
         collateralStrategyInfo[_collateral][_strategy] = StrategyData(
             _allocationCap,
             true
@@ -217,10 +218,8 @@ contract CollateralManager is ICollateralManager, Ownable {
         // Check if collateral and strategy are mapped
         // Check if _allocationCap <= 100 - collateralCapacityUsed  + oldAllocationPer
         // Update the info
-        require(
-            collateralStrategyInfo[_collateral][_strategy].exists,
-            "Strategy not mapped"
-        );
+        if (!collateralStrategyInfo[_collateral][_strategy].exists)
+            revert CollateralStrategyNotMapped();
 
         CollateralData storage collateralData = collateralInfo[_collateral];
         StrategyData storage strategyData = collateralStrategyInfo[_collateral][
@@ -230,19 +229,20 @@ contract CollateralManager is ICollateralManager, Ownable {
         uint16 newCapacityUsed = collateralData.collateralCapacityUsed -
             strategyData.allocationCap +
             _allocationCap;
+        Helpers._isLTEMaxPercentage(
+            newCapacityUsed,
+            "Allocation percentage exceeded"
+        );
+
         uint256 totalCollateral = getCollateralInVault(_collateral) +
             getCollateralInStrategies(_collateral);
         uint256 currentAllocatedPer = (getCollateralInAStrategy(
             _collateral,
             _strategy
-        ) * PERC_PRECISION) / totalCollateral;
+        ) * Helpers.MAX_PERCENTAGE) / totalCollateral;
 
-        require(newCapacityUsed <= PERC_PRECISION, "AllocationPer exceeded");
-        require(
-            _allocationCap < currentAllocatedPer,
-            "AllocationPer not valid"
-        );
-
+        if (_allocationCap < currentAllocatedPer)
+            revert AllocationPercentageLowerThanAllocatedAmt();
         collateralData.collateralCapacityUsed = newCapacityUsed;
         strategyData.allocationCap = _allocationCap;
 
@@ -262,20 +262,13 @@ contract CollateralManager is ICollateralManager, Ownable {
         // ensure none of the collateral is deposited to strategy
         // remove collateralCapacity.
         // remove item from list.
-        require(
-            collateralStrategyInfo[_collateral][_strategy].exists,
-            "Strategy not mapped"
-        );
+        if (!collateralStrategyInfo[_collateral][_strategy].exists)
+            revert CollateralStrategyNotMapped();
 
-        require(
-            collateralInfo[_collateral].defaultStrategy != _strategy,
-            "DS removal not allowed"
-        );
-
-        require(
-            IStrategy(_strategy).checkBalance(_collateral) == 0,
-            "Strategy in use"
-        );
+        if (collateralInfo[_collateral].defaultStrategy == _strategy)
+            revert IsDefaultStrategy();
+        if (IStrategy(_strategy).checkBalance(_collateral) != 0)
+            revert CollateralStrategyInUse();
 
         uint256 numStrategy = collateralStrategies[_collateral].length;
 
@@ -310,7 +303,8 @@ contract CollateralManager is ICollateralManager, Ownable {
         address _collateral,
         address _strategy
     ) external onlyOwner {
-        require(collateralInfo[_collateral].exists, "Collateral doesn't exist");
+        if (!collateralInfo[_collateral].exists)
+            revert CollateralDoesNotExist();
         collateralInfo[_collateral].defaultStrategy = _strategy;
     }
 
@@ -324,16 +318,15 @@ contract CollateralManager is ICollateralManager, Ownable {
         address _strategy,
         uint256 _amount
     ) external view returns (bool) {
-        require(
-            collateralInfo[_collateral].allocationAllowed,
-            "Allocation not allowed"
-        );
+        if (!collateralInfo[_collateral].allocationAllowed)
+            revert CollateralAllocationPaused();
 
         uint256 maxCollateralUsage = (collateralStrategyInfo[_collateral][
             _strategy
         ].allocationCap *
             (getCollateralInVault(_collateral) +
-                getCollateralInStrategies(_collateral))) / PERC_PRECISION;
+                getCollateralInStrategies(_collateral))) /
+            Helpers.MAX_PERCENTAGE;
 
         uint256 collateralBalance = IStrategy(_strategy).checkBalance(
             _collateral
@@ -358,7 +351,8 @@ contract CollateralManager is ICollateralManager, Ownable {
         ];
 
         // Check if collateral exists
-        require(collateralInfo[_collateral].exists, "Collateral doesn't exist");
+        if (!collateralInfo[_collateral].exists)
+            revert CollateralDoesNotExist();
 
         return
             CollateralMintData({
@@ -377,7 +371,8 @@ contract CollateralManager is ICollateralManager, Ownable {
     function getRedeemParams(
         address _collateral
     ) external view returns (CollateralRedeemData memory redeemData) {
-        require(collateralInfo[_collateral].exists, "Collateral doesn't exist");
+        if (!collateralInfo[_collateral].exists)
+            revert CollateralDoesNotExist();
         // Check if collateral exists
         // Compose and return collateral redeem params
 

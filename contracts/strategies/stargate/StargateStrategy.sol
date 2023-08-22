@@ -33,6 +33,10 @@ contract StargateStrategy is InitializableAbstractStrategy {
         uint256 intLiqThreshold
     );
 
+    error IncorrectPoolId(address asset, uint16 pid);
+    error IncorrectRewardPoolId(address asset, uint256 rewardPid);
+    error InsufficientRewardFundInFarm();
+
     function initialize(
         address _router,
         address _vaultAddress,
@@ -71,13 +75,13 @@ contract StargateStrategy is InitializableAbstractStrategy {
         uint256 _rewardPid,
         uint256 _intLiqThreshold
     ) external onlyOwner {
-        require(
-            IStargatePool(_lpToken).token() == _asset,
-            "Incorrect asset & pToken pair"
-        );
-        require(IStargatePool(_lpToken).poolId() == _pid, "Incorrect pool id");
+        if (IStargatePool(_lpToken).token() != _asset)
+            revert InvalidAssetLpPair(_asset, _lpToken);
+        if (IStargatePool(_lpToken).poolId() != _pid)
+            revert IncorrectPoolId(_asset, _pid);
         (IERC20 lpToken, , , ) = ILPStaking(farm).poolInfo(_rewardPid);
-        require(address(lpToken) == _lpToken, "Incorrect reward pid");
+        if (address(lpToken) != _lpToken)
+            revert IncorrectRewardPoolId(_asset, _rewardPid);
         _setPTokenAddress(_asset, _lpToken);
         assetInfo[_asset] = AssetInfo({
             allocatedAmt: 0,
@@ -92,7 +96,8 @@ contract StargateStrategy is InitializableAbstractStrategy {
     ///  @param _assetIndex Index of the asset to be removed
     function removePToken(uint256 _assetIndex) external onlyOwner {
         address asset = _removePTokenAddress(_assetIndex);
-        require(assetInfo[asset].allocatedAmt == 0, "Collateral allocated");
+        if (assetInfo[asset].allocatedAmt != 0)
+            revert CollateralAllocated(asset);
         delete assetInfo[asset];
     }
 
@@ -103,11 +108,7 @@ contract StargateStrategy is InitializableAbstractStrategy {
         address _asset,
         uint256 _intLiqThreshold
     ) external onlyOwner {
-        require(
-            assetInfo[_asset].intLiqThreshold != _intLiqThreshold,
-            "Invalid threshold value"
-        );
-        require(supportsCollateral(_asset), "Asset not supported");
+        if (!supportsCollateral(_asset)) revert CollateralNotSupported(_asset);
         assetInfo[_asset].intLiqThreshold = _intLiqThreshold;
 
         emit IntLiqThresholdChanged(_asset, _intLiqThreshold);
@@ -127,7 +128,7 @@ contract StargateStrategy is InitializableAbstractStrategy {
         uint256 _amount
     ) external override onlyVault nonReentrant {
         Helpers._isNonZeroAmt(_amount);
-        require(_validateRwdClaim(_asset), "Insufficient rwd fund in farm");
+        if (!_validateRwdClaim(_asset)) revert InsufficientRewardFundInFarm();
         address lpToken = assetToPToken[_asset];
         IERC20(_asset).safeTransferFrom(msg.sender, address(this), _amount);
         IERC20(_asset).safeApprove(router, _amount);
@@ -145,7 +146,8 @@ contract StargateStrategy is InitializableAbstractStrategy {
         uint256 minDepositAmt = (_amount *
             (Helpers.MAX_PERCENTAGE - depositSlippage)) /
             Helpers.MAX_PERCENTAGE;
-        require(depositAmt >= minDepositAmt, "Insufficient deposit amount");
+        if (depositAmt < minDepositAmt)
+            revert Helpers.MinSlippageError(depositAmt, minDepositAmt);
 
         // Update the allocated amount in the strategy
         assetInfo[_asset].allocatedAmt += depositAmt;
@@ -234,7 +236,7 @@ contract StargateStrategy is InitializableAbstractStrategy {
     /// @notice Get the amount STG pending to be collected.
     /// @param _asset Address for the asset
     function checkPendingRewards(address _asset) public view returns (uint256) {
-        require(supportsCollateral(_asset), "Collateral not supported");
+        if (!supportsCollateral(_asset)) revert CollateralNotSupported(_asset);
         return
             ILPStaking(farm).pendingStargate(
                 assetInfo[_asset].rewardPID,
@@ -312,7 +314,7 @@ contract StargateStrategy is InitializableAbstractStrategy {
     function checkLPTokenBalance(
         address _asset
     ) public view override returns (uint256) {
-        require(supportsCollateral(_asset), "Collateral not supported");
+        if (!supportsCollateral(_asset)) revert CollateralNotSupported(_asset);
         (uint256 lpTokenStaked, ) = ILPStaking(farm).userInfo(
             assetInfo[_asset].rewardPID,
             address(this)
@@ -365,7 +367,7 @@ contract StargateStrategy is InitializableAbstractStrategy {
     ) private returns (uint256) {
         Helpers._isNonZeroAddr(_recipient);
         Helpers._isNonZeroAmt(_amount, "Must withdraw something");
-        require(_validateRwdClaim(_asset), "Insufficient rwd fund in farm");
+        if (!_validateRwdClaim(_asset)) revert InsufficientRewardFundInFarm();
         address lpToken = assetToPToken[_asset];
         uint256 lpTokenAmt = _convertToPToken(_asset, _amount);
         ILPStaking(farm).withdraw(assetInfo[_asset].rewardPID, lpTokenAmt);
@@ -377,7 +379,8 @@ contract StargateStrategy is InitializableAbstractStrategy {
             lpTokenAmt,
             _recipient
         ) * IStargatePool(assetToPToken[_asset]).convertRate();
-        require(amtRecv >= minRecvAmt, "Did not withdraw enough");
+        if (amtRecv < minRecvAmt)
+            revert Helpers.MinSlippageError(amtRecv, minRecvAmt);
 
         if (!_withdrawInterest) {
             assetInfo[_asset].allocatedAmt -= amtRecv;

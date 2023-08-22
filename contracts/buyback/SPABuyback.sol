@@ -47,6 +47,9 @@ contract SPABuyback is
     );
     event OracleUpdated(address newOracle);
 
+    error CannotWithdrawSPA();
+    error InsufficientUSDsBalance(uint256 toSend, uint256 bal);
+
     // Disable initialization for the implementation contract
     constructor() {
         _disableInitializers();
@@ -79,7 +82,7 @@ contract SPABuyback is
         Helpers._isNonZeroAddr(_token);
         Helpers._isNonZeroAddr(_receiver);
         Helpers._isNonZeroAmt(_amount);
-        require(_token != Helpers.SPA, "SPA Buyback: Cannot withdraw SPA");
+        if (_token == Helpers.SPA) revert CannotWithdrawSPA();
         emit Withdrawn(_token, _receiver, _amount);
         ERC20BurnableUpgradeable(_token).safeTransfer(_receiver, _amount);
     }
@@ -153,14 +156,19 @@ contract SPABuyback is
         uint256 _minUSDsOut
     ) public nonReentrant {
         Helpers._isNonZeroAddr(_receiver);
+        // Get quote based on current prices
         (uint256 usdsToSend, uint256 spaPrice) = _getUsdsOutForSpa(_spaIn);
-        require(usdsToSend > 0, "SPA Amount too low");
-        require(usdsToSend >= _minUSDsOut, "Slippage more than expected");
-        require(
-            usdsToSend <=
-                ERC20BurnableUpgradeable(Helpers.USDS).balanceOf(address(this)),
-            "Insufficient USDs balance"
+
+        if (usdsToSend < _minUSDsOut)
+            revert Helpers.MinSlippageError(usdsToSend, _minUSDsOut);
+
+        uint256 usdsBal = ERC20BurnableUpgradeable(Helpers.USDS).balanceOf(
+            address(this)
         );
+
+        if (usdsToSend > usdsBal)
+            revert InsufficientUSDsBalance(usdsToSend, usdsBal);
+
         emit BoughtBack({
             receiverOfUSDs: _receiver,
             senderOfSPA: msg.sender,

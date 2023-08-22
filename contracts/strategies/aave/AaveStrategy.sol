@@ -67,7 +67,8 @@ contract AaveStrategy is InitializableAbstractStrategy {
     /// @param _assetIndex Index of the asset to be removed
     function removePToken(uint256 _assetIndex) external onlyOwner {
         address asset = _removePTokenAddress(_assetIndex);
-        require(assetInfo[asset].allocatedAmt == 0, "Collateral allocated");
+        if (assetInfo[asset].allocatedAmt != 0)
+            revert CollateralAllocated(asset);
         delete assetInfo[asset];
     }
 
@@ -78,7 +79,7 @@ contract AaveStrategy is InitializableAbstractStrategy {
         address _asset,
         uint256 _intLiqThreshold
     ) external onlyOwner {
-        require(supportsCollateral(_asset), "Collateral not supported");
+        if (!supportsCollateral(_asset)) revert CollateralNotSupported(_asset);
         assetInfo[_asset].intLiqThreshold = _intLiqThreshold;
 
         emit IntLiqThresholdChanged(_asset, _intLiqThreshold);
@@ -89,8 +90,8 @@ contract AaveStrategy is InitializableAbstractStrategy {
         address _asset,
         uint256 _amount
     ) external override onlyVault nonReentrant {
-        require(supportsCollateral(_asset), "Collateral not supported");
-        require(_amount > 0, "Must deposit something");
+        if (!supportsCollateral(_asset)) revert CollateralNotSupported(_asset);
+        Helpers._isNonZeroAmt(_amount, "Must deposit something");
         // Following line also doubles as a check that we are depositing
         // an asset that we support.
         assetInfo[_asset].allocatedAmt += _amount;
@@ -99,7 +100,7 @@ contract AaveStrategy is InitializableAbstractStrategy {
         IERC20(_asset).safeApprove(address(aavePool), _amount);
         aavePool.supply(_asset, _amount, address(this), REFERRAL_CODE);
 
-        emit Deposit(_asset, _getPTokenFor(_asset), _amount);
+        emit Deposit(_asset, assetToPToken[_asset], _amount);
     }
 
     /// @inheritdoc InitializableAbstractStrategy
@@ -215,11 +216,11 @@ contract AaveStrategy is InitializableAbstractStrategy {
         uint256 _amount
     ) internal returns (uint256) {
         Helpers._isNonZeroAddr(_recipient);
-        require(_amount > 0, "Invalid amount");
+        Helpers._isNonZeroAmt(_amount, "Must withdraw something");
         address lpToken = _getPTokenFor(_asset);
         assetInfo[_asset].allocatedAmt -= _amount;
         uint256 actual = aavePool.withdraw(_asset, _amount, _recipient);
-        require(actual == _amount, "Did not withdraw enough");
+        if (actual < _amount) revert Helpers.MinSlippageError(actual, _amount);
         emit Withdrawal(_asset, lpToken, actual);
         return actual;
     }
@@ -233,10 +234,8 @@ contract AaveStrategy is InitializableAbstractStrategy {
         address _asset,
         address _lpToken
     ) internal view override {
-        require(
-            IAToken(_lpToken).UNDERLYING_ASSET_ADDRESS() == _asset,
-            "Incorrect asset-lpToken pair"
-        );
+        if (IAToken(_lpToken).UNDERLYING_ASSET_ADDRESS() != _asset)
+            revert InvalidAssetLpPair(_asset, _lpToken);
     }
 
     /// @notice Get the lpToken wrapped in the IERC20 interface for this asset.
@@ -245,7 +244,7 @@ contract AaveStrategy is InitializableAbstractStrategy {
     /// @return Corresponding lpToken to this asset
     function _getPTokenFor(address _asset) internal view returns (address) {
         address lpToken = assetToPToken[_asset];
-        require(lpToken != address(0), "Collateral not supported");
+        if (lpToken == address(0)) revert CollateralNotSupported(_asset);
         return lpToken;
     }
 }

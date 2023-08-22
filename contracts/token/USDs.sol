@@ -63,9 +63,20 @@ contract USDs is
     event AccountUpgraded(address account, bool isNonRebasing);
     event Paused(bool isPaused);
 
+    error CallerNotVault(address caller);
+    error ContractPaused();
+    error IsAlreadyRebasingAccount(address account);
+    error IsAlreadyNonRebasingAccount(address account);
+    error CannotIncreaseZeroSupply();
+    error InvalidRebase();
+    error TransferToZeroAddr();
+    error TransferGreaterThanBal(uint256 val, uint256 bal);
+    error MintToZeroAddr();
+    error MaxSupplyReached(uint256 totalSupply);
+
     /// @notice Verifies that the caller is the Savings Manager contract
     modifier onlyVault() {
-        require(vaultAddress == msg.sender, "Caller is not the Vault");
+        if (msg.sender != vaultAddress) revert CallerNotVault(msg.sender);
         _;
     }
 
@@ -84,46 +95,51 @@ contract USDs is
     }
 
     /// @notice Burns tokens, decreasing totalSupply.
-    function burn(uint256 amount) external override nonReentrant {
-        _burn(msg.sender, amount);
+    /// @param _amount amount to burn
+    function burn(uint256 _amount) external override nonReentrant {
+        _burn(msg.sender, _amount);
     }
 
     /// @notice Add a contract address to the non rebasing exception list. I.e. the
     ///  address's balance will be part of rebases so the account will be exposed
     ///  to upside and downside.
-    function rebaseOptIn(address toOptIn) external onlyOwner nonReentrant {
-        require(_isNonRebasingAccount(toOptIn), "Account has not opted out");
+    /// @param _account desired account
+    function rebaseOptIn(address _account) external onlyOwner nonReentrant {
+        if (!_isNonRebasingAccount(_account))
+            revert IsAlreadyRebasingAccount(_account);
 
-        uint256 bal = _balanceOf(toOptIn);
+        uint256 bal = _balanceOf(_account);
 
         // Decreasing non rebasing supply
         nonRebasingSupply = nonRebasingSupply - bal;
 
         // convert the balance to credits
-        _creditBalances[toOptIn] = bal.mulTruncate(rebasingCreditsPerToken);
+        _creditBalances[_account] = bal.mulTruncate(rebasingCreditsPerToken);
 
-        rebaseState[toOptIn] = RebaseOptions.OptIn;
+        rebaseState[_account] = RebaseOptions.OptIn;
 
         // Delete any fixed credits per token
-        delete nonRebasingCreditsPerToken[toOptIn];
+        delete nonRebasingCreditsPerToken[_account];
     }
 
     /// @notice Remove a contract address to the non rebasing exception list.
-    function rebaseOptOut(address toOptOut) external onlyOwner nonReentrant {
-        require(!_isNonRebasingAccount(toOptOut), "Account has not opted in");
+    /// @param _account desired account
+    function rebaseOptOut(address _account) external onlyOwner nonReentrant {
+        if (_isNonRebasingAccount(_account))
+            revert IsAlreadyNonRebasingAccount(_account);
 
-        uint256 bal = _balanceOf(toOptOut);
+        uint256 bal = _balanceOf(_account);
         // Increase non rebasing supply
         nonRebasingSupply = nonRebasingSupply + bal;
 
         // adjusting credits
-        _creditBalances[toOptOut] = bal;
+        _creditBalances[_account] = bal;
 
         // Set fixed credits per token
-        nonRebasingCreditsPerToken[toOptOut] = 1;
+        nonRebasingCreditsPerToken[_account] = 1;
 
         // Mark explicitly opted out of rebasing
-        rebaseState[toOptOut] = RebaseOptions.OptOut;
+        rebaseState[_account] = RebaseOptions.OptOut;
     }
 
     /// @notice The rebase function. Modify the supply without minting new tokens. This uses a change in
@@ -136,7 +152,7 @@ contract USDs is
 
         _burn(msg.sender, _rebaseAmt);
 
-        require(_totalSupply > 0, "Cannot increase 0 supply");
+        if (_totalSupply == 0) revert CannotIncreaseZeroSupply();
 
         // Compute the existing rebasing credits,
         uint256 rebasingCredits = (_totalSupply - nonRebasingSupply)
@@ -162,7 +178,7 @@ contract USDs is
             _totalSupply - nonRebasingSupply
         );
 
-        require(rebasingCreditsPerToken > 0, "Invalid change in supply");
+        if (rebasingCreditsPerToken == 0) revert InvalidRebase();
 
         emit TotalSupplyUpdated(
             _totalSupply,
@@ -172,9 +188,9 @@ contract USDs is
     }
 
     /// @notice change the vault address
-    /// @param newVault the new vault address
-    function changeVault(address newVault) external onlyOwner {
-        vaultAddress = newVault;
+    /// @param _newVault the new vault address
+    function changeVault(address _newVault) external onlyOwner {
+        vaultAddress = _newVault;
     }
 
     /// @notice Called by the owner to pause | unpause the contract
@@ -193,7 +209,7 @@ contract USDs is
         address _to,
         uint256 _value
     ) public override returns (bool) {
-        require(_to != address(0), "Transfer to zero address");
+        if (_to == address(0)) revert TransferToZeroAddr();
         require(
             _value <= balanceOf(msg.sender),
             "Transfer greater than balance"
@@ -215,8 +231,9 @@ contract USDs is
         address _to,
         uint256 _value
     ) public override returns (bool) {
-        require(_to != address(0), "Transfer to zero address");
-        require(_value <= balanceOf(_from), "Transfer greater than balance");
+        if (_to == address(0)) revert TransferToZeroAddr();
+        uint256 bal = balanceOf(_from);
+        if (_value > bal) revert TransferGreaterThanBal(_value, bal);
 
         // notice: allowance balance check depends on "sub" non-negative check
 
@@ -336,7 +353,7 @@ contract USDs is
     /// @param _amount the amount of USDs that will be minted
     function _mint(address _account, uint256 _amount) internal override {
         _isNotPaused();
-        require(_account != address(0), "Mint to the zero address");
+        if (_account == address(0)) revert MintToZeroAddr();
 
         // notice: If the account is non rebasing and doesn't have a set creditsPerToken
         //          then set it i.e. this is a mint from a fresh contract
@@ -354,7 +371,7 @@ contract USDs is
 
         _totalSupply = _totalSupply + _amount;
 
-        require(_totalSupply < MAX_SUPPLY, "Max supply");
+        if (_totalSupply > MAX_SUPPLY) revert MaxSupplyReached(_totalSupply);
 
         emit Transfer(address(0), _account, _amount);
     }
@@ -491,6 +508,6 @@ contract USDs is
 
     /// @notice Validates if the contract is not paused.
     function _isNotPaused() private view {
-        require(!paused, "Contract paused");
+        if (paused) revert ContractPaused();
     }
 }

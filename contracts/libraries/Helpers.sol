@@ -10,6 +10,8 @@ library Helpers {
     error InvalidAddress();
     error GTMaxPercentage(uint256 _actual, uint256 _max);
     error InvalidAmount(uint256 _amount);
+    error MinSlippageError(uint256 actualAmt, uint256 minExpectedAmt);
+    error MaxSlippageError(uint256 actualAmt, uint256 maxExpectedAmt);
 
     function _checkDeadline(uint256 _deadline) internal view {
         require(block.timestamp <= _deadline, "Deadline passed");

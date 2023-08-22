@@ -22,6 +22,8 @@ contract Dripper is Ownable {
     event VaultUpdated(address vault);
     event DripDurationUpdated(uint256 dripDuration);
 
+    error NothingToRecover();
+
     constructor(address _vault, uint256 _dripDuration) {
         setVault(_vault);
         setDripDuration(_dripDuration);
@@ -35,7 +37,7 @@ contract Dripper is Ownable {
     /// @dev Transfers the asset to the owner of the contract.
     function recoverTokens(address _asset) external onlyOwner {
         uint256 bal = IERC20(_asset).balanceOf(address(this));
-        require(bal > 0, "Nothing to recover");
+        if (bal == 0) revert NothingToRecover();
         IERC20(_asset).safeTransfer(msg.sender, bal);
         emit Recovered(msg.sender, bal);
     }

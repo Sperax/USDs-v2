@@ -50,16 +50,22 @@ abstract contract InitializableAbstractStrategy is
         uint256 amount
     );
 
+    error CallerNotVault(address caller);
+    error CallerNotVaultOrOwner(address caller);
+    error PTokenAlreadySet(address collateral, address pToken);
+    error InvalidIndex(uint maxIndex);
+    error CollateralNotSupported(address asset);
+    error InvalidAssetLpPair(address asset, address lpToken);
+    error CollateralAllocated(address asset);
+
     modifier onlyVault() {
-        require(msg.sender == vaultAddress, "Caller is not the Vault");
+        if (msg.sender != vaultAddress) revert CallerNotVault(msg.sender);
         _;
     }
 
     modifier onlyVaultOrOwner() {
-        require(
-            msg.sender == vaultAddress || msg.sender == owner(),
-            "Caller is not the Vault or owner"
-        );
+        if (msg.sender != vaultAddress || msg.sender != owner())
+            revert CallerNotVaultOrOwner(msg.sender);
         _;
     }
 
@@ -196,7 +202,9 @@ abstract contract InitializableAbstractStrategy is
     ///  @param _asset Address for the asset
     ///  @param _pToken Address for the corresponding platform token
     function _setPTokenAddress(address _asset, address _pToken) internal {
-        require(assetToPToken[_asset] == address(0), "pToken already set");
+        address currentPToken = assetToPToken[_asset];
+        if (currentPToken != address(0))
+            revert PTokenAlreadySet(_asset, currentPToken);
         Helpers._isNonZeroAddr(_asset);
         Helpers._isNonZeroAddr(_pToken);
 
@@ -215,7 +223,7 @@ abstract contract InitializableAbstractStrategy is
         uint256 _assetIndex
     ) internal returns (address asset) {
         uint256 numAssets = assetsMapped.length;
-        require(_assetIndex < numAssets, "Invalid index");
+        if (_assetIndex >= numAssets) revert InvalidIndex(numAssets);
         asset = assetsMapped[_assetIndex];
         address pToken = assetToPToken[asset];
 

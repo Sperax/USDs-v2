@@ -50,6 +50,10 @@ contract YieldReserve is ReentrancyGuard, Ownable {
     event SrcTokenPermissionUpdated(address indexed token, bool isAllowed);
     event DstTokenPermissionUpdated(address indexed token, bool isAllowed);
 
+    error InvalidSourceToken();
+    error InvalidDestinationToken();
+    error AlreadyInDesiredState();
+
     /// @notice Constructor of the contract
     /// @param _buyback Address of Buyback contract
     /// @param _vault Address of Vault
@@ -98,7 +102,7 @@ contract YieldReserve is ReentrancyGuard, Ownable {
         address _token,
         bool _isAllowed
     ) external onlyOwner {
-        require(isAllowedSrc[_token] != _isAllowed, "Already in desired state");
+        if (isAllowedSrc[_token] == _isAllowed) revert AlreadyInDesiredState();
         if (_isAllowed) {
             // Ensure that there is a valid price feed for the _token
             IOracle(oracle).getPrice(_token);
@@ -114,7 +118,7 @@ contract YieldReserve is ReentrancyGuard, Ownable {
         address _token,
         bool _isAllowed
     ) external onlyOwner {
-        require(isAllowedDst[_token] != _isAllowed, "Already in desired state");
+        if (isAllowedDst[_token] == _isAllowed) revert AlreadyInDesiredState();
         if (_isAllowed) {
             // Ensure that there is a valid price feed for the _token
             IOracle(oracle).getPrice(_token);
@@ -200,7 +204,8 @@ contract YieldReserve is ReentrancyGuard, Ownable {
             _dstToken,
             _amountIn
         );
-        require(amountToSend >= _minAmountOut, "Slippage more than expected");
+        if (amountToSend < _minAmountOut)
+            revert Helpers.MinSlippageError(amountToSend, _minAmountOut);
         IERC20(_srcToken).safeTransferFrom(
             msg.sender,
             address(this),
@@ -234,23 +239,23 @@ contract YieldReserve is ReentrancyGuard, Ownable {
     }
 
     /// @notice A function to get estimated output
-    /// @param _tokenA Input token address
-    /// @param _tokenB Output token address
-    /// @param _amountIn Input amount of _tokenA
+    /// @param _srcToken Input token address
+    /// @param _dstToken Output token address
+    /// @param _amountIn Input amount of _srcToken
     function getTokenBForTokenA(
-        address _tokenA,
-        address _tokenB,
+        address _srcToken,
+        address _dstToken,
         uint256 _amountIn
     ) public view returns (uint256) {
-        require(isAllowedSrc[_tokenA], "Source token is not allowed");
-        require(isAllowedDst[_tokenB], "Destination token is not allowed");
+        if (!isAllowedSrc[_srcToken]) revert InvalidSourceToken();
+        if (!isAllowedDst[_dstToken]) revert InvalidDestinationToken();
         Helpers._isNonZeroAmt(_amountIn);
         // Getting prices from Oracle
         IOracle.PriceData memory tokenAPriceData = IOracle(oracle).getPrice(
-            _tokenA
+            _srcToken
         );
         IOracle.PriceData memory tokenBPriceData = IOracle(oracle).getPrice(
-            _tokenB
+            _dstToken
         );
         // Calculating the value
         uint256 totalUSDValueIn = (_amountIn * tokenAPriceData.price) /

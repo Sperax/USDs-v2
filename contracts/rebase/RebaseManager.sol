@@ -29,8 +29,11 @@ contract RebaseManager is Ownable {
     event GapUpdated(uint256 gap);
     event APRUpdated(uint256 aprBottom, uint256 aprCap);
 
+    error CallerNotVault(address caller);
+    error InvalidAPRConfig(uint256 aprBottom, uint256 aprCap);
+
     modifier onlyVault() {
-        require(msg.sender == vault, "Unauthorized caller");
+        if (msg.sender != vault) revert CallerNotVault(msg.sender);
         _;
     }
 
@@ -102,7 +105,7 @@ contract RebaseManager is Ownable {
     /// @param _aprCap new MAX APR for rebase
     /// @param _aprBottom new MIN APR for rebase
     function setAPR(uint256 _aprBottom, uint256 _aprCap) public onlyOwner {
-        require(_aprCap >= _aprBottom, "Invalid APR config");
+        if (_aprCap < _aprBottom) revert InvalidAPRConfig(_aprBottom, _aprCap);
         aprCap = _aprCap;
         aprBottom = _aprBottom;
         emit APRUpdated(_aprBottom, _aprCap);

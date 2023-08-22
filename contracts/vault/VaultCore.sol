@@ -53,6 +53,21 @@ contract VaultCore is
         uint256 amount
     );
 
+    error AllocationNotAllowed(
+        address collateral,
+        address strategy,
+        uint256 amount
+    );
+    error RedemptionPausedForCollateral(address collateral);
+    error InsufficientCollateral(
+        address collateral,
+        address strategy,
+        uint256 amount,
+        uint256 availableAmount
+    );
+    error InvalidStrategy(address _collateral, address _strategyAddr);
+    error MintFailed();
+
     constructor() {
         _disableInitializers();
     }
@@ -122,14 +137,13 @@ contract VaultCore is
         uint256 _amount
     ) external nonReentrant {
         // Validate the allocation is based on the desired configuration
-        require(
-            ICollateralManager(collateralManager).validateAllocation(
+        if (
+            !ICollateralManager(collateralManager).validateAllocation(
                 _collateral,
                 _strategy,
                 _amount
-            ),
-            "Allocation not allowed"
-        );
+            )
+        ) revert AllocationNotAllowed(_collateral, _strategy, _amount);
         IERC20Upgradeable(_collateral).safeIncreaseAllowance(
             _strategy,
             _amount
@@ -357,8 +371,9 @@ contract VaultCore is
             _collateral,
             _collateralAmt
         );
-        require(toMinterAmt > 0, "Mint failed");
-        require(toMinterAmt >= _minUSDSAmt, "Slippage screwed you");
+        if (toMinterAmt == 0) revert MintFailed();
+        if (toMinterAmt < _minUSDSAmt)
+            revert Helpers.MinSlippageError(toMinterAmt, _minUSDSAmt);
 
         rebase();
 
@@ -418,7 +433,8 @@ contract VaultCore is
             collateralAmt = vaultAmt + strategyAmt;
         }
 
-        require(collateralAmt >= _minCollateralAmt, "Slippage screwed you");
+        if (collateralAmt < _minCollateralAmt)
+            revert Helpers.MinSlippageError(collateralAmt, _minCollateralAmt);
 
         // Collect USDs for Redemption
         IERC20Upgradeable(Helpers.USDS).safeTransferFrom(
@@ -474,7 +490,8 @@ contract VaultCore is
                 collateralManager
             ).getRedeemParams(_collateral);
 
-        require(collateralRedeemConfig.redeemAllowed, "Redeem not allowed");
+        if (!collateralRedeemConfig.redeemAllowed)
+            revert RedemptionPausedForCollateral(_collateral);
 
         IOracle.PriceData memory collateralPriceData = IOracle(oracle).getPrice(
             _collateral
@@ -518,26 +535,32 @@ contract VaultCore is
             strategyAmt = calculatedCollateralAmt - vaultAmt;
             // Withdraw from default strategy
             if (_strategyAddr == address(0)) {
-                require(
-                    collateralRedeemConfig.defaultStrategy != address(0),
-                    "Insufficient collateral"
-                );
+                if (collateralRedeemConfig.defaultStrategy == address(0))
+                    revert InsufficientCollateral(
+                        _collateral,
+                        address(0),
+                        calculatedCollateralAmt,
+                        vaultAmt
+                    );
                 strategy = IStrategy(collateralRedeemConfig.defaultStrategy);
                 // Withdraw from specified strategy
             } else {
-                require(
-                    ICollateralManager(collateralManager).isValidStrategy(
+                if (
+                    !ICollateralManager(collateralManager).isValidStrategy(
                         _collateral,
                         _strategyAddr
-                    ),
-                    "Invalid strategy"
-                );
+                    )
+                ) revert InvalidStrategy(_collateral, _strategyAddr);
                 strategy = IStrategy(_strategyAddr);
             }
-            require(
-                strategy.checkAvailableBalance(_collateral) >= strategyAmt,
-                "Insufficient collateral"
-            );
+            uint256 availableBal = strategy.checkAvailableBalance(_collateral);
+            if (availableBal < strategyAmt)
+                revert InsufficientCollateral(
+                    _collateral,
+                    _strategyAddr,
+                    calculatedCollateralAmt,
+                    vaultAmt + availableBal
+                );
         }
     }
 }
