@@ -57,12 +57,12 @@ contract VaultCoreTest is PreMigrationSetup {
     }
 
     function _allocateIntoStrategy(
-        address _collateral,
+        address __collateral,
         address _strategy,
         uint256 _amount
     ) internal useKnownActor(allocator) {
         deal(USDCe, VAULT, _amount * 4);
-        IVault(VAULT).allocate(_collateral, _strategy, _amount);
+        IVault(VAULT).allocate(__collateral, _strategy, _amount);
     }
 
     function _redeemViewTest(
@@ -305,7 +305,7 @@ contract TestRedeem is VaultCoreTest {
             uint256 _calculatedCollateralAmt,
             uint256 _usdsBurnAmt,
             uint256 _feeAmt,
-            uint256 _vaultAmt,
+            ,
             uint256 _strategyAmt
         ) = _redeemViewTest(_usdsAmt, address(0));
         vm.prank(VAULT);
