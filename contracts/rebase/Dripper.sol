@@ -3,6 +3,7 @@ pragma solidity 0.8.16;
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {Helpers} from "../libraries/Helpers.sol";
 
 /// @notice Contract to release tokens to a recipient at a steady rate
 /// @dev This contract releases USDs at a steady rate to the Vault for rebasing USDs
@@ -53,17 +54,15 @@ contract Dripper is Ownable {
     }
 
     /// @notice Update the vault address
-    /// @param _vault Address of the desired vault
     function setVault(address _vault) public onlyOwner {
-        _isValidAddress(_vault);
+        Helpers._isNonZeroAddr(_vault);
         vault = _vault;
         emit VaultUpdated(_vault);
     }
 
     /// @notice Updates the dripDuration
-    /// @param _dripDuration Desired drip duration
     function setDripDuration(uint256 _dripDuration) public onlyOwner {
-        require(_dripDuration != 0, "Invalid input");
+        Helpers._isNonZeroAmt(_dripDuration);
         dripDuration = _dripDuration;
         emit DripDurationUpdated(_dripDuration);
     }
@@ -75,11 +74,5 @@ contract Dripper is Ownable {
         uint256 dripped = timeElapsed * dripRate;
         uint256 balance = IERC20(USDS).balanceOf(address(this));
         return (dripped > balance) ? balance : dripped;
-    }
-
-    /// @notice Address input sanity check function
-    /// @param _address Address to be checked
-    function _isValidAddress(address _address) private pure {
-        require(_address != address(0), "Invalid Address");
     }
 }

@@ -10,6 +10,7 @@ import {IOracle} from "../interfaces/IOracle.sol";
 import {IRebaseManager} from "../interfaces/IRebaseManager.sol";
 import {ICollateralManager} from "./interfaces/ICollateralManager.sol";
 import {IStrategy} from "./interfaces/IStrategy.sol";
+import {Helpers} from "../libraries/Helpers.sol";
 
 contract VaultCore is
     Initializable,
@@ -21,10 +22,7 @@ contract VaultCore is
     bytes32 private constant ALLOCATOR_ROLE = keccak256("ALLOCATOR_ROLE");
     bytes32 private constant FACILITATOR_ROLE = keccak256("FACILITATOR_ROLE");
 
-    address public constant USDS = 0xD74f5255D557944cf7Dd0E45FF521520002D5748;
-    uint256 public constant PERC_PRECISION = 1e4;
-
-    address public feeVault;
+    address public feeVault; // SPABuyback contract
     address public yieldReceiver;
     address public collateralManager;
     address public feeCalculator;
@@ -83,7 +81,7 @@ contract VaultCore is
     /// @notice Updates the address receiving fee
     /// @param _feeVault updated address of the fee vault
     function updateFeeVault(address _feeVault) external onlyOwner {
-        _isNonZeroAddr(_feeVault);
+        Helpers._isNonZeroAddr(_feeVault);
         feeVault = _feeVault;
         emit FeeVaultUpdated(_feeVault);
     }
@@ -91,7 +89,7 @@ contract VaultCore is
     /// @notice Updates the address receiving yields from strategies
     /// @param _yieldReceiver new desired address
     function updateYieldReceiver(address _yieldReceiver) external onlyOwner {
-        _isNonZeroAddr(_yieldReceiver);
+        Helpers._isNonZeroAddr(_yieldReceiver);
         yieldReceiver = _yieldReceiver;
         emit YieldReceiverUpdated(_yieldReceiver);
     }
@@ -101,7 +99,7 @@ contract VaultCore is
     function updateCollateralManager(
         address _collateralManager
     ) external onlyOwner {
-        _isNonZeroAddr(_collateralManager);
+        Helpers._isNonZeroAddr(_collateralManager);
         collateralManager = _collateralManager;
         emit CollateralManagerUpdated(_collateralManager);
     }
@@ -109,7 +107,7 @@ contract VaultCore is
     /// @notice Updates the address having the config for rebase
     /// @param _rebaseManager new desired address
     function updateRebaseManager(address _rebaseManager) external onlyOwner {
-        _isNonZeroAddr(_rebaseManager);
+        Helpers._isNonZeroAddr(_rebaseManager);
         rebaseManager = _rebaseManager;
         emit RebaseManagerUpdated(_rebaseManager);
     }
@@ -117,7 +115,7 @@ contract VaultCore is
     /// @notice Updates the fee calculator library
     /// @param _feeCalculator new desired address
     function updateFeeCalculator(address _feeCalculator) external onlyOwner {
-        _isNonZeroAddr(_feeCalculator);
+        Helpers._isNonZeroAddr(_feeCalculator);
         feeCalculator = _feeCalculator;
         emit FeeCalculatorUpdated(_feeCalculator);
     }
@@ -125,7 +123,7 @@ contract VaultCore is
     /// @notice Updates the price oracle address
     /// @param _oracle new desired address
     function updateOracle(address _oracle) external onlyOwner {
-        _isNonZeroAddr(_oracle);
+        Helpers._isNonZeroAddr(_oracle);
         oracle = _oracle;
         emit OracleUpdated(_oracle);
     }
@@ -294,7 +292,7 @@ contract VaultCore is
     function rebase() public {
         uint256 rebaseAmt = IRebaseManager(rebaseManager).fetchRebaseAmt();
         if (rebaseAmt > 0) {
-            IUSDs(USDS).rebase(rebaseAmt);
+            IUSDs(Helpers.USDS).rebase(rebaseAmt);
             emit RebasedUSDs(rebaseAmt);
         }
     }
@@ -318,7 +316,7 @@ contract VaultCore is
         );
         // Calculate the downside peg
         uint256 downsidePeg = (collateralPriceData.precision *
-            collateralMintConfig.downsidePeg) / PERC_PRECISION;
+            collateralMintConfig.downsidePeg) / Helpers.MAX_PERCENTAGE;
 
         // Downside peg check
         if (
@@ -329,12 +327,13 @@ contract VaultCore is
         }
 
         // Skip fee collection for Facilitator
-        uint256 feePerc = 0;
-        uint256 feePercPrecision = 1;
+        uint256 feePercentage = 0;
+        uint256 feePercentagePrecision = 1;
         if (!hasRole(FACILITATOR_ROLE, msg.sender)) {
             // Calculate mint fee based on collateral data
-            (feePerc, feePercPrecision) = IFeeCalculator(feeCalculator)
-                .getFeeIn(
+            (feePercentage, feePercentagePrecision) = IFeeCalculator(
+                feeCalculator
+            ).getFeeIn(
                     _collateral,
                     _collateralAmt,
                     collateralMintConfig,
@@ -355,7 +354,7 @@ contract VaultCore is
         }
 
         // Calculate the fee amount and usds to mint
-        uint256 feeAmt = (usdsAmt * feePerc) / feePercPrecision;
+        uint256 feeAmt = (usdsAmt * feePercentage) / feePercentagePrecision;
         uint256 toMinterAmt = usdsAmt - feeAmt;
 
         return (toMinterAmt, feeAmt);
@@ -371,7 +370,7 @@ contract VaultCore is
         uint256 _minUSDSAmt,
         uint256 _deadline
     ) private {
-        _checkDeadline(_deadline);
+        Helpers._checkDeadline(_deadline);
         (uint256 toMinterAmt, uint256 feeAmt) = mintView(
             _collateral,
             _collateralAmt
@@ -386,9 +385,9 @@ contract VaultCore is
             address(this),
             _collateralAmt
         );
-        IUSDs(USDS).mint(msg.sender, toMinterAmt);
+        IUSDs(Helpers.USDS).mint(msg.sender, toMinterAmt);
         if (feeAmt > 0) {
-            IUSDs(USDS).mint(feeVault, feeAmt);
+            IUSDs(Helpers.USDS).mint(feeVault, feeAmt);
         }
 
         emit Minted({
@@ -413,7 +412,7 @@ contract VaultCore is
         uint256 _deadline,
         address _strategyAddr
     ) private {
-        _checkDeadline(_deadline);
+        Helpers._checkDeadline(_deadline);
         (
             uint256 collateralAmt,
             uint256 burnAmt,
@@ -425,14 +424,14 @@ contract VaultCore is
 
         if (strategyAmt > 0) {
             // Withdraw from the strategy to VaultCore
-            uint256 strategyAmtRecvd = strategy.withdraw(
+            uint256 strategyAmtReceived = strategy.withdraw(
                 address(this),
                 _collateral,
                 strategyAmt
             );
             // Update collateral amount according to the received amount from the strategy
-            strategyAmt = strategyAmtRecvd < strategyAmt
-                ? strategyAmtRecvd
+            strategyAmt = strategyAmtReceived < strategyAmt
+                ? strategyAmtReceived
                 : strategyAmt;
             collateralAmt = vaultAmt + strategyAmt;
         }
@@ -440,14 +439,14 @@ contract VaultCore is
         require(collateralAmt >= _minCollateralAmt, "Slippage screwed you");
 
         // Collect USDs for Redemption
-        IERC20Upgradeable(USDS).safeTransferFrom(
+        IERC20Upgradeable(Helpers.USDS).safeTransferFrom(
             msg.sender,
             address(this),
             _usdsAmt
         );
-        IUSDs(USDS).burn(burnAmt);
+        IUSDs(Helpers.USDS).burn(burnAmt);
         if (feeAmt > 0) {
-            IERC20Upgradeable(USDS).safeTransfer(feeVault, feeAmt);
+            IERC20Upgradeable(Helpers.USDS).safeTransfer(feeVault, feeAmt);
         }
         // Transfer desired collateral to the user
         IERC20Upgradeable(_collateral).safeTransfer(msg.sender, collateralAmt);
@@ -500,11 +499,12 @@ contract VaultCore is
         );
 
         // Skip fee collection for Facilitator
-        uint256 feePerc = 0;
-        uint256 feePercPrecision = 1;
+        uint256 feePercentage = 0;
+        uint256 feePercentagePrecision = 1;
         if (!hasRole(FACILITATOR_ROLE, msg.sender)) {
-            (feePerc, feePercPrecision) = IFeeCalculator(feeCalculator)
-                .getFeeOut(
+            (feePercentage, feePercentagePrecision) = IFeeCalculator(
+                feeCalculator
+            ).getFeeOut(
                     _collateral,
                     _usdsAmt,
                     collateralRedeemConfig,
@@ -513,7 +513,7 @@ contract VaultCore is
         }
 
         // Calculate actual fee and burn amount in terms of USDs
-        feeAmt = (_usdsAmt * feePerc) / feePercPrecision;
+        feeAmt = (_usdsAmt * feePercentage) / feePercentagePrecision;
         usdsBurnAmt = _usdsAmt - feeAmt;
 
         // Calculate collateral amount
@@ -557,13 +557,5 @@ contract VaultCore is
                 "Insufficient collateral"
             );
         }
-    }
-
-    function _checkDeadline(uint256 _deadline) private view {
-        require(block.timestamp <= _deadline, "Deadline passed");
-    }
-
-    function _isNonZeroAddr(address _addr) private pure {
-        require(_addr != address(0), "Zero address");
     }
 }

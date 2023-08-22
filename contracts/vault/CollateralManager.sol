@@ -5,6 +5,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {ICollateralManager} from "./interfaces/ICollateralManager.sol";
 import {IStrategy} from "./interfaces/IStrategy.sol";
+import {Helpers} from "../libraries/Helpers.sol";
 
 interface IERC20Custom is IERC20 {
     function decimals() external view returns (uint8);
@@ -29,8 +30,6 @@ contract CollateralManager is ICollateralManager, Ownable {
         uint16 allocationCap;
         bool exists;
     }
-
-    uint256 public constant PERC_PRECISION = 1e4;
 
     uint16 public collateralCompositionUsed;
     address public immutable VAULT;
@@ -65,9 +64,9 @@ contract CollateralManager is ICollateralManager, Ownable {
             "Collateral already exists"
         );
 
-        _validatePrecision(_data.downsidePeg);
-        _validatePrecision(_data.baseFeeIn);
-        _validatePrecision(_data.baseFeeOut);
+        Helpers._isLTEMaxPercentage(_data.downsidePeg);
+        Helpers._isLTEMaxPercentage(_data.baseFeeIn);
+        Helpers._isLTEMaxPercentage(_data.baseFeeOut);
 
         require(
             _data.desiredCollateralComposition <=
@@ -106,9 +105,9 @@ contract CollateralManager is ICollateralManager, Ownable {
         // Update the collateral storage data
         require(collateralInfo[_collateral].exists, "Collateral doesn't exist");
 
-        _validatePrecision(_updateData.downsidePeg);
-        _validatePrecision(_updateData.baseFeeIn);
-        _validatePrecision(_updateData.baseFeeOut);
+        Helpers._isLTEMaxPercentage(_updateData.downsidePeg);
+        Helpers._isLTEMaxPercentage(_updateData.baseFeeIn);
+        Helpers._isLTEMaxPercentage(_updateData.baseFeeOut);
 
         CollateralData storage data = collateralInfo[_collateral];
 
@@ -464,9 +463,5 @@ contract CollateralManager is ICollateralManager, Ownable {
         address _strategy
     ) public view returns (uint256 allocatedAmt) {
         return IStrategy(_strategy).checkBalance(_collateral);
-    }
-
-    function _validatePrecision(uint16 _value) internal pure {
-        require(_value <= PERC_PRECISION, "Illegal PERC input");
     }
 }

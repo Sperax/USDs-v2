@@ -6,7 +6,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {ILPStaking} from "./interfaces/ILPStaking.sol";
 import {IStargateRouter} from "./interfaces/IStargateRouter.sol";
 import {IStargatePool} from "./interfaces/IStargatePool.sol";
-import {InitializableAbstractStrategy} from "../InitializableAbstractStrategy.sol";
+import {InitializableAbstractStrategy, Helpers} from "../InitializableAbstractStrategy.sol";
 import {IVault} from "../interfaces/IVault.sol";
 
 /// @title Stargate strategy for USDs protocol
@@ -41,9 +41,9 @@ contract StargateStrategy is InitializableAbstractStrategy {
         uint16 _depositSlippage, // 200 = 2%
         uint16 _withdrawSlippage // 200 = 2%
     ) external initializer {
-        _isNonZeroAddr(_router);
-        _isNonZeroAddr(_stg);
-        _isNonZeroAddr(_farm);
+        Helpers._isNonZeroAddr(_router);
+        Helpers._isNonZeroAddr(_stg);
+        Helpers._isNonZeroAddr(_farm);
         router = _router;
         farm = _farm;
 
@@ -126,7 +126,7 @@ contract StargateStrategy is InitializableAbstractStrategy {
         address _asset,
         uint256 _amount
     ) external override onlyVault nonReentrant {
-        _isValidAmount(_amount);
+        Helpers._isNonZeroAmt(_amount);
         require(_validateRwdClaim(_asset), "Insufficient rwd fund in farm");
         address lpToken = assetToPToken[_asset];
         IERC20(_asset).safeTransferFrom(msg.sender, address(this), _amount);
@@ -143,7 +143,8 @@ contract StargateStrategy is InitializableAbstractStrategy {
         uint256 lpTokenBal = IERC20(lpToken).balanceOf(address(this));
         uint256 depositAmt = _convertToCollateral(_asset, lpTokenBal);
         uint256 minDepositAmt = (_amount *
-            (PERCENTAGE_PREC - depositSlippage)) / PERCENTAGE_PREC;
+            (Helpers.MAX_PERCENTAGE - depositSlippage)) /
+            Helpers.MAX_PERCENTAGE;
         require(depositAmt >= minDepositAmt, "Insufficient deposit amount");
 
         // Update the allocated amount in the strategy
@@ -362,14 +363,15 @@ contract StargateStrategy is InitializableAbstractStrategy {
         address _asset,
         uint256 _amount
     ) private returns (uint256) {
-        _isNonZeroAddr(_recipient);
-        require(_amount > 0, "Must withdraw something");
+        Helpers._isNonZeroAddr(_recipient);
+        Helpers._isNonZeroAmt(_amount, "Must withdraw something");
         require(_validateRwdClaim(_asset), "Insufficient rwd fund in farm");
         address lpToken = assetToPToken[_asset];
         uint256 lpTokenAmt = _convertToPToken(_asset, _amount);
         ILPStaking(farm).withdraw(assetInfo[_asset].rewardPID, lpTokenAmt);
-        uint256 minRecvAmt = (_amount * (PERCENTAGE_PREC - withdrawSlippage)) /
-            PERCENTAGE_PREC;
+        uint256 minRecvAmt = (_amount *
+            (Helpers.MAX_PERCENTAGE - withdrawSlippage)) /
+            Helpers.MAX_PERCENTAGE;
         uint256 amtRecv = IStargateRouter(router).instantRedeemLocal(
             assetInfo[_asset].pid,
             lpTokenAmt,

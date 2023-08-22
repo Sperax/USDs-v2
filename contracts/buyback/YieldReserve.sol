@@ -6,6 +6,7 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {IVault} from "../interfaces/IVault.sol";
 import {IOracle} from "../interfaces/IOracle.sol";
+import {Helpers} from "../libraries/Helpers.sol";
 
 /// @title YieldReserve of USDs protocol
 /// @notice The contract allows user's to swap the supported stable coins against yield earned by USDs protocol
@@ -14,8 +15,6 @@ import {IOracle} from "../interfaces/IOracle.sol";
 contract YieldReserve is ReentrancyGuard, Ownable {
     using SafeERC20 for IERC20;
 
-    address public constant USDS = 0xD74f5255D557944cf7Dd0E45FF521520002D5748;
-    uint256 private constant MAX_PERCENTAGE = 10000; // 100%
     address public vault;
     address public oracle;
     address public buyback;
@@ -46,7 +45,7 @@ contract YieldReserve is ReentrancyGuard, Ownable {
     event BuybackAddressUpdated(address newBuyback);
     event OracleUpdated(address newOracle);
     event VaultAddressUpdated(address newVault);
-    event DripperAddressUpdated(address newdripper);
+    event DripperAddressUpdated(address newDripper);
     event USDsSent(uint256 toBuyback, uint256 toVault);
     event SrcTokenPermissionUpdated(address indexed token, bool isAllowed);
     event DstTokenPermissionUpdated(address indexed token, bool isAllowed);
@@ -133,11 +132,9 @@ contract YieldReserve is ReentrancyGuard, Ownable {
         address _receiver,
         uint256 _amount
     ) external onlyOwner {
-        _isValidAddress(_token);
-        _isValidAddress(_receiver);
-        _isValidAmount(_amount);
-        emit Withdrawn(_token, _receiver, _amount);
+        Helpers._isNonZeroAmt(_amount);
         IERC20(_token).safeTransfer(_receiver, _amount);
+        emit Withdrawn(_token, _receiver, _amount);
     }
 
     /// @notice Set the % of minted USDs sent Buyback
@@ -146,8 +143,8 @@ contract YieldReserve is ReentrancyGuard, Ownable {
     /// @dev E.g. _toBuyback == 3000 means 30% of the newly
     ///        minted USDs would be sent to Buyback; the rest 70% to VaultCore
     function updateBuybackPercentage(uint256 _toBuyback) public onlyOwner {
-        require(_toBuyback <= MAX_PERCENTAGE, "% exceeds 100%");
-        require(_toBuyback > 0, "% must be > 0");
+        Helpers._isNonZeroAmt(_toBuyback);
+        Helpers._isLTEMaxPercentage(_toBuyback);
         buybackPercentage = _toBuyback;
         emit BuybackPercentageUpdated(buybackPercentage);
     }
@@ -155,7 +152,7 @@ contract YieldReserve is ReentrancyGuard, Ownable {
     /// @notice Update Buyback contract's address
     /// @param _newBuyBack New address of Buyback contract
     function updateBuybackAddress(address _newBuyBack) public onlyOwner {
-        _isValidAddress(_newBuyBack);
+        Helpers._isNonZeroAddr(_newBuyBack);
         buyback = _newBuyBack;
         emit BuybackAddressUpdated(buyback);
     }
@@ -163,7 +160,7 @@ contract YieldReserve is ReentrancyGuard, Ownable {
     /// @notice Update Oracle's address
     /// @param _newOracle New address of Oracle
     function updateOracleAddress(address _newOracle) public onlyOwner {
-        _isValidAddress(_newOracle);
+        Helpers._isNonZeroAddr(_newOracle);
         oracle = _newOracle;
         emit OracleUpdated(_newOracle);
     }
@@ -171,7 +168,7 @@ contract YieldReserve is ReentrancyGuard, Ownable {
     /// @notice Update Dripper's address
     /// @param _newDripper New address of Dripper
     function updateDripperAddress(address _newDripper) public onlyOwner {
-        _isValidAddress(_newDripper);
+        Helpers._isNonZeroAddr(_newDripper);
         dripper = _newDripper;
         emit DripperAddressUpdated(_newDripper);
     }
@@ -179,7 +176,7 @@ contract YieldReserve is ReentrancyGuard, Ownable {
     /// @notice Update VaultCore's address
     /// @param _newVault New address of VaultCore
     function updateVaultAddress(address _newVault) public onlyOwner {
-        _isValidAddress(_newVault);
+        Helpers._isNonZeroAddr(_newVault);
         vault = _newVault;
         emit VaultAddressUpdated(_newVault);
     }
@@ -197,7 +194,7 @@ contract YieldReserve is ReentrancyGuard, Ownable {
         uint256 _minAmountOut,
         address _receiver
     ) public nonReentrant {
-        _isValidAddress(_receiver);
+        Helpers._isNonZeroAddr(_receiver);
         uint256 amountToSend = getTokenBForTokenA(
             _srcToken,
             _dstToken,
@@ -209,7 +206,7 @@ contract YieldReserve is ReentrancyGuard, Ownable {
             address(this),
             _amountIn
         );
-        if (_srcToken != USDS) {
+        if (_srcToken != Helpers.USDS) {
             // Mint USDs
             IERC20(_srcToken).safeApprove(vault, _amountIn);
             (uint256 _minUSDSAmt, ) = IVault(vault).mintView(
@@ -247,7 +244,7 @@ contract YieldReserve is ReentrancyGuard, Ownable {
     ) public view returns (uint256) {
         require(isAllowedSrc[_tokenA], "Source token is not allowed");
         require(isAllowedDst[_tokenB], "Destination token is not allowed");
-        _isValidAmount(_amountIn);
+        Helpers._isNonZeroAmt(_amountIn);
         // Getting prices from Oracle
         IOracle.PriceData memory tokenAPriceData = IOracle(oracle).getPrice(
             _tokenA
@@ -268,24 +265,19 @@ contract YieldReserve is ReentrancyGuard, Ownable {
     /// @notice Sends USDs to buyback as per buybackPercentage
     ///         and rest to VaultCore for rebase
     function _sendUSDs() private {
-        uint256 balance = IERC20(USDS).balanceOf(address(this));
+        uint256 balance = IERC20(Helpers.USDS).balanceOf(address(this));
 
         // Calculating the amount to send to Buyback based on buybackPercentage
-        uint256 toBuyback = (balance * buybackPercentage) / MAX_PERCENTAGE;
+        uint256 toBuyback = (balance * buybackPercentage) /
+            Helpers.MAX_PERCENTAGE;
 
         // Remaining balance will be sent to Dripper for rebase
         uint256 toDripper = balance - toBuyback;
 
         emit USDsSent(toBuyback, toDripper);
-        if (toBuyback > 0) IERC20(USDS).safeTransfer(buyback, toBuyback);
-        if (toDripper > 0) IERC20(USDS).safeTransfer(dripper, toDripper);
-    }
-
-    function _isValidAddress(address _address) private pure {
-        require(_address != address(0), "Invalid address");
-    }
-
-    function _isValidAmount(uint256 _amount) private pure {
-        require(_amount > 0, "Invalid amount");
+        if (toBuyback > 0)
+            IERC20(Helpers.USDS).safeTransfer(buyback, toBuyback);
+        if (toDripper > 0)
+            IERC20(Helpers.USDS).safeTransfer(dripper, toDripper);
     }
 }

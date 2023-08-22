@@ -6,6 +6,7 @@ import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Own
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {Helpers} from "../libraries/Helpers.sol";
 
 abstract contract InitializableAbstractStrategy is
     Initializable,
@@ -14,7 +15,6 @@ abstract contract InitializableAbstractStrategy is
 {
     using SafeERC20 for IERC20;
 
-    uint256 public constant PERCENTAGE_PREC = 10000;
     address public vaultAddress;
     uint16 public withdrawSlippage;
     uint16 public depositSlippage;
@@ -69,9 +69,9 @@ abstract contract InitializableAbstractStrategy is
     }
 
     /// @notice Update the linked vault contract
-    /// @param _newVault Address of the new Vaule
+    /// @param _newVault Address of the new Vault
     function updateVaultCore(address _newVault) external onlyOwner {
-        _isNonZeroAddr(_newVault);
+        Helpers._isNonZeroAddr(_newVault);
         vaultAddress = _newVault;
         emit VaultUpdated(_newVault);
     }
@@ -79,7 +79,7 @@ abstract contract InitializableAbstractStrategy is
     /// @notice Updates the HarvestIncentive rate for the user
     /// @param _newRate new Desired rate
     function updateHarvestIncentiveRate(uint16 _newRate) external onlyOwner {
-        require(_newRate <= PERCENTAGE_PREC, "Invalid value");
+        Helpers._isLTEMaxPercentage(_newRate);
         harvestIncentiveRate = _newRate;
         emit HarvestIncentiveRateUpdated(_newRate);
     }
@@ -160,17 +160,14 @@ abstract contract InitializableAbstractStrategy is
     ) external view virtual returns (bool);
 
     /// @notice Change to a new depositSlippage & withdrawSlippage
-    /// @param _depositSlippage Slilppage tolerance for allocation
+    /// @param _depositSlippage Slippage tolerance for allocation
     /// @param _withdrawSlippage Slippage tolerance for withdrawal
     function changeSlippage(
         uint16 _depositSlippage,
         uint16 _withdrawSlippage
     ) public onlyOwner {
-        require(
-            _depositSlippage <= PERCENTAGE_PREC &&
-                _withdrawSlippage <= PERCENTAGE_PREC,
-            "Slippage exceeds 100%"
-        );
+        Helpers._isLTEMaxPercentage(_depositSlippage);
+        Helpers._isLTEMaxPercentage(_withdrawSlippage);
         depositSlippage = _depositSlippage;
         withdrawSlippage = _withdrawSlippage;
         emit SlippageChanged(depositSlippage, withdrawSlippage);
@@ -187,7 +184,7 @@ abstract contract InitializableAbstractStrategy is
     ) internal {
         OwnableUpgradeable.__Ownable_init();
         ReentrancyGuardUpgradeable.__ReentrancyGuard_init();
-        _isNonZeroAddr(_vaultAddress);
+        Helpers._isNonZeroAddr(_vaultAddress);
         changeSlippage(_depositSlippage, _withdrawSlippage);
         vaultAddress = _vaultAddress;
         harvestIncentiveRate = 10;
@@ -200,8 +197,8 @@ abstract contract InitializableAbstractStrategy is
     ///  @param _pToken Address for the corresponding platform token
     function _setPTokenAddress(address _asset, address _pToken) internal {
         require(assetToPToken[_asset] == address(0), "pToken already set");
-        _isNonZeroAddr(_asset);
-        _isNonZeroAddr(_pToken);
+        Helpers._isNonZeroAddr(_asset);
+        Helpers._isNonZeroAddr(_pToken);
 
         assetToPToken[_asset] = _pToken;
         assetsMapped.push(_asset);
@@ -237,7 +234,7 @@ abstract contract InitializableAbstractStrategy is
     ) internal returns (uint256) {
         if (harvestIncentiveRate > 0) {
             uint256 incentiveAmt = (_amount * harvestIncentiveRate) /
-                PERCENTAGE_PREC;
+                Helpers.MAX_PERCENTAGE;
             uint256 harvestedAmt = _amount - incentiveAmt;
             IERC20(_token).safeTransfer(_harvestor, incentiveAmt);
             IERC20(_token).safeTransfer(_yieldReceiver, _amount - incentiveAmt);
@@ -250,21 +247,9 @@ abstract contract InitializableAbstractStrategy is
 
     /// @notice Call the necessary approvals for the underlying strategy
     /// @param _asset Address of the asset
-    /// @param _pToken Address of the corresponding reciept token.
+    /// @param _pToken Address of the corresponding receipt token.
     function _abstractSetPToken(
         address _asset,
         address _pToken
     ) internal virtual;
-
-    /// @notice Check for non-zero address
-    /// @param _addr Address to be validated
-    function _isNonZeroAddr(address _addr) internal pure {
-        require(_addr != address(0), "Invalid address");
-    }
-
-    /// @notice Check for non-zero mount
-    /// @param _amount Amount to be validated
-    function _isValidAmount(uint256 _amount) internal pure {
-        require(_amount > 0, "Invalid amount");
-    }
 }

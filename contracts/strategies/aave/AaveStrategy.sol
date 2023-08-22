@@ -3,7 +3,7 @@ pragma solidity 0.8.16;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {InitializableAbstractStrategy} from "../InitializableAbstractStrategy.sol";
+import {InitializableAbstractStrategy, Helpers} from "../InitializableAbstractStrategy.sol";
 import {IVault} from "../interfaces/IVault.sol";
 import {IAaveLendingPool, IAToken, IPoolAddressesProvider} from "./interfaces/IAavePool.sol";
 
@@ -33,8 +33,7 @@ contract AaveStrategy is InitializableAbstractStrategy {
         address _platformAddress, // AAVE PoolAddress provider 0xa97684ead0e402dC232d5A977953DF7ECBaB3CDb
         address _vaultAddress
     ) external initializer {
-        _isNonZeroAddr(_platformAddress);
-        _isNonZeroAddr(_vaultAddress);
+        Helpers._isNonZeroAddr(_platformAddress);
         aavePool = IAaveLendingPool(
             IPoolAddressesProvider(_platformAddress).getPool()
         ); // aave Lending Pool 0x794a61358D6845594F94dc1DB02A252b5b4814aD
@@ -215,7 +214,7 @@ contract AaveStrategy is InitializableAbstractStrategy {
         address _asset,
         uint256 _amount
     ) internal returns (uint256) {
-        _isNonZeroAddr(_recipient);
+        Helpers._isNonZeroAddr(_recipient);
         require(_amount > 0, "Invalid amount");
         address lpToken = _getPTokenFor(_asset);
         assetInfo[_asset].allocatedAmt -= _amount;

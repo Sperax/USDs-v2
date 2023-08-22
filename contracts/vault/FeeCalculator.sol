@@ -4,10 +4,9 @@ pragma solidity 0.8.16;
 import {IFeeCalculator} from "./interfaces/IFeeCalculator.sol";
 import {ICollateralManager} from "./interfaces/ICollateralManager.sol";
 import {IOracle} from "../interfaces/IOracle.sol";
+import {Helpers} from "../libraries/Helpers.sol";
 
 contract FeeCalculator is IFeeCalculator {
-    uint256 public constant PERC_PRECISION = 1e4;
-
     /// @inheritdoc IFeeCalculator
     function getFeeIn(
         address,
@@ -15,7 +14,7 @@ contract FeeCalculator is IFeeCalculator {
         ICollateralManager.CollateralMintData calldata _mintData,
         IOracle.PriceData calldata
     ) external pure returns (uint256, uint256) {
-        return (_mintData.baseFeeIn, PERC_PRECISION);
+        return (_mintData.baseFeeIn, Helpers.MAX_PERCENTAGE);
     }
 
     /// @inheritdoc IFeeCalculator
@@ -25,6 +24,6 @@ contract FeeCalculator is IFeeCalculator {
         ICollateralManager.CollateralRedeemData calldata _redeemData,
         IOracle.PriceData calldata
     ) external pure returns (uint256, uint256) {
-        return (_redeemData.baseFeeOut, PERC_PRECISION);
+        return (_redeemData.baseFeeOut, Helpers.MAX_PERCENTAGE);
     }
 }
