@@ -19,10 +19,9 @@ contract SPABuyback is
 {
     using SafeERC20Upgradeable for ERC20BurnableUpgradeable;
 
-    address private constant ORACLE =
-        0xf3f98086f7B61a32be4EdF8d8A4b964eC886BBcd; // @todo: change this address before deployment
     address public veSpaRewarder;
     uint256 public rewardPercentage;
+    address public oracle;
 
     event BoughtBack(
         address indexed receiverOfUSDs,
@@ -46,6 +45,7 @@ contract SPABuyback is
         address oldVeSpaRewarder,
         address newVeSpaRewarder
     );
+    event OracleUpdated(address newOracle);
 
     // Disable initialization for the implementation contract
     constructor() {
@@ -101,6 +101,14 @@ contract SPABuyback is
         Helpers._isNonZeroAddr(_newVeSpaRewarder);
         emit VeSpaRewarderUpdated(veSpaRewarder, _newVeSpaRewarder);
         veSpaRewarder = _newVeSpaRewarder;
+    }
+
+    /// @notice Update oracle address
+    /// @param _newOracle is the address of desired oracle
+    function updateOracle(address _newOracle) external onlyOwner {
+        Helpers._isNonZeroAddr(_newOracle);
+        oracle = _newOracle;
+        emit OracleUpdated(_newOracle);
     }
 
     /// @notice Function to buy USDs for SPA for frontend
@@ -235,11 +243,11 @@ contract SPABuyback is
         view
         returns (uint256, uint256, uint256, uint256)
     {
-        // Fetches the price for SPA and USDS from ORACLE
-        IOracle.PriceData memory usdsData = IOracle(ORACLE).getPrice(
+        // Fetches the price for SPA and USDS from oracle
+        IOracle.PriceData memory usdsData = IOracle(oracle).getPrice(
             Helpers.USDS
         );
-        IOracle.PriceData memory spaData = IOracle(ORACLE).getPrice(
+        IOracle.PriceData memory spaData = IOracle(oracle).getPrice(
             Helpers.SPA
         );
 
