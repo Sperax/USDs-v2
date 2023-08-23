@@ -91,7 +91,7 @@ contract AaveStrategy is InitializableAbstractStrategy {
         uint256 _amount
     ) external override onlyVault nonReentrant {
         if (!supportsCollateral(_asset)) revert CollateralNotSupported(_asset);
-        Helpers._isNonZeroAmt(_amount, "Must deposit something");
+        Helpers._isNonZeroAmt(_amount);
         // Following line also doubles as a check that we are depositing
         // an asset that we support.
         assetInfo[_asset].allocatedAmt += _amount;
@@ -123,9 +123,7 @@ contract AaveStrategy is InitializableAbstractStrategy {
     }
 
     /// @inheritdoc InitializableAbstractStrategy
-    function collectInterest(
-        address _asset
-    ) external override onlyVault nonReentrant {
+    function collectInterest(address _asset) external override nonReentrant {
         address yieldReceiver = IVault(vaultAddress).yieldReceiver();
         address harvestor = msg.sender;
         uint256 assetInterest = checkInterestEarned(_asset);
