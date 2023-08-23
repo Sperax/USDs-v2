@@ -4,5 +4,3 @@
 chmod +x .husky/hooks/validate-branch-name.sh
 forge build --force
 npm run lint-contract
-
-npm run lint

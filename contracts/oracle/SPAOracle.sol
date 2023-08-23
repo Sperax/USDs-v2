@@ -17,7 +17,8 @@ contract SPAOracle is BaseUniOracle {
     address public constant SPA = 0x5575552988A3A80504bBaeB1311674fCFd40aD4B;
     address public constant DIA_ORACLE =
         0x7919D08e0f41398cBc1e0A8950Df831e4895c19b;
-    uint128 private constant SPA_PRICE_PRECISION = 1e18;
+    uint128 private constant SPA_PRECISION = 1e18;
+    uint128 private constant SPA_PRICE_PRECISION = 1e8;
     uint256 private constant DIA_PRECISION = 1e8;
     uint256 public constant MAX_WEIGHT = 100;
 
@@ -71,7 +72,7 @@ contract SPAOracle is BaseUniOracle {
     /// @notice Query SPA price according to a UniV3 SPA pool
     /// @return uint256 SPA Uni price with precision DIA_PRECISION
     function _getSPAUniPrice() private view returns (uint256) {
-        uint256 quoteTokenAmtPerSPA = _getUniMAPrice(SPA, SPA_PRICE_PRECISION);
+        uint256 quoteTokenAmtPerSPA = _getUniMAPrice(SPA, SPA_PRECISION);
         (
             uint256 quoteTokenPrice,
             uint256 quoteTokenPricePrecision
@@ -79,7 +80,7 @@ contract SPAOracle is BaseUniOracle {
         return
             quoteTokenPrice
                 .mul(quoteTokenAmtPerSPA)
-                .mul(DIA_PRECISION)
+                .mul(SPA_PRICE_PRECISION)
                 .div(quoteTokenPrecision)
                 .div(quoteTokenPricePrecision);
     }

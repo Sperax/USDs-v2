@@ -2,7 +2,6 @@
 pragma solidity 0.8.16;
 
 import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
-import {FlagsInterface} from "@chainlink/contracts/src/v0.8/interfaces/FlagsInterface.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 contract ChainlinkOracle is Ownable {
@@ -20,15 +19,6 @@ contract ChainlinkOracle is Ownable {
         0xFdB631F5EE196F0ed6FAa767959853A9F217697D;
     uint256 private constant GRACE_PERIOD_TIME = 3600;
 
-    address private constant FLAG_ARBITRUM_SEQ_OFFLINE =
-        address(
-            bytes20(
-                bytes32(
-                    uint256(keccak256("chainlink.flags.arbitrum-seq-offline")) -
-                        1
-                )
-            )
-        );
     mapping(address => TokenData) public getTokenData;
 
     event TokenDataChanged(
@@ -60,6 +50,7 @@ contract ChainlinkOracle is Ownable {
 
     /// @notice Gets the token price and price precision
     /// @param _token Address of the desired token
+    /// @dev Ref: https://docs.chain.link/data-feeds/l2-sequencer-feeds
     function getTokenPrice(
         address _token
     ) public view returns (uint256, uint256) {

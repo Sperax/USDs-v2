@@ -16,10 +16,10 @@ contract RebaseManagerTest is PreMigrationSetup {
     uint256 USDsPrecision;
 
     // Events from the actual contract.
-    event VaultChanged(address vault);
-    event DripperChanged(address dripper);
-    event GapChanged(uint256 gap);
-    event APRChanged(uint256 aprBottom, uint256 aprCap);
+    event VaultUpdated(address vault);
+    event DripperUpdated(address dripper);
+    event GapUpdated(uint256 gap);
+    event APRUpdated(uint256 aprBottom, uint256 aprCap);
 
     function setUp() public override {
         super.setUp();
@@ -62,7 +62,7 @@ contract SetVault is RebaseManagerTest {
     function test_setVault() external useKnownActor(USDS_OWNER) {
         address newVaultAddress = address(1);
         vm.expectEmit(true, true, false, true);
-        emit VaultChanged(address(1));
+        emit VaultUpdated(address(1));
 
         rebaseManager.setVault(newVaultAddress);
     }
@@ -95,7 +95,7 @@ contract SetDripper is RebaseManagerTest {
     function test_setDripper() external useKnownActor(USDS_OWNER) {
         address newDripperAddress = address(1);
         vm.expectEmit(true, true, false, true);
-        emit DripperChanged(address(1));
+        emit DripperUpdated(address(1));
         rebaseManager.setDripper(newDripperAddress);
     }
 }
@@ -103,7 +103,7 @@ contract SetDripper is RebaseManagerTest {
 contract SetGap is RebaseManagerTest {
     function test_SetGap_Zero() external useKnownActor(USDS_OWNER) {
         vm.expectEmit(true, true, false, true);
-        emit GapChanged(0);
+        emit GapUpdated(0);
         rebaseManager.setGap(0);
     }
 
@@ -116,7 +116,7 @@ contract SetGap is RebaseManagerTest {
         vm.assume(gap != 0);
 
         vm.expectEmit(true, true, false, true);
-        emit GapChanged(gap);
+        emit GapUpdated(gap);
         rebaseManager.setGap(gap);
     }
 }
@@ -146,7 +146,7 @@ contract SetAPR is RebaseManagerTest {
     ) external useKnownActor(USDS_OWNER) {
         vm.assume(aprBottom <= aprCap);
         vm.expectEmit(true, true, false, true);
-        emit APRChanged(aprBottom, aprCap);
+        emit APRUpdated(aprBottom, aprCap);
         rebaseManager.setAPR(aprBottom, aprCap);
     }
 }

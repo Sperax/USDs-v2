@@ -4,17 +4,18 @@ node_modules
 .env
 coverage
 coverage.json
-typechain
-typechain-types
-
-# Hardhat files
-cache
-artifacts
-build
 
 # Foundry files
 out
 lib
 cache_forge
 
+# Brownie files
+build
+tests
+reports
+interfaces
+deployed/arbitrum-main-fork
+__pycache__
+lcov.info
 .DS_Store
