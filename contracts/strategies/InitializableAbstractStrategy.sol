@@ -32,7 +32,7 @@ abstract contract InitializableAbstractStrategy is
     event PTokenRemoved(address indexed asset, address pToken);
     event Deposit(address indexed asset, address pToken, uint256 amount);
     event Withdrawal(address indexed asset, address pToken, uint256 amount);
-    event SlippageChanged(uint16 depositSlippage, uint16 withdrawSlippage);
+    event SlippageUpdated(uint16 depositSlippage, uint16 withdrawSlippage);
     event HarvestIncentiveCollected(
         address indexed token,
         address indexed harvestor,
@@ -53,7 +53,7 @@ abstract contract InitializableAbstractStrategy is
     error CallerNotVault(address caller);
     error CallerNotVaultOrOwner(address caller);
     error PTokenAlreadySet(address collateral, address pToken);
-    error InvalidIndex(uint maxIndex);
+    error InvalidIndex();
     error CollateralNotSupported(address asset);
     error InvalidAssetLpPair(address asset, address lpToken);
     error CollateralAllocated(address asset);
@@ -168,7 +168,7 @@ abstract contract InitializableAbstractStrategy is
     /// @notice Change to a new depositSlippage & withdrawSlippage
     /// @param _depositSlippage Slippage tolerance for allocation
     /// @param _withdrawSlippage Slippage tolerance for withdrawal
-    function changeSlippage(
+    function updateSlippage(
         uint16 _depositSlippage,
         uint16 _withdrawSlippage
     ) public onlyOwner {
@@ -176,7 +176,7 @@ abstract contract InitializableAbstractStrategy is
         Helpers._isLTEMaxPercentage(_withdrawSlippage);
         depositSlippage = _depositSlippage;
         withdrawSlippage = _withdrawSlippage;
-        emit SlippageChanged(depositSlippage, withdrawSlippage);
+        emit SlippageUpdated(depositSlippage, withdrawSlippage);
     }
 
     /// @notice Initialize the base properties of the strategy
@@ -191,7 +191,7 @@ abstract contract InitializableAbstractStrategy is
         OwnableUpgradeable.__Ownable_init();
         ReentrancyGuardUpgradeable.__ReentrancyGuard_init();
         Helpers._isNonZeroAddr(_vaultAddress);
-        changeSlippage(_depositSlippage, _withdrawSlippage);
+        updateSlippage(_depositSlippage, _withdrawSlippage);
         vaultAddress = _vaultAddress;
         harvestIncentiveRate = 10;
     }
@@ -223,7 +223,7 @@ abstract contract InitializableAbstractStrategy is
         uint256 _assetIndex
     ) internal returns (address asset) {
         uint256 numAssets = assetsMapped.length;
-        if (_assetIndex >= numAssets) revert InvalidIndex(numAssets);
+        if (_assetIndex >= numAssets) revert InvalidIndex();
         asset = assetsMapped[_assetIndex];
         address pToken = assetToPToken[asset];
 

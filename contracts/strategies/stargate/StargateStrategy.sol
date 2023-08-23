@@ -28,7 +28,7 @@ contract StargateStrategy is InitializableAbstractStrategy {
     mapping(address => AssetInfo) public assetInfo;
 
     event SkipRwdValidationStatus(bool status);
-    event IntLiqThresholdChanged(
+    event IntLiqThresholdUpdated(
         address indexed asset,
         uint256 intLiqThreshold
     );
@@ -111,7 +111,7 @@ contract StargateStrategy is InitializableAbstractStrategy {
         if (!supportsCollateral(_asset)) revert CollateralNotSupported(_asset);
         assetInfo[_asset].intLiqThreshold = _intLiqThreshold;
 
-        emit IntLiqThresholdChanged(_asset, _intLiqThreshold);
+        emit IntLiqThresholdUpdated(_asset, _intLiqThreshold);
     }
 
     /// @notice Toggle the skip reward validation flag.

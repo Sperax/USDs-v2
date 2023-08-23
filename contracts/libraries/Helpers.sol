@@ -9,7 +9,7 @@ library Helpers {
     error CustomError(string message);
     error InvalidAddress();
     error GTMaxPercentage(uint256 _actual, uint256 _max);
-    error InvalidAmount(uint256 _amount);
+    error InvalidAmount();
     error MinSlippageError(uint256 actualAmt, uint256 minExpectedAmt);
     error MaxSlippageError(uint256 actualAmt, uint256 maxExpectedAmt);
 
@@ -26,7 +26,7 @@ library Helpers {
     /// @notice Check for non-zero mount
     /// @param _amount Amount to be validated
     function _isNonZeroAmt(uint256 _amount) internal pure {
-        if (_amount == 0) revert InvalidAmount(_amount);
+        if (_amount == 0) revert InvalidAmount();
     }
 
     /// @notice Check for non-zero mount
