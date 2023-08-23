@@ -2,19 +2,19 @@
 pragma solidity 0.8.16;
 
 library Helpers {
-    uint128 internal constant MAX_PERCENTAGE = 10000;
+    uint16 internal constant MAX_PERCENTAGE = 10000;
     address internal constant SPA = 0x5575552988A3A80504bBaeB1311674fCFd40aD4B;
     address internal constant USDS = 0xD74f5255D557944cf7Dd0E45FF521520002D5748;
 
     error CustomError(string message);
     error InvalidAddress();
-    error GTMaxPercentage(uint256 _actual, uint256 _max);
+    error GTMaxPercentage(uint256 _actual);
     error InvalidAmount();
     error MinSlippageError(uint256 actualAmt, uint256 minExpectedAmt);
     error MaxSlippageError(uint256 actualAmt, uint256 maxExpectedAmt);
 
     function _checkDeadline(uint256 _deadline) internal view {
-        require(block.timestamp <= _deadline, "Deadline passed");
+        if (block.timestamp > _deadline) revert CustomError("Deadline passed");
     }
 
     /// @notice Check for non-zero address
@@ -36,8 +36,7 @@ library Helpers {
     }
 
     function _isLTEMaxPercentage(uint256 _percentage) internal pure {
-        if (_percentage > MAX_PERCENTAGE)
-            revert GTMaxPercentage(_percentage, MAX_PERCENTAGE);
+        if (_percentage > MAX_PERCENTAGE) revert GTMaxPercentage(_percentage);
     }
 
     function _isLTEMaxPercentage(
