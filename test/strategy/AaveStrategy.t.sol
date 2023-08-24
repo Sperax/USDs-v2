@@ -9,7 +9,6 @@ import {InitializableAbstractStrategy, Helpers} from "../../contracts/strategies
 import {IERC20, ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 address constant AAVE_POOL_PROVIDER = 0xa97684ead0e402dC232d5A977953DF7ECBaB3CDb;
-address constant VAULT_ADDRESS = 0xa97684ead0e402dC232d5A977953DF7ECBaB3CDb;
 address constant DUMMY_ADDRESS = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
 
 contract AaveStrategyTest is BaseStrategy, BaseTest {
@@ -52,12 +51,12 @@ contract AaveStrategyTest is BaseStrategy, BaseTest {
     }
 
     function _initializeStrategy() internal {
-        strategy.initialize(AAVE_POOL_PROVIDER, VAULT_ADDRESS);
+        strategy.initialize(AAVE_POOL_PROVIDER, VAULT);
     }
 
     function _deposit() internal {
-        changePrank(VAULT_ADDRESS);
-        deal(address(ASSET), VAULT_ADDRESS, depositAmount);
+        changePrank(VAULT);
+        deal(address(ASSET), VAULT, depositAmount);
         IERC20(ASSET).approve(address(strategy), depositAmount);
         strategy.deposit(ASSET, 1);
         changePrank(USDS_OWNER);
@@ -117,7 +116,7 @@ contract InitializeTests is AaveStrategyTest {
             abi.encodeWithSelector(Helpers.InvalidAddress.selector)
         );
 
-        strategy.initialize(address(0), VAULT_ADDRESS);
+        strategy.initialize(address(0), VAULT);
 
         vm.expectRevert(
             abi.encodeWithSelector(Helpers.InvalidAddress.selector)
@@ -134,7 +133,7 @@ contract InitializeTests is AaveStrategyTest {
 
         assertEq(impl.owner(), address(0));
         assertEq(strategy.owner(), USDS_OWNER);
-        assertEq(strategy.vaultAddress(), VAULT_ADDRESS);
+        assertEq(strategy.vault(), VAULT);
         assertNotEq(strategy.aavePool.address, address(0));
     }
 }
@@ -289,7 +288,7 @@ contract Deposit is AaveStrategyTest {
 
     function test_deposit_Collateral_not_supported()
         public
-        useKnownActor(VAULT_ADDRESS)
+        useKnownActor(VAULT)
     {
         vm.expectRevert(
             abi.encodeWithSelector(
@@ -300,18 +299,15 @@ contract Deposit is AaveStrategyTest {
         strategy.deposit(DUMMY_ADDRESS, 1);
     }
 
-    function test_RevertWhen_InvalidAmount()
-        public
-        useKnownActor(VAULT_ADDRESS)
-    {
+    function test_RevertWhen_InvalidAmount() public useKnownActor(VAULT) {
         vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAmount.selector));
         strategy.deposit(ASSET, 0);
     }
 
-    function test_Deposit() public useKnownActor(VAULT_ADDRESS) {
+    function test_Deposit() public useKnownActor(VAULT) {
         uint256 initial_bal = strategy.checkBalance(ASSET);
 
-        deal(address(ASSET), VAULT_ADDRESS, depositAmount);
+        deal(address(ASSET), VAULT, depositAmount);
         IERC20(ASSET).approve(address(strategy), depositAmount);
         strategy.deposit(ASSET, 1);
 
@@ -330,21 +326,21 @@ contract CollectInterest is AaveStrategyTest {
         _initializeStrategy();
         strategy.setPTokenAddress(ASSET, P_TOKEN, 0);
 
-        changePrank(VAULT_ADDRESS);
-        deal(address(ASSET), VAULT_ADDRESS, depositAmount);
+        changePrank(VAULT);
+        deal(address(ASSET), VAULT, depositAmount);
         IERC20(ASSET).approve(address(strategy), depositAmount);
         strategy.deposit(ASSET, depositAmount);
         vm.stopPrank();
     }
 
-    function test_CollectInterest() public useKnownActor(VAULT_ADDRESS) {
+    function test_CollectInterest() public useKnownActor(VAULT) {
         vm.warp(block.timestamp + 10 days);
         vm.roll(block.number + 1000);
 
         uint256 initial_bal = IERC20(ASSET).balanceOf(yieldReceiver);
 
         vm.mockCall(
-            VAULT_ADDRESS,
+            VAULT,
             abi.encodeWithSignature("yieldReceiver()"),
             abi.encode(yieldReceiver)
         );
@@ -379,8 +375,8 @@ contract WithdrawTest is AaveStrategyTest {
         _initializeStrategy();
         strategy.setPTokenAddress(ASSET, P_TOKEN, 0);
 
-        changePrank(VAULT_ADDRESS);
-        deal(address(ASSET), VAULT_ADDRESS, depositAmount);
+        changePrank(VAULT);
+        deal(address(ASSET), VAULT, depositAmount);
         IERC20(ASSET).approve(address(strategy), depositAmount);
         strategy.deposit(ASSET, depositAmount);
         vm.stopPrank();
@@ -397,10 +393,7 @@ contract WithdrawTest is AaveStrategyTest {
         strategy.withdrawToVault(assetData.asset, 0);
     }
 
-    function test_RevertWhen_InvalidAddress()
-        public
-        useKnownActor(VAULT_ADDRESS)
-    {
+    function test_RevertWhen_InvalidAddress() public useKnownActor(VAULT) {
         vm.expectRevert(
             abi.encodeWithSelector(Helpers.InvalidAddress.selector)
         );
@@ -411,11 +404,11 @@ contract WithdrawTest is AaveStrategyTest {
         vm.expectRevert(
             abi.encodeWithSelector(CallerNotVault.selector, actors[0])
         );
-        strategy.withdraw(VAULT_ADDRESS, ASSET, 1);
+        strategy.withdraw(VAULT, ASSET, 1);
     }
 
-    function test_Withdraw() public useKnownActor(VAULT_ADDRESS) {
-        uint256 initialVaultBal = IERC20(ASSET).balanceOf(VAULT_ADDRESS);
+    function test_Withdraw() public useKnownActor(VAULT) {
+        uint256 initialVaultBal = IERC20(ASSET).balanceOf(VAULT);
         uint256 amt = 1000;
 
         vm.expectEmit(true, false, false, true);
@@ -424,12 +417,12 @@ contract WithdrawTest is AaveStrategyTest {
         vm.warp(block.timestamp + 10 days);
         vm.roll(block.number + 1000);
 
-        strategy.withdraw(VAULT_ADDRESS, ASSET, amt);
-        assertEq(initialVaultBal + amt, IERC20(ASSET).balanceOf(VAULT_ADDRESS));
+        strategy.withdraw(VAULT, ASSET, amt);
+        assertEq(initialVaultBal + amt, IERC20(ASSET).balanceOf(VAULT));
     }
 
     function test_WithdrawToVault() public useKnownActor(USDS_OWNER) {
-        uint256 initialVaultBal = IERC20(ASSET).balanceOf(VAULT_ADDRESS);
+        uint256 initialVaultBal = IERC20(ASSET).balanceOf(VAULT);
         uint256 amt = 1000;
 
         vm.warp(block.timestamp + 10 days);
@@ -439,7 +432,7 @@ contract WithdrawTest is AaveStrategyTest {
         emit Withdrawal(ASSET, strategy.assetToPToken(ASSET), amt);
 
         strategy.withdrawToVault(ASSET, amt);
-        assertEq(initialVaultBal + amt, IERC20(ASSET).balanceOf(VAULT_ADDRESS));
+        assertEq(initialVaultBal + amt, IERC20(ASSET).balanceOf(VAULT));
     }
 }
 
@@ -464,8 +457,8 @@ contract MiscellaneousTest is AaveStrategyTest {
     }
 
     function test_CheckAvailableBalance() public {
-        vm.startPrank(VAULT_ADDRESS);
-        deal(address(ASSET), VAULT_ADDRESS, depositAmount);
+        vm.startPrank(VAULT);
+        deal(address(ASSET), VAULT, depositAmount);
         IERC20(ASSET).approve(address(strategy), depositAmount);
         strategy.deposit(ASSET, depositAmount);
         vm.stopPrank();
@@ -475,8 +468,8 @@ contract MiscellaneousTest is AaveStrategyTest {
     }
 
     function test_CheckAvailableBalance_InsufficientTokens() public {
-        vm.startPrank(VAULT_ADDRESS);
-        deal(address(ASSET), VAULT_ADDRESS, depositAmount);
+        vm.startPrank(VAULT);
+        deal(address(ASSET), VAULT, depositAmount);
         IERC20(ASSET).approve(address(strategy), depositAmount);
         strategy.deposit(ASSET, depositAmount);
         vm.stopPrank();

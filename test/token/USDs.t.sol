@@ -89,13 +89,13 @@ contract USDsTest is BaseTest {
 
         vm.startPrank(USDS_OWNER);
         usds = USDs(USDS);
-        usds.changeVault(VAULT);
+        usds.updateVault(VAULT);
         vm.stopPrank();
     }
 
     function test_change_vault() public useKnownActor(USDS_OWNER) {
-        usds.changeVault(USER1);
-        assertEq(USER1, usds.vaultAddress());
+        usds.updateVault(USER1);
+        assertEq(USER1, usds.vault());
     }
 }
 

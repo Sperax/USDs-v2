@@ -67,7 +67,7 @@ abstract contract PreMigrationSetup is Setup {
         // Deploy
         VaultCore vaultImpl = new VaultCore();
         VAULT = upgradeUtil.deployErc1967Proxy(address(vaultImpl));
-        USDs(USDS).changeVault(VAULT);
+        USDs(USDS).updateVault(VAULT);
 
         VaultCore vault = VaultCore(VAULT);
         vault.initialize();
