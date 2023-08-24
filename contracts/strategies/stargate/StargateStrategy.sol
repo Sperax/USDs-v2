@@ -39,7 +39,7 @@ contract StargateStrategy is InitializableAbstractStrategy {
 
     function initialize(
         address _router,
-        address _vaultAddress,
+        address vault,
         address _stg,
         address _farm,
         uint16 _depositSlippage, // 200 = 2%
@@ -55,7 +55,7 @@ contract StargateStrategy is InitializableAbstractStrategy {
         rewardTokenAddress.push(_stg);
 
         InitializableAbstractStrategy._initialize(
-            _vaultAddress,
+            vault,
             _depositSlippage,
             _withdrawSlippage
         );
@@ -171,12 +171,12 @@ contract StargateStrategy is InitializableAbstractStrategy {
         address _asset,
         uint256 _amount
     ) external override onlyOwner nonReentrant returns (uint256) {
-        return _withdraw(false, vaultAddress, _asset, _amount);
+        return _withdraw(false, vault, _asset, _amount);
     }
 
     /// @inheritdoc InitializableAbstractStrategy
     function collectInterest(address _asset) external override nonReentrant {
-        address yieldReceiver = IVault(vaultAddress).yieldReceiver();
+        address yieldReceiver = IVault(vault).yieldReceiver();
         address harvestor = msg.sender;
         uint256 earnedInterest = checkInterestEarned(_asset);
         if (earnedInterest > assetInfo[_asset].intLiqThreshold) {
@@ -198,7 +198,7 @@ contract StargateStrategy is InitializableAbstractStrategy {
 
     /// @inheritdoc InitializableAbstractStrategy
     function collectReward() external override nonReentrant {
-        address yieldReceiver = IVault(vaultAddress).yieldReceiver();
+        address yieldReceiver = IVault(vault).yieldReceiver();
         address harvestor = msg.sender;
         address rewardToken = rewardTokenAddress[0];
         uint256 numAssets = assetsMapped.length;

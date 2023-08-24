@@ -158,7 +158,7 @@ contract YieldReserve is ReentrancyGuard, Ownable {
     function updateBuybackAddress(address _newBuyBack) public onlyOwner {
         Helpers._isNonZeroAddr(_newBuyBack);
         buyback = _newBuyBack;
-        emit BuybackAddressUpdated(buyback);
+        emit BuybackAddressUpdated(_newBuyBack);
     }
 
     /// @notice Update Oracle's address
@@ -280,9 +280,7 @@ contract YieldReserve is ReentrancyGuard, Ownable {
         uint256 toDripper = balance - toBuyback;
 
         emit USDsSent(toBuyback, toDripper);
-        if (toBuyback > 0)
-            IERC20(Helpers.USDS).safeTransfer(buyback, toBuyback);
-        if (toDripper > 0)
-            IERC20(Helpers.USDS).safeTransfer(dripper, toDripper);
+        IERC20(Helpers.USDS).safeTransfer(buyback, toBuyback);
+        IERC20(Helpers.USDS).safeTransfer(dripper, toDripper);
     }
 }

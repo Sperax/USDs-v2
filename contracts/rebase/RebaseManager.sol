@@ -44,10 +44,10 @@ contract RebaseManager is Ownable {
         uint256 _aprCap, // 1000 = 10%
         uint256 _aprBottom // 800 = 8%
     ) {
-        setVault(_vault);
-        setDripper(_dripper);
-        setGap(_gap);
-        setAPR(_aprBottom, _aprCap);
+        updateVault(_vault);
+        updateDripper(_dripper);
+        updateGap(_gap);
+        updateAPR(_aprBottom, _aprCap);
         lastRebaseTS = block.timestamp;
     }
 
@@ -80,7 +80,7 @@ contract RebaseManager is Ownable {
 
     /// @notice Updates the vault address
     /// @param _newVault Address of the new vault
-    function setVault(address _newVault) public onlyOwner {
+    function updateVault(address _newVault) public onlyOwner {
         Helpers._isNonZeroAddr(_newVault);
         vault = _newVault;
         emit VaultUpdated(_newVault);
@@ -88,7 +88,7 @@ contract RebaseManager is Ownable {
 
     /// @notice Updates the dripper for USDs vault
     /// @param _dripper address of the new dripper contract
-    function setDripper(address _dripper) public onlyOwner {
+    function updateDripper(address _dripper) public onlyOwner {
         Helpers._isNonZeroAddr(_dripper);
         dripper = _dripper;
         emit DripperUpdated(_dripper);
@@ -96,7 +96,7 @@ contract RebaseManager is Ownable {
 
     /// @notice Update the minimum gap required b/w two rebases
     /// @param _gap updated gap time
-    function setGap(uint256 _gap) public onlyOwner {
+    function updateGap(uint256 _gap) public onlyOwner {
         gap = _gap;
         emit GapUpdated(_gap);
     }
@@ -104,7 +104,7 @@ contract RebaseManager is Ownable {
     /// @notice Update the APR requirements for each rebase
     /// @param _aprCap new MAX APR for rebase
     /// @param _aprBottom new MIN APR for rebase
-    function setAPR(uint256 _aprBottom, uint256 _aprCap) public onlyOwner {
+    function updateAPR(uint256 _aprBottom, uint256 _aprCap) public onlyOwner {
         if (_aprCap < _aprBottom) revert InvalidAPRConfig(_aprBottom, _aprCap);
         aprCap = _aprCap;
         aprBottom = _aprBottom;

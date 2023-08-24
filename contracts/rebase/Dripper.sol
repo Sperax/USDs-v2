@@ -25,8 +25,8 @@ contract Dripper is Ownable {
     error NothingToRecover();
 
     constructor(address _vault, uint256 _dripDuration) {
-        setVault(_vault);
-        setDripDuration(_dripDuration);
+        updateVault(_vault);
+        updateDripDuration(_dripDuration);
         lastCollectTS = block.timestamp;
     }
 
@@ -56,14 +56,14 @@ contract Dripper is Ownable {
     }
 
     /// @notice Update the vault address
-    function setVault(address _vault) public onlyOwner {
+    function updateVault(address _vault) public onlyOwner {
         Helpers._isNonZeroAddr(_vault);
         vault = _vault;
         emit VaultUpdated(_vault);
     }
 
     /// @notice Updates the dripDuration
-    function setDripDuration(uint256 _dripDuration) public onlyOwner {
+    function updateDripDuration(uint256 _dripDuration) public onlyOwner {
         Helpers._isNonZeroAmt(_dripDuration);
         dripDuration = _dripDuration;
         emit DripDurationUpdated(_dripDuration);

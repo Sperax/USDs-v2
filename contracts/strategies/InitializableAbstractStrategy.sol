@@ -15,7 +15,7 @@ abstract contract InitializableAbstractStrategy is
 {
     using SafeERC20 for IERC20;
 
-    address public vaultAddress;
+    address public vault;
     uint16 public withdrawSlippage;
     uint16 public depositSlippage;
     uint16 public harvestIncentiveRate;
@@ -59,12 +59,12 @@ abstract contract InitializableAbstractStrategy is
     error CollateralAllocated(address asset);
 
     modifier onlyVault() {
-        if (msg.sender != vaultAddress) revert CallerNotVault(msg.sender);
+        if (msg.sender != vault) revert CallerNotVault(msg.sender);
         _;
     }
 
     modifier onlyVaultOrOwner() {
-        if (msg.sender != vaultAddress || msg.sender != owner())
+        if (!(msg.sender == vault || msg.sender == owner()))
             revert CallerNotVaultOrOwner(msg.sender);
         _;
     }
@@ -76,9 +76,9 @@ abstract contract InitializableAbstractStrategy is
 
     /// @notice Update the linked vault contract
     /// @param _newVault Address of the new Vault
-    function updateVaultCore(address _newVault) external onlyOwner {
+    function updateVault(address _newVault) external onlyOwner {
         Helpers._isNonZeroAddr(_newVault);
-        vaultAddress = _newVault;
+        vault = _newVault;
         emit VaultUpdated(_newVault);
     }
 
@@ -180,19 +180,19 @@ abstract contract InitializableAbstractStrategy is
     }
 
     /// @notice Initialize the base properties of the strategy
-    /// @param _vaultAddress Address of the USDs Vault
+    /// @param _vault Address of the USDs Vault
     /// @param _depositSlippage Allowed max slippage for Deposit
     /// @param _withdrawSlippage Allowed max slippage for withdraw
     function _initialize(
-        address _vaultAddress,
+        address _vault,
         uint16 _depositSlippage,
         uint16 _withdrawSlippage
     ) internal {
         OwnableUpgradeable.__Ownable_init();
         ReentrancyGuardUpgradeable.__ReentrancyGuard_init();
-        Helpers._isNonZeroAddr(_vaultAddress);
+        Helpers._isNonZeroAddr(_vault);
         updateSlippage(_depositSlippage, _withdrawSlippage);
-        vaultAddress = _vaultAddress;
+        vault = _vault;
         harvestIncentiveRate = 10;
     }
 

@@ -6,6 +6,7 @@ import {AddressUpgradeable, OwnableUpgradeable} from "@openzeppelin/contracts-up
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import {ERC20Upgradeable, ERC20PermitUpgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
 import {StableMath} from "../libraries/StableMath.sol";
+import {Helpers} from "../libraries/Helpers.sol";
 import {IUSDs} from "../interfaces/IUSDs.sol";
 
 ///  NOTE that this is an ERC20 token but the invariant that the sum of
@@ -38,7 +39,7 @@ contract USDs is
     uint256 internal _totalSupply; // the total supply of USDs
     uint256[4] private _deprecated_vars; // totalMinted, totalBurnt, mintedViaGateway, burntViaGateway
     mapping(address => mapping(address => uint256)) private _allowances;
-    address public vaultAddress; // the address where (i) all collaterals of USDs protocol reside, e.g. USDT, USDC, ETH, etc and (ii) major actions like USDs minting are initiated
+    address public vault; // the address where (i) all collaterals of USDs protocol reside, e.g. USDT, USDC, ETH, etc and (ii) major actions like USDs minting are initiated
     // an user's balance of USDs is based on her balance of "credits."
     // in a rebase process, her USDs balance will change according to her credit balance and the rebase ratio
     mapping(address => uint256) private _creditBalances;
@@ -60,8 +61,8 @@ contract USDs is
         uint256 rebasingCredits,
         uint256 rebasingCreditsPerToken
     );
-    event AccountUpgraded(address account, bool isNonRebasing);
     event Paused(bool isPaused);
+    event VaultUpdated(address newVault);
 
     error CallerNotVault(address caller);
     error ContractPaused();
@@ -76,7 +77,7 @@ contract USDs is
 
     /// @notice Verifies that the caller is the Savings Manager contract
     modifier onlyVault() {
-        if (msg.sender != vaultAddress) revert CallerNotVault(msg.sender);
+        if (msg.sender != vault) revert CallerNotVault(msg.sender);
         _;
     }
 
@@ -189,14 +190,15 @@ contract USDs is
 
     /// @notice change the vault address
     /// @param _newVault the new vault address
-    function changeVault(address _newVault) external onlyOwner {
-        vaultAddress = _newVault;
+    function updateVault(address _newVault) external onlyOwner {
+        Helpers._isNonZeroAddr(_newVault);
+        vault = _newVault;
+        emit VaultUpdated(_newVault);
     }
 
     /// @notice Called by the owner to pause | unpause the contract
     /// @param _pause pauseSwitch state.
     function pauseSwitch(bool _pause) external onlyOwner {
-        require(paused != _pause, "Already in required state");
         paused = _pause;
         emit Paused(_pause);
     }

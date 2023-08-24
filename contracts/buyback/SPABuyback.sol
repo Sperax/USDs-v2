@@ -41,10 +41,7 @@ contract SPABuyback is
         uint256 oldRewardPercentage,
         uint256 newRewardPercentage
     );
-    event VeSpaRewarderUpdated(
-        address oldVeSpaRewarder,
-        address newVeSpaRewarder
-    );
+    event VeSpaRewarderUpdated(address newVeSpaRewarder);
     event OracleUpdated(address newOracle);
 
     error CannotWithdrawSPA();
@@ -102,8 +99,8 @@ contract SPABuyback is
     /// @param _newVeSpaRewarder is the address of desired veSpaRewarder
     function updateVeSpaRewarder(address _newVeSpaRewarder) external onlyOwner {
         Helpers._isNonZeroAddr(_newVeSpaRewarder);
-        emit VeSpaRewarderUpdated(veSpaRewarder, _newVeSpaRewarder);
         veSpaRewarder = _newVeSpaRewarder;
+        emit VeSpaRewarderUpdated(_newVeSpaRewarder);
     }
 
     /// @notice Update oracle address
@@ -141,9 +138,10 @@ contract SPABuyback is
         uint256 totalUsdsValue = (_usdsAmount * usdsPrice) / usdsPricePrecision;
 
         // Calculates spa amount required
-        uint256 spaAmtReqd = (totalUsdsValue * spaPricePrecision) / spaPrice;
+        uint256 spaAmtRequired = (totalUsdsValue * spaPricePrecision) /
+            spaPrice;
 
-        return spaAmtReqd;
+        return spaAmtRequired;
     }
 
     /// @notice Buy USDs for SPA if you want a different receiver
@@ -193,13 +191,9 @@ contract SPABuyback is
         uint256 balance = ERC20BurnableUpgradeable(Helpers.SPA).balanceOf(
             address(this)
         );
-
         // Calculating the amount to reward based on rewardPercentage
         uint256 toReward = (balance * rewardPercentage) /
             Helpers.MAX_PERCENTAGE;
-
-        // Remaining balance will be burned
-        uint256 toBurn = balance - toReward;
 
         // Transferring SPA tokens
         ERC20BurnableUpgradeable(Helpers.SPA).safeTransfer(
@@ -208,6 +202,8 @@ contract SPABuyback is
         );
         emit SPARewarded(toReward);
 
+        // Remaining balance will be burned
+        uint256 toBurn = balance - toReward;
         // Burning SPA tokens
         ERC20BurnableUpgradeable(Helpers.SPA).burn(toBurn);
         emit SPABurned(toBurn);

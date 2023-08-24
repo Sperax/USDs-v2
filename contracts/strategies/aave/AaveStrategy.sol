@@ -28,10 +28,10 @@ contract AaveStrategy is InitializableAbstractStrategy {
     /// InitializableAbstractStrategy initializer as AAVE needs several extra
     /// addresses for the rewards program.
     /// @param _platformAddress Address of the AAVE pool
-    /// @param _vaultAddress Address of the vault
+    /// @param _vault Address of the vault
     function initialize(
         address _platformAddress, // AAVE PoolAddress provider 0xa97684ead0e402dC232d5A977953DF7ECBaB3CDb
-        address _vaultAddress
+        address _vault
     ) external initializer {
         Helpers._isNonZeroAddr(_platformAddress);
         aavePool = IAaveLendingPool(
@@ -40,7 +40,7 @@ contract AaveStrategy is InitializableAbstractStrategy {
         uint16 depositSlippage = 0;
         uint16 withdrawSlippage = 0;
         InitializableAbstractStrategy._initialize(
-            _vaultAddress,
+            _vault,
             depositSlippage,
             withdrawSlippage
         );
@@ -118,13 +118,13 @@ contract AaveStrategy is InitializableAbstractStrategy {
         address _asset,
         uint256 _amount
     ) external override onlyOwner nonReentrant returns (uint256) {
-        uint256 amountReceived = _withdraw(vaultAddress, _asset, _amount);
+        uint256 amountReceived = _withdraw(vault, _asset, _amount);
         return amountReceived;
     }
 
     /// @inheritdoc InitializableAbstractStrategy
     function collectInterest(address _asset) external override nonReentrant {
-        address yieldReceiver = IVault(vaultAddress).yieldReceiver();
+        address yieldReceiver = IVault(vault).yieldReceiver();
         address harvestor = msg.sender;
         uint256 assetInterest = checkInterestEarned(_asset);
         if (assetInterest > assetInfo[_asset].intLiqThreshold) {
