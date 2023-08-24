@@ -151,7 +151,7 @@ contract InitializationTest is StargateStrategyTest {
         // Test state variables post initialization
         assertEq(impl.owner(), address(0));
         assertEq(strategy.owner(), USDS_OWNER);
-        assertEq(strategy.vaultAddress(), VAULT);
+        assertEq(strategy.vault(), VAULT);
         assertEq(strategy.router(), STARGATE_ROUTER);
         assertEq(strategy.farm(), STARGATE_FARM);
         assertEq(strategy.depositSlippage(), BASE_DEPOSIT_SLIPPAGE);
@@ -179,7 +179,7 @@ contract InitializationTest is StargateStrategyTest {
         address newVault = address(1);
         vm.expectEmit(true, true, false, true);
         emit VaultUpdated(newVault);
-        strategy.updateVaultCore(newVault);
+        strategy.updateVault(newVault);
     }
 
     function test_UpdateHarvestIncentiveRate()

@@ -1,7 +1,7 @@
 pragma solidity 0.8.16;
 
 import {BaseTest} from ".././utils/BaseTest.sol";
-import {Dripper} from "../../contracts/rebase/Dripper.sol";
+import {Dripper, Helpers} from "../../contracts/rebase/Dripper.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 address constant WHALE_USDS = 0x50450351517117Cb58189edBa6bbaD6284D45902;
@@ -26,6 +26,8 @@ contract DripperTest is BaseTest {
     event DripDurationUpdated(uint256 dripDuration);
     event Recovered(address owner, uint256 amount);
 
+    error NothingToRecover();
+
     function setUp() public override {
         super.setUp();
         setArbitrumFork();
@@ -34,78 +36,80 @@ contract DripperTest is BaseTest {
     }
 }
 
-contract SetVault is DripperTest {
-    function test_revertsWhen_vaultIsZeroAddress()
+contract UpdateVault is DripperTest {
+    function test_RevertWhen_VaultIsZeroAddress()
         external
         useKnownActor(USDS_OWNER)
     {
         address newVaultAddress = address(0);
-        vm.expectRevert("Invalid Address");
-        dripper.setVault(newVaultAddress);
+        vm.expectRevert(
+            abi.encodeWithSelector(Helpers.InvalidAddress.selector)
+        );
+        dripper.updateVault(newVaultAddress);
     }
 
     // Can't set the fuzzer for address type
-    function test_setVault() external useKnownActor(USDS_OWNER) {
+    function test_UpdateVault() external useKnownActor(USDS_OWNER) {
         address newVaultAddress = address(1);
         vm.expectEmit(true, true, false, true);
         emit VaultUpdated(address(1));
 
-        dripper.setVault(newVaultAddress);
+        dripper.updateVault(newVaultAddress);
     }
 
-    function test_revertsWhen_callerIsNotOwner() external useActor(0) {
+    function test_RevertWhen_CallerIsNotOwner() external useActor(0) {
         address newVaultAddress = address(1);
 
         vm.expectRevert("Ownable: caller is not the owner");
-        dripper.setVault(newVaultAddress);
+        dripper.updateVault(newVaultAddress);
     }
 }
 
 contract SetDripDuration is DripperTest {
-    function test_revertsWhen_invalidInput(
+    function test_RevertWhen_InvalidInput(
         uint256 dripDuration
     ) external useKnownActor(USDS_OWNER) {
         vm.assume(dripDuration == 0);
-        vm.expectRevert("Invalid input");
-        dripper.setDripDuration(dripDuration);
+        vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAmount.selector));
+        dripper.updateDripDuration(dripDuration);
     }
 
     // Can't set the fuzzer for address type
-    function test_setDripDuration(
+    function test_UpdateDripDuration(
         uint256 dripDuration
     ) external useKnownActor(USDS_OWNER) {
         vm.assume(dripDuration != 0);
         vm.expectEmit(true, true, false, true);
         emit DripDurationUpdated(dripDuration);
 
-        dripper.setDripDuration(dripDuration);
+        dripper.updateDripDuration(dripDuration);
     }
 
-    function test_revertsWhen_callerIsNotOwner(
+    function test_RevertWhen_CallerIsNotOwner(
         uint256 dripDuration
     ) external useActor(0) {
         vm.assume(dripDuration != 0);
 
         vm.expectRevert("Ownable: caller is not the owner");
-        dripper.setDripDuration(dripDuration);
+        dripper.updateDripDuration(dripDuration);
     }
 }
 
 contract RecoverTokens is DripperTest {
-    function test_revertsWhen_callerIsNotOwner() external useActor(0) {
+    function test_RevertWhen_CallerIsNotOwner() external useActor(0) {
         vm.expectRevert("Ownable: caller is not the owner");
         dripper.recoverTokens(USDCe);
     }
 
-    function test_revertsWhen_nothingToRecover()
+    function test_RevertWhen_NothingToRecover()
         external
         useKnownActor(USDS_OWNER)
     {
-        vm.expectRevert("Nothing to recover");
+        vm.expectRevert(abi.encodeWithSelector(NothingToRecover.selector));
         dripper.recoverTokens(USDCe);
     }
 
-    function test_recoverTokens(
+    function test_RecoverTokens(
         uint128 amount
     ) external useKnownActor(USDS_OWNER) {
         address[5] memory assets = [USDCe, USDT, VST, FRAX, DAI];
@@ -120,12 +124,12 @@ contract RecoverTokens is DripperTest {
 }
 
 contract Collect is DripperTest {
-    function test_collect_zero_balance() external useActor(0) {
+    function test_CollectZeroBalance() external useActor(0) {
         assertEq(dripper.getCollectableAmt(), 0);
         dripper.collect();
     }
 
-    function test_collectDripper() external useKnownActor(WHALE_USDS) {
+    function test_CollectDripper() external useKnownActor(WHALE_USDS) {
         IERC20(USDS).approve(WHALE_USDS, 100000 * 10 ** 18);
         IERC20(USDS).transfer(address(dripper), 10000 * 10 ** 18);
         // deal(USDS, address(dripper), 1, true);

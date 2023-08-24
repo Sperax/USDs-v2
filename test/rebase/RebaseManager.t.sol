@@ -2,7 +2,7 @@ pragma solidity 0.8.16;
 
 import {PreMigrationSetup} from ".././utils/DeploymentSetup.sol";
 import {Dripper} from "../../contracts/rebase/Dripper.sol";
-import {RebaseManager} from "../../contracts/rebase/RebaseManager.sol";
+import {RebaseManager, Helpers} from "../../contracts/rebase/RebaseManager.sol";
 import {IERC20, ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {console} from "forge-std/console.sol";
 import {IVault} from "../../contracts/interfaces/IVault.sol";
@@ -20,6 +20,9 @@ contract RebaseManagerTest is PreMigrationSetup {
     event DripperUpdated(address dripper);
     event GapUpdated(uint256 gap);
     event APRUpdated(uint256 aprBottom, uint256 aprCap);
+
+    error CallerNotVault(address caller);
+    error InvalidAPRConfig(uint256 aprBottom, uint256 aprCap);
 
     function setUp() public override {
         super.setUp();
@@ -48,116 +51,124 @@ contract RebaseManagerTest is PreMigrationSetup {
     }
 }
 
-contract SetVault is RebaseManagerTest {
-    function test_revertsWhen_vaultIsZeroAddress()
+contract UpdateVault is RebaseManagerTest {
+    function test_RevertWhen_VaultIsZeroAddress()
         external
         useKnownActor(USDS_OWNER)
     {
         address newVaultAddress = address(0);
-        vm.expectRevert("Invalid Address");
-        rebaseManager.setVault(newVaultAddress);
+        vm.expectRevert(
+            abi.encodeWithSelector(Helpers.InvalidAddress.selector)
+        );
+        rebaseManager.updateVault(newVaultAddress);
     }
 
     // Can't set the fuzzer for address type
-    function test_setVault() external useKnownActor(USDS_OWNER) {
+    function test_UpdateVault() external useKnownActor(USDS_OWNER) {
         address newVaultAddress = address(1);
         vm.expectEmit(true, true, false, true);
         emit VaultUpdated(address(1));
 
-        rebaseManager.setVault(newVaultAddress);
+        rebaseManager.updateVault(newVaultAddress);
     }
 
-    function test_revertsWhen_callerIsNotOwner() external useActor(0) {
+    function test_RevertWhen_CallerIsNotOwner() external useActor(0) {
         address newVaultAddress = address(1);
 
         vm.expectRevert("Ownable: caller is not the owner");
-        rebaseManager.setVault(newVaultAddress);
+        rebaseManager.updateVault(newVaultAddress);
     }
 }
 
-contract SetDripper is RebaseManagerTest {
-    function test_revertsWhen_dripperIsZeroAddress()
+contract UpdateDripper is RebaseManagerTest {
+    function test_RevertWhen_DripperIsZeroAddress()
         external
         useKnownActor(USDS_OWNER)
     {
         address newDripperAddress = address(0);
-        vm.expectRevert("Invalid Address");
-        rebaseManager.setDripper(newDripperAddress);
+        vm.expectRevert(
+            abi.encodeWithSelector(Helpers.InvalidAddress.selector)
+        );
+        rebaseManager.updateDripper(newDripperAddress);
     }
 
-    function test_revertsWhen_callerIsNotOwner() external useActor(0) {
+    function test_RevertWhen_CallerIsNotOwner() external useActor(0) {
         address newDripperAddress = address(1);
 
         vm.expectRevert("Ownable: caller is not the owner");
-        rebaseManager.setDripper(newDripperAddress);
+        rebaseManager.updateDripper(newDripperAddress);
     }
 
-    function test_setDripper() external useKnownActor(USDS_OWNER) {
+    function test_UpdateDripper() external useKnownActor(USDS_OWNER) {
         address newDripperAddress = address(1);
         vm.expectEmit(true, true, false, true);
         emit DripperUpdated(address(1));
-        rebaseManager.setDripper(newDripperAddress);
+        rebaseManager.updateDripper(newDripperAddress);
     }
 }
 
-contract SetGap is RebaseManagerTest {
-    function test_SetGap_Zero() external useKnownActor(USDS_OWNER) {
+contract UpdateGap is RebaseManagerTest {
+    function test_UpdateGap_Zero() external useKnownActor(USDS_OWNER) {
         vm.expectEmit(true, true, false, true);
         emit GapUpdated(0);
-        rebaseManager.setGap(0);
+        rebaseManager.updateGap(0);
     }
 
-    function test_revertsWhen_callerIsNotOwner() external useActor(0) {
+    function test_RevertWhen_CallerIsNotOwner() external useActor(0) {
         vm.expectRevert("Ownable: caller is not the owner");
-        rebaseManager.setGap(86400 * 7);
+        rebaseManager.updateGap(86400 * 7);
     }
 
-    function test_setGap(uint256 gap) external useKnownActor(USDS_OWNER) {
+    function test_UpdateGap(uint256 gap) external useKnownActor(USDS_OWNER) {
         vm.assume(gap != 0);
 
         vm.expectEmit(true, true, false, true);
         emit GapUpdated(gap);
-        rebaseManager.setGap(gap);
+        rebaseManager.updateGap(gap);
     }
 }
 
-contract SetAPR is RebaseManagerTest {
-    function test_revertsWhen_invalidConfig(
+contract UpdateAPR is RebaseManagerTest {
+    function test_RevertWhen_InvalidConfig(
         uint256 aprBottom,
         uint256 aprCap
     ) external useKnownActor(USDS_OWNER) {
         vm.assume(aprBottom > aprCap);
-        vm.expectRevert("Invalid APR config");
-        rebaseManager.setAPR(aprBottom, aprCap);
+        vm.expectRevert(
+            abi.encodeWithSelector(InvalidAPRConfig.selector, aprBottom, aprCap)
+        );
+        rebaseManager.updateAPR(aprBottom, aprCap);
     }
 
-    function test_revertsWhen_callerIsNotOwner(
+    function test_RevertWhen_CallerIsNotOwner(
         uint256 aprBottom,
         uint256 aprCap
     ) external useActor(0) {
         vm.assume(aprBottom <= aprCap);
         vm.expectRevert("Ownable: caller is not the owner");
-        rebaseManager.setAPR(aprBottom, aprCap);
+        rebaseManager.updateAPR(aprBottom, aprCap);
     }
 
-    function test_setAPR(
+    function test_UpdateAPR(
         uint256 aprBottom,
         uint256 aprCap
     ) external useKnownActor(USDS_OWNER) {
         vm.assume(aprBottom <= aprCap);
         vm.expectEmit(true, true, false, true);
         emit APRUpdated(aprBottom, aprCap);
-        rebaseManager.setAPR(aprBottom, aprCap);
+        rebaseManager.updateAPR(aprBottom, aprCap);
     }
 }
 
 contract FetchRebaseAmt is RebaseManagerTest {
-    function test_revertsWhen_callerIsNotOwner_rebase() external useActor(0) {
-        vm.expectRevert("Unauthorized caller");
+    function test_RevertWhen_CallerIsNotOwner() external useActor(0) {
+        vm.expectRevert(
+            abi.encodeWithSelector(CallerNotVault.selector, actors[0])
+        );
         rebaseManager.fetchRebaseAmt();
     }
 
-    function test_fetchRebaseAmt_scenario() external {
+    function test_FetchRebaseAmt_Scenario() external {
         vm.prank(VAULT);
         rebaseManager.fetchRebaseAmt();
         skip(86400 * 10);
