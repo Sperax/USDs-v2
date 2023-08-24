@@ -2,7 +2,7 @@
 pragma solidity 0.8.16;
 
 import {PreMigrationSetup} from "../utils/DeploymentSetup.sol";
-import {CollateralManager} from "../../contracts/vault/CollateralManager.sol";
+import {CollateralManager, Helpers} from "../../contracts/vault/CollateralManager.sol";
 import {ICollateralManager} from "../../contracts/vault/interfaces/ICollateralManager.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
@@ -81,9 +81,9 @@ contract CollateralManager_AddCollateral_Test is CollateralManagerTest {
         uint16 _downsidePeg,
         uint16 _colComp
     ) external useKnownActor(USDS_OWNER) {
-        vm.assume(_baseFeeIn > manager.PERC_PRECISION());
-        vm.assume(_baseFeeOut > manager.PERC_PRECISION());
-        vm.assume(_downsidePeg > manager.PERC_PRECISION());
+        vm.assume(_baseFeeIn > Helpers.MAX_PERCENTAGE);
+        vm.assume(_baseFeeOut > Helpers.MAX_PERCENTAGE);
+        vm.assume(_downsidePeg > Helpers.MAX_PERCENTAGE);
 
         vm.expectRevert("Illegal PERC input");
         collateralSetUp(USDCe, _colComp, _baseFeeIn, _baseFeeOut, _downsidePeg);
@@ -95,10 +95,10 @@ contract CollateralManager_AddCollateral_Test is CollateralManagerTest {
         uint16 _downsidePeg,
         uint16 _colComp
     ) external useKnownActor(USDS_OWNER) {
-        vm.assume(_colComp <= manager.PERC_PRECISION());
-        vm.assume(_baseFeeIn <= manager.PERC_PRECISION());
-        vm.assume(_baseFeeOut <= manager.PERC_PRECISION());
-        vm.assume(_downsidePeg <= manager.PERC_PRECISION());
+        vm.assume(_colComp <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_baseFeeIn <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_baseFeeOut <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_downsidePeg <= Helpers.MAX_PERCENTAGE);
 
         collateralSetUp(USDCe, _colComp, _baseFeeIn, _baseFeeOut, _downsidePeg);
         vm.expectRevert("Collateral already exists");
@@ -110,9 +110,9 @@ contract CollateralManager_AddCollateral_Test is CollateralManagerTest {
         uint16 _baseFeeOut,
         uint16 _downsidePeg
     ) external useKnownActor(USDS_OWNER) {
-        vm.assume(_baseFeeIn <= manager.PERC_PRECISION());
-        vm.assume(_baseFeeOut <= manager.PERC_PRECISION());
-        vm.assume(_downsidePeg <= manager.PERC_PRECISION());
+        vm.assume(_baseFeeIn <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_baseFeeOut <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_downsidePeg <= Helpers.MAX_PERCENTAGE);
 
         collateralSetUp(USDCe, 9000, _baseFeeIn, _baseFeeOut, _downsidePeg);
         vm.expectRevert("Collateral Composition exceeded");
@@ -125,10 +125,10 @@ contract CollateralManager_AddCollateral_Test is CollateralManagerTest {
         uint16 _downsidePeg,
         uint16 _colComp
     ) external useKnownActor(USDS_OWNER) {
-        vm.assume(_baseFeeIn <= manager.PERC_PRECISION());
-        vm.assume(_baseFeeOut <= manager.PERC_PRECISION());
-        vm.assume(_downsidePeg <= manager.PERC_PRECISION());
-        vm.assume(_colComp <= manager.PERC_PRECISION());
+        vm.assume(_baseFeeIn <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_baseFeeOut <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_downsidePeg <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_colComp <= Helpers.MAX_PERCENTAGE);
         ICollateralManager.CollateralBaseData memory _data = ICollateralManager
             .CollateralBaseData({
                 mintAllowed: true,
@@ -173,10 +173,10 @@ contract CollateralManager_AddCollateral_Test is CollateralManagerTest {
         uint16 _colComp
     ) external useKnownActor(USDS_OWNER) {
         address[5] memory collaterals = [USDCe, USDT, VST, FRAX, DAI];
-        vm.assume(_baseFeeIn <= manager.PERC_PRECISION());
-        vm.assume(_baseFeeOut <= manager.PERC_PRECISION());
-        vm.assume(_downsidePeg <= manager.PERC_PRECISION());
-        vm.assume(_colComp <= manager.PERC_PRECISION() / collaterals.length);
+        vm.assume(_baseFeeIn <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_baseFeeOut <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_downsidePeg <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_colComp <= Helpers.MAX_PERCENTAGE / collaterals.length);
         ICollateralManager.CollateralBaseData memory _data = ICollateralManager
             .CollateralBaseData({
                 mintAllowed: true,
@@ -207,10 +207,10 @@ contract CollateralManager_updateCollateral_Test is CollateralManagerTest {
         uint16 _downsidePeg,
         uint16 _colComp
     ) external useKnownActor(USDS_OWNER) {
-        vm.assume(_baseFeeIn <= manager.PERC_PRECISION());
-        vm.assume(_baseFeeOut <= manager.PERC_PRECISION());
-        vm.assume(_downsidePeg <= manager.PERC_PRECISION());
-        vm.assume(_colComp <= manager.PERC_PRECISION());
+        vm.assume(_baseFeeIn <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_baseFeeOut <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_downsidePeg <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_colComp <= Helpers.MAX_PERCENTAGE);
 
         vm.expectRevert("Collateral doesn't exist");
         collateralUpdate(USDT, _colComp, _baseFeeIn, _baseFeeOut, _downsidePeg);
@@ -223,11 +223,11 @@ contract CollateralManager_updateCollateral_Test is CollateralManagerTest {
         uint16 _colComp,
         uint16 _colComp2
     ) external useKnownActor(USDS_OWNER) {
-        vm.assume(_baseFeeIn <= manager.PERC_PRECISION());
-        vm.assume(_baseFeeOut <= manager.PERC_PRECISION());
-        vm.assume(_downsidePeg <= manager.PERC_PRECISION());
-        vm.assume(_colComp <= manager.PERC_PRECISION());
-        vm.assume(_colComp2 > manager.PERC_PRECISION());
+        vm.assume(_baseFeeIn <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_baseFeeOut <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_downsidePeg <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_colComp <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_colComp2 > Helpers.MAX_PERCENTAGE);
 
         collateralSetUp(USDT, _colComp, _baseFeeIn, _baseFeeOut, _downsidePeg);
         vm.expectRevert("Collateral Composition exceeded");
@@ -248,11 +248,11 @@ contract CollateralManager_updateCollateral_Test is CollateralManagerTest {
         uint16 _colComp,
         uint16 _colComp2
     ) external useKnownActor(USDS_OWNER) {
-        vm.assume(_baseFeeIn <= manager.PERC_PRECISION());
-        vm.assume(_baseFeeOut <= manager.PERC_PRECISION());
-        vm.assume(_downsidePeg <= manager.PERC_PRECISION());
-        vm.assume(_colComp <= manager.PERC_PRECISION());
-        vm.assume(_colComp2 <= manager.PERC_PRECISION());
+        vm.assume(_baseFeeIn <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_baseFeeOut <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_downsidePeg <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_colComp <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_colComp2 <= Helpers.MAX_PERCENTAGE);
 
         assertEq(manager.collateralCompositionUsed(), 0);
         collateralSetUp(USDCe, _colComp, _baseFeeIn, _baseFeeOut, _downsidePeg);
@@ -287,11 +287,11 @@ contract CollateralManager_updateCollateral_Test is CollateralManagerTest {
         uint16 _colComp2
     ) external useKnownActor(USDS_OWNER) {
         address[5] memory collaterals = [USDCe, USDT, VST, FRAX, DAI];
-        vm.assume(_baseFeeIn <= manager.PERC_PRECISION());
-        vm.assume(_baseFeeOut <= manager.PERC_PRECISION());
-        vm.assume(_downsidePeg <= manager.PERC_PRECISION());
-        vm.assume(_colComp <= manager.PERC_PRECISION() / collaterals.length);
-        vm.assume(_colComp2 <= manager.PERC_PRECISION() / collaterals.length);
+        vm.assume(_baseFeeIn <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_baseFeeOut <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_downsidePeg <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_colComp <= Helpers.MAX_PERCENTAGE / collaterals.length);
+        vm.assume(_colComp2 <= Helpers.MAX_PERCENTAGE / collaterals.length);
 
         assertEq(manager.collateralCompositionUsed(), 0);
 
@@ -345,9 +345,9 @@ contract CollateralManager_removeCollateral_Test is CollateralManagerTest {
         uint16 _downsidePeg
     ) external useKnownActor(USDS_OWNER) {
         address[5] memory collaterals = [USDCe, USDT, VST, FRAX, DAI];
-        vm.assume(_baseFeeIn <= manager.PERC_PRECISION());
-        vm.assume(_baseFeeOut <= manager.PERC_PRECISION());
-        vm.assume(_downsidePeg <= manager.PERC_PRECISION());
+        vm.assume(_baseFeeIn <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_baseFeeOut <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_downsidePeg <= Helpers.MAX_PERCENTAGE);
         uint16 colComp = 1000;
 
         //increasing Removal
@@ -405,10 +405,10 @@ contract CollateralManager_removeCollateral_Test is CollateralManagerTest {
         uint16 _downsidePeg,
         uint16 _colComp
     ) external useKnownActor(USDS_OWNER) {
-        vm.assume(_baseFeeIn <= manager.PERC_PRECISION());
-        vm.assume(_baseFeeOut <= manager.PERC_PRECISION());
-        vm.assume(_downsidePeg <= manager.PERC_PRECISION());
-        vm.assume(_colComp <= manager.PERC_PRECISION());
+        vm.assume(_baseFeeIn <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_baseFeeOut <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_downsidePeg <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_colComp <= Helpers.MAX_PERCENTAGE);
 
         collateralSetUp(USDCe, _colComp, _baseFeeIn, _baseFeeOut, _downsidePeg);
         manager.addCollateralStrategy(USDCe, STARGATE, _colComp);
@@ -421,7 +421,7 @@ contract CollateralManager_addCollateralStrategy_Test is CollateralManagerTest {
     function test_revertsWhen_collateralDoesntExist(
         uint16 _collateralComposition
     ) external useKnownActor(USDS_OWNER) {
-        vm.assume(_collateralComposition <= manager.PERC_PRECISION());
+        vm.assume(_collateralComposition <= Helpers.MAX_PERCENTAGE);
         vm.expectRevert("Collateral doesn't exist");
         manager.addCollateralStrategy(USDCe, STARGATE, 1000);
     }
@@ -432,10 +432,10 @@ contract CollateralManager_addCollateralStrategy_Test is CollateralManagerTest {
         uint16 _downsidePeg,
         uint16 _colComp
     ) external useKnownActor(USDS_OWNER) {
-        vm.assume(_baseFeeIn <= manager.PERC_PRECISION());
-        vm.assume(_baseFeeOut <= manager.PERC_PRECISION());
-        vm.assume(_downsidePeg <= manager.PERC_PRECISION());
-        vm.assume(_colComp <= manager.PERC_PRECISION());
+        vm.assume(_baseFeeIn <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_baseFeeOut <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_downsidePeg <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_colComp <= Helpers.MAX_PERCENTAGE);
 
         collateralSetUp(USDCe, _colComp, _baseFeeIn, _baseFeeOut, _downsidePeg);
         manager.addCollateralStrategy(USDCe, STARGATE, _colComp);
@@ -449,10 +449,10 @@ contract CollateralManager_addCollateralStrategy_Test is CollateralManagerTest {
         uint16 _downsidePeg,
         uint16 _colComp
     ) external useKnownActor(USDS_OWNER) {
-        vm.assume(_baseFeeIn <= manager.PERC_PRECISION());
-        vm.assume(_baseFeeOut <= manager.PERC_PRECISION());
-        vm.assume(_downsidePeg <= manager.PERC_PRECISION());
-        vm.assume(_colComp <= manager.PERC_PRECISION());
+        vm.assume(_baseFeeIn <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_baseFeeOut <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_downsidePeg <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_colComp <= Helpers.MAX_PERCENTAGE);
 
         collateralSetUp(USDT, _colComp, _baseFeeIn, _baseFeeOut, _downsidePeg);
         vm.expectRevert("Collateral not supported");
@@ -466,11 +466,11 @@ contract CollateralManager_addCollateralStrategy_Test is CollateralManagerTest {
         uint16 _colComp,
         uint16 _colComp2
     ) external useKnownActor(USDS_OWNER) {
-        vm.assume(_baseFeeIn <= manager.PERC_PRECISION());
-        vm.assume(_baseFeeOut <= manager.PERC_PRECISION());
-        vm.assume(_downsidePeg <= manager.PERC_PRECISION());
-        vm.assume(_colComp <= manager.PERC_PRECISION());
-        vm.assume(_colComp2 > manager.PERC_PRECISION());
+        vm.assume(_baseFeeIn <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_baseFeeOut <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_downsidePeg <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_colComp <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_colComp2 > Helpers.MAX_PERCENTAGE);
 
         collateralSetUp(USDCe, _colComp, _baseFeeIn, _baseFeeOut, _downsidePeg);
         vm.expectRevert("AllocationPer exceeded");
@@ -484,11 +484,11 @@ contract CollateralManager_addCollateralStrategy_Test is CollateralManagerTest {
         uint16 _colComp,
         uint16 _allocCap
     ) external useKnownActor(USDS_OWNER) {
-        vm.assume(_baseFeeIn <= manager.PERC_PRECISION());
-        vm.assume(_baseFeeOut <= manager.PERC_PRECISION());
-        vm.assume(_downsidePeg <= manager.PERC_PRECISION());
-        vm.assume(_colComp <= manager.PERC_PRECISION());
-        vm.assume(_allocCap <= manager.PERC_PRECISION());
+        vm.assume(_baseFeeIn <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_baseFeeOut <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_downsidePeg <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_colComp <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_allocCap <= Helpers.MAX_PERCENTAGE);
 
         collateralSetUp(USDCe, _colComp, _baseFeeIn, _baseFeeOut, _downsidePeg);
 
@@ -506,11 +506,11 @@ contract CollateralManager_addCollateralStrategy_Test is CollateralManagerTest {
         uint16 _allocCap
     ) external useKnownActor(USDS_OWNER) {
         address[2] memory strategies = [AAVE, STARGATE];
-        vm.assume(_baseFeeIn <= manager.PERC_PRECISION());
-        vm.assume(_baseFeeOut <= manager.PERC_PRECISION());
-        vm.assume(_downsidePeg <= manager.PERC_PRECISION());
-        vm.assume(_colComp <= manager.PERC_PRECISION());
-        vm.assume(_allocCap <= manager.PERC_PRECISION() / strategies.length);
+        vm.assume(_baseFeeIn <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_baseFeeOut <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_downsidePeg <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_colComp <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_allocCap <= Helpers.MAX_PERCENTAGE / strategies.length);
 
         collateralSetUp(USDCe, _colComp, _baseFeeIn, _baseFeeOut, _downsidePeg);
         (, , , , , , , , , uint16 collateralCapacityUsedBfr, ) = manager
@@ -538,10 +538,10 @@ contract CollateralManager_updateCollateralStrategy_Test is
         uint16 _downsidePeg,
         uint16 _colComp
     ) external useKnownActor(USDS_OWNER) {
-        vm.assume(_baseFeeIn <= manager.PERC_PRECISION());
-        vm.assume(_baseFeeOut <= manager.PERC_PRECISION());
-        vm.assume(_downsidePeg <= manager.PERC_PRECISION());
-        vm.assume(_colComp <= manager.PERC_PRECISION());
+        vm.assume(_baseFeeIn <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_baseFeeOut <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_downsidePeg <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_colComp <= Helpers.MAX_PERCENTAGE);
 
         collateralSetUp(USDCe, _colComp, _baseFeeIn, _baseFeeOut, _downsidePeg);
         vm.expectRevert("Strategy not mapped");
@@ -554,10 +554,10 @@ contract CollateralManager_updateCollateralStrategy_Test is
         uint16 _downsidePeg,
         uint16 _colComp
     ) external useKnownActor(USDS_OWNER) {
-        vm.assume(_baseFeeIn <= manager.PERC_PRECISION());
-        vm.assume(_baseFeeOut <= manager.PERC_PRECISION());
-        vm.assume(_downsidePeg <= manager.PERC_PRECISION());
-        vm.assume(_colComp <= manager.PERC_PRECISION());
+        vm.assume(_baseFeeIn <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_baseFeeOut <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_downsidePeg <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_colComp <= Helpers.MAX_PERCENTAGE);
 
         collateralSetUp(USDCe, _colComp, _baseFeeIn, _baseFeeOut, _downsidePeg);
         manager.addCollateralStrategy(USDCe, STARGATE, 2000);
@@ -571,10 +571,10 @@ contract CollateralManager_updateCollateralStrategy_Test is
         uint16 _downsidePeg,
         uint16 _colComp
     ) external useKnownActor(USDS_OWNER) {
-        vm.assume(_baseFeeIn <= manager.PERC_PRECISION());
-        vm.assume(_baseFeeOut <= manager.PERC_PRECISION());
-        vm.assume(_downsidePeg <= manager.PERC_PRECISION());
-        vm.assume(_colComp <= manager.PERC_PRECISION());
+        vm.assume(_baseFeeIn <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_baseFeeOut <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_downsidePeg <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_colComp <= Helpers.MAX_PERCENTAGE);
 
         collateralSetUp(USDCe, _colComp, _baseFeeIn, _baseFeeOut, _downsidePeg);
         manager.addCollateralStrategy(USDCe, STARGATE, 1);
@@ -589,11 +589,11 @@ contract CollateralManager_updateCollateralStrategy_Test is
         uint16 _colComp,
         uint16 _allocCap
     ) external useKnownActor(USDS_OWNER) {
-        vm.assume(_baseFeeIn <= manager.PERC_PRECISION());
-        vm.assume(_baseFeeOut <= manager.PERC_PRECISION());
-        vm.assume(_downsidePeg <= manager.PERC_PRECISION());
-        vm.assume(_colComp <= manager.PERC_PRECISION());
-        vm.assume(_allocCap <= manager.PERC_PRECISION() - 100);
+        vm.assume(_baseFeeIn <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_baseFeeOut <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_downsidePeg <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_colComp <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_allocCap <= Helpers.MAX_PERCENTAGE - 100);
 
         collateralSetUp(USDCe, _colComp, _baseFeeIn, _baseFeeOut, _downsidePeg);
         manager.addCollateralStrategy(USDCe, STARGATE, _allocCap);
@@ -611,10 +611,10 @@ contract CollateralManager_updateCollateralStrategy_Test is
         uint16 _colComp
     ) external useKnownActor(USDS_OWNER) {
         address[2] memory strategies = [AAVE, STARGATE];
-        vm.assume(_baseFeeIn <= manager.PERC_PRECISION());
-        vm.assume(_baseFeeOut <= manager.PERC_PRECISION());
-        vm.assume(_downsidePeg <= manager.PERC_PRECISION());
-        vm.assume(_colComp <= manager.PERC_PRECISION());
+        vm.assume(_baseFeeIn <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_baseFeeOut <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_downsidePeg <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_colComp <= Helpers.MAX_PERCENTAGE);
 
         collateralSetUp(USDCe, _colComp, _baseFeeIn, _baseFeeOut, _downsidePeg);
         (, , , , , , , , , uint16 collateralCapacityUsedBfr, ) = manager
@@ -658,10 +658,10 @@ contract CollateralManager_removeCollateralStrategy_Test is
         uint16 _downsidePeg,
         uint16 _colComp
     ) external useKnownActor(USDS_OWNER) {
-        vm.assume(_baseFeeIn <= manager.PERC_PRECISION());
-        vm.assume(_baseFeeOut <= manager.PERC_PRECISION());
-        vm.assume(_downsidePeg <= manager.PERC_PRECISION());
-        vm.assume(_colComp <= manager.PERC_PRECISION());
+        vm.assume(_baseFeeIn <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_baseFeeOut <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_downsidePeg <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_colComp <= Helpers.MAX_PERCENTAGE);
 
         collateralSetUp(USDCe, _colComp, _baseFeeIn, _baseFeeOut, _downsidePeg);
         vm.expectRevert("Strategy not mapped");
@@ -674,10 +674,10 @@ contract CollateralManager_removeCollateralStrategy_Test is
         uint16 _downsidePeg,
         uint16 _colComp
     ) external useKnownActor(USDS_OWNER) {
-        vm.assume(_baseFeeIn <= manager.PERC_PRECISION());
-        vm.assume(_baseFeeOut <= manager.PERC_PRECISION());
-        vm.assume(_downsidePeg <= manager.PERC_PRECISION());
-        vm.assume(_colComp <= manager.PERC_PRECISION() / 2);
+        vm.assume(_baseFeeIn <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_baseFeeOut <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_downsidePeg <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_colComp <= Helpers.MAX_PERCENTAGE / 2);
 
         collateralSetUp(USDCe, _colComp, _baseFeeIn, _baseFeeOut, _downsidePeg);
         collateralSetUp(DAI, _colComp, _baseFeeIn, _baseFeeOut, _downsidePeg);
@@ -695,10 +695,10 @@ contract CollateralManager_removeCollateralStrategy_Test is
         uint16 _downsidePeg,
         uint16 _colComp
     ) external useKnownActor(USDS_OWNER) {
-        vm.assume(_baseFeeIn <= manager.PERC_PRECISION());
-        vm.assume(_baseFeeOut <= manager.PERC_PRECISION());
-        vm.assume(_downsidePeg <= manager.PERC_PRECISION());
-        vm.assume(_colComp <= manager.PERC_PRECISION());
+        vm.assume(_baseFeeIn <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_baseFeeOut <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_downsidePeg <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_colComp <= Helpers.MAX_PERCENTAGE);
 
         collateralSetUp(USDCe, _colComp, _baseFeeIn, _baseFeeOut, _downsidePeg);
         manager.addCollateralStrategy(USDCe, STARGATE, 2000);
@@ -712,10 +712,10 @@ contract CollateralManager_removeCollateralStrategy_Test is
         uint16 _downsidePeg,
         uint16 _colComp
     ) external useKnownActor(USDS_OWNER) {
-        vm.assume(_baseFeeIn <= manager.PERC_PRECISION());
-        vm.assume(_baseFeeOut <= manager.PERC_PRECISION());
-        vm.assume(_downsidePeg <= manager.PERC_PRECISION());
-        vm.assume(_colComp <= manager.PERC_PRECISION());
+        vm.assume(_baseFeeIn <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_baseFeeOut <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_downsidePeg <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_colComp <= Helpers.MAX_PERCENTAGE);
 
         collateralSetUp(USDCe, _colComp, _baseFeeIn, _baseFeeOut, _downsidePeg);
         manager.addCollateralStrategy(USDCe, STARGATE, 2000);
@@ -730,10 +730,10 @@ contract CollateralManager_removeCollateralStrategy_Test is
         uint16 _downsidePeg,
         uint16 _colComp
     ) external useKnownActor(USDS_OWNER) {
-        vm.assume(_baseFeeIn <= manager.PERC_PRECISION());
-        vm.assume(_baseFeeOut <= manager.PERC_PRECISION());
-        vm.assume(_downsidePeg <= manager.PERC_PRECISION());
-        vm.assume(_colComp <= manager.PERC_PRECISION() / 2);
+        vm.assume(_baseFeeIn <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_baseFeeOut <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_downsidePeg <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_colComp <= Helpers.MAX_PERCENTAGE / 2);
 
         collateralSetUp(USDCe, _colComp, _baseFeeIn, _baseFeeOut, _downsidePeg);
         manager.addCollateralStrategy(USDCe, STARGATE, 2000);
@@ -749,10 +749,10 @@ contract CollateralManager_validateAllocation_test is CollateralManagerTest {
         uint16 _downsidePeg,
         uint16 _colComp
     ) external useKnownActor(USDS_OWNER) {
-        vm.assume(_baseFeeIn <= manager.PERC_PRECISION());
-        vm.assume(_baseFeeOut <= manager.PERC_PRECISION());
-        vm.assume(_downsidePeg <= manager.PERC_PRECISION());
-        vm.assume(_colComp <= manager.PERC_PRECISION());
+        vm.assume(_baseFeeIn <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_baseFeeOut <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_downsidePeg <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_colComp <= Helpers.MAX_PERCENTAGE);
 
         ICollateralManager.CollateralBaseData memory _data = ICollateralManager
             .CollateralBaseData({
@@ -776,10 +776,10 @@ contract CollateralManager_validateAllocation_test is CollateralManagerTest {
         uint16 _downsidePeg,
         uint16 _colComp
     ) external useKnownActor(USDS_OWNER) {
-        vm.assume(_baseFeeIn <= manager.PERC_PRECISION());
-        vm.assume(_baseFeeOut <= manager.PERC_PRECISION());
-        vm.assume(_downsidePeg <= manager.PERC_PRECISION());
-        vm.assume(_colComp <= manager.PERC_PRECISION());
+        vm.assume(_baseFeeIn <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_baseFeeOut <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_downsidePeg <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_colComp <= Helpers.MAX_PERCENTAGE);
 
         collateralSetUp(USDCe, _colComp, _baseFeeIn, _baseFeeOut, _downsidePeg);
         manager.addCollateralStrategy(USDCe, STARGATE, 2000);
@@ -792,10 +792,10 @@ contract CollateralManager_validateAllocation_test is CollateralManagerTest {
         uint16 _downsidePeg,
         uint16 _colComp
     ) external useKnownActor(USDS_OWNER) {
-        vm.assume(_baseFeeIn <= manager.PERC_PRECISION());
-        vm.assume(_baseFeeOut <= manager.PERC_PRECISION());
-        vm.assume(_downsidePeg <= manager.PERC_PRECISION());
-        vm.assume(_colComp <= manager.PERC_PRECISION());
+        vm.assume(_baseFeeIn <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_baseFeeOut <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_downsidePeg <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_colComp <= Helpers.MAX_PERCENTAGE);
 
         collateralSetUp(USDCe, _colComp, _baseFeeIn, _baseFeeOut, _downsidePeg);
         manager.addCollateralStrategy(USDCe, STARGATE, 10000);
@@ -808,10 +808,10 @@ contract CollateralManager_validateAllocation_test is CollateralManagerTest {
         uint16 _downsidePeg,
         uint16 _collateralComposition
     ) external useKnownActor(USDS_OWNER) {
-        vm.assume(_baseFeeIn <= manager.PERC_PRECISION());
-        vm.assume(_baseFeeOut <= manager.PERC_PRECISION());
-        vm.assume(_downsidePeg <= manager.PERC_PRECISION());
-        vm.assume(_collateralComposition <= manager.PERC_PRECISION());
+        vm.assume(_baseFeeIn <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_baseFeeOut <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_downsidePeg <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_collateralComposition <= Helpers.MAX_PERCENTAGE);
         address[5] memory collaterals = [USDCe, USDT, VST, FRAX, DAI];
 
         ICollateralManager.CollateralBaseData memory _data = ICollateralManager
@@ -848,10 +848,10 @@ contract CollateralManager_validateAllocation_test is CollateralManagerTest {
         uint16 _downsidePeg,
         uint16 _colComp
     ) external useKnownActor(USDS_OWNER) {
-        vm.assume(_baseFeeIn <= manager.PERC_PRECISION());
-        vm.assume(_baseFeeOut <= manager.PERC_PRECISION());
-        vm.assume(_downsidePeg <= manager.PERC_PRECISION());
-        vm.assume(_colComp <= manager.PERC_PRECISION());
+        vm.assume(_baseFeeIn <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_baseFeeOut <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_downsidePeg <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_colComp <= Helpers.MAX_PERCENTAGE);
         address[2] memory strategies = [AAVE, STARGATE];
 
         collateralSetUp(USDCe, _colComp, _baseFeeIn, _baseFeeOut, _downsidePeg);
@@ -876,10 +876,10 @@ contract CollateralManager_mintRedeemParams_test is CollateralManagerTest {
         uint16 _downsidePeg,
         uint16 _collateralComposition
     ) external useKnownActor(USDS_OWNER) {
-        vm.assume(_baseFeeIn <= manager.PERC_PRECISION());
-        vm.assume(_baseFeeOut <= manager.PERC_PRECISION());
-        vm.assume(_downsidePeg <= manager.PERC_PRECISION());
-        vm.assume(_collateralComposition <= manager.PERC_PRECISION());
+        vm.assume(_baseFeeIn <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_baseFeeOut <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_downsidePeg <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_collateralComposition <= Helpers.MAX_PERCENTAGE);
 
         ICollateralManager.CollateralBaseData memory _data = ICollateralManager
             .CollateralBaseData({
@@ -919,10 +919,10 @@ contract CollateralManager_mintRedeemParams_test is CollateralManagerTest {
         uint16 _downsidePeg,
         uint16 _collateralComposition
     ) external useKnownActor(USDS_OWNER) {
-        vm.assume(_baseFeeIn <= manager.PERC_PRECISION());
-        vm.assume(_baseFeeOut <= manager.PERC_PRECISION());
-        vm.assume(_downsidePeg <= manager.PERC_PRECISION());
-        vm.assume(_collateralComposition <= manager.PERC_PRECISION());
+        vm.assume(_baseFeeIn <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_baseFeeOut <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_downsidePeg <= Helpers.MAX_PERCENTAGE);
+        vm.assume(_collateralComposition <= Helpers.MAX_PERCENTAGE);
 
         ICollateralManager.CollateralBaseData memory _data = ICollateralManager
             .CollateralBaseData({
