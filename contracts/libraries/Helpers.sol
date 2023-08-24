@@ -31,8 +31,9 @@ library Helpers {
 
     /// @notice Check for non-zero mount
     /// @param _amount Amount to be validated
-    function _isNonZeroAmt(uint256 _amount, string memory err) internal pure {
-        if (_amount == 0) revert CustomError(err);
+    /// @param _err Custom error messages
+    function _isNonZeroAmt(uint256 _amount, string memory _err) internal pure {
+        if (_amount == 0) revert CustomError(_err);
     }
 
     function _isLTEMaxPercentage(uint256 _percentage) internal pure {

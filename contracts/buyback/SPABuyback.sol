@@ -156,6 +156,7 @@ contract SPABuyback is
         Helpers._isNonZeroAddr(_receiver);
         // Get quote based on current prices
         (uint256 usdsToSend, uint256 spaPrice) = _getUsdsOutForSpa(_spaIn);
+        Helpers._isNonZeroAmt(usdsToSend, "SPA Amount too low");
 
         if (usdsToSend < _minUSDsOut)
             revert Helpers.MinSlippageError(usdsToSend, _minUSDsOut);
