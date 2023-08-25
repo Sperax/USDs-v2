@@ -37,6 +37,10 @@ contract AaveStrategy is InitializableAbstractStrategy {
         aavePool = IAaveLendingPool(
             IPoolAddressesProvider(_platformAddress).getPool()
         ); // aave Lending Pool 0x794a61358D6845594F94dc1DB02A252b5b4814aD
+        //@audit-info can we remove those 2 variables since they're not used except
+        // for initializing it's shows also an error on auditing called shadow variable
+        // Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#local-variable-shadowing
+       
         uint16 depositSlippage = 0;
         uint16 withdrawSlippage = 0;
         InitializableAbstractStrategy._initialize(

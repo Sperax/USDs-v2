@@ -47,6 +47,7 @@ contract Dripper is Ownable {
     function collect() external returns (uint256) {
         uint256 collectableAmt = getCollectableAmt();
         if (collectableAmt > 0) {
+            //@audit-issue update the timestamp before the transfer
             IERC20(USDS).safeTransfer(vault, collectableAmt);
             lastCollectTS = block.timestamp;
             emit Collected(collectableAmt);

@@ -105,6 +105,7 @@ contract YieldReserve is ReentrancyGuard, Ownable {
         if (isAllowedSrc[_token] == _isAllowed) revert AlreadyInDesiredState();
         if (_isAllowed) {
             // Ensure that there is a valid price feed for the _token
+            //@audit-info same as previous remark
             IOracle(oracle).getPrice(_token);
         }
         isAllowedSrc[_token] = _isAllowed;
@@ -121,6 +122,8 @@ contract YieldReserve is ReentrancyGuard, Ownable {
         if (isAllowedDst[_token] == _isAllowed) revert AlreadyInDesiredState();
         if (_isAllowed) {
             // Ensure that there is a valid price feed for the _token
+            //@audit-info how can we check that there is a price? 
+            // since we ignore return value by IOracle(oracle).getPrice(_token) 
             IOracle(oracle).getPrice(_token);
         }
         isAllowedDst[_token] = _isAllowed;

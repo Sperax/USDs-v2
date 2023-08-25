@@ -39,6 +39,7 @@ abstract contract BaseUniOracle is Ownable {
     function updateMasterOracle(address _newOracle) public onlyOwner {
         _isNonZeroAddr(_newOracle);
         masterOracle = _newOracle;
+        //@audit-info Can we add returning token price on the below event?
         IMasterPriceOracle(_newOracle).getPrice(quoteToken);
         emit MasterOracleUpdated(_newOracle);
     }
@@ -54,6 +55,7 @@ abstract contract BaseUniOracle is Ownable {
         uint24 _feeTier,
         uint32 _maPeriod
     ) public onlyOwner {
+        //@audit-issue add a zero address check for _quoteToken
         address uniOraclePool = IUniswapV3Factory(UNISWAP_FACTORY).getPool(
             _token,
             _quoteToken,
@@ -61,6 +63,7 @@ abstract contract BaseUniOracle is Ownable {
         );
         require(uniOraclePool != address(0), "Feed unavailable");
 
+        //@audit-info Can we set return values for below call?
         // Validate if the oracle has a price feed for the _quoteToken
         IMasterPriceOracle(masterOracle).getPrice(_quoteToken);
 
