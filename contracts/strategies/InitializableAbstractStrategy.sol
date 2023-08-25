@@ -176,7 +176,7 @@ abstract contract InitializableAbstractStrategy is
         Helpers._isLTEMaxPercentage(_withdrawSlippage);
         depositSlippage = _depositSlippage;
         withdrawSlippage = _withdrawSlippage;
-        emit SlippageUpdated(depositSlippage, withdrawSlippage);
+        emit SlippageUpdated(_depositSlippage, _withdrawSlippage);
     }
 
     /// @notice Initialize the base properties of the strategy
