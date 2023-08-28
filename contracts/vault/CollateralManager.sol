@@ -125,7 +125,7 @@ contract CollateralManager is ICollateralManager, Ownable {
 
         Helpers._isLTEMaxPercentage(
             newCapacityUsed,
-            "Collateral Composition Exceeded"
+            "Collateral composition exceeded"
         );
 
         data.mintAllowed = _updateData.mintAllowed;
