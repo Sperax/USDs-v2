@@ -2,5 +2,5 @@
 . "$(dirname -- "$0")/_/husky.sh"
 
 chmod +x .husky/hooks/validate-branch-name.sh
-forge build --force
+forge build
 npm run lint-contract
