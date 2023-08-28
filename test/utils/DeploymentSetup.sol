@@ -23,6 +23,8 @@ import {AaveStrategy} from "../../contracts/strategies/aave/AaveStrategy.sol";
 import {VSTOracle} from "../../contracts/oracle/VSTOracle.sol";
 
 interface ICustomOracle {
+    function updateDIAParams(uint256 _weightDIA, uint128 _maxTime) external;
+
     function getPrice() external view returns (uint256, uint256);
 }
 
@@ -103,6 +105,10 @@ abstract contract PreMigrationSetup is Setup {
         spaOracle = deployCode(
             "SPAOracle.sol:SPAOracle",
             abi.encode(address(masterOracle), USDCe, 10000, 600, 70)
+        );
+        ICustomOracle(address(spaOracle)).updateDIAParams(
+            70,
+            type(uint128).max
         );
         usdsOracle = deployCode(
             "USDsOracle.sol",
