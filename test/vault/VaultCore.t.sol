@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.16;
 
-import {VaultCore} from "../../contracts/vault/VaultCore.sol";
+import {VaultCore, Helpers} from "../../contracts/vault/VaultCore.sol";
 import {PreMigrationSetup} from "../utils/DeploymentSetup.sol";
 import {IAccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/IAccessControlUpgradeable.sol";
 import {IStrategy} from "../../contracts/vault/interfaces/IStrategy.sol";
@@ -14,6 +14,7 @@ import {ICollateralManager} from "../../contracts/vault/interfaces/ICollateralMa
 import {IFeeCalculator} from "../../contracts/vault/interfaces/IFeeCalculator.sol";
 import {IUSDs} from "../../contracts/interfaces/IUSDs.sol";
 import {console} from "forge-std/console.sol";
+import {CollateralManager} from "../../contracts/vault/CollateralManager.sol";
 
 contract VaultCoreTest is PreMigrationSetup {
     uint256 internal USDC_PRECISION;
@@ -36,12 +37,6 @@ contract VaultCoreTest is PreMigrationSetup {
         super.setUp();
         USDC_PRECISION = 10 ** ERC20(USDCe).decimals();
         _collateral = USDCe;
-        allocator = actors[2];
-        vm.prank(USDS_OWNER);
-        IAccessControlUpgradeable(VAULT).grantRole(
-            keccak256("ALLOCATOR_ROLE"),
-            allocator
-        );
         defaultStrategy = STARGATE_STRATEGY;
         otherStrategy = AAVE_STRATEGY;
     }
@@ -57,12 +52,12 @@ contract VaultCoreTest is PreMigrationSetup {
     }
 
     function _allocateIntoStrategy(
-        address _collateral,
+        address __collateral,
         address _strategy,
         uint256 _amount
     ) internal useKnownActor(allocator) {
         deal(USDCe, VAULT, _amount * 4);
-        IVault(VAULT).allocate(_collateral, _strategy, _amount);
+        IVault(VAULT).allocate(__collateral, _strategy, _amount);
     }
 
     function _redeemViewTest(
@@ -108,10 +103,10 @@ contract VaultCoreTest is PreMigrationSetup {
                 );
                 _strategy = IStrategy(_strategyAddr);
             }
-            require(
-                _strategy.checkAvailableBalance(_collateral) >= _strategyAmt,
-                "Insufficient collateral"
-            );
+            // require(
+            //     _strategy.checkAvailableBalance(_collateral) >= _strategyAmt,
+            //     "Insufficient collateral"
+            // );
         }
     }
 }
@@ -126,7 +121,7 @@ contract TestInit is VaultCoreTest {
         VaultCore vault = VaultCore(_VAULT);
         vault.initialize();
         assertTrue(address(_VAULT) != address(0), "Vault not deployed");
-        assertTrue(IAccessControlUpgradeable(_VAULT).hasRole(0x00, USDS_OWNER));
+        assertEq(vault.owner(), USDS_OWNER);
     }
 }
 
@@ -156,32 +151,44 @@ contract TestSetters is VaultCoreTest {
     }
 
     function test_revertIf_callerIsNotOwner() public useActor(1) {
-        vm.expectRevert("Unauthorized caller");
+        vm.expectRevert("Ownable: caller is not the owner");
         IVault(VAULT).updateFeeVault(_newFeeVault);
-        vm.expectRevert("Unauthorized caller");
+        vm.expectRevert("Ownable: caller is not the owner");
         IVault(VAULT).updateYieldReceiver(_newYieldReceiver);
-        vm.expectRevert("Unauthorized caller");
+        vm.expectRevert("Ownable: caller is not the owner");
         IVault(VAULT).updateCollateralManager(_newCollateralManager);
-        vm.expectRevert("Unauthorized caller");
+        vm.expectRevert("Ownable: caller is not the owner");
         IVault(VAULT).updateRebaseManager(_newRebaseManager);
-        vm.expectRevert("Unauthorized caller");
+        vm.expectRevert("Ownable: caller is not the owner");
         IVault(VAULT).updateFeeCalculator(_newFeeCalculator);
-        vm.expectRevert("Unauthorized caller");
+        vm.expectRevert("Ownable: caller is not the owner");
         IVault(VAULT).updateOracle(_newOracle);
     }
 
     function test_revertIf_InvalidAddress() public useKnownActor(USDS_OWNER) {
-        vm.expectRevert("Zero address");
+        vm.expectRevert(
+            abi.encodeWithSelector(Helpers.InvalidAddress.selector)
+        );
         IVault(VAULT).updateFeeVault(address(0));
-        vm.expectRevert("Zero address");
+        vm.expectRevert(
+            abi.encodeWithSelector(Helpers.InvalidAddress.selector)
+        );
         IVault(VAULT).updateYieldReceiver(address(0));
-        vm.expectRevert("Zero address");
+        vm.expectRevert(
+            abi.encodeWithSelector(Helpers.InvalidAddress.selector)
+        );
         IVault(VAULT).updateCollateralManager(address(0));
-        vm.expectRevert("Zero address");
+        vm.expectRevert(
+            abi.encodeWithSelector(Helpers.InvalidAddress.selector)
+        );
         IVault(VAULT).updateRebaseManager(address(0));
-        vm.expectRevert("Zero address");
+        vm.expectRevert(
+            abi.encodeWithSelector(Helpers.InvalidAddress.selector)
+        );
         IVault(VAULT).updateFeeCalculator(address(0));
-        vm.expectRevert("Zero address");
+        vm.expectRevert(
+            abi.encodeWithSelector(Helpers.InvalidAddress.selector)
+        );
         IVault(VAULT).updateOracle(address(0));
     }
 
@@ -244,18 +251,17 @@ contract TestAllocate is VaultCoreTest {
         _strategy = AAVE_STRATEGY;
     }
 
-    function test_revertIf_CallerIsNowAllocator() public useActor(1) {
-        vm.expectRevert("Unauthorized caller");
-        IVault(VAULT).allocate(_collateral, _strategy, _amount);
-    }
-
     function test_revertIf_AllocationNotAllowed()
         public
         useKnownActor(allocator)
     {
         // DAI
         _collateral = 0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1;
-        vm.expectRevert("Allocation not allowed");
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                CollateralManager.CollateralAllocationPaused.selector
+            )
+        );
         IVault(VAULT).allocate(_collateral, _strategy, _amount);
     }
 
@@ -335,21 +341,37 @@ contract TestMint is VaultCoreTest {
     ) public useKnownActor(minter) {
         uint256 _latestDeadline = block.timestamp - 1;
         _deadline = bound(__deadline, 0, _latestDeadline);
-        vm.expectRevert("Deadline passed");
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Helpers.CustomError.selector,
+                "Deadline passed"
+            )
+        );
         IVault(VAULT).mint(_collateral, _collateralAmt, _minUSDSAmt, _deadline);
     }
 
     function test_RevertsIf_MintFailed() public useKnownActor(minter) {
         _collateralAmt = 0;
-        vm.expectRevert("Mint failed");
+        vm.expectRevert(abi.encodeWithSelector(VaultCore.MintFailed.selector));
         IVault(VAULT).mint(_collateral, _collateralAmt, _minUSDSAmt, _deadline);
     }
 
     function test_RevertsIf_SlippageScrewsYou() public useKnownActor(minter) {
         (_minUSDSAmt, ) = IVault(VAULT).mintView(_collateral, _collateralAmt);
-        _minUSDSAmt += 10e18;
-        vm.expectRevert("Slippage screwed you");
-        IVault(VAULT).mint(_collateral, _collateralAmt, _minUSDSAmt, _deadline);
+        uint256 _expectedMinAmt = _minUSDSAmt + 10e18;
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Helpers.MinSlippageError.selector,
+                _minUSDSAmt,
+                _expectedMinAmt
+            )
+        );
+        IVault(VAULT).mint(
+            _collateral,
+            _collateralAmt,
+            _expectedMinAmt,
+            _deadline
+        );
     }
 
     function test_Mint() public useKnownActor(minter) {
@@ -470,10 +492,7 @@ contract TestMintView is VaultCoreTest {
     }
 
     function test_Fee0If_CallerHasFacilitatorRole() public {
-        bytes32 facilitatorRole = keccak256("FACILITATOR_ROLE");
         vm.prank(USDS_OWNER);
-        IAccessControlUpgradeable(VAULT).grantRole(facilitatorRole, actors[1]);
-        vm.prank(actors[1]);
         (_toMinter, _fee) = IVault(VAULT).mintView(_collateral, _collateralAmt);
         assertTrue(_toMinter > 98e20);
         assertEq(_fee, 0);
@@ -494,9 +513,6 @@ contract TestMintView is VaultCoreTest {
             expectedFee = 0;
             expectedToMinter = 0;
         } else {
-            (uint256 feePerc, uint256 feePercPrecision) = IFeeCalculator(
-                FEE_CALCULATOR
-            ).getFeeIn(_collateral, _collateralAmt, _mintData, priceData);
             uint256 normalizedCollateralAmt = _collateralAmt *
                 _mintData.conversionFactor;
             uint256 usdsAmt = normalizedCollateralAmt;
@@ -572,7 +588,12 @@ contract TestRedeemView is VaultCoreTest {
                 desiredCollateralComposition: 5000
             });
         _updateCollateralData(_data);
-        vm.expectRevert("Redeem not allowed");
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                VaultCore.RedemptionPausedForCollateral.selector,
+                _collateral
+            )
+        );
         vm.prank(redeemer);
         IVault(VAULT).redeemView(_collateral, usdsAmt);
     }
@@ -580,11 +601,6 @@ contract TestRedeemView is VaultCoreTest {
     function test_RedeemViewFee0IfCallerIsFacilitator() public {
         deal(USDCe, VAULT, (usdsAmt * 2) / 1e12);
         vm.prank(USDS_OWNER);
-        IAccessControlUpgradeable(VAULT).grantRole(
-            keccak256("FACILITATOR_ROLE"),
-            redeemer
-        );
-        vm.prank(redeemer);
         (, , uint256 fee, , ) = IVault(VAULT).redeemView(_collateral, usdsAmt);
         assertEq(fee, 0);
     }
@@ -595,11 +611,6 @@ contract TestRedeemView is VaultCoreTest {
     {
         deal(USDCe, VAULT, (usdsAmt * 2) / 1e12);
         vm.prank(USDS_OWNER);
-        IAccessControlUpgradeable(VAULT).grantRole(
-            keccak256("FACILITATOR_ROLE"),
-            redeemer
-        );
-        vm.prank(redeemer);
         (uint256 calculatedCollateralAmt, , uint256 fee, , ) = IVault(VAULT)
             .redeemView(_collateral, usdsAmt);
         assertEq(fee, 0);
@@ -612,11 +623,6 @@ contract TestRedeemView is VaultCoreTest {
     {
         deal(USDCe, VAULT, (usdsAmt * 2) / 1e12);
         vm.prank(USDS_OWNER);
-        IAccessControlUpgradeable(VAULT).grantRole(
-            keccak256("FACILITATOR_ROLE"),
-            redeemer
-        );
-        vm.prank(redeemer);
         (uint256 calculatedCollateralAmt, , uint256 fee, , ) = IVault(VAULT)
             .redeemView(_collateral, usdsAmt);
         assertEq(fee, 0);
@@ -678,7 +684,21 @@ contract TestRedeemView is VaultCoreTest {
             USDCe,
             address(0)
         );
-        vm.expectRevert("Insufficient collateral");
+        (uint256 _calculatedCollateralAmt, , , , ) = _redeemViewTest(
+            usdsAmt,
+            defaultStrategy
+        );
+        uint256 _availableAmount = ERC20(_collateral).balanceOf(VAULT) +
+            IStrategy(defaultStrategy).checkAvailableBalance(_collateral);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                VaultCore.InsufficientCollateral.selector,
+                _collateral,
+                address(0),
+                _calculatedCollateralAmt,
+                _availableAmount
+            )
+        );
         IVault(VAULT).redeemView(_collateral, usdsAmt);
     }
 
@@ -686,8 +706,22 @@ contract TestRedeemView is VaultCoreTest {
         public
     {
         deal(USDCe, VAULT, (usdsAmt / 2) / 1e12);
-        vm.expectRevert("Insufficient collateral");
-        IVault(VAULT).redeemView(_collateral, usdsAmt);
+        (uint256 _calculatedCollateralAmt, , , , ) = _redeemViewTest(
+            usdsAmt,
+            defaultStrategy
+        );
+        uint256 _availableAmount = ERC20(_collateral).balanceOf(VAULT) +
+            IStrategy(defaultStrategy).checkAvailableBalance(_collateral);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                VaultCore.InsufficientCollateral.selector,
+                _collateral,
+                defaultStrategy,
+                _calculatedCollateralAmt,
+                _availableAmount
+            )
+        );
+        IVault(VAULT).redeemView(_collateral, usdsAmt, defaultStrategy);
     }
 
     function test_RedeemView_FromDefaultStrategy() public {
@@ -719,12 +753,32 @@ contract TestRedeemView is VaultCoreTest {
     }
 
     function test_RedeemView_RevertsIf_InvalidStrategy() public {
-        vm.expectRevert("Invalid strategy");
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                VaultCore.InvalidStrategy.selector,
+                _collateral,
+                COLLATERAL_MANAGER
+            )
+        );
         IVault(VAULT).redeemView(_collateral, usdsAmt, COLLATERAL_MANAGER);
     }
 
     function test_RedeemView_RevertsIf_InsufficientCollateral() public {
-        vm.expectRevert("Insufficient collateral");
+        (uint256 _calculatedCollateralAmt, , , , ) = _redeemViewTest(
+            usdsAmt,
+            otherStrategy
+        );
+        uint256 _availableAmount = ERC20(_collateral).balanceOf(VAULT) +
+            IStrategy(otherStrategy).checkAvailableBalance(_collateral);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                VaultCore.InsufficientCollateral.selector,
+                _collateral,
+                otherStrategy,
+                _calculatedCollateralAmt,
+                _availableAmount
+            )
+        );
         IVault(VAULT).redeemView(_collateral, usdsAmt, otherStrategy);
     }
 
@@ -775,15 +829,27 @@ contract TestRedeem is VaultCoreTest {
         _deadline = block.timestamp + 120;
     }
 
-    function test_RedeemFr34wfrromVault_RevertsIf_SlippageMoreThanExpected()
+    function test_RedeemFromVault_RevertsIf_SlippageMoreThanExpected()
         public
         useKnownActor(redeemer)
     {
         deal(_collateral, VAULT, (_usdsAmt * 2) / 1e12);
         (_minCollAmt, , , , ) = _redeemViewTest(_usdsAmt, address(0));
-        _minCollAmt += 10 * USDC_PRECISION;
-        vm.expectRevert("Slippage screwed you");
-        IVault(VAULT).redeem(_collateral, _usdsAmt, _minCollAmt, _deadline);
+        emit log_named_uint("_minCollAmt", _minCollAmt);
+        uint256 _expectedCollAmt = _minCollAmt + 10 * USDC_PRECISION;
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Helpers.MinSlippageError.selector,
+                _minCollAmt,
+                _expectedCollAmt
+            )
+        );
+        IVault(VAULT).redeem(
+            _collateral,
+            _usdsAmt,
+            _expectedCollAmt,
+            _deadline
+        );
     }
 
     function test_RedeemFromVault() public {
@@ -796,8 +862,8 @@ contract TestRedeem is VaultCoreTest {
             uint256 _calculatedCollateralAmt,
             uint256 _usdsBurnAmt,
             uint256 _feeAmt,
-            uint256 _vaultAmt,
-            uint256 _strategyAmt
+            ,
+
         ) = _redeemViewTest(_usdsAmt, otherStrategy);
         uint256 balBeforeFeeVault = ERC20(USDS).balanceOf(FEE_VAULT);
         uint256 balBeforeUSDsRedeemer = ERC20(USDS).balanceOf(redeemer);
@@ -839,8 +905,8 @@ contract TestRedeem is VaultCoreTest {
             uint256 _calculatedCollateralAmt,
             uint256 _usdsBurnAmt,
             uint256 _feeAmt,
-            uint256 _vaultAmt,
-            uint256 _strategyAmt
+            ,
+
         ) = _redeemViewTest(_usdsAmt, address(0));
         vm.prank(VAULT);
         IUSDs(USDS).mint(redeemer, _usdsAmt);
@@ -886,8 +952,8 @@ contract TestRedeem is VaultCoreTest {
             uint256 _calculatedCollateralAmt,
             uint256 _usdsBurnAmt,
             uint256 _feeAmt,
-            uint256 _vaultAmt,
-            uint256 _strategyAmt
+            ,
+
         ) = _redeemViewTest(_usdsAmt, otherStrategy);
         vm.prank(VAULT);
         IUSDs(USDS).mint(redeemer, _usdsAmt);
@@ -934,8 +1000,8 @@ contract TestRedeem is VaultCoreTest {
             uint256 _calculatedCollateralAmt,
             uint256 _usdsBurnAmt,
             uint256 _feeAmt,
-            uint256 _vaultAmt,
-            uint256 _strategyAmt
+            ,
+
         ) = _redeemViewTest(_usdsAmt, defaultStrategy);
         vm.prank(VAULT);
         IUSDs(USDS).mint(redeemer, _usdsAmt);

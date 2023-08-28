@@ -115,7 +115,12 @@ contract CollateralManager_AddCollateral_Test is CollateralManagerTest {
         vm.assume(_downsidePeg <= Helpers.MAX_PERCENTAGE);
 
         collateralSetUp(USDCe, 9000, _baseFeeIn, _baseFeeOut, _downsidePeg);
-        vm.expectRevert("Collateral Composition exceeded");
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Helpers.CustomError.selector,
+                "Collateral composition exceeded"
+            )
+        );
         collateralSetUp(USDT, 1001, _baseFeeIn, _baseFeeOut, _downsidePeg);
     }
 
@@ -212,7 +217,11 @@ contract CollateralManager_updateCollateral_Test is CollateralManagerTest {
         vm.assume(_downsidePeg <= Helpers.MAX_PERCENTAGE);
         vm.assume(_colComp <= Helpers.MAX_PERCENTAGE);
 
-        vm.expectRevert("Collateral doesn't exist");
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                CollateralManager.CollateralDoesNotExist.selector
+            )
+        );
         collateralUpdate(USDT, _colComp, _baseFeeIn, _baseFeeOut, _downsidePeg);
     }
 
@@ -230,8 +239,12 @@ contract CollateralManager_updateCollateral_Test is CollateralManagerTest {
         vm.assume(_colComp2 > Helpers.MAX_PERCENTAGE);
 
         collateralSetUp(USDT, _colComp, _baseFeeIn, _baseFeeOut, _downsidePeg);
-        vm.expectRevert("Collateral Composition exceeded");
-
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Helpers.CustomError.selector,
+                "Collateral composition exceeded"
+            )
+        );
         collateralUpdate(
             USDT,
             _colComp2,
@@ -335,7 +348,11 @@ contract CollateralManager_removeCollateral_Test is CollateralManagerTest {
         external
         useKnownActor(USDS_OWNER)
     {
-        vm.expectRevert("Collateral doesn't exist");
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                CollateralManager.CollateralDoesNotExist.selector
+            )
+        );
         manager.removeCollateral(USDCe);
     }
 
@@ -412,7 +429,11 @@ contract CollateralManager_removeCollateral_Test is CollateralManagerTest {
 
         collateralSetUp(USDCe, _colComp, _baseFeeIn, _baseFeeOut, _downsidePeg);
         manager.addCollateralStrategy(USDCe, STARGATE, _colComp);
-        vm.expectRevert("Strategy/ies exists");
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                CollateralManager.CollateralStrategyExists.selector
+            )
+        );
         manager.removeCollateral(USDCe);
     }
 }
@@ -544,7 +565,11 @@ contract CollateralManager_updateCollateralStrategy_Test is
         vm.assume(_colComp <= Helpers.MAX_PERCENTAGE);
 
         collateralSetUp(USDCe, _colComp, _baseFeeIn, _baseFeeOut, _downsidePeg);
-        vm.expectRevert("Strategy not mapped");
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                CollateralManager.CollateralStrategyNotMapped.selector
+            )
+        );
         manager.updateCollateralStrategy(USDCe, STARGATE, 2000);
     }
 
@@ -561,7 +586,12 @@ contract CollateralManager_updateCollateralStrategy_Test is
 
         collateralSetUp(USDCe, _colComp, _baseFeeIn, _baseFeeOut, _downsidePeg);
         manager.addCollateralStrategy(USDCe, STARGATE, 2000);
-        vm.expectRevert("AllocationPer exceeded");
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Helpers.CustomError.selector,
+                "Allocation percentage exceeded"
+            )
+        );
         manager.updateCollateralStrategy(USDCe, STARGATE, 10001);
     }
 
@@ -577,9 +607,15 @@ contract CollateralManager_updateCollateralStrategy_Test is
         vm.assume(_colComp <= Helpers.MAX_PERCENTAGE);
 
         collateralSetUp(USDCe, _colComp, _baseFeeIn, _baseFeeOut, _downsidePeg);
-        manager.addCollateralStrategy(USDCe, STARGATE, 1);
-        vm.expectRevert("AllocationPer not valid");
-        manager.updateCollateralStrategy(USDCe, STARGATE, 10000);
+        manager.addCollateralStrategy(USDCe, STARGATE, 1000);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                CollateralManager
+                    .AllocationPercentageLowerThanAllocatedAmt
+                    .selector
+            )
+        );
+        manager.updateCollateralStrategy(USDCe, STARGATE, 700);
     }
 
     function test_updateCollateralStrategy(
@@ -595,13 +631,22 @@ contract CollateralManager_updateCollateralStrategy_Test is
         vm.assume(_colComp <= Helpers.MAX_PERCENTAGE);
         vm.assume(_allocCap <= Helpers.MAX_PERCENTAGE - 100);
 
+        deal(USDCe, VAULT, 1e6);
+
         collateralSetUp(USDCe, _colComp, _baseFeeIn, _baseFeeOut, _downsidePeg);
         manager.addCollateralStrategy(USDCe, STARGATE, _allocCap);
-
+        uint256 totalCollateral = manager.getCollateralInVault(USDCe) +
+            manager.getCollateralInStrategies(USDCe);
+        uint256 currentAllocatedPer = (manager.getCollateralInAStrategy(
+            USDCe,
+            STARGATE
+        ) * Helpers.MAX_PERCENTAGE) / totalCollateral;
+        _allocCap = uint16(
+            bound(_allocCap, currentAllocatedPer, Helpers.MAX_PERCENTAGE)
+        );
         vm.expectEmit(true, true, false, true);
         emit CollateralStrategyUpdated(USDCe, STARGATE);
-
-        manager.updateCollateralStrategy(USDCe, STARGATE, _allocCap + 100);
+        manager.updateCollateralStrategy(USDCe, STARGATE, _allocCap);
     }
 
     function test_updateMultipleCollateralStrategies(
@@ -664,7 +709,11 @@ contract CollateralManager_removeCollateralStrategy_Test is
         vm.assume(_colComp <= Helpers.MAX_PERCENTAGE);
 
         collateralSetUp(USDCe, _colComp, _baseFeeIn, _baseFeeOut, _downsidePeg);
-        vm.expectRevert("Strategy not mapped");
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                CollateralManager.CollateralStrategyNotMapped.selector
+            )
+        );
         manager.removeCollateralStrategy(USDCe, STARGATE);
     }
 
@@ -702,7 +751,11 @@ contract CollateralManager_removeCollateralStrategy_Test is
 
         collateralSetUp(USDCe, _colComp, _baseFeeIn, _baseFeeOut, _downsidePeg);
         manager.addCollateralStrategy(USDCe, STARGATE, 2000);
-        vm.expectRevert("Strategy in use");
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                CollateralManager.CollateralStrategyInUse.selector
+            )
+        );
         manager.removeCollateralStrategy(USDCe, STARGATE);
     }
 
@@ -766,7 +819,11 @@ contract CollateralManager_validateAllocation_test is CollateralManagerTest {
             });
         manager.addCollateral(USDT, _data);
         manager.addCollateralStrategy(USDT, USDT_TWO_POOL_STRATEGY, 2000);
-        vm.expectRevert("Allocation not allowed");
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                CollateralManager.CollateralAllocationPaused.selector
+            )
+        );
         manager.validateAllocation(USDT, USDT_TWO_POOL_STRATEGY, 1);
     }
 
