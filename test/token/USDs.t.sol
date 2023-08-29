@@ -135,14 +135,22 @@ contract TestTransferFrom is USDsTest {
     function test_revert_balance() public useKnownActor(VAULT) {
         uint256 amountToTransfer = usds.balanceOf(USER1) + 1;
 
-        vm.expectRevert("Transfer greater than balance");
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                USDs.TransferGreaterThanBal.selector,
+                amountToTransfer,
+                amountToTransfer - 1
+            )
+        );
         usds.transferFrom(USER1, USER2, amountToTransfer);
     }
 
     function test_revert_invalid_input() public useKnownActor(USER1) {
         uint256 amountToTransfer = usds.balanceOf(USER1);
 
-        vm.expectRevert("Transfer to zero address");
+        vm.expectRevert(
+            abi.encodeWithSelector(USDs.TransferToZeroAddr.selector)
+        );
         usds.transferFrom(USER1, address(0), amountToTransfer);
     }
 
@@ -246,7 +254,9 @@ contract TestTransfer is USDsTest {
     function test_revert_invalid_input() public useKnownActor(USER1) {
         uint256 amountToTransfer = usds.balanceOf(USER1);
 
-        vm.expectRevert("Transfer to zero address");
+        vm.expectRevert(
+            abi.encodeWithSelector(USDs.TransferToZeroAddr.selector)
+        );
         usds.transfer(address(0), amountToTransfer);
     }
 
@@ -264,18 +274,25 @@ contract TestMint is USDsTest {
     }
 
     function test_mint_owner_check() public useActor(0) {
-        vm.expectRevert("Caller is not the Vault");
+        vm.expectRevert(
+            abi.encodeWithSelector(USDs.CallerNotVault.selector, actors[0])
+        );
         usds.mint(USDS_OWNER, amount);
     }
 
     function test_mint_to_the_zero() public useKnownActor(VAULT) {
-        vm.expectRevert("Mint to the zero address");
+        vm.expectRevert(abi.encodeWithSelector(USDs.MintToZeroAddr.selector));
         usds.mint(address(0), amount);
     }
 
     function test_max_supply() public useKnownActor(VAULT) {
-        vm.expectRevert("Max supply");
         uint256 MAX_SUPPLY = ~uint128(0);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                USDs.MaxSupplyReached.selector,
+                MAX_SUPPLY + usds.totalSupply()
+            )
+        );
         usds.mint(USDS_OWNER, MAX_SUPPLY);
     }
 
@@ -283,7 +300,7 @@ contract TestMint is USDsTest {
         usds.pauseSwitch(true);
         changePrank(VAULT);
 
-        vm.expectRevert("Contract paused");
+        vm.expectRevert(abi.encodeWithSelector(USDs.ContractPaused.selector));
         usds.mint(USDS_OWNER, amount);
 
         changePrank(USDS_OWNER);

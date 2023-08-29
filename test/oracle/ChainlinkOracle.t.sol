@@ -91,7 +91,12 @@ contract Test_GetTokenPrice is ChainlinkOracleTest {
     }
 
     function test_revertsWhen_unSupportedCollateral() public {
-        vm.expectRevert("Collateral not supported");
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                ChainlinkOracle.TokenNotSupported.selector,
+                USDS
+            )
+        );
         chainlinkOracle.getTokenPrice(USDS);
     }
 
@@ -111,7 +116,11 @@ contract Test_GetTokenPrice is ChainlinkOracleTest {
             abi.encode(roundId, 1, startedAt, updatedAt, answeredInRound)
         );
 
-        vm.expectRevert("Chainlink sequencer down");
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                ChainlinkOracle.ChainlinkSequencerDown.selector
+            )
+        );
         chainlinkOracle.getTokenPrice(USDCe);
     }
 
@@ -136,8 +145,15 @@ contract Test_GetTokenPrice is ChainlinkOracleTest {
                 answeredInRound
             )
         );
-
-        vm.expectRevert("Grace period not passed");
+        (, , uint256 startedAt, , ) = AggregatorV3Interface(
+            0xFdB631F5EE196F0ed6FAa767959853A9F217697D
+        ).latestRoundData();
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                ChainlinkOracle.GracePeriodNotPassed.selector,
+                block.timestamp - startedAt
+            )
+        );
         chainlinkOracle.getTokenPrice(USDCe);
     }
 

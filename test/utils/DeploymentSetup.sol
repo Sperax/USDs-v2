@@ -36,7 +36,7 @@ abstract contract PreMigrationSetup is Setup {
     }
 
     UpgradeUtil internal upgradeUtil;
-    MasterPriceOracle masterOracle;
+    MasterPriceOracle internal masterOracle;
     ChainlinkOracle chainlinkOracle;
     VSTOracle vstOracle;
     address internal spaOracle;
