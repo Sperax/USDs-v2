@@ -19,7 +19,6 @@ import {CollateralManager} from "../../contracts/vault/CollateralManager.sol";
 contract VaultCoreTest is PreMigrationSetup {
     uint256 internal USDC_PRECISION;
     address internal _collateral;
-    address internal allocator;
     address internal defaultStrategy;
     address internal otherStrategy;
 
@@ -55,7 +54,7 @@ contract VaultCoreTest is PreMigrationSetup {
         address __collateral,
         address _strategy,
         uint256 _amount
-    ) internal useKnownActor(allocator) {
+    ) internal useActor(1) {
         deal(USDCe, VAULT, _amount * 4);
         IVault(VAULT).allocate(__collateral, _strategy, _amount);
     }
@@ -251,10 +250,7 @@ contract TestAllocate is VaultCoreTest {
         _strategy = AAVE_STRATEGY;
     }
 
-    function test_revertIf_AllocationNotAllowed()
-        public
-        useKnownActor(allocator)
-    {
+    function test_revertIf_AllocationNotAllowed() public useActor(1) {
         // DAI
         _collateral = 0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1;
         vm.expectRevert(
@@ -265,9 +261,7 @@ contract TestAllocate is VaultCoreTest {
         IVault(VAULT).allocate(_collateral, _strategy, _amount);
     }
 
-    function testFuzz_Allocate(
-        uint256 __amount
-    ) public useKnownActor(allocator) {
+    function testFuzz_Allocate(uint256 __amount) public useActor(1) {
         __amount = bound(__amount, 0, _possibleAllocation());
         deal(USDCe, VAULT, __amount * 4);
         console.log("Value returned", _possibleAllocation());
@@ -281,7 +275,7 @@ contract TestAllocate is VaultCoreTest {
         }
     }
 
-    function test_Allocate() public useKnownActor(allocator) {
+    function test_Allocate() public useActor(1) {
         _amount = 10000e6;
         deal(USDCe, VAULT, _amount * 4);
         uint256 balBefore = ERC20(_collateral).balanceOf(VAULT);

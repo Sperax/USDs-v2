@@ -18,7 +18,6 @@ import {console} from "forge-std/console.sol";
 contract VaultCoreTest is PreMigrationSetup {
     uint256 internal USDC_PRECISION;
     address internal _collateral;
-    address internal allocator;
     address internal defaultStrategy;
     address internal otherStrategy;
 
@@ -36,12 +35,6 @@ contract VaultCoreTest is PreMigrationSetup {
         super.setUp();
         USDC_PRECISION = 10 ** ERC20(USDCe).decimals();
         _collateral = USDCe;
-        allocator = actors[2];
-        vm.prank(USDS_OWNER);
-        IAccessControlUpgradeable(VAULT).grantRole(
-            keccak256("ALLOCATOR_ROLE"),
-            allocator
-        );
         defaultStrategy = STARGATE_STRATEGY;
         otherStrategy = AAVE_STRATEGY;
     }
@@ -60,7 +53,7 @@ contract VaultCoreTest is PreMigrationSetup {
         address __collateral,
         address _strategy,
         uint256 _amount
-    ) internal useKnownActor(allocator) {
+    ) internal useKnownActor(actors[1]) {
         deal(USDCe, VAULT, _amount * 4);
         IVault(VAULT).allocate(__collateral, _strategy, _amount);
     }
@@ -126,7 +119,7 @@ contract TestInit is VaultCoreTest {
         VaultCore vault = VaultCore(_VAULT);
         vault.initialize();
         assertTrue(address(_VAULT) != address(0), "Vault not deployed");
-        assertTrue(IAccessControlUpgradeable(_VAULT).hasRole(0x00, USDS_OWNER));
+        assertEq(vault.owner(), USDS_OWNER);
     }
 }
 
@@ -150,7 +143,7 @@ contract TestAllocate is VaultCoreTest {
 
     function testFuzz_Allocate(
         uint256 __amount
-    ) public useKnownActor(allocator) {
+    ) public useKnownActor(actors[1]) {
         __amount = bound(__amount, 0, _possibleAllocation());
         deal(USDCe, VAULT, __amount * 4);
         console.log("Value returned", _possibleAllocation());
