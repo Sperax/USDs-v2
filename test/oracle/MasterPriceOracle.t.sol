@@ -10,6 +10,8 @@ import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 // import {console} from "forge-std/console.sol";
 
 interface ICustomOracle {
+    function updateDIAParams(uint256 _weightDIA, uint128 _maxTime) external;
+
     function getPrice() external view returns (uint256, uint256);
 }
 
@@ -56,6 +58,9 @@ contract MasterPriceOracleTest is BaseTest {
             "SPAOracle.sol:SPAOracle",
             abi.encode(address(masterOracle), USDCe, 10000, 600, 70)
         );
+
+        ICustomOracle(spaOracle).updateDIAParams(70, type(uint128).max);
+
         usdsOracle = deployCode(
             "USDsOracle.sol",
             abi.encode(address(masterOracle), USDCe, 500, 600)
