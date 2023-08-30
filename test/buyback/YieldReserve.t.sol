@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.16;
 
-import {YieldReserve} from "../../contracts/buyback/YieldReserve.sol";
+import {YieldReserve, Helpers} from "../../contracts/buyback/YieldReserve.sol";
 import {IVault} from "../../contracts/interfaces/IVault.sol";
 import {VaultCore} from "../../contracts/vault/VaultCore.sol";
 import {IERC20, ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
@@ -57,7 +57,9 @@ contract YieldReserveTest is PreMigrationSetup {
 
         assertEq(yieldReserve.isAllowedSrc(SPA), true);
 
-        vm.expectRevert("Already in desired state");
+        vm.expectRevert(
+            abi.encodeWithSelector(YieldReserve.AlreadyInDesiredState.selector)
+        );
         yieldReserve.toggleSrcTokenPermission(SPA, true);
     }
 
@@ -73,7 +75,9 @@ contract YieldReserveTest is PreMigrationSetup {
 
         assertEq(yieldReserve.isAllowedDst(SPA), true);
 
-        vm.expectRevert("Already in desired state");
+        vm.expectRevert(
+            abi.encodeWithSelector(YieldReserve.AlreadyInDesiredState.selector)
+        );
         yieldReserve.toggleDstTokenPermission(SPA, true);
     }
 
@@ -83,13 +87,13 @@ contract YieldReserveTest is PreMigrationSetup {
     }
 
     function test_withdraw_inputs() public useKnownActor(USDS_OWNER) {
-        vm.expectRevert("Invalid address");
+        vm.expectRevert("Address: call to non-contract");
         yieldReserve.withdraw(address(0), USDS_OWNER, 10);
 
-        vm.expectRevert("Invalid address");
+        vm.expectRevert("ERC20: transfer to the zero address");
         yieldReserve.withdraw(SPA, address(0), 10);
 
-        vm.expectRevert("Invalid amount");
+        vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAmount.selector));
         yieldReserve.withdraw(SPA, USDS_OWNER, 0);
     }
 
@@ -116,11 +120,16 @@ contract YieldReserveTest is PreMigrationSetup {
         useKnownActor(USDS_OWNER)
     {
         uint256 buybackPercentage = 10001;
-        vm.expectRevert("% exceeds 100%");
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Helpers.GTMaxPercentage.selector,
+                buybackPercentage
+            )
+        );
         yieldReserve.updateBuybackPercentage(buybackPercentage);
 
         buybackPercentage = 0;
-        vm.expectRevert("% must be > 0");
+        vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAmount.selector));
         yieldReserve.updateBuybackPercentage(buybackPercentage);
     }
 
@@ -140,7 +149,9 @@ contract YieldReserveTest is PreMigrationSetup {
         public
         useKnownActor(USDS_OWNER)
     {
-        vm.expectRevert("Invalid address");
+        vm.expectRevert(
+            abi.encodeWithSelector(Helpers.InvalidAddress.selector)
+        );
         yieldReserve.updateBuybackAddress(address(0));
     }
 
@@ -158,7 +169,9 @@ contract YieldReserveTest is PreMigrationSetup {
         public
         useKnownActor(USDS_OWNER)
     {
-        vm.expectRevert("Invalid address");
+        vm.expectRevert(
+            abi.encodeWithSelector(Helpers.InvalidAddress.selector)
+        );
         yieldReserve.updateOracleAddress(address(0));
     }
 
@@ -176,7 +189,9 @@ contract YieldReserveTest is PreMigrationSetup {
         public
         useKnownActor(USDS_OWNER)
     {
-        vm.expectRevert("Invalid address");
+        vm.expectRevert(
+            abi.encodeWithSelector(Helpers.InvalidAddress.selector)
+        );
         yieldReserve.updateDripperAddress(address(0));
     }
 
@@ -191,7 +206,9 @@ contract YieldReserveTest is PreMigrationSetup {
     }
 
     function test_updateVaultAddress_inputs() public useKnownActor(USDS_OWNER) {
-        vm.expectRevert("Invalid address");
+        vm.expectRevert(
+            abi.encodeWithSelector(Helpers.InvalidAddress.selector)
+        );
         yieldReserve.updateVaultAddress(address(0));
     }
 
@@ -204,15 +221,21 @@ contract YieldReserveTest is PreMigrationSetup {
         mockPrice(USDCe, 10, USDCePrecision);
         mockPrice(USDS, 10, USDsPrecision);
 
-        vm.expectRevert("Source token is not allowed");
+        vm.expectRevert(
+            abi.encodeWithSelector(YieldReserve.InvalidSourceToken.selector)
+        );
         yieldReserve.getTokenBForTokenA(USDS, USDCe, 10000);
         yieldReserve.toggleSrcTokenPermission(USDS, true);
 
-        vm.expectRevert("Destination token is not allowed");
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                YieldReserve.InvalidDestinationToken.selector
+            )
+        );
         yieldReserve.getTokenBForTokenA(USDS, USDCe, 10000);
         yieldReserve.toggleDstTokenPermission(USDCe, true);
 
-        vm.expectRevert("Invalid amount");
+        vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAmount.selector));
         yieldReserve.getTokenBForTokenA(USDS, USDCe, 0);
     }
 
@@ -256,7 +279,18 @@ contract SwapTest is YieldReserveTest {
         yieldReserve.toggleSrcTokenPermission(USDS, true);
         yieldReserve.toggleDstTokenPermission(USDCe, true);
 
-        vm.expectRevert("Slippage more than expected");
+        uint256 toSend = yieldReserve.getTokenBForTokenA(
+            USDS,
+            USDCe,
+            amt * USDsPrecision
+        );
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Helpers.MinSlippageError.selector,
+                toSend,
+                (amt + 1) * USDCePrecision
+            )
+        );
         yieldReserve.swap(
             USDS,
             USDCe,
