@@ -9,8 +9,9 @@ import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Ini
 import {IOracle} from "../interfaces/IOracle.sol";
 import {Helpers} from "../libraries/Helpers.sol";
 
-/// @title Buyback contract of the USDs Buyback protocol
-/// @notice Give SPA and get USDs
+/// @title Buyback contract of the USDs Buyback protocol.
+/// @notice Users can give their SPA and get USDs in return.
+/// @notice The SPA in the contract is distributed as rewards based on the rewardPercentage and the rest is burned.
 /// @author Sperax Foundation
 contract SPABuyback is
     Initializable,
@@ -37,10 +38,7 @@ contract SPABuyback is
     );
     event SPARewarded(uint256 spaAmount);
     event SPABurned(uint256 spaAmount);
-    event RewardPercentageUpdated(
-        uint256 oldRewardPercentage,
-        uint256 newRewardPercentage
-    );
+    event RewardPercentageUpdated(uint256 newRewardPercentage);
     event VeSpaRewarderUpdated(address newVeSpaRewarder);
     event OracleUpdated(address newOracle);
 
@@ -71,6 +69,7 @@ contract SPABuyback is
     /// @param _token Address of the asset to be withdrawn
     /// @param _receiver Address of the receiver of tokens
     /// @param _amount Amount of tokens to be withdrawn
+    /// @dev Can only be called by the owner
     function withdraw(
         address _token,
         address _receiver,
@@ -91,8 +90,8 @@ contract SPABuyback is
         uint256 _newRewardPercentage
     ) external onlyOwner {
         _isValidRewardPercentage(_newRewardPercentage);
-        emit RewardPercentageUpdated(rewardPercentage, _newRewardPercentage);
         rewardPercentage = _newRewardPercentage;
+        emit RewardPercentageUpdated(_newRewardPercentage);
     }
 
     /// @notice Update veSpaRewarder address

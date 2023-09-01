@@ -138,10 +138,7 @@ contract TestGetters is SPABuybackTestSetup {
 }
 
 contract TestSetters is SPABuybackTestSetup {
-    event RewardPercentageUpdated(
-        uint256 oldRewardPercentage,
-        uint256 newRewardPercentage
-    );
+    event RewardPercentageUpdated(uint256 newRewardPercentage);
     event VeSpaRewarderUpdated(address newVeSpaRewarder);
 
     function testCannotIfCallerNotOwner() external useActor(0) {
@@ -171,7 +168,7 @@ contract TestSetters is SPABuybackTestSetup {
         uint256 oldRewardPercentage = spaBuyback.rewardPercentage();
         uint256 newRewardPercentage = 8000;
         vm.expectEmit(true, true, true, true, address(spaBuyback));
-        emit RewardPercentageUpdated(oldRewardPercentage, newRewardPercentage);
+        emit RewardPercentageUpdated(newRewardPercentage);
         spaBuyback.updateRewardPercentage(8000);
         assertEq(spaBuyback.rewardPercentage(), newRewardPercentage);
     }
@@ -185,7 +182,6 @@ contract TestSetters is SPABuybackTestSetup {
     }
 
     function testUpdateVeSpaRewarder() external useKnownActor(USDS_OWNER) {
-        address oldRewarder = spaBuyback.veSpaRewarder();
         address newRewarder = actors[1];
         vm.expectEmit(true, true, true, true, address(spaBuyback));
         emit VeSpaRewarderUpdated(newRewarder);

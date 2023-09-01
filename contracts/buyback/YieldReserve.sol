@@ -9,7 +9,7 @@ import {IOracle} from "../interfaces/IOracle.sol";
 import {Helpers} from "../libraries/Helpers.sol";
 
 /// @title YieldReserve of USDs protocol
-/// @notice The contract allows user's to swap the supported stable coins against yield earned by USDs protocol
+/// @notice The contract allows users to swap the supported stable coins against yield earned by USDs protocol
 ///         It sends USDs to dripper for rebase, and to Buyback Contract for buyback.
 /// @author Sperax Foundation
 contract YieldReserve is ReentrancyGuard, Ownable {
@@ -70,13 +70,17 @@ contract YieldReserve is ReentrancyGuard, Ownable {
         updateOracleAddress(_oracle);
         updateDripperAddress(_dripper);
 
-        //@dev buybackPercentage is initialized to 50%
+        /// @dev buybackPercentage is initialized to 50%
         updateBuybackPercentage(uint256(5000));
     }
 
     // OPERATION FUNCTIONS
 
     /// @notice Swap function to be called by front end
+    /// @param _srcToken Source / Input token
+    /// @param _dstToken Destination / Output token
+    /// @param _amountIn Input token amount
+    /// @param _minAmountOut Minimum output tokens expected
     function swap(
         address _srcToken,
         address _dstToken,
@@ -153,7 +157,7 @@ contract YieldReserve is ReentrancyGuard, Ownable {
         Helpers._isNonZeroAmt(_toBuyback);
         Helpers._isLTEMaxPercentage(_toBuyback);
         buybackPercentage = _toBuyback;
-        emit BuybackPercentageUpdated(buybackPercentage);
+        emit BuybackPercentageUpdated(_toBuyback);
     }
 
     /// @notice Update Buyback contract's address
@@ -241,7 +245,7 @@ contract YieldReserve is ReentrancyGuard, Ownable {
         });
     }
 
-    /// @notice A function to get estimated output
+    /// @notice A `view` function to get estimated output
     /// @param _srcToken Input token address
     /// @param _dstToken Output token address
     /// @param _amountIn Input amount of _srcToken
