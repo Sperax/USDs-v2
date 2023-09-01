@@ -133,15 +133,9 @@ contract SPABuyback is
             uint256 spaPricePrecision
         ) = _getOracleData();
 
-        //@audit-info Can we combine both calculations in one and get rid of
-        // totalUSDsValue variable and avoid performing multiplications
-        //on the result of a division
-        // Calculates the total USDs value
-        uint256 totalUsdsValue = (_usdsAmount * usdsPrice) / usdsPricePrecision;
-
         // Calculates spa amount required
-        uint256 spaAmtRequired = (totalUsdsValue * spaPricePrecision) /
-            spaPrice;
+        uint256 spaAmtRequired = (_usdsAmount * usdsPrice * spaPricePrecision) /
+            (spaPrice * usdsPricePrecision);
 
         return spaAmtRequired;
     }
@@ -235,15 +229,10 @@ contract SPABuyback is
             uint256 usdsPricePrecision,
             uint256 spaPricePrecision
         ) = _getOracleData();
-        //@audit-info Can we combine both calculations in one and get rid of
-        // totalSpaValue variable and avoid performing multiplications
-        //on the result of a division
-
-        // Calculates the total SPA value in USD
-        uint256 totalSpaValue = (_spaIn * spaPrice) / spaPricePrecision;
 
         // Divides SPA Value by USDs price
-        uint256 usdsOut = (totalSpaValue * usdsPricePrecision) / usdsPrice;
+        uint256 usdsOut = (_spaIn * spaPrice * usdsPricePrecision) /
+            (usdsPrice * spaPricePrecision);
 
         return (usdsOut, spaPrice);
     }
