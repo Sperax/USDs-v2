@@ -9,6 +9,15 @@ import {IUniswapV3Factory} from "@uniswap/v3-core/contracts/interfaces/IUniswapV
 import {OracleLibrary} from "@uniswap/v3-periphery/contracts/libraries/OracleLibrary.sol";
 
 interface IMasterPriceOracle {
+    /// @notice Validates if price feed exists for a `_token`
+    /// @param _token address of the desired token.
+    /// @return Returns bool
+    function priceFeedExists(address _token) external view returns (bool);
+
+    /// @notice Gets the price feed for `_token`.
+    /// @param _token address of the desired token.
+    /// @dev Function reverts if the price feed does not exists.
+    /// @return (uint256 price, uint256 precision).
     function getPrice(address _token) external view returns (uint256, uint256);
 }
 
@@ -39,8 +48,10 @@ abstract contract BaseUniOracle is Ownable {
     function updateMasterOracle(address _newOracle) public onlyOwner {
         _isNonZeroAddr(_newOracle);
         masterOracle = _newOracle;
-        //@audit-info Can we add returning token price on the below event?
-        IMasterPriceOracle(_newOracle).getPrice(quoteToken);
+        require(
+            IMasterPriceOracle(_newOracle).priceFeedExists(quoteToken),
+            "Quote token feed missing"
+        );
         emit MasterOracleUpdated(_newOracle);
     }
 
@@ -55,7 +66,6 @@ abstract contract BaseUniOracle is Ownable {
         uint24 _feeTier,
         uint32 _maPeriod
     ) public onlyOwner {
-        //@audit-issue add a zero address check for _quoteToken
         address uniOraclePool = IUniswapV3Factory(UNISWAP_FACTORY).getPool(
             _token,
             _quoteToken,
@@ -63,9 +73,11 @@ abstract contract BaseUniOracle is Ownable {
         );
         require(uniOraclePool != address(0), "Feed unavailable");
 
-        //@audit-info Can we set return values for below call?
         // Validate if the oracle has a price feed for the _quoteToken
-        IMasterPriceOracle(masterOracle).getPrice(_quoteToken);
+        require(
+            IMasterPriceOracle(masterOracle).priceFeedExists(_quoteToken),
+            "Quote token feed missing"
+        );
 
         pool = uniOraclePool;
         quoteToken = _quoteToken;

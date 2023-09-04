@@ -5,10 +5,6 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {IOracle} from "../interfaces/IOracle.sol";
 
 contract MasterPriceOracle is Ownable, IOracle {
-    struct PriceFeedData {
-        address source;
-        bytes msgData;
-    }
     // Handles price feed data for a give token.
     mapping(address => PriceFeedData) public tokenPriceFeed;
 
@@ -48,13 +44,16 @@ contract MasterPriceOracle is Ownable, IOracle {
         emit PriceFeedRemoved(_token);
     }
 
-    /// @notice Gets the price feed for `_token`.
-    /// @param _token address of the desired token.
-    /// @dev Function reverts if the price feed does not exists.
-    /// @return (uint256 price, uint256 precision).
+    /// @inheritdoc IOracle
     function getPrice(address _token) external view returns (PriceData memory) {
         PriceFeedData memory data = tokenPriceFeed[_token];
         return _getPriceFeed(_token, data.source, data.msgData);
+    }
+
+    /// @inheritdoc IOracle
+    function priceFeedExists(address _token) external view returns (bool) {
+        if (tokenPriceFeed[_token].source == address(0)) return false;
+        return true;
     }
 
     /// @notice Gets the price feed for a `_token` given the feed data.
