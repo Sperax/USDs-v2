@@ -113,7 +113,6 @@ abstract contract InitializableAbstractStrategy is
     /// @dev Withdraw an amount of asset from the platform to vault
     /// @param _asset  Address of the asset
     /// @param _amount  Units of asset to withdraw
-    ///
     function withdrawToVault(
         address _asset,
         uint256 _amount
@@ -130,7 +129,6 @@ abstract contract InitializableAbstractStrategy is
     ///           excluding the interest
     /// @dev Curve: assuming balanced withdrawal
     /// @param _asset Address of the asset
-    ///
     function checkBalance(
         address _asset
     ) external view virtual returns (uint256);
@@ -238,6 +236,12 @@ abstract contract InitializableAbstractStrategy is
         emit PTokenRemoved(asset, pToken);
     }
 
+    /// @notice Splits and sends the accumulated rewards to harvestor and yield receiver
+    /// @param _token Address of the reward token
+    /// @param _yieldReceiver Address of the yield receiver
+    /// @param _harvestor Address of the harvestor
+    /// @param _amount to be split and sent
+    /// @dev Sends the amount to harvestor as per `harvestIncentiveRate` and sends the rest to yield receiver
     function _splitAndSendReward(
         address _token,
         address _yieldReceiver,

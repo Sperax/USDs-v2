@@ -10,7 +10,7 @@ interface IDiaOracle {
     ) external view returns (uint128 price, uint128 lastUpdateTime);
 }
 
-/// @title Oracle contract of USDs protocol for SPA token
+/// @title Oracle contract for USDs protocol for SPA token
 /// @dev providing SPA prices (from Uniswap V3 pools and DIA oracle)
 /// @author Sperax Foundation
 contract SPAOracle is BaseUniOracle {

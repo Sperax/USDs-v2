@@ -5,7 +5,9 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Helpers} from "../libraries/Helpers.sol";
 
+/// @title Dripper for USDs protocol
 /// @notice Contract to release tokens to a recipient at a steady rate
+/// @author Sperax Foundation
 /// @dev This contract releases USDs at a steady rate to the Vault for rebasing USDs
 contract Dripper is Ownable {
     using SafeERC20 for IERC20;
@@ -56,6 +58,7 @@ contract Dripper is Ownable {
     }
 
     /// @notice Update the vault address
+    /// @param _vault Address of the new vault
     function updateVault(address _vault) public onlyOwner {
         Helpers._isNonZeroAddr(_vault);
         vault = _vault;
@@ -63,6 +66,7 @@ contract Dripper is Ownable {
     }
 
     /// @notice Updates the dripDuration
+    /// @param _dripDuration The desired drip duration to be set
     function updateDripDuration(uint256 _dripDuration) public onlyOwner {
         Helpers._isNonZeroAmt(_dripDuration);
         dripDuration = _dripDuration;

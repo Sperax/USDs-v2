@@ -15,7 +15,7 @@ interface IVstOracle {
         );
 }
 
-/// @title VST Oracle of USDs protocol
+/// @title VST Oracle for USDs protocol
 /// @author Sperax Foundation
 /// @dev consults VST Price feed for getting the price
 contract VSTOracle {

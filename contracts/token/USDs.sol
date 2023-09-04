@@ -228,6 +228,7 @@ contract USDs is
     /// @param _from The address you want to send tokens from.
     /// @param _to The address you want to transfer to.
     /// @param _value The _amount of tokens to be transferred.
+    /// @return true on success.
     function transferFrom(
         address _from,
         address _to,
@@ -259,6 +260,7 @@ contract USDs is
     ///  transaction is mined before the later approve() call is mined.
     /// @param _spender The address which will spend the funds.
     /// @param _value The _amount of tokens to be spent.
+    /// @return true on success.
     function approve(
         address _spender,
         uint256 _value
@@ -273,6 +275,7 @@ contract USDs is
     ///  described above.
     /// @param _spender The address which will spend the funds.
     /// @param _addedValue The _amount of tokens to increase the allowance by.
+    /// @return true on success.
     function increaseAllowance(
         address _spender,
         uint256 _addedValue
@@ -287,6 +290,7 @@ contract USDs is
     /// @notice Decrease the _amount of tokens that an owner has allowed to a _spender.
     /// @param _spender The address which will spend the funds.
     /// @param _subtractedValue The _amount of tokens to decrease the allowance by.
+    /// @return true on success.
     function decreaseAllowance(
         address _spender,
         uint256 _subtractedValue
@@ -470,6 +474,7 @@ contract USDs is
 
     /// @notice Ensures internal account for rebasing and non-rebasing credits and
     ///       supply is updated following deployment of frozen yield change.
+    /// @param _account Address of the account.
     function _ensureRebasingMigration(address _account) private {
         if (nonRebasingCreditsPerToken[_account] == 0) {
             if (_creditBalances[_account] != 0) {

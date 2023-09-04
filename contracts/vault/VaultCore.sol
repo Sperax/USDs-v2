@@ -12,6 +12,10 @@ import {ICollateralManager} from "./interfaces/ICollateralManager.sol";
 import {IStrategy} from "./interfaces/IStrategy.sol";
 import {Helpers} from "../libraries/Helpers.sol";
 
+/// @title Savings manager (Vault) contract for USDs protocol
+/// @author Sperax Foundation
+/// @notice Lets users mint/redeem USDs for/with allowed collaterals
+/// @notice Allocates collateral in strategies by consulting Collateral Manager contract
 contract VaultCore is
     Initializable,
     OwnableUpgradeable,
@@ -259,6 +263,16 @@ contract VaultCore is
         ) = _redeemView(_collateral, _usdsAmt, address(0));
     }
 
+    /// @notice Get the expected redeem result
+    /// @param _collateral desired collateral address
+    /// @param _usdsAmt amount of usds to be redeemed
+    /// @param _strategyAddr Address of strategy to redeem from
+    /// @return calculatedCollateralAmt expected amount of collateral to be released
+    ///                          based on the price calculation
+    /// @return usdsBurnAmt expected amount of USDs to be burnt in the process
+    /// @return feeAmt amount of USDs collected as fee for redemption
+    /// @return vaultAmt amount of Collateral released from Vault
+    /// @return strategyAmt amount of Collateral to withdraw from strategy
     function redeemView(
         address _collateral,
         uint256 _usdsAmt,
@@ -285,6 +299,7 @@ contract VaultCore is
     }
 
     /// @notice Rebase USDs to share earned yield with the USDs holders
+    /// @dev If Rebase manager returns a non zero value, it calls rebase function on token/ USDs contract
     function rebase() public {
         uint256 rebaseAmt = IRebaseManager(rebaseManager).fetchRebaseAmt();
         if (rebaseAmt > 0) {
@@ -360,6 +375,7 @@ contract VaultCore is
     /// @param _collateral address of collateral
     /// @param _collateralAmt amount of collateral to deposit
     /// @param _minUSDSAmt min expected USDs amount to be minted
+    /// @param _deadline Deadline timestamp for executing mint
     function _mint(
         address _collateral,
         uint256 _collateralAmt,
@@ -400,6 +416,7 @@ contract VaultCore is
     /// @param _collateral address of collateral to receive
     /// @param _usdsAmt amount of USDs to redeem
     /// @param _minCollateralAmt min expected Collateral amount to be received
+    /// @param _deadline Deadline timestamp for executing mint
     /// @param _strategyAddr Address of the strategy to withdraw from
     /// @dev withdraw from strategy is triggered only if vault doesn't have enough funds
     function _redeem(

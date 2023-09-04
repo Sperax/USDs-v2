@@ -4,7 +4,7 @@ pragma experimental ABIEncoderV2;
 
 import {BaseUniOracle} from "./BaseUniOracle.sol";
 
-/// @title Oracle contract of USDs protocol
+/// @title Oracle contract for USDs protocol
 /// @dev providing USDs prices (from Uniswap V3 pools)
 /// @author Sperax Foundation
 contract USDsOracle is BaseUniOracle {

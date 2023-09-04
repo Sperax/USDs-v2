@@ -9,6 +9,7 @@ import {IStargatePool} from "./interfaces/IStargatePool.sol";
 import {InitializableAbstractStrategy, Helpers, IStrategyVault} from "../InitializableAbstractStrategy.sol";
 
 /// @title Stargate strategy for USDs protocol
+/// @author Sperax Foundation
 /// @notice A yield earning strategy for USDs protocol
 /// @notice Important contract addresses:
 ///         Addresses https://stargateprotocol.gitbook.io/stargate/developers/contract-addresses/mainnet#arbitrum
@@ -357,6 +358,10 @@ contract StargateStrategy is InitializableAbstractStrategy {
     }
 
     /// @notice Helper function for withdrawal.
+    /// @param _withdrawInterest Withdraws interest as well if this is set to `true`
+    /// @param _recipient Recipient of the amount
+    /// @param _asset Address of the asset token
+    /// @param _amount Amount to be withdrawn
     /// @dev Validate if the farm has enough STG to withdraw as rewards.
     function _withdraw(
         bool _withdrawInterest,

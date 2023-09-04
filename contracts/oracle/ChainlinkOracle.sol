@@ -4,7 +4,7 @@ pragma solidity 0.8.16;
 import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
-/// @title Chainlink Oracle contract of USDs protocol
+/// @title Chainlink Oracle contract for USDs protocol
 /// @author Sperax Foundation
 /// @notice Has all the base functionalities, variables etc to be implemented by child contracts
 contract ChainlinkOracle is Ownable {

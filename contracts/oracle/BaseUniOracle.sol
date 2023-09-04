@@ -21,7 +21,7 @@ interface IMasterPriceOracle {
     function getPrice(address _token) external view returns (uint256, uint256);
 }
 
-/// @title Base Uni Oracle contract of USDs protocol
+/// @title Base Uni Oracle contract for USDs protocol
 /// @author Sperax Foundation
 /// @notice Has all the base functionalities, variables etc to be implemented by child contracts
 abstract contract BaseUniOracle is Ownable {

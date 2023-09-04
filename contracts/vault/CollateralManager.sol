@@ -11,6 +11,10 @@ interface IERC20Custom is IERC20 {
     function decimals() external view returns (uint8);
 }
 
+/// @title Collateral Manager contract for USDs protocol
+/// @author Sperax Foundation
+/// @notice Manages addition and removal of collateral, configures
+///     collateral strategies and percentage of allocation
 contract CollateralManager is ICollateralManager, Ownable {
     struct CollateralData {
         bool mintAllowed;
@@ -341,7 +345,7 @@ contract CollateralManager is ICollateralManager, Ownable {
 
     /// @notice Get the required data for mint
     /// @param _collateral Address of the collateral
-    /// @return mintData
+    /// @return mintData Mint configuration
     function getMintParams(
         address _collateral
     ) external view returns (CollateralMintData memory mintData) {
@@ -367,7 +371,7 @@ contract CollateralManager is ICollateralManager, Ownable {
 
     /// @notice Get the required data for USDs redemption
     /// @param _collateral Address of the collateral
-    /// @return redeemData
+    /// @return redeemData Redeem configuration
     function getRedeemParams(
         address _collateral
     ) external view returns (CollateralRedeemData memory redeemData) {
@@ -398,6 +402,7 @@ contract CollateralManager is ICollateralManager, Ownable {
     }
 
     /// @notice Gets list of all the collateral linked strategies
+    /// @param _collateral Address of the collateral
     /// @return address[] list of available strategies for a collateral
     function getCollateralStrategies(
         address _collateral
@@ -418,7 +423,7 @@ contract CollateralManager is ICollateralManager, Ownable {
 
     /// @notice Get the amount of collateral in all Strategies
     /// @param _collateral Address of the collateral
-    /// @return amountInStrategies
+    /// @return amountInStrategies Amount in strategies
     function getCollateralInStrategies(
         address _collateral
     ) public view returns (uint256 amountInStrategies) {
@@ -442,7 +447,7 @@ contract CollateralManager is ICollateralManager, Ownable {
 
     /// @notice Get the amount of collateral in vault
     /// @param _collateral Address of the collateral
-    /// @return amountInVault
+    /// @return amountInVault Amount in Vault
     function getCollateralInVault(
         address _collateral
     ) public view returns (uint256 amountInVault) {
@@ -452,7 +457,7 @@ contract CollateralManager is ICollateralManager, Ownable {
     /// @notice Get the amount of collateral allocated in a strategy
     /// @param _collateral Address of the collateral
     /// @param _strategy Address of the strategy
-    /// @return allocatedAmt
+    /// @return allocatedAmt Allocated amount
     function getCollateralInAStrategy(
         address _collateral,
         address _strategy

@@ -7,6 +7,7 @@ import {InitializableAbstractStrategy, Helpers, IStrategyVault} from "../Initial
 import {IAaveLendingPool, IAToken, IPoolAddressesProvider} from "./interfaces/IAavePool.sol";
 
 /// @title AAVE strategy for USDs protocol
+/// @author Sperax Foundation
 /// @notice A yield earning strategy for USDs protocol
 contract AaveStrategy is InitializableAbstractStrategy {
     using SafeERC20 for IERC20;
@@ -23,7 +24,7 @@ contract AaveStrategy is InitializableAbstractStrategy {
         uint256 intLiqThreshold
     );
 
-    /// Initializer for setting up strategy internal state. This overrides the
+    /// @notice Initializer for setting up strategy internal state. This overrides the
     /// InitializableAbstractStrategy initializer as AAVE needs several extra
     /// addresses for the rewards program.
     /// @param _platformAddress Address of the AAVE pool

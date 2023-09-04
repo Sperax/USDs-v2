@@ -4,7 +4,7 @@ pragma solidity 0.8.16;
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {IOracle} from "../interfaces/IOracle.sol";
 
-/// @title Master Price Oracle of USDs protocol
+/// @title Master Price Oracle for USDs protocol
 /// @author Sperax Foundation
 /// @notice Communicates with different price feeds to get the price
 contract MasterPriceOracle is Ownable, IOracle {

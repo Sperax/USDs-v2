@@ -8,7 +8,8 @@ import {IUSDs} from "../interfaces/IUSDs.sol";
 import {IDripper} from "../interfaces/IDripper.sol";
 import {Helpers} from "../libraries/Helpers.sol";
 
-/// @title RebaseManager
+/// @title RebaseManager for USDs protocol
+/// @author Sperax Foundation
 /// @notice Contract handles the configuration for rebase of USDs token
 ///         Which enables rebase only when the pre-requisites are fulfilled
 contract RebaseManager is Ownable {
