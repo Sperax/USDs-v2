@@ -60,8 +60,8 @@ contract SPABuybackTestSetup is BaseTest {
     function _calculateUSDsForSpaIn(uint256 _spaIn) internal returns (uint256) {
         usdsData = IOracle(ORACLE).getPrice(USDS);
         spaData = IOracle(ORACLE).getPrice(SPA);
-        uint256 totalSpaValue = (_spaIn * spaData.price) / spaData.precision;
-        return ((totalSpaValue * usdsData.precision) / usdsData.price);
+        return ((_spaIn * spaData.price * usdsData.precision) /
+            (usdsData.price * spaData.precision));
     }
 
     function _calculateSpaReqdForUSDs(
@@ -69,9 +69,9 @@ contract SPABuybackTestSetup is BaseTest {
     ) internal returns (uint256) {
         usdsData = IOracle(ORACLE).getPrice(USDS);
         spaData = IOracle(ORACLE).getPrice(SPA);
-        uint256 totalUSDsValue = (_usdsAmount * usdsData.price) /
-            usdsData.precision;
-        return (totalUSDsValue * spaData.precision) / spaData.price;
+        return
+            (_usdsAmount * usdsData.price * spaData.precision) /
+            (spaData.price * usdsData.precision);
     }
 }
 

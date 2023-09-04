@@ -3,8 +3,7 @@ pragma solidity 0.8.16;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {InitializableAbstractStrategy, Helpers} from "../InitializableAbstractStrategy.sol";
-import {IVault} from "../interfaces/IVault.sol";
+import {InitializableAbstractStrategy, Helpers, IStrategyVault} from "../InitializableAbstractStrategy.sol";
 import {IAaveLendingPool, IAToken, IPoolAddressesProvider} from "./interfaces/IAavePool.sol";
 
 /// @title AAVE strategy for USDs protocol
@@ -37,17 +36,8 @@ contract AaveStrategy is InitializableAbstractStrategy {
         aavePool = IAaveLendingPool(
             IPoolAddressesProvider(_platformAddress).getPool()
         ); // aave Lending Pool 0x794a61358D6845594F94dc1DB02A252b5b4814aD
-        //@audit-info can we remove those 2 variables since they're not used except
-        // for initializing it's shows also an error on auditing called shadow variable
-        // Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#local-variable-shadowing
 
-        uint16 depositSlippage = 0;
-        uint16 withdrawSlippage = 0;
-        InitializableAbstractStrategy._initialize(
-            _vault,
-            depositSlippage,
-            withdrawSlippage
-        );
+        InitializableAbstractStrategy._initialize(_vault, 0, 0);
     }
 
     /// @notice Provide support for asset by passing its lpToken address.
@@ -128,7 +118,7 @@ contract AaveStrategy is InitializableAbstractStrategy {
 
     /// @inheritdoc InitializableAbstractStrategy
     function collectInterest(address _asset) external override nonReentrant {
-        address yieldReceiver = IVault(vault).yieldReceiver();
+        address yieldReceiver = IStrategyVault(vault).yieldReceiver();
         address harvestor = msg.sender;
         uint256 assetInterest = checkInterestEarned(_asset);
         if (assetInterest > assetInfo[_asset].intLiqThreshold) {

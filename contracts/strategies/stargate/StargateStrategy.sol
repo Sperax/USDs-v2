@@ -6,8 +6,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {ILPStaking} from "./interfaces/ILPStaking.sol";
 import {IStargateRouter} from "./interfaces/IStargateRouter.sol";
 import {IStargatePool} from "./interfaces/IStargatePool.sol";
-import {InitializableAbstractStrategy, Helpers} from "../InitializableAbstractStrategy.sol";
-import {IVault} from "../interfaces/IVault.sol";
+import {InitializableAbstractStrategy, Helpers, IStrategyVault} from "../InitializableAbstractStrategy.sol";
 
 /// @title Stargate strategy for USDs protocol
 /// @notice A yield earning strategy for USDs protocol
@@ -176,7 +175,7 @@ contract StargateStrategy is InitializableAbstractStrategy {
 
     /// @inheritdoc InitializableAbstractStrategy
     function collectInterest(address _asset) external override nonReentrant {
-        address yieldReceiver = IVault(vault).yieldReceiver();
+        address yieldReceiver = IStrategyVault(vault).yieldReceiver();
         address harvestor = msg.sender;
         uint256 earnedInterest = checkInterestEarned(_asset);
         if (earnedInterest > assetInfo[_asset].intLiqThreshold) {
@@ -198,7 +197,7 @@ contract StargateStrategy is InitializableAbstractStrategy {
 
     /// @inheritdoc InitializableAbstractStrategy
     function collectReward() external override nonReentrant {
-        address yieldReceiver = IVault(vault).yieldReceiver();
+        address yieldReceiver = IStrategyVault(vault).yieldReceiver();
         address harvestor = msg.sender;
         address rewardToken = rewardTokenAddress[0];
         uint256 numAssets = assetsMapped.length;

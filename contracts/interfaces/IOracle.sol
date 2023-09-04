@@ -6,6 +6,16 @@ interface IOracle {
         uint256 precision;
     }
 
+    struct PriceFeedData {
+        address source;
+        bytes msgData;
+    }
+
+    /// @notice Validates if price feed exists for a `_token`
+    /// @param _token address of the desired token.
+    /// @dev Function reverts if price feed not set.
+    function priceFeedExists(address _token) external view returns (bool);
+
     /// @notice Gets the price feed for `_token`.
     /// @param _token address of the desired token.
     /// @dev Function reverts if the price feed does not exists.
