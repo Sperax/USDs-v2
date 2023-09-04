@@ -4,6 +4,9 @@ pragma solidity 0.8.16;
 import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
+/// @title Chainlink Oracle contract of USDs protocol
+/// @author Sperax Foundation
+/// @notice Has all the base functionalities, variables etc to be implemented by child contracts
 contract ChainlinkOracle is Ownable {
     struct TokenData {
         address priceFeed;
@@ -55,6 +58,7 @@ contract ChainlinkOracle is Ownable {
     /// @notice Gets the token price and price precision
     /// @param _token Address of the desired token
     /// @dev Ref: https://docs.chain.link/data-feeds/l2-sequencer-feeds
+    /// @return (uint256, uint256) price and pricePrecision
     function getTokenPrice(
         address _token
     ) public view returns (uint256, uint256) {

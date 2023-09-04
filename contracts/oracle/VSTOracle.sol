@@ -15,6 +15,9 @@ interface IVstOracle {
         );
 }
 
+/// @title VST Oracle of USDs protocol
+/// @author Sperax Foundation
+/// @dev consults VST Price feed for getting the price
 contract VSTOracle {
     address public constant PRICE_FEED =
         0x46bAc6210DcB43b4269ffe766f31B36267C41EdE;

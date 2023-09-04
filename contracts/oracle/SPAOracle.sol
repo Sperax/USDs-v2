@@ -10,9 +10,9 @@ interface IDiaOracle {
     ) external view returns (uint128 price, uint128 lastUpdateTime);
 }
 
-/// @title Oracle contract of USDs protocol
+/// @title Oracle contract of USDs protocol for SPA token
 /// @dev providing SPA prices (from Uniswap V3 pools and DIA oracle)
-/// @author Sperax Inc
+/// @author Sperax Foundation
 contract SPAOracle is BaseUniOracle {
     address public constant SPA = 0x5575552988A3A80504bBaeB1311674fCFd40aD4B;
     address public constant DIA_ORACLE =
@@ -69,7 +69,7 @@ contract SPAOracle is BaseUniOracle {
     /// @notice Update the weights of DIA SPA price and Uni SPA price
     /// @dev SPA price is a weighted combination of DIA SPA price and Uni SPA
     ///     price
-    /// @dev _weightDIA = 70 and _weightUNI = 30 would result in a 70% and 30%
+    /// @dev `_weightDIA` = 70 and `_weightUNI` = 30 would result in a 70% and 30%
     ///     weights on SPA's final price
     /// @param _weightDIA weight for DIA price feed
     /// @param _maxTime max age of price feed from DIA
