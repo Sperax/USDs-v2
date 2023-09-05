@@ -212,10 +212,8 @@ contract USDs is
         uint256 _value
     ) public override returns (bool) {
         if (_to == address(0)) revert TransferToZeroAddr();
-        require(
-            _value <= balanceOf(msg.sender),
-            "Transfer greater than balance"
-        );
+        uint256 bal = balanceOf(msg.sender);
+        if (_value > bal) revert TransferGreaterThanBal(_value, bal);
 
         _executeTransfer(msg.sender, _to, _value);
 

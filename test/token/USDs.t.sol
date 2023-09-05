@@ -245,9 +245,16 @@ contract TestTransfer is USDsTest {
     }
 
     function test_revert_balance() public useKnownActor(USER1) {
-        uint256 amountToTransfer = usds.balanceOf(USER1) + 1;
+        uint256 bal = usds.balanceOf(USER1);
+        uint256 amountToTransfer = bal + 1;
 
-        vm.expectRevert("Transfer greater than balance");
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                USDs.TransferGreaterThanBal.selector,
+                amountToTransfer,
+                bal
+            )
+        );
         usds.transfer(USER2, amountToTransfer);
     }
 
