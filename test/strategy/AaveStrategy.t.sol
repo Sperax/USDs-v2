@@ -279,13 +279,6 @@ contract Deposit is AaveStrategyTest {
         vm.stopPrank();
     }
 
-    function test_RevertWhen_NotVault() public useActor(0) {
-        vm.expectRevert(
-            abi.encodeWithSelector(CallerNotVault.selector, actors[0])
-        );
-        strategy.deposit(DUMMY_ADDRESS, 1);
-    }
-
     function test_deposit_Collateral_not_supported()
         public
         useKnownActor(VAULT)

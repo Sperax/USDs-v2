@@ -126,7 +126,7 @@ contract StargateStrategy is InitializableAbstractStrategy {
     function deposit(
         address _asset,
         uint256 _amount
-    ) external override onlyVault nonReentrant {
+    ) external override nonReentrant {
         Helpers._isNonZeroAmt(_amount);
         if (!_validateRwdClaim(_asset)) revert InsufficientRewardFundInFarm();
         address lpToken = assetToPToken[_asset];

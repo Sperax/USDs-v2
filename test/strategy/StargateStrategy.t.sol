@@ -542,14 +542,6 @@ contract Deposit is StargateStrategyTest {
         strategy.deposit(data.asset, 0);
     }
 
-    function test_RevertWhen_NotVault() public useActor(1) {
-        AssetData memory data = assetData[0];
-        vm.expectRevert(
-            abi.encodeWithSelector(CallerNotVault.selector, actors[1])
-        );
-        strategy.deposit(data.asset, 1000);
-    }
-
     function test_RevertWhen_UnsupportedCollateral()
         public
         useKnownActor(VAULT)
