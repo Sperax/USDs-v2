@@ -6,16 +6,16 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import {IUSDs} from "../interfaces/IUSDs.sol";
 import {IDripper} from "../interfaces/IDripper.sol";
+import {Helpers} from "../libraries/Helpers.sol";
 
-/// @title RebaseManager
+/// @title RebaseManager for USDs protocol
+/// @author Sperax Foundation
 /// @notice Contract handles the configuration for rebase of USDs token
 ///         Which enables rebase only when the pre-requisites are fulfilled
 contract RebaseManager is Ownable {
     using SafeMath for uint256;
 
-    address public constant USDS = 0xD74f5255D557944cf7Dd0E45FF521520002D5748;
     uint256 private constant ONE_YEAR = 365 days;
-    uint256 private constant PERC_PRECISION = 10000;
 
     address public vault; // address of the vault
     address public dripper; // address of the dripper for collecting USDs
@@ -30,8 +30,11 @@ contract RebaseManager is Ownable {
     event GapUpdated(uint256 gap);
     event APRUpdated(uint256 aprBottom, uint256 aprCap);
 
+    error CallerNotVault(address caller);
+    error InvalidAPRConfig(uint256 aprBottom, uint256 aprCap);
+
     modifier onlyVault() {
-        require(msg.sender == vault, "Unauthorized caller");
+        if (msg.sender != vault) revert CallerNotVault(msg.sender);
         _;
     }
 
@@ -42,10 +45,10 @@ contract RebaseManager is Ownable {
         uint256 _aprCap, // 1000 = 10%
         uint256 _aprBottom // 800 = 8%
     ) {
-        setVault(_vault);
-        setDripper(_dripper);
-        setGap(_gap);
-        setAPR(_aprBottom, _aprCap);
+        updateVault(_vault);
+        updateDripper(_dripper);
+        updateGap(_gap);
+        updateAPR(_aprBottom, _aprCap);
         lastRebaseTS = block.timestamp;
     }
 
@@ -78,23 +81,23 @@ contract RebaseManager is Ownable {
 
     /// @notice Updates the vault address
     /// @param _newVault Address of the new vault
-    function setVault(address _newVault) public onlyOwner {
-        _isValidAddress(_newVault);
+    function updateVault(address _newVault) public onlyOwner {
+        Helpers._isNonZeroAddr(_newVault);
         vault = _newVault;
         emit VaultUpdated(_newVault);
     }
 
     /// @notice Updates the dripper for USDs vault
     /// @param _dripper address of the new dripper contract
-    function setDripper(address _dripper) public onlyOwner {
-        _isValidAddress(_dripper);
+    function updateDripper(address _dripper) public onlyOwner {
+        Helpers._isNonZeroAddr(_dripper);
         dripper = _dripper;
         emit DripperUpdated(_dripper);
     }
 
     /// @notice Update the minimum gap required b/w two rebases
     /// @param _gap updated gap time
-    function setGap(uint256 _gap) public onlyOwner {
+    function updateGap(uint256 _gap) public onlyOwner {
         gap = _gap;
         emit GapUpdated(_gap);
     }
@@ -102,8 +105,8 @@ contract RebaseManager is Ownable {
     /// @notice Update the APR requirements for each rebase
     /// @param _aprCap new MAX APR for rebase
     /// @param _aprBottom new MIN APR for rebase
-    function setAPR(uint256 _aprBottom, uint256 _aprCap) public onlyOwner {
-        require(_aprCap >= _aprBottom, "Invalid APR config");
+    function updateAPR(uint256 _aprBottom, uint256 _aprCap) public onlyOwner {
+        if (_aprCap < _aprBottom) revert InvalidAPRConfig(_aprBottom, _aprCap);
         aprCap = _aprCap;
         aprBottom = _aprBottom;
         emit APRUpdated(_aprBottom, _aprCap);
@@ -113,24 +116,20 @@ contract RebaseManager is Ownable {
     /// @return Returns currentBal in vault + collectable dripped USDs amt
     function getAvailableRebaseAmt() public view returns (uint256) {
         uint256 collectableAmt = IDripper(dripper).getCollectableAmt();
-        uint256 currentBal = IERC20(USDS).balanceOf(vault);
+        uint256 currentBal = IERC20(Helpers.USDS).balanceOf(vault);
         return currentBal + collectableAmt;
     }
 
     /// @notice Gets the min and max rebase USDs amount based on the APR config
     /// @return min and max rebase amount
     function getMinAndMaxRebaseAmt() public view returns (uint256, uint256) {
-        uint256 principal = IUSDs(USDS).totalSupply() -
-            IUSDs(USDS).nonRebasingSupply();
+        uint256 principal = IUSDs(Helpers.USDS).totalSupply() -
+            IUSDs(Helpers.USDS).nonRebasingSupply();
         uint256 timeElapsed = block.timestamp - lastRebaseTS;
         uint256 minRebaseAmt = (principal * aprBottom * timeElapsed) /
-            (ONE_YEAR * PERC_PRECISION);
+            (ONE_YEAR * Helpers.MAX_PERCENTAGE);
         uint256 maxRebaseAmt = (principal * aprCap * timeElapsed) /
-            (ONE_YEAR * PERC_PRECISION);
+            (ONE_YEAR * Helpers.MAX_PERCENTAGE);
         return (minRebaseAmt, maxRebaseAmt);
-    }
-
-    function _isValidAddress(address _address) private pure {
-        require(_address != address(0), "Invalid Address");
     }
 }

@@ -1,10 +1,13 @@
-// SPDX-License-Identifier: agpl-3.0
+// SPDX-License-Identifier: MIT
 pragma solidity 0.8.16;
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {Helpers} from "../libraries/Helpers.sol";
 
+/// @title Dripper for USDs protocol
 /// @notice Contract to release tokens to a recipient at a steady rate
+/// @author Sperax Foundation
 /// @dev This contract releases USDs at a steady rate to the Vault for rebasing USDs
 contract Dripper is Ownable {
     using SafeERC20 for IERC20;
@@ -21,9 +24,11 @@ contract Dripper is Ownable {
     event VaultUpdated(address vault);
     event DripDurationUpdated(uint256 dripDuration);
 
+    error NothingToRecover();
+
     constructor(address _vault, uint256 _dripDuration) {
-        setVault(_vault);
-        setDripDuration(_dripDuration);
+        updateVault(_vault);
+        updateDripDuration(_dripDuration);
         lastCollectTS = block.timestamp;
     }
 
@@ -34,7 +39,7 @@ contract Dripper is Ownable {
     /// @dev Transfers the asset to the owner of the contract.
     function recoverTokens(address _asset) external onlyOwner {
         uint256 bal = IERC20(_asset).balanceOf(address(this));
-        require(bal > 0, "Nothing to recover");
+        if (bal == 0) revert NothingToRecover();
         IERC20(_asset).safeTransfer(msg.sender, bal);
         emit Recovered(msg.sender, bal);
     }
@@ -44,8 +49,8 @@ contract Dripper is Ownable {
     function collect() external returns (uint256) {
         uint256 collectableAmt = getCollectableAmt();
         if (collectableAmt > 0) {
-            IERC20(USDS).safeTransfer(vault, collectableAmt);
             lastCollectTS = block.timestamp;
+            IERC20(USDS).safeTransfer(vault, collectableAmt);
             emit Collected(collectableAmt);
         }
         dripRate = IERC20(USDS).balanceOf(address(this)) / dripDuration;
@@ -53,17 +58,17 @@ contract Dripper is Ownable {
     }
 
     /// @notice Update the vault address
-    /// @param _vault Address of the desired vault
-    function setVault(address _vault) public onlyOwner {
-        _isValidAddress(_vault);
+    /// @param _vault Address of the new vault
+    function updateVault(address _vault) public onlyOwner {
+        Helpers._isNonZeroAddr(_vault);
         vault = _vault;
         emit VaultUpdated(_vault);
     }
 
     /// @notice Updates the dripDuration
-    /// @param _dripDuration Desired drip duration
-    function setDripDuration(uint256 _dripDuration) public onlyOwner {
-        require(_dripDuration != 0, "Invalid input");
+    /// @param _dripDuration The desired drip duration to be set
+    function updateDripDuration(uint256 _dripDuration) public onlyOwner {
+        Helpers._isNonZeroAmt(_dripDuration);
         dripDuration = _dripDuration;
         emit DripDurationUpdated(_dripDuration);
     }
@@ -75,11 +80,5 @@ contract Dripper is Ownable {
         uint256 dripped = timeElapsed * dripRate;
         uint256 balance = IERC20(USDS).balanceOf(address(this));
         return (dripped > balance) ? balance : dripped;
-    }
-
-    /// @notice Address input sanity check function
-    /// @param _address Address to be checked
-    function _isValidAddress(address _address) private pure {
-        require(_address != address(0), "Invalid Address");
     }
 }

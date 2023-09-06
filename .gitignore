@@ -9,6 +9,8 @@ coverage.json
 out
 lib
 cache_forge
+cache
+
 
 # Brownie files
 build

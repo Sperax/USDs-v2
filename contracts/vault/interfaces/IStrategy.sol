@@ -19,6 +19,8 @@ interface IStrategy {
     ) external returns (uint256);
 
     /// @notice Check if collateral allocation is supported by the strategy
+    /// @param _asset Address of the asset which is to be checked
+    /// @return isSupported True if supported and False if not
     function supportsCollateral(address _asset) external view returns (bool);
 
     /// @notice Get the amount of a specific asset held in the strategy
@@ -30,6 +32,7 @@ interface IStrategy {
 
     /// @notice Gets the amount of asset withdrawable at any given time
     /// @param _asset Address of the asset
+    /// @return availableBalance Available balance of the asset
     function checkAvailableBalance(
         address _asset
     ) external view returns (uint256);

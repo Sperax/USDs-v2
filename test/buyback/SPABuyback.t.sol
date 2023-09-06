@@ -2,7 +2,7 @@
 pragma solidity 0.8.16;
 
 import {BaseTest} from "../utils/BaseTest.sol";
-import {SPABuyback} from "../../contracts/buyback/SPABuyback.sol";
+import {SPABuyback, Helpers} from "../../contracts/buyback/SPABuyback.sol";
 import {UpgradeUtil} from "../utils/UpgradeUtil.sol";
 import {MasterPriceOracle} from "../../contracts/oracle/MasterPriceOracle.sol";
 import {IOracle} from "../../contracts/interfaces/IOracle.sol";
@@ -52,6 +52,7 @@ contract SPABuybackTestSetup is BaseTest {
         spaBuyback = SPABuyback(proxy);
 
         spaBuyback.initialize(VESPA_REWARDER, rewardPercentage);
+        spaBuyback.updateOracle(ORACLE);
         vm.stopPrank();
     }
 
@@ -59,8 +60,8 @@ contract SPABuybackTestSetup is BaseTest {
     function _calculateUSDsForSpaIn(uint256 _spaIn) internal returns (uint256) {
         usdsData = IOracle(ORACLE).getPrice(USDS);
         spaData = IOracle(ORACLE).getPrice(SPA);
-        uint256 totalSpaValue = (_spaIn * spaData.price) / spaData.precision;
-        return ((totalSpaValue * usdsData.precision) / usdsData.price);
+        return ((_spaIn * spaData.price * usdsData.precision) /
+            (usdsData.price * spaData.precision));
     }
 
     function _calculateSpaReqdForUSDs(
@@ -68,9 +69,9 @@ contract SPABuybackTestSetup is BaseTest {
     ) internal returns (uint256) {
         usdsData = IOracle(ORACLE).getPrice(USDS);
         spaData = IOracle(ORACLE).getPrice(SPA);
-        uint256 totalUSDsValue = (_usdsAmount * usdsData.price) /
-            usdsData.precision;
-        return (totalUSDsValue * spaData.precision) / spaData.price;
+        return
+            (_usdsAmount * usdsData.price * spaData.precision) /
+            (spaData.price * usdsData.precision);
     }
 }
 
@@ -131,20 +132,14 @@ contract TestGetters is SPABuybackTestSetup {
     }
 
     function testCannotIfInvalidAmount() public mockOracle {
-        vm.expectRevert("Invalid Amount");
+        vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAmount.selector));
         spaBuyback.getUsdsOutForSpa(0);
     }
 }
 
 contract TestSetters is SPABuybackTestSetup {
-    event RewardPercentageUpdated(
-        uint256 oldRewardPercentage,
-        uint256 newRewardPercentage
-    );
-    event VeSpaRewarderUpdated(
-        address oldVeSpaRewarder,
-        address newVeSpaRewarder
-    );
+    event RewardPercentageUpdated(uint256 newRewardPercentage);
+    event VeSpaRewarderUpdated(address newVeSpaRewarder);
 
     function testCannotIfCallerNotOwner() external useActor(0) {
         vm.expectRevert("Ownable: caller is not the owner");
@@ -155,7 +150,7 @@ contract TestSetters is SPABuybackTestSetup {
 
     // function updateRewardPercentage
     function testCannotIfPercentageIsZero() external useKnownActor(USDS_OWNER) {
-        vm.expectRevert("Reward percentage cannot be zero");
+        vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAmount.selector));
         spaBuyback.updateRewardPercentage(0);
     }
 
@@ -163,7 +158,9 @@ contract TestSetters is SPABuybackTestSetup {
         external
         useKnownActor(USDS_OWNER)
     {
-        vm.expectRevert("Reward percentage cannot be > 100%");
+        vm.expectRevert(
+            abi.encodeWithSelector(Helpers.GTMaxPercentage.selector, 10001)
+        );
         spaBuyback.updateRewardPercentage(10001);
     }
 
@@ -171,22 +168,23 @@ contract TestSetters is SPABuybackTestSetup {
         uint256 oldRewardPercentage = spaBuyback.rewardPercentage();
         uint256 newRewardPercentage = 8000;
         vm.expectEmit(true, true, true, true, address(spaBuyback));
-        emit RewardPercentageUpdated(oldRewardPercentage, newRewardPercentage);
+        emit RewardPercentageUpdated(newRewardPercentage);
         spaBuyback.updateRewardPercentage(8000);
         assertEq(spaBuyback.rewardPercentage(), newRewardPercentage);
     }
 
     // function updateVeSpaRewarder
     function testCannotIfInvalidAddress() external useKnownActor(USDS_OWNER) {
-        vm.expectRevert("Invalid Address");
+        vm.expectRevert(
+            abi.encodeWithSelector(Helpers.InvalidAddress.selector)
+        );
         spaBuyback.updateVeSpaRewarder(address(0));
     }
 
     function testUpdateVeSpaRewarder() external useKnownActor(USDS_OWNER) {
-        address oldRewarder = spaBuyback.veSpaRewarder();
         address newRewarder = actors[1];
         vm.expectEmit(true, true, true, true, address(spaBuyback));
-        emit VeSpaRewarderUpdated(oldRewarder, newRewarder);
+        emit VeSpaRewarderUpdated(newRewarder);
         spaBuyback.updateVeSpaRewarder(newRewarder);
         assertEq(spaBuyback.veSpaRewarder(), newRewarder);
     }
@@ -218,7 +216,9 @@ contract TestWithdraw is SPABuybackTestSetup {
 
     function testCannotWithdrawSPA() public useKnownActor(USDS_OWNER) {
         token = SPA;
-        vm.expectRevert("SPA Buyback: Cannot withdraw SPA");
+        vm.expectRevert(
+            abi.encodeWithSelector(SPABuyback.CannotWithdrawSPA.selector)
+        );
         spaBuyback.withdraw(token, user, amount);
     }
 
@@ -270,18 +270,36 @@ contract TestBuyUSDs is SPABuybackTestSetup {
 
     function testCannotIfSpaAmountTooLow() public mockOracle {
         spaIn = 100;
-        vm.expectRevert("SPA Amount too low");
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Helpers.CustomError.selector,
+                "SPA Amount too low"
+            )
+        );
         spaBuyback.buyUSDs(spaIn, minUSDsOut);
     }
 
     function testCannotIfSlippageMoreThanExpected() public mockOracle {
         minUSDsOut = spaBuyback.getUsdsOutForSpa(spaIn) + 100e18;
-        vm.expectRevert("Slippage more than expected");
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Helpers.MinSlippageError.selector,
+                minUSDsOut - 100e18,
+                minUSDsOut
+            )
+        );
         spaBuyback.buyUSDs(spaIn, minUSDsOut);
     }
 
     function testCannotIfInsufficientUSDsBalance() public mockOracle {
-        vm.expectRevert("Insufficient USDs balance");
+        minUSDsOut = spaBuyback.getUsdsOutForSpa(spaIn);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                SPABuyback.InsufficientUSDsBalance.selector,
+                minUSDsOut,
+                0
+            )
+        );
         spaBuyback.buyUSDs(spaIn, minUSDsOut);
     }
 

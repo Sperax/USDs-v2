@@ -6,16 +6,15 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {IVault} from "../interfaces/IVault.sol";
 import {IOracle} from "../interfaces/IOracle.sol";
+import {Helpers} from "../libraries/Helpers.sol";
 
 /// @title YieldReserve of USDs protocol
-/// @notice The contract allows user's to swap the supported stable coins against yield earned by USDs protocol
+/// @notice The contract allows users to swap the supported stable coins against yield earned by USDs protocol
 ///         It sends USDs to dripper for rebase, and to Buyback Contract for buyback.
 /// @author Sperax Foundation
 contract YieldReserve is ReentrancyGuard, Ownable {
     using SafeERC20 for IERC20;
 
-    address public constant USDS = 0xD74f5255D557944cf7Dd0E45FF521520002D5748;
-    uint256 private constant MAX_PERCENTAGE = 10000; // 100%
     address public vault;
     address public oracle;
     address public buyback;
@@ -46,10 +45,15 @@ contract YieldReserve is ReentrancyGuard, Ownable {
     event BuybackAddressUpdated(address newBuyback);
     event OracleUpdated(address newOracle);
     event VaultAddressUpdated(address newVault);
-    event DripperAddressUpdated(address newdripper);
+    event DripperAddressUpdated(address newDripper);
     event USDsSent(uint256 toBuyback, uint256 toVault);
     event SrcTokenPermissionUpdated(address indexed token, bool isAllowed);
     event DstTokenPermissionUpdated(address indexed token, bool isAllowed);
+
+    error InvalidSourceToken();
+    error InvalidDestinationToken();
+    error AlreadyInDesiredState();
+    error TokenPriceFeedMissing();
 
     /// @notice Constructor of the contract
     /// @param _buyback Address of Buyback contract
@@ -67,20 +71,31 @@ contract YieldReserve is ReentrancyGuard, Ownable {
         updateOracleAddress(_oracle);
         updateDripperAddress(_dripper);
 
-        //@dev buybackPercentage is initialized to 50%
+        /// @dev buybackPercentage is initialized to 50%
         updateBuybackPercentage(uint256(5000));
     }
 
     // OPERATION FUNCTIONS
 
     /// @notice Swap function to be called by front end
+    /// @param _srcToken Source / Input token
+    /// @param _dstToken Destination / Output token
+    /// @param _amountIn Input token amount
+    /// @param _minAmountOut Minimum output tokens expected
     function swap(
-        address srcToken,
-        address dstToken,
-        uint256 amountIn,
-        uint256 minAmountOut
+        address _srcToken,
+        address _dstToken,
+        uint256 _amountIn,
+        uint256 _minAmountOut
     ) external {
-        return swap(srcToken, dstToken, amountIn, minAmountOut, msg.sender);
+        return
+            swap({
+                _srcToken: _srcToken,
+                _dstToken: _dstToken,
+                _amountIn: _amountIn,
+                _minAmountOut: _minAmountOut,
+                _receiver: msg.sender
+            });
     }
 
     // ADMIN FUNCTIONS
@@ -92,11 +107,9 @@ contract YieldReserve is ReentrancyGuard, Ownable {
         address _token,
         bool _isAllowed
     ) external onlyOwner {
-        require(isAllowedSrc[_token] != _isAllowed, "Already in desired state");
-        if (_isAllowed) {
-            // Ensure that there is a valid price feed for the _token
-            IOracle(oracle).getPrice(_token);
-        }
+        if (isAllowedSrc[_token] == _isAllowed) revert AlreadyInDesiredState();
+        if (_isAllowed && !IOracle(oracle).priceFeedExists(_token))
+            revert TokenPriceFeedMissing();
         isAllowedSrc[_token] = _isAllowed;
         emit SrcTokenPermissionUpdated(_token, _isAllowed);
     }
@@ -108,11 +121,9 @@ contract YieldReserve is ReentrancyGuard, Ownable {
         address _token,
         bool _isAllowed
     ) external onlyOwner {
-        require(isAllowedDst[_token] != _isAllowed, "Already in desired state");
-        if (_isAllowed) {
-            // Ensure that there is a valid price feed for the _token
-            IOracle(oracle).getPrice(_token);
-        }
+        if (isAllowedDst[_token] == _isAllowed) revert AlreadyInDesiredState();
+        if (_isAllowed && !IOracle(oracle).priceFeedExists(_token))
+            revert TokenPriceFeedMissing();
         isAllowedDst[_token] = _isAllowed;
         emit DstTokenPermissionUpdated(_token, _isAllowed);
     }
@@ -126,11 +137,9 @@ contract YieldReserve is ReentrancyGuard, Ownable {
         address _receiver,
         uint256 _amount
     ) external onlyOwner {
-        _isValidAddress(_token);
-        _isValidAddress(_receiver);
-        _isValidAmount(_amount);
-        emit Withdrawn(_token, _receiver, _amount);
+        Helpers._isNonZeroAmt(_amount);
         IERC20(_token).safeTransfer(_receiver, _amount);
+        emit Withdrawn(_token, _receiver, _amount);
     }
 
     /// @notice Set the % of minted USDs sent Buyback
@@ -139,24 +148,24 @@ contract YieldReserve is ReentrancyGuard, Ownable {
     /// @dev E.g. _toBuyback == 3000 means 30% of the newly
     ///        minted USDs would be sent to Buyback; the rest 70% to VaultCore
     function updateBuybackPercentage(uint256 _toBuyback) public onlyOwner {
-        require(_toBuyback <= MAX_PERCENTAGE, "% exceeds 100%");
-        require(_toBuyback > 0, "% must be > 0");
+        Helpers._isNonZeroAmt(_toBuyback);
+        Helpers._isLTEMaxPercentage(_toBuyback);
         buybackPercentage = _toBuyback;
-        emit BuybackPercentageUpdated(buybackPercentage);
+        emit BuybackPercentageUpdated(_toBuyback);
     }
 
     /// @notice Update Buyback contract's address
     /// @param _newBuyBack New address of Buyback contract
     function updateBuybackAddress(address _newBuyBack) public onlyOwner {
-        _isValidAddress(_newBuyBack);
+        Helpers._isNonZeroAddr(_newBuyBack);
         buyback = _newBuyBack;
-        emit BuybackAddressUpdated(buyback);
+        emit BuybackAddressUpdated(_newBuyBack);
     }
 
     /// @notice Update Oracle's address
     /// @param _newOracle New address of Oracle
     function updateOracleAddress(address _newOracle) public onlyOwner {
-        _isValidAddress(_newOracle);
+        Helpers._isNonZeroAddr(_newOracle);
         oracle = _newOracle;
         emit OracleUpdated(_newOracle);
     }
@@ -164,7 +173,7 @@ contract YieldReserve is ReentrancyGuard, Ownable {
     /// @notice Update Dripper's address
     /// @param _newDripper New address of Dripper
     function updateDripperAddress(address _newDripper) public onlyOwner {
-        _isValidAddress(_newDripper);
+        Helpers._isNonZeroAddr(_newDripper);
         dripper = _newDripper;
         emit DripperAddressUpdated(_newDripper);
     }
@@ -172,67 +181,82 @@ contract YieldReserve is ReentrancyGuard, Ownable {
     /// @notice Update VaultCore's address
     /// @param _newVault New address of VaultCore
     function updateVaultAddress(address _newVault) public onlyOwner {
-        _isValidAddress(_newVault);
+        Helpers._isNonZeroAddr(_newVault);
         vault = _newVault;
         emit VaultAddressUpdated(_newVault);
     }
 
     /// @notice Swap allowed src token to allowed dst token.
-    /// @param srcToken Source / Input token
-    /// @param dstToken Destination / Output token
-    /// @param amountIn Input token amount
-    /// @param minAmountOut Minimum output tokens expected
-    /// @param receiver Receiver of the tokens
+    /// @param _srcToken Source / Input token
+    /// @param _dstToken Destination / Output token
+    /// @param _amountIn Input token amount
+    /// @param _minAmountOut Minimum output tokens expected
+    /// @param _receiver Receiver of the tokens
     function swap(
-        address srcToken,
-        address dstToken,
-        uint256 amountIn,
-        uint256 minAmountOut,
-        address receiver
+        address _srcToken,
+        address _dstToken,
+        uint256 _amountIn,
+        uint256 _minAmountOut,
+        address _receiver
     ) public nonReentrant {
-        _isValidAddress(receiver);
-        uint256 amountToSend = getTokenBForTokenA(srcToken, dstToken, amountIn);
-        require(amountToSend >= minAmountOut, "Slippage more than expected");
-        IERC20(srcToken).safeTransferFrom(msg.sender, address(this), amountIn);
-        if (srcToken != USDS) {
+        Helpers._isNonZeroAddr(_receiver);
+        uint256 amountToSend = getTokenBForTokenA(
+            _srcToken,
+            _dstToken,
+            _amountIn
+        );
+        if (amountToSend < _minAmountOut)
+            revert Helpers.MinSlippageError(amountToSend, _minAmountOut);
+        IERC20(_srcToken).safeTransferFrom(
+            msg.sender,
+            address(this),
+            _amountIn
+        );
+        if (_srcToken != Helpers.USDS) {
             // Mint USDs
-            IERC20(srcToken).safeApprove(vault, amountIn);
+            IERC20(_srcToken).safeApprove(vault, _amountIn);
             (uint256 _minUSDSAmt, ) = IVault(vault).mintView(
-                srcToken,
-                amountIn
+                _srcToken,
+                _amountIn
             );
             IVault(vault).mint(
-                srcToken,
-                amountIn,
+                _srcToken,
+                _amountIn,
                 _minUSDSAmt,
                 block.timestamp + 1200
             );
             // No need to do slippage check as it is our contract
             // and the vault does that.
         }
-        IERC20(dstToken).safeTransfer(receiver, amountToSend);
+        IERC20(_dstToken).safeTransfer(_receiver, amountToSend);
         _sendUSDs();
-        emit Swapped(srcToken, dstToken, receiver, amountIn, amountToSend);
+        emit Swapped({
+            srcToken: _srcToken,
+            dstToken: _dstToken,
+            dstReceiver: _receiver,
+            amountIn: _amountIn,
+            amountOut: amountToSend
+        });
     }
 
-    /// @notice A function to get estimated output
-    /// @param _tokenA Input token address
-    /// @param _tokenB Output token address
-    /// @param _amountIn Input amount of _tokenA
+    /// @notice A `view` function to get estimated output
+    /// @param _srcToken Input token address
+    /// @param _dstToken Output token address
+    /// @param _amountIn Input amount of _srcToken
     function getTokenBForTokenA(
-        address _tokenA,
-        address _tokenB,
+        address _srcToken,
+        address _dstToken,
         uint256 _amountIn
     ) public view returns (uint256) {
-        require(isAllowedSrc[_tokenA], "Source token is not allowed");
-        require(isAllowedDst[_tokenB], "Destination token is not allowed");
-        _isValidAmount(_amountIn);
+        if (!isAllowedSrc[_srcToken]) revert InvalidSourceToken();
+        if (!isAllowedDst[_dstToken]) revert InvalidDestinationToken();
+        Helpers._isNonZeroAmt(_amountIn);
         // Getting prices from Oracle
         IOracle.PriceData memory tokenAPriceData = IOracle(oracle).getPrice(
-            _tokenA
+            _srcToken
         );
         IOracle.PriceData memory tokenBPriceData = IOracle(oracle).getPrice(
-            _tokenB
+            _dstToken
         );
         // Calculating the value
         uint256 totalUSDValueIn = (_amountIn * tokenAPriceData.price) /
@@ -247,24 +271,17 @@ contract YieldReserve is ReentrancyGuard, Ownable {
     /// @notice Sends USDs to buyback as per buybackPercentage
     ///         and rest to VaultCore for rebase
     function _sendUSDs() private {
-        uint256 balance = IERC20(USDS).balanceOf(address(this));
+        uint256 balance = IERC20(Helpers.USDS).balanceOf(address(this));
 
         // Calculating the amount to send to Buyback based on buybackPercentage
-        uint256 toBuyback = (balance * buybackPercentage) / MAX_PERCENTAGE;
+        uint256 toBuyback = (balance * buybackPercentage) /
+            Helpers.MAX_PERCENTAGE;
 
         // Remaining balance will be sent to Dripper for rebase
         uint256 toDripper = balance - toBuyback;
 
         emit USDsSent(toBuyback, toDripper);
-        if (toBuyback > 0) IERC20(USDS).safeTransfer(buyback, toBuyback);
-        if (toDripper > 0) IERC20(USDS).safeTransfer(dripper, toDripper);
-    }
-
-    function _isValidAddress(address _address) private pure {
-        require(_address != address(0), "Invalid address");
-    }
-
-    function _isValidAmount(uint256 _amount) private pure {
-        require(_amount > 0, "Invalid amount");
+        IERC20(Helpers.USDS).safeTransfer(buyback, toBuyback);
+        IERC20(Helpers.USDS).safeTransfer(dripper, toDripper);
     }
 }

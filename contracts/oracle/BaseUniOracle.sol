@@ -9,9 +9,21 @@ import {IUniswapV3Factory} from "@uniswap/v3-core/contracts/interfaces/IUniswapV
 import {OracleLibrary} from "@uniswap/v3-periphery/contracts/libraries/OracleLibrary.sol";
 
 interface IMasterPriceOracle {
+    /// @notice Validates if price feed exists for a `_token`
+    /// @param _token address of the desired token.
+    /// @return Returns bool
+    function priceFeedExists(address _token) external view returns (bool);
+
+    /// @notice Gets the price feed for `_token`.
+    /// @param _token address of the desired token.
+    /// @dev Function reverts if the price feed does not exists.
+    /// @return (uint256 price, uint256 precision).
     function getPrice(address _token) external view returns (uint256, uint256);
 }
 
+/// @title Base Uni Oracle contract for USDs protocol
+/// @author Sperax Foundation
+/// @notice Has all the base functionalities, variables etc to be implemented by child contracts
 abstract contract BaseUniOracle is Ownable {
     using SafeMath for uint256;
 
@@ -32,6 +44,8 @@ abstract contract BaseUniOracle is Ownable {
         uint32 maPeriod
     );
 
+    /// @notice A function to get price
+    /// @return (uint256, uint256) Returns price and price precision
     function getPrice() external view virtual returns (uint256, uint256);
 
     /// @notice Updates the master price oracle
@@ -39,7 +53,10 @@ abstract contract BaseUniOracle is Ownable {
     function updateMasterOracle(address _newOracle) public onlyOwner {
         _isNonZeroAddr(_newOracle);
         masterOracle = _newOracle;
-        IMasterPriceOracle(_newOracle).getPrice(quoteToken);
+        require(
+            IMasterPriceOracle(_newOracle).priceFeedExists(quoteToken),
+            "Quote token feed missing"
+        );
         emit MasterOracleUpdated(_newOracle);
     }
 
@@ -62,7 +79,10 @@ abstract contract BaseUniOracle is Ownable {
         require(uniOraclePool != address(0), "Feed unavailable");
 
         // Validate if the oracle has a price feed for the _quoteToken
-        IMasterPriceOracle(masterOracle).getPrice(_quoteToken);
+        require(
+            IMasterPriceOracle(masterOracle).priceFeedExists(_quoteToken),
+            "Quote token feed missing"
+        );
 
         pool = uniOraclePool;
         quoteToken = _quoteToken;

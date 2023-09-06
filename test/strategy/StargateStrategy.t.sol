@@ -1,39 +1,13 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.16;
 
+import {BaseStrategy} from "./BaseStrategy.t.sol";
 import {BaseTest} from "../utils/BaseTest.sol";
 import {UpgradeUtil} from "../utils/UpgradeUtil.sol";
 import {stdStorage, StdStorage} from "forge-std/StdStorage.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-
-import {StargateStrategy, ILPStaking, IStargatePool} from "../../contracts/strategies/stargate/StargateStrategy.sol";
+import {Helpers, StargateStrategy, ILPStaking, IStargatePool} from "../../contracts/strategies/stargate/StargateStrategy.sol";
 import {VmSafe} from "forge-std/Vm.sol";
-
-contract BaseStrategy {
-    event VaultUpdated(address newVaultAddr);
-    event YieldReceiverUpdated(address newYieldReceiver);
-    event PTokenAdded(address indexed asset, address pToken);
-    event PTokenRemoved(address indexed asset, address pToken);
-    event Deposit(address indexed asset, address pToken, uint256 amount);
-    event Withdrawal(address indexed asset, address pToken, uint256 amount);
-    event SlippageChanged(uint16 depositSlippage, uint16 withdrawSlippage);
-    event HarvestIncentiveCollected(
-        address indexed token,
-        address indexed harvestor,
-        uint256 amount
-    );
-    event HarvestIncentiveRateUpdated(uint16 newRate);
-    event InterestCollected(
-        address indexed asset,
-        address indexed recipient,
-        uint256 amount
-    );
-    event RewardTokenCollected(
-        address indexed rwdToken,
-        address indexed recipient,
-        uint256 amount
-    );
-}
 
 contract StargateStrategyTest is BaseStrategy, BaseTest {
     struct AssetData {
@@ -44,6 +18,8 @@ contract StargateStrategyTest is BaseStrategy, BaseTest {
         uint256 rewardPid;
         uint256 intLiqThreshold;
     }
+
+    AssetData[] public assetData;
 
     // Strategy configuration:
     address public constant STARGATE_ROUTER =
@@ -62,10 +38,15 @@ contract StargateStrategyTest is BaseStrategy, BaseTest {
 
     // Test events
     event SkipRwdValidationStatus(bool status);
-    event IntLiqThresholdChanged(
+    event IntLiqThresholdUpdated(
         address indexed asset,
         uint256 intLiqThreshold
     );
+
+    // Test errors
+    error IncorrectPoolId(address asset, uint16 pid);
+    error IncorrectRewardPoolId(address asset, uint256 rewardPid);
+    error InsufficientRewardFundInFarm();
 
     function setUp() public virtual override {
         super.setUp();
@@ -79,6 +60,7 @@ contract StargateStrategyTest is BaseStrategy, BaseTest {
 
         // Load strategy object and initialize
         strategy = StargateStrategy(proxyAddress);
+        _configAsset();
         vm.stopPrank();
     }
 
@@ -94,28 +76,26 @@ contract StargateStrategyTest is BaseStrategy, BaseTest {
     }
 
     function _setAssetData() internal {
-        AssetData[] memory data = _getAssetConfig();
-        for (uint8 i = 0; i < data.length; ++i) {
+        for (uint8 i = 0; i < assetData.length; ++i) {
             strategy.setPTokenAddress(
-                data[i].asset,
-                data[i].pToken,
-                data[i].pid,
-                data[i].rewardPid,
-                data[i].intLiqThreshold
+                assetData[i].asset,
+                assetData[i].pToken,
+                assetData[i].pid,
+                assetData[i].rewardPid,
+                assetData[i].intLiqThreshold
             );
         }
     }
 
     function _createDeposits() internal {
         _setAssetData();
-        AssetData[] memory data = _getAssetConfig();
         changePrank(VAULT);
-        for (uint8 i = 0; i < data.length; ++i) {
+        for (uint8 i = 0; i < assetData.length; ++i) {
             uint256 amount = 100;
-            amount *= 10 ** ERC20(data[i].asset).decimals();
-            deal(data[i].asset, VAULT, amount, true);
-            ERC20(data[i].asset).approve(address(strategy), amount);
-            strategy.deposit(data[i].asset, amount);
+            amount *= 10 ** ERC20(assetData[i].asset).decimals();
+            deal(assetData[i].asset, VAULT, amount, true);
+            ERC20(assetData[i].asset).approve(address(strategy), amount);
+            strategy.deposit(assetData[i].asset, amount);
         }
     }
 
@@ -134,31 +114,33 @@ contract StargateStrategyTest is BaseStrategy, BaseTest {
         changePrank(currentActor);
     }
 
-    function _getAssetConfig() internal pure returns (AssetData[] memory) {
-        AssetData[] memory data = new AssetData[](2);
-        data[0] = AssetData({
-            name: "USDC.e",
-            asset: 0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8,
-            pToken: 0x892785f33CdeE22A30AEF750F285E18c18040c3e,
-            pid: 1,
-            rewardPid: 0,
-            intLiqThreshold: 0
-        });
+    function _configAsset() internal {
+        assetData.push(
+            AssetData({
+                name: "USDC.e",
+                asset: 0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8,
+                pToken: 0x892785f33CdeE22A30AEF750F285E18c18040c3e,
+                pid: 1,
+                rewardPid: 0,
+                intLiqThreshold: 0
+            })
+        );
 
-        data[1] = AssetData({
-            name: "FRAX",
-            asset: 0x17FC002b466eEc40DaE837Fc4bE5c67993ddBd6F,
-            pToken: 0xaa4BF442F024820B2C28Cd0FD72b82c63e66F56C,
-            pid: 7,
-            rewardPid: 3,
-            intLiqThreshold: 0
-        });
-        return data;
+        assetData.push(
+            AssetData({
+                name: "FRAX",
+                asset: 0x17FC002b466eEc40DaE837Fc4bE5c67993ddBd6F,
+                pToken: 0xaa4BF442F024820B2C28Cd0FD72b82c63e66F56C,
+                pid: 7,
+                rewardPid: 3,
+                intLiqThreshold: 0
+            })
+        );
     }
 }
 
-contract StrategyInitializationTest is StargateStrategyTest {
-    function test_validInitialization() public useKnownActor(USDS_OWNER) {
+contract InitializationTest is StargateStrategyTest {
+    function test_ValidInitialization() public useKnownActor(USDS_OWNER) {
         // Test state variables pre initialization
         assertEq(impl.owner(), address(0));
         assertEq(strategy.owner(), address(0));
@@ -166,10 +148,10 @@ contract StrategyInitializationTest is StargateStrategyTest {
         // Initialize strategy
         _initializeStrategy();
 
-        // Test state variables post initializtion
+        // Test state variables post initialization
         assertEq(impl.owner(), address(0));
         assertEq(strategy.owner(), USDS_OWNER);
-        assertEq(strategy.vaultAddress(), VAULT);
+        assertEq(strategy.vault(), VAULT);
         assertEq(strategy.router(), STARGATE_ROUTER);
         assertEq(strategy.farm(), STARGATE_FARM);
         assertEq(strategy.depositSlippage(), BASE_DEPOSIT_SLIPPAGE);
@@ -177,8 +159,10 @@ contract StrategyInitializationTest is StargateStrategyTest {
         assertEq(strategy.rewardTokenAddress(0), STG);
     }
 
-    function test_invalidInitialization() public useKnownActor(USDS_OWNER) {
-        vm.expectRevert("Invalid address");
+    function test_InvalidInitialization() public useKnownActor(USDS_OWNER) {
+        vm.expectRevert(
+            abi.encodeWithSelector(Helpers.InvalidAddress.selector)
+        );
         strategy.initialize(
             address(0),
             address(0),
@@ -189,16 +173,16 @@ contract StrategyInitializationTest is StargateStrategyTest {
         );
     }
 
-    function test_updateVaultCore() public useKnownActor(USDS_OWNER) {
+    function test_UpdateVaultCore() public useKnownActor(USDS_OWNER) {
         _initializeStrategy();
 
         address newVault = address(1);
         vm.expectEmit(true, true, false, true);
         emit VaultUpdated(newVault);
-        strategy.updateVaultCore(newVault);
+        strategy.updateVault(newVault);
     }
 
-    function test_updateHarvestIncentiveRate()
+    function test_UpdateHarvestIncentiveRate()
         public
         useKnownActor(USDS_OWNER)
     {
@@ -210,12 +194,14 @@ contract StrategyInitializationTest is StargateStrategyTest {
         strategy.updateHarvestIncentiveRate(newRate);
 
         newRate = 10001;
-        vm.expectRevert("Invalid value");
+        vm.expectRevert(
+            abi.encodeWithSelector(Helpers.GTMaxPercentage.selector, newRate)
+        );
         strategy.updateHarvestIncentiveRate(newRate);
     }
 }
 
-contract StrategySetPToken is StargateStrategyTest {
+contract SetPToken is StargateStrategyTest {
     function setUp() public override {
         super.setUp();
         vm.startPrank(USDS_OWNER);
@@ -223,40 +209,41 @@ contract StrategySetPToken is StargateStrategyTest {
         vm.stopPrank();
     }
 
-    function test_setPTokenAddress() public useKnownActor(USDS_OWNER) {
-        AssetData[] memory data = _getAssetConfig();
-
-        for (uint8 i = 0; i < data.length; ++i) {
-            assertEq(strategy.assetToPToken(data[i].asset), address(0));
-            assertFalse(strategy.supportsCollateral(data[i].asset));
+    function test_SetPTokenAddress() public useKnownActor(USDS_OWNER) {
+        for (uint8 i = 0; i < assetData.length; ++i) {
+            assertEq(strategy.assetToPToken(assetData[i].asset), address(0));
+            assertFalse(strategy.supportsCollateral(assetData[i].asset));
 
             vm.expectEmit(true, true, false, true);
-            emit PTokenAdded(data[i].asset, data[i].pToken);
+            emit PTokenAdded(assetData[i].asset, assetData[i].pToken);
             strategy.setPTokenAddress(
-                data[i].asset,
-                data[i].pToken,
-                data[i].pid,
-                data[i].rewardPid,
-                data[i].intLiqThreshold
+                assetData[i].asset,
+                assetData[i].pToken,
+                assetData[i].pid,
+                assetData[i].rewardPid,
+                assetData[i].intLiqThreshold
             );
 
-            assertEq(strategy.assetToPToken(data[i].asset), data[i].pToken);
-            assertTrue(strategy.supportsCollateral(data[i].asset));
+            assertEq(
+                strategy.assetToPToken(assetData[i].asset),
+                assetData[i].pToken
+            );
+            assertTrue(strategy.supportsCollateral(assetData[i].asset));
             (
                 uint256 allocatedAmt,
                 uint256 intLiqThreshold,
                 uint256 rewardPID,
                 uint16 pid
-            ) = strategy.assetInfo(data[i].asset);
+            ) = strategy.assetInfo(assetData[i].asset);
             assertEq(allocatedAmt, 0);
-            assertEq(intLiqThreshold, data[i].intLiqThreshold);
-            assertEq(rewardPID, data[i].rewardPid);
-            assertEq(pid, data[i].pid);
+            assertEq(intLiqThreshold, assetData[i].intLiqThreshold);
+            assertEq(rewardPID, assetData[i].rewardPid);
+            assertEq(pid, assetData[i].pid);
         }
     }
 
-    function test_revertsWhen_notOwner() public {
-        AssetData memory data = _getAssetConfig()[0];
+    function test_RevertWhen_NotOwner() public {
+        AssetData memory data = assetData[0];
 
         vm.expectRevert("Ownable: caller is not the owner");
         strategy.setPTokenAddress(
@@ -268,11 +255,17 @@ contract StrategySetPToken is StargateStrategyTest {
         );
     }
 
-    function test_revertsWhen_InvalidPToken() public useKnownActor(USDS_OWNER) {
-        AssetData memory data = _getAssetConfig()[0];
-        data.pToken = _getAssetConfig()[1].pToken;
+    function test_RevertWhen_InvalidPToken() public useKnownActor(USDS_OWNER) {
+        AssetData memory data = assetData[0];
+        data.pToken = assetData[1].pToken;
 
-        vm.expectRevert("Incorrect asset & pToken pair");
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                InvalidAssetLpPair.selector,
+                data.asset,
+                data.pToken
+            )
+        );
         strategy.setPTokenAddress(
             data.asset,
             data.pToken,
@@ -282,11 +275,17 @@ contract StrategySetPToken is StargateStrategyTest {
         );
     }
 
-    function test_revertsWhen_InvalidPid() public useKnownActor(USDS_OWNER) {
-        AssetData memory data = _getAssetConfig()[0];
+    function test_RevertWhen_InvalidPid() public useKnownActor(USDS_OWNER) {
+        AssetData memory data = assetData[0];
         data.pid += 1;
 
-        vm.expectRevert("Incorrect pool id");
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IncorrectPoolId.selector,
+                data.asset,
+                data.pid
+            )
+        );
         strategy.setPTokenAddress(
             data.asset,
             data.pToken,
@@ -296,14 +295,20 @@ contract StrategySetPToken is StargateStrategyTest {
         );
     }
 
-    function test_revertsWhen_InvalidRewardPid()
+    function test_RevertWhen_InvalidRewardPid()
         public
         useKnownActor(USDS_OWNER)
     {
-        AssetData memory data = _getAssetConfig()[0];
+        AssetData memory data = assetData[0];
         data.rewardPid += 1;
 
-        vm.expectRevert("Incorrect reward pid");
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IncorrectRewardPoolId.selector,
+                data.asset,
+                data.rewardPid
+            )
+        );
         strategy.setPTokenAddress(
             data.asset,
             data.pToken,
@@ -313,11 +318,8 @@ contract StrategySetPToken is StargateStrategyTest {
         );
     }
 
-    function test_revertsWhen_duplicateAsset()
-        public
-        useKnownActor(USDS_OWNER)
-    {
-        AssetData memory data = _getAssetConfig()[0];
+    function test_RevertWhen_DuplicateAsset() public useKnownActor(USDS_OWNER) {
+        AssetData memory data = assetData[0];
         strategy.setPTokenAddress(
             data.asset,
             data.pToken,
@@ -326,7 +328,13 @@ contract StrategySetPToken is StargateStrategyTest {
             data.intLiqThreshold
         );
 
-        vm.expectRevert("pToken already set");
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                PTokenAlreadySet.selector,
+                data.asset,
+                data.pToken
+            )
+        );
         strategy.setPTokenAddress(
             data.asset,
             data.pToken,
@@ -337,7 +345,7 @@ contract StrategySetPToken is StargateStrategyTest {
     }
 }
 
-contract StrategyRemovePToken is StargateStrategyTest {
+contract RemovePToken is StargateStrategyTest {
     using stdStorage for StdStorage;
 
     function setUp() public override {
@@ -348,8 +356,8 @@ contract StrategyRemovePToken is StargateStrategyTest {
         vm.stopPrank();
     }
 
-    function test_removePToken() public useKnownActor(USDS_OWNER) {
-        AssetData memory data = _getAssetConfig()[0];
+    function test_RemovePToken() public useKnownActor(USDS_OWNER) {
+        AssetData memory data = assetData[0];
         assertTrue(strategy.supportsCollateral(data.asset));
         vm.expectEmit(true, true, false, true);
         emit PTokenRemoved(data.asset, data.pToken);
@@ -357,16 +365,16 @@ contract StrategyRemovePToken is StargateStrategyTest {
         assertFalse(strategy.supportsCollateral(data.asset));
     }
 
-    function test_revertsWhen_notOwner() public {
+    function test_RevertWhen_NotOwner() public {
         vm.expectRevert("Ownable: caller is not the owner");
         strategy.removePToken(0);
     }
 
-    function test_revertsWhen_assetAllocated()
+    function test_RevertWhen_CollateralAllocated()
         public
         useKnownActor(USDS_OWNER)
     {
-        AssetData memory data = _getAssetConfig()[0];
+        AssetData memory data = assetData[0];
 
         // Mock asset allocation!
         stdstore
@@ -379,17 +387,19 @@ contract StrategyRemovePToken is StargateStrategyTest {
         (uint256 allocatedAmt, , , ) = strategy.assetInfo(data.asset);
 
         assert(allocatedAmt > 0);
-        vm.expectRevert("Collateral allocated");
+        vm.expectRevert(
+            abi.encodeWithSelector(CollateralAllocated.selector, data.asset)
+        );
         strategy.removePToken(0);
     }
 
-    function test_revertsWhen_InvalidId() public useKnownActor(USDS_OWNER) {
-        vm.expectRevert("Invalid index");
-        strategy.removePToken(_getAssetConfig().length);
+    function test_RevertWhen_InvalidId() public useKnownActor(USDS_OWNER) {
+        vm.expectRevert(abi.encodeWithSelector(InvalidIndex.selector));
+        strategy.removePToken(assetData.length);
     }
 }
 
-contract StrategyUpdateIntLiqThreshold is StargateStrategyTest {
+contract UpdateIntLiqThreshold is StargateStrategyTest {
     function setUp() public override {
         super.setUp();
         vm.startPrank(USDS_OWNER);
@@ -398,44 +408,36 @@ contract StrategyUpdateIntLiqThreshold is StargateStrategyTest {
         vm.stopPrank();
     }
 
-    function test_updateIntLiqThreshold() public useKnownActor(USDS_OWNER) {
-        AssetData memory data = _getAssetConfig()[0];
+    function test_UpdateIntLiqThreshold() public useKnownActor(USDS_OWNER) {
+        AssetData memory data = assetData[0];
         uint256 newThreshold = 100e18;
         vm.expectEmit(true, true, false, true);
-        emit IntLiqThresholdChanged(data.asset, newThreshold);
+        emit IntLiqThresholdUpdated(data.asset, newThreshold);
         strategy.updateIntLiqThreshold(data.asset, newThreshold);
         (, uint256 intLiqThreshold, , ) = strategy.assetInfo(data.asset);
         assertEq(intLiqThreshold, newThreshold);
     }
 
-    function test_revertsWhen_notOwner() public {
-        AssetData memory data = _getAssetConfig()[0];
+    function test_RevertWhen_NotOwner() public {
+        AssetData memory data = assetData[0];
         vm.expectRevert("Ownable: caller is not the owner");
         strategy.updateIntLiqThreshold(data.asset, 100e18);
     }
 
-    function test_revertsWhen_assetNotSupported()
+    function test_RevertWhen_CollateralNotSupported()
         public
         useKnownActor(USDS_OWNER)
     {
-        vm.expectRevert("Asset not supported");
+        vm.expectRevert(
+            abi.encodeWithSelector(CollateralNotSupported.selector, address(0))
+        );
         strategy.updateIntLiqThreshold(address(0), 100e18);
     }
-
-    function test_revertsWhen_updateToSameValue()
-        public
-        useKnownActor(USDS_OWNER)
-    {
-        AssetData memory data = _getAssetConfig()[0];
-        (, uint256 intLiqThreshold, , ) = strategy.assetInfo(data.asset);
-        vm.expectRevert("Invalid threshold value");
-        strategy.updateIntLiqThreshold(address(0), intLiqThreshold);
-    }
 }
 
-contract StrategyChangeSlippage is StargateStrategyTest {
-    uint16 public updatedDepositSippage = 100;
-    uint16 public updatedWithdrawSippage = 200;
+contract ChangeSlippage is StargateStrategyTest {
+    uint16 public updatedDepositSlippage = 100;
+    uint16 public updatedWithdrawSlippage = 200;
 
     function setUp() public override {
         super.setUp();
@@ -444,29 +446,37 @@ contract StrategyChangeSlippage is StargateStrategyTest {
         vm.stopPrank();
     }
 
-    function test_changeSlippage() public useKnownActor(USDS_OWNER) {
+    function test_UpdateSlippage() public useKnownActor(USDS_OWNER) {
         vm.expectEmit(true, false, false, true);
-        emit SlippageChanged(updatedDepositSippage, updatedWithdrawSippage);
-        strategy.changeSlippage(updatedDepositSippage, updatedWithdrawSippage);
-        assertEq(strategy.depositSlippage(), updatedDepositSippage);
-        assertEq(strategy.withdrawSlippage(), updatedWithdrawSippage);
+        emit SlippageUpdated(updatedDepositSlippage, updatedWithdrawSlippage);
+        strategy.updateSlippage(
+            updatedDepositSlippage,
+            updatedWithdrawSlippage
+        );
+        assertEq(strategy.depositSlippage(), updatedDepositSlippage);
+        assertEq(strategy.withdrawSlippage(), updatedWithdrawSlippage);
     }
 
-    function test_revertsWhen_notOwner() public {
+    function test_RevertWhen_NotOwner() public {
         vm.expectRevert("Ownable: caller is not the owner");
-        strategy.changeSlippage(updatedDepositSippage, updatedWithdrawSippage);
+        strategy.updateSlippage(
+            updatedDepositSlippage,
+            updatedWithdrawSlippage
+        );
     }
 
-    function test_revertsWhen_slippageExceedsMax()
+    function test_RevertWhen_slippageExceedsMax()
         public
         useKnownActor(USDS_OWNER)
     {
-        vm.expectRevert("Slippage exceeds 100%");
-        strategy.changeSlippage(10001, 10001);
+        vm.expectRevert(
+            abi.encodeWithSelector(Helpers.GTMaxPercentage.selector, 10001)
+        );
+        strategy.updateSlippage(10001, 10001);
     }
 }
 
-contract StrategytoggleRwdValidation is StargateStrategyTest {
+contract ToggleRwdValidation is StargateStrategyTest {
     function setUp() public override {
         super.setUp();
         vm.startPrank(USDS_OWNER);
@@ -474,7 +484,7 @@ contract StrategytoggleRwdValidation is StargateStrategyTest {
         vm.stopPrank();
     }
 
-    function test_toggleRwdValidation() public useKnownActor(USDS_OWNER) {
+    function test_ToggleRwdValidation() public useKnownActor(USDS_OWNER) {
         bool currentFlag = strategy.skipRwdValidation();
         strategy.toggleRwdValidation();
         assertEq(strategy.skipRwdValidation(), !currentFlag);
@@ -483,13 +493,13 @@ contract StrategytoggleRwdValidation is StargateStrategyTest {
         assertEq(strategy.skipRwdValidation(), currentFlag);
     }
 
-    function test_revertsWhen_notOwner() public {
+    function test_RevertWhen_NotOwner() public {
         vm.expectRevert("Ownable: caller is not the owner");
         strategy.toggleRwdValidation();
     }
 }
 
-contract StrategyDeposit is StargateStrategyTest {
+contract Deposit is StargateStrategyTest {
     function setUp() public override {
         super.setUp();
         vm.startPrank(USDS_OWNER);
@@ -498,15 +508,15 @@ contract StrategyDeposit is StargateStrategyTest {
         vm.stopPrank();
     }
 
-    function test_deposit(uint256 amount) public useKnownActor(VAULT) {
+    function testFuzz_Deposit(uint256 amount) public useKnownActor(VAULT) {
         amount = uint256(bound(amount, 1, 1e10));
-        AssetData[] memory data = _getAssetConfig();
-        for (uint8 i = 0; i < data.length; ++i) {
-            uint256 scaledAmt = amount * 10 ** ERC20(data[i].asset).decimals();
-            deal(data[i].asset, VAULT, scaledAmt, true);
-            ERC20(data[i].asset).approve(address(strategy), scaledAmt);
+        for (uint8 i = 0; i < assetData.length; ++i) {
+            uint256 scaledAmt = amount *
+                10 ** ERC20(assetData[i].asset).decimals();
+            deal(assetData[i].asset, VAULT, scaledAmt, true);
+            ERC20(assetData[i].asset).approve(address(strategy), scaledAmt);
             vm.recordLogs();
-            strategy.deposit(data[i].asset, scaledAmt);
+            strategy.deposit(assetData[i].asset, scaledAmt);
 
             VmSafe.Log[] memory logs = vm.getRecordedLogs();
             address pToken;
@@ -522,27 +532,21 @@ contract StrategyDeposit is StargateStrategyTest {
                     );
                 }
             }
-            assertEq(strategy.checkBalance(data[i].asset), amt);
+            assertEq(strategy.checkBalance(assetData[i].asset), amt);
         }
     }
 
-    function test_revertsWhen_invalidAmount() public useKnownActor(VAULT) {
-        AssetData memory data = _getAssetConfig()[0];
-        vm.expectRevert("Invalid amount");
+    function test_RevertWhen_InvalidAmount() public useKnownActor(VAULT) {
+        AssetData memory data = assetData[0];
+        vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAmount.selector));
         strategy.deposit(data.asset, 0);
     }
 
-    function test_revertsWhen_notVault() public {
-        AssetData memory data = _getAssetConfig()[0];
-        vm.expectRevert("Caller is not the Vault");
-        strategy.deposit(data.asset, 1000);
-    }
-
-    function test_revertsWhen_unsupportedCollateral()
+    function test_RevertWhen_UnsupportedCollateral()
         public
         useKnownActor(VAULT)
     {
-        AssetData memory data = _getAssetConfig()[0];
+        AssetData memory data = assetData[0];
         uint256 amount = 1000000;
 
         // Remove the asset for testing unsupported collateral.
@@ -554,32 +558,40 @@ contract StrategyDeposit is StargateStrategyTest {
         deal(data.asset, VAULT, amount, true);
         ERC20(data.asset).approve(address(strategy), amount);
 
-        vm.expectRevert("Collateral not supported");
+        vm.expectRevert(
+            abi.encodeWithSelector(CollateralNotSupported.selector, data.asset)
+        );
         strategy.deposit(data.asset, amount);
     }
 
-    function test_revertsWhen_depositSlippageViolated()
+    function test_RevertWhen_DepositSlippageViolated()
         public
         useKnownActor(VAULT)
     {
-        AssetData memory data = _getAssetConfig()[0];
+        AssetData memory data = assetData[0];
         uint256 amount = 1000000;
 
         // Update the deposit slippage to 0
         changePrank(USDS_OWNER);
-        strategy.changeSlippage(0, 0);
+        strategy.updateSlippage(0, 0);
 
         changePrank(VAULT);
         amount *= 10 ** ERC20(data.asset).decimals();
         deal(data.asset, VAULT, amount, true);
         ERC20(data.asset).approve(address(strategy), amount);
 
-        vm.expectRevert("Insufficient deposit amount");
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Helpers.MinSlippageError.selector,
+                amount - 1,
+                amount
+            )
+        );
         strategy.deposit(data.asset, amount);
     }
 
-    function test_revertsWhen_notEnoughRwdInFarm() public useKnownActor(VAULT) {
-        AssetData memory data = _getAssetConfig()[0];
+    function test_RevertWhen_NotEnoughRwdInFarm() public useKnownActor(VAULT) {
+        AssetData memory data = assetData[0];
         uint256 amount = 1000000;
 
         amount *= 10 ** ERC20(data.asset).decimals();
@@ -591,7 +603,9 @@ contract StrategyDeposit is StargateStrategyTest {
 
         _mockInsufficientRwd(data.asset);
 
-        vm.expectRevert("Insufficient rwd fund in farm");
+        vm.expectRevert(
+            abi.encodeWithSelector(InsufficientRewardFundInFarm.selector)
+        );
         strategy.deposit(data.asset, amount / 2);
         assertEq(strategy.checkAvailableBalance(data.asset), 0);
 
@@ -606,7 +620,7 @@ contract StrategyDeposit is StargateStrategyTest {
     }
 }
 
-contract StrategyHarvestTest is StargateStrategyTest {
+contract HarvestTest is StargateStrategyTest {
     address public yieldReceiver;
 
     function setUp() public override {
@@ -625,8 +639,8 @@ contract StrategyHarvestTest is StargateStrategyTest {
     }
 }
 
-contract StrategyCollecReward is StrategyHarvestTest {
-    function test_collectReward(uint16 _harvestIncentiveRate) public {
+contract CollectReward is HarvestTest {
+    function test_CollectReward(uint16 _harvestIncentiveRate) public {
         _harvestIncentiveRate = uint16(bound(_harvestIncentiveRate, 0, 10000));
         vm.prank(USDS_OWNER);
         strategy.updateHarvestIncentiveRate(_harvestIncentiveRate);
@@ -641,7 +655,7 @@ contract StrategyCollecReward is StrategyHarvestTest {
         uint256 currentRewards = strategy.checkRewardEarned();
         assert(currentRewards > 0);
         uint256 incentiveAmt = (currentRewards *
-            strategy.harvestIncentiveRate()) / strategy.PERCENTAGE_PREC();
+            strategy.harvestIncentiveRate()) / Helpers.MAX_PERCENTAGE;
         uint256 harvestAmt = currentRewards - incentiveAmt;
         address caller = actors[1];
 
@@ -662,78 +676,86 @@ contract StrategyCollecReward is StrategyHarvestTest {
     }
 }
 
-contract StrategyCollectIntererst is StrategyHarvestTest {
+contract CollectInterest is HarvestTest {
     using stdStorage for StdStorage;
 
-    function test_collectInterest() public {
-        AssetData[] memory data = _getAssetConfig();
-        for (uint8 i = 0; i < data.length; ++i) {
-            // uint256 initialInterest = strategy.checkInterestEarned(data[i].asset);
-            uint256 initialLPBal = strategy.checkLPTokenBalance(data[i].asset);
-            uint256 interestAmt = 10 * 10 ** ERC20(data[i].pToken).decimals();
+    function test_CollectInterest() public {
+        for (uint8 i = 0; i < assetData.length; ++i) {
+            // uint256 initialInterest = strategy.checkInterestEarned(assetData[i].asset);
+            uint256 initialLPBal = strategy.checkLPTokenBalance(
+                assetData[i].asset
+            );
+            uint256 interestAmt = 10 *
+                10 ** ERC20(assetData[i].pToken).decimals();
             uint256 mockBal = initialLPBal + interestAmt;
 
-            uint256 initialBal = strategy.checkBalance(data[i].asset);
-            uint256 intialAvailableBal = strategy.checkAvailableBalance(
-                data[i].asset
+            uint256 initialBal = strategy.checkBalance(assetData[i].asset);
+            uint256 initialAvailableBal = strategy.checkAvailableBalance(
+                assetData[i].asset
             );
 
             // Mock asset allocation!
             stdstore
                 .target(strategy.farm())
                 .sig("userInfo(uint256,address)")
-                .with_key(data[i].rewardPid)
+                .with_key(assetData[i].rewardPid)
                 .with_key(address(strategy))
                 .depth(0)
                 .checked_write(mockBal);
 
             assertEq(
-                strategy.checkAvailableBalance(data[i].asset),
-                intialAvailableBal
+                strategy.checkAvailableBalance(assetData[i].asset),
+                initialAvailableBal
             );
             uint256 interestEarned = strategy.checkInterestEarned(
-                data[i].asset
+                assetData[i].asset
             );
-            assertEq(strategy.checkBalance(data[i].asset), initialBal);
-            assertEq(strategy.checkLPTokenBalance(data[i].asset), mockBal);
+            assertEq(strategy.checkBalance(assetData[i].asset), initialBal);
+            assertEq(strategy.checkLPTokenBalance(assetData[i].asset), mockBal);
             assertTrue(interestEarned > 0);
 
             vm.expectEmit(true, false, false, false);
             emit InterestCollected(
-                data[i].asset,
+                assetData[i].asset,
                 yieldReceiver,
                 interestEarned
             );
-            strategy.collectInterest(data[i].asset);
+            strategy.collectInterest(assetData[i].asset);
             /// @note precision Error from stargate
             assertApproxEqAbs(
-                strategy.checkLPTokenBalance(data[i].asset),
+                strategy.checkLPTokenBalance(assetData[i].asset),
                 initialLPBal,
                 1
             );
         }
     }
 
-    function test_interestLessThanThreshold() public {
-        AssetData[] memory data = _getAssetConfig();
-        for (uint8 i = 0; i < data.length; ++i) {
-            uint256 interestAmt = strategy.checkInterestEarned(data[i].asset);
+    function test_InterestLessThanThreshold() public {
+        for (uint8 i = 0; i < assetData.length; ++i) {
+            uint256 interestAmt = strategy.checkInterestEarned(
+                assetData[i].asset
+            );
 
             vm.prank(USDS_OWNER);
-            strategy.updateIntLiqThreshold(data[i].asset, 1);
+            strategy.updateIntLiqThreshold(assetData[i].asset, 1);
 
-            strategy.collectInterest(data[i].asset);
-            assertEq(strategy.checkInterestEarned(data[i].asset), interestAmt);
+            strategy.collectInterest(assetData[i].asset);
+            assertEq(
+                strategy.checkInterestEarned(assetData[i].asset),
+                interestAmt
+            );
         }
     }
 
-    function test_revertsWhen_unsupportedAsset() public {
-        vm.expectRevert("Collateral not supported");
+    function test_RevertWhen_UnsupportedAsset() public {
+        vm.expectRevert(
+            abi.encodeWithSelector(CollateralNotSupported.selector, address(0))
+        );
         strategy.collectInterest(address(0));
     }
 }
 
-contract StrategyWithdraw is StargateStrategyTest {
+contract Withdraw is StargateStrategyTest {
     using stdStorage for StdStorage;
 
     function setUp() public override {
@@ -744,59 +766,86 @@ contract StrategyWithdraw is StargateStrategyTest {
         vm.stopPrank();
     }
 
-    function test_withdraw() public useKnownActor(VAULT) {
-        AssetData[] memory data = _getAssetConfig();
-        for (uint8 i = 0; i < data.length; ++i) {
-            ERC20 collateral = ERC20(data[i].asset);
-            uint256 initialBal = strategy.checkBalance(data[i].asset);
+    function test_Withdraw() public useKnownActor(VAULT) {
+        for (uint8 i = 0; i < assetData.length; ++i) {
+            ERC20 collateral = ERC20(assetData[i].asset);
+            uint256 initialBal = strategy.checkBalance(assetData[i].asset);
             uint256 initialVaultBal = collateral.balanceOf(VAULT);
 
             vm.expectEmit(true, false, false, false);
-            emit Withdrawal(data[i].asset, data[i].pToken, initialBal);
-            strategy.withdraw(VAULT, data[i].asset, initialBal);
+            emit Withdrawal(
+                assetData[i].asset,
+                assetData[i].pToken,
+                initialBal
+            );
+            strategy.withdraw(VAULT, assetData[i].asset, initialBal);
             assertApproxEqAbs(
                 collateral.balanceOf(VAULT),
                 initialVaultBal + initialBal,
-                IStargatePool(data[i].pToken).convertRate()
+                IStargatePool(assetData[i].pToken).convertRate()
             );
         }
     }
 
-    function test_withdrawToVault() public useKnownActor(USDS_OWNER) {
-        AssetData[] memory data = _getAssetConfig();
-        for (uint8 i = 0; i < data.length; ++i) {
-            ERC20 collateral = ERC20(data[i].asset);
-            uint256 initialBal = strategy.checkBalance(data[i].asset);
+    function test_RevertWhen_CallerNotVault() public useActor(0) {
+        vm.expectRevert(
+            abi.encodeWithSelector(CallerNotVault.selector, actors[0])
+        );
+        strategy.withdraw(VAULT, assetData[0].asset, 1);
+    }
+
+    function test_withdraw_InvalidAddress() public useKnownActor(VAULT) {
+        vm.expectRevert(
+            abi.encodeWithSelector(Helpers.InvalidAddress.selector)
+        );
+        strategy.withdraw(address(0), assetData[0].asset, 1);
+    }
+
+    function test_WithdrawToVault() public useKnownActor(USDS_OWNER) {
+        for (uint8 i = 0; i < assetData.length; ++i) {
+            ERC20 collateral = ERC20(assetData[i].asset);
+            uint256 initialBal = strategy.checkBalance(assetData[i].asset);
             uint256 initialVaultBal = collateral.balanceOf(VAULT);
 
             vm.expectEmit(true, false, false, false);
-            emit Withdrawal(data[i].asset, data[i].pToken, initialBal);
-            strategy.withdrawToVault(data[i].asset, initialBal);
+            emit Withdrawal(
+                assetData[i].asset,
+                assetData[i].pToken,
+                initialBal
+            );
+            strategy.withdrawToVault(assetData[i].asset, initialBal);
             assertApproxEqAbs(
                 collateral.balanceOf(VAULT),
                 initialVaultBal + initialBal,
-                1 * IStargatePool(data[i].pToken).convertRate()
+                1 * IStargatePool(assetData[i].pToken).convertRate()
             );
         }
     }
 
-    function test_revertsWhen_withdraw0() public useKnownActor(USDS_OWNER) {
-        AssetData memory data = _getAssetConfig()[0];
-        vm.expectRevert("Must withdraw something");
+    function test_RevertWhen_Withdraw0() public useKnownActor(USDS_OWNER) {
+        AssetData memory data = assetData[0];
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Helpers.CustomError.selector,
+                "Must withdraw something"
+            )
+        );
         strategy.withdrawToVault(data.asset, 0);
     }
 
-    function test_revertsWhen_insufficientRwdInFarm()
+    function test_RevertWhen_InsufficientRwdInFarm()
         public
         useKnownActor(USDS_OWNER)
     {
-        AssetData memory data = _getAssetConfig()[0];
+        AssetData memory data = assetData[0];
         ERC20 collateral = ERC20(data.asset);
         uint256 initialBal = strategy.checkBalance(data.asset);
         uint256 initialVaultBal = collateral.balanceOf(VAULT);
 
         _mockInsufficientRwd(data.asset);
-        vm.expectRevert("Insufficient rwd fund in farm");
+        vm.expectRevert(
+            abi.encodeWithSelector(InsufficientRewardFundInFarm.selector)
+        );
         strategy.withdrawToVault(data.asset, initialBal);
 
         // Test skipping rwd validation.
@@ -810,24 +859,30 @@ contract StrategyWithdraw is StargateStrategyTest {
         assertEq(strategy.checkPendingRewards(data.asset), 0);
     }
 
-    function test_revertsWhen_SlippageCheckFails()
+    function test_RevertWhen_SlippageCheckFails()
         public
         useKnownActor(USDS_OWNER)
     {
-        AssetData memory data = _getAssetConfig()[0];
+        AssetData memory data = assetData[0];
         uint256 initialBal = strategy.checkBalance(data.asset);
 
         // set withdraw slippage to 0 for extreme test.
-        strategy.changeSlippage(BASE_DEPOSIT_SLIPPAGE, 0);
-        vm.expectRevert("Did not withdraw enough");
+        strategy.updateSlippage(BASE_DEPOSIT_SLIPPAGE, 0);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Helpers.MinSlippageError.selector,
+                initialBal - 1,
+                initialBal
+            )
+        );
         strategy.withdrawToVault(data.asset, initialBal);
     }
 
-    function test_revertsWhen_enoughFundsNotAvailable()
+    function test_RevertWhen_EnoughFundsNotAvailable()
         public
         useKnownActor(USDS_OWNER)
     {
-        AssetData memory data = _getAssetConfig()[0];
+        AssetData memory data = assetData[0];
         uint256 initialBal = strategy.checkBalance(data.asset);
 
         uint256 initialAvailableBal = strategy.checkAvailableBalance(
@@ -841,12 +896,21 @@ contract StrategyWithdraw is StargateStrategyTest {
             strategy.checkAvailableBalance(data.asset) < initialAvailableBal
         );
 
-        vm.expectRevert("Did not withdraw enough");
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Helpers.MinSlippageError.selector,
+                0,
+                (initialBal *
+                    (Helpers.MAX_PERCENTAGE -
+                        uint128(strategy.withdrawSlippage()))) /
+                    Helpers.MAX_PERCENTAGE
+            )
+        );
         strategy.withdrawToVault(data.asset, initialBal);
     }
 }
 
-contract StrategyEdgeCases is StargateStrategyTest {
+contract EdgeCases is StargateStrategyTest {
     function setUp() public override {
         super.setUp();
         vm.startPrank(USDS_OWNER);
@@ -855,8 +919,8 @@ contract StrategyEdgeCases is StargateStrategyTest {
         vm.stopPrank();
     }
 
-    function test_balance_onLoss() public {
-        AssetData memory data = _getAssetConfig()[0];
+    function test_Balance_nLoss() public {
+        AssetData memory data = assetData[0];
         uint256 initialBal = strategy.checkBalance(data.asset);
 
         // mock scenario

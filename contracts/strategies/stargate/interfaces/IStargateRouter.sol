@@ -4,6 +4,7 @@ pragma solidity 0.8.16;
 pragma experimental ABIEncoderV2;
 
 interface IStargateRouter {
+    // solhint-disable-next-line contract-name-camelcase
     struct lzTxObj {
         uint256 dstGasForCall;
         uint256 dstNativeAmount;

@@ -81,11 +81,11 @@ contract SPAOracleTest is BaseUniOracleTest {
 
     SPAOracle public spaOracle;
 
-    event DIAWeightUpdated(uint256 weightDIA);
+    event DIAParamsUpdated(uint256 weightDIA, uint128 maxTime);
 
     function setUp() public override {
         super.setUp();
-        vm.prank(USDS_OWNER);
+        vm.startPrank(USDS_OWNER);
         spaOracle = new SPAOracle(
             masterOracle,
             USDCe,
@@ -93,6 +93,8 @@ contract SPAOracleTest is BaseUniOracleTest {
             MA_PERIOD,
             WEIGHT_DIA
         );
+        spaOracle.updateDIAParams(WEIGHT_DIA, type(uint128).max);
+        vm.stopPrank();
     }
 }
 
@@ -166,19 +168,20 @@ contract Test_updateMasterOracle is SPAOracleTest {
 contract Test_UpdateDIAWeight is SPAOracleTest {
     function test_revertsWhen_notOwner() public {
         vm.expectRevert("Ownable: caller is not the owner");
-        spaOracle.updateDIAWeight(60);
+        spaOracle.updateDIAParams(60, 600);
     }
 
     function test_revertsWhen_invalidWeight() public useKnownActor(USDS_OWNER) {
         uint256 newWeight = spaOracle.MAX_WEIGHT() + 10;
         vm.expectRevert("Invalid weight");
-        spaOracle.updateDIAWeight(newWeight);
+        spaOracle.updateDIAParams(newWeight, 600);
     }
 
-    function test_updateDIAWeight() public useKnownActor(USDS_OWNER) {
+    function test_updateDIAParams() public useKnownActor(USDS_OWNER) {
         uint256 newWeight = 80;
+        uint128 maxTime = 600;
         vm.expectEmit(true, true, true, true);
-        emit DIAWeightUpdated(newWeight);
-        spaOracle.updateDIAWeight(newWeight);
+        emit DIAParamsUpdated(newWeight, maxTime);
+        spaOracle.updateDIAParams(newWeight, maxTime);
     }
 }
