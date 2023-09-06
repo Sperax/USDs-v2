@@ -853,7 +853,7 @@ contract CollateralManager_removeCollateralStrategy_Test is
         manager.addCollateralStrategy(USDCe, STARGATE, 2000);
         vm.expectRevert(
             abi.encodeWithSelector(
-                CollateralManager.CollateralDoesNotExist.selector
+                CollateralManager.CollateralStrategyNotMapped.selector
             )
         );
         manager.updateCollateralDefaultStrategy(VST, STARGATE);

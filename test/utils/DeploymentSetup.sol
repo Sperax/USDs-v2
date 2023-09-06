@@ -132,9 +132,11 @@ abstract contract PreMigrationSetup is Setup {
         address stg = 0x6694340fc020c5E6B96567843da2df01b2CE1eb6;
         address stargateFarm = 0xeA8DfEE1898a7e0a59f7527F076106d7e44c2176;
         StargateStrategy stargateStrategyImpl = new StargateStrategy();
-        stargateStrategy = StargateStrategy(
-            upgradeUtil.deployErc1967Proxy(address(stargateStrategyImpl))
+        address stargateStrategyProxy = upgradeUtil.deployErc1967Proxy(
+            address(stargateStrategyImpl)
         );
+        vm.makePersistent(stargateStrategyProxy);
+        stargateStrategy = StargateStrategy(stargateStrategyProxy);
         stargateStrategy.initialize(
             stargateRouter,
             VAULT,
@@ -153,9 +155,11 @@ abstract contract PreMigrationSetup is Setup {
 
         address aavePoolProvider = 0xa97684ead0e402dC232d5A977953DF7ECBaB3CDb;
         AaveStrategy aaveStrategyImpl = new AaveStrategy();
-        aaveStrategy = AaveStrategy(
-            upgradeUtil.deployErc1967Proxy(address(aaveStrategyImpl))
+        address aaveStrategyProxy = upgradeUtil.deployErc1967Proxy(
+            address(aaveStrategyImpl)
         );
+        vm.makePersistent(aaveStrategyProxy);
+        aaveStrategy = AaveStrategy(aaveStrategyProxy);
         aaveStrategy.initialize(aavePoolProvider, VAULT);
         aaveStrategy.setPTokenAddress(
             USDCe,

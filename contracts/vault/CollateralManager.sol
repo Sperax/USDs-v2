@@ -307,8 +307,10 @@ contract CollateralManager is ICollateralManager, Ownable {
         address _collateral,
         address _strategy
     ) external onlyOwner {
-        if (!collateralInfo[_collateral].exists)
-            revert CollateralDoesNotExist();
+        if (
+            !collateralStrategyInfo[_collateral][_strategy].exists &&
+            _strategy != address(0)
+        ) revert CollateralStrategyNotMapped();
         collateralInfo[_collateral].defaultStrategy = _strategy;
     }
 
