@@ -7,7 +7,6 @@ coverage.json
 
 # Foundry files
 out
-lib
 cache_forge
 cache
 
