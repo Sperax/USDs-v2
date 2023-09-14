@@ -1,4 +1,5 @@
 .vscode
+.hypothesis/
 
 node_modules
 .env
