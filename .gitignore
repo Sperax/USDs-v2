@@ -1,4 +1,5 @@
 .vscode
+.hypothesis/
 
 node_modules
 .env
@@ -7,7 +8,6 @@ coverage.json
 
 # Foundry files
 out
-lib
 cache_forge
 cache
 
