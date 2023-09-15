@@ -202,7 +202,7 @@ contract StargateStrategy is InitializableAbstractStrategy {
         address harvestor = msg.sender;
         address rewardToken = rewardTokenAddress[0];
         uint256 numAssets = assetsMapped.length;
-        for (uint256 i = 0; i < numAssets; ) {
+        for (uint256 i; i < numAssets; ) {
             address asset = assetsMapped[i];
             uint256 rewardAmt = checkPendingRewards(asset);
             if (
@@ -248,7 +248,7 @@ contract StargateStrategy is InitializableAbstractStrategy {
     function checkRewardEarned() public view override returns (uint256) {
         uint256 pendingRewards = 0;
         uint256 numAssets = assetsMapped.length;
-        for (uint256 i = 0; i < numAssets; ) {
+        for (uint256 i; i < numAssets; ) {
             address asset = assetsMapped[i];
             pendingRewards += ILPStaking(farm).pendingStargate(
                 assetInfo[asset].rewardPID,

@@ -35,7 +35,7 @@ contract ChainlinkOracle is Ownable {
     error GracePeriodNotPassed(uint256 timeSinceUp);
 
     constructor(SetupTokenData[] memory _priceFeedData) {
-        for (uint256 i = 0; i < _priceFeedData.length; ++i) {
+        for (uint256 i; i < _priceFeedData.length; ++i) {
             setTokenData(_priceFeedData[i].token, _priceFeedData[i].data);
         }
     }

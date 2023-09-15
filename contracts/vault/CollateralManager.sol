@@ -156,7 +156,7 @@ contract CollateralManager is ICollateralManager, Ownable {
 
         uint256 numCollateral = collaterals.length;
 
-        for (uint256 i = 0; i < numCollateral; ) {
+        for (uint256 i; i < numCollateral; ) {
             if (collaterals[i] == _collateral) {
                 collaterals[i] = collaterals[numCollateral - 1];
                 collaterals.pop();
@@ -276,7 +276,7 @@ contract CollateralManager is ICollateralManager, Ownable {
 
         uint256 numStrategy = collateralStrategies[_collateral].length;
 
-        for (uint256 i = 0; i < numStrategy; ) {
+        for (uint256 i; i < numStrategy; ) {
             if (collateralStrategies[_collateral][i] == _strategy) {
                 collateralStrategies[_collateral][i] = collateralStrategies[
                     _collateral
@@ -433,7 +433,7 @@ contract CollateralManager is ICollateralManager, Ownable {
 
         uint256 numStrategy = collateralStrategies[_collateral].length;
 
-        for (uint256 i = 0; i < numStrategy; ) {
+        for (uint256 i; i < numStrategy; ) {
             amountInStrategies =
                 amountInStrategies +
                 IStrategy(collateralStrategies[_collateral][i]).checkBalance(
