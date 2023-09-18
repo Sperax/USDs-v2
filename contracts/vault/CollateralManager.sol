@@ -183,8 +183,10 @@ contract CollateralManager is ICollateralManager, Ownable {
         address _strategy,
         uint16 _allocationCap
     ) external onlyOwner {
+        CollateralData storage collateralData = collateralInfo[_collateral];
+        
         // Check if the collateral is valid
-        if (!collateralInfo[_collateral].exists)
+        if (!collateralData.exists)
             revert CollateralDoesNotExist();
         // Check if collateral strategy not already added.
         if (collateralStrategyInfo[_collateral][_strategy].exists)
@@ -195,7 +197,7 @@ contract CollateralManager is ICollateralManager, Ownable {
 
         // Check if _allocation Per <= 100 - collateralCapacityUsed
         Helpers._isLTEMaxPercentage(
-            _allocationCap + collateralInfo[_collateral].collateralCapacityUsed,
+            _allocationCap + collateralData.collateralCapacityUsed,
             "Allocation percentage exceeded"
         );
 
@@ -205,7 +207,7 @@ contract CollateralManager is ICollateralManager, Ownable {
             true
         );
         collateralStrategies[_collateral].push(_strategy);
-        collateralInfo[_collateral].collateralCapacityUsed += _allocationCap;
+        collateralData.collateralCapacityUsed += _allocationCap;
 
         emit CollateralStrategyAdded(_collateral, _strategy);
     }
@@ -429,13 +431,10 @@ contract CollateralManager is ICollateralManager, Ownable {
     function getCollateralInStrategies(
         address _collateral
     ) public view returns (uint256 amountInStrategies) {
-        amountInStrategies = 0;
-
         uint256 numStrategy = collateralStrategies[_collateral].length;
 
         for (uint256 i; i < numStrategy; ) {
-            amountInStrategies =
-                amountInStrategies +
+            amountInStrategies +=
                 IStrategy(collateralStrategies[_collateral][i]).checkBalance(
                     _collateral
                 );
