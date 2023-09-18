@@ -184,10 +184,9 @@ contract CollateralManager is ICollateralManager, Ownable {
         uint16 _allocationCap
     ) external onlyOwner {
         CollateralData storage collateralData = collateralInfo[_collateral];
-        
+
         // Check if the collateral is valid
-        if (!collateralData.exists)
-            revert CollateralDoesNotExist();
+        if (!collateralData.exists) revert CollateralDoesNotExist();
         // Check if collateral strategy not already added.
         if (collateralStrategyInfo[_collateral][_strategy].exists)
             revert CollateralStrategyMapped();
@@ -273,7 +272,7 @@ contract CollateralManager is ICollateralManager, Ownable {
 
         if (collateralInfo[_collateral].defaultStrategy == _strategy)
             revert IsDefaultStrategy();
-        if (IStrategy(_strategy).checkBalance(_collateral) != 0)
+        if (getCollateralInAStrategy(_collateral, _strategy) != 0)
             revert CollateralStrategyInUse();
 
         uint256 numStrategy = collateralStrategies[_collateral].length;
@@ -336,8 +335,9 @@ contract CollateralManager is ICollateralManager, Ownable {
                 getCollateralInStrategies(_collateral))) /
             Helpers.MAX_PERCENTAGE;
 
-        uint256 collateralBalance = IStrategy(_strategy).checkBalance(
-            _collateral
+        uint256 collateralBalance = getCollateralInAStrategy(
+            _collateral,
+            _strategy
         );
 
         if (maxCollateralUsage >= collateralBalance) {
@@ -434,10 +434,9 @@ contract CollateralManager is ICollateralManager, Ownable {
         uint256 numStrategy = collateralStrategies[_collateral].length;
 
         for (uint256 i; i < numStrategy; ) {
-            amountInStrategies +=
-                IStrategy(collateralStrategies[_collateral][i]).checkBalance(
-                    _collateral
-                );
+            amountInStrategies += IStrategy(
+                collateralStrategies[_collateral][i]
+            ).checkBalance(_collateral);
             unchecked {
                 ++i;
             }
