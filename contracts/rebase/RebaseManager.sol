@@ -66,7 +66,7 @@ contract RebaseManager is Ownable {
             : rebaseFund;
 
         // Skip if insufficient USDs to rebase or insufficient time has elapsed
-        if (rebaseAmt < minRebaseAmt || block.timestamp <= lastRebaseTS + gap) {
+        if (rebaseAmt < minRebaseAmt || block.timestamp < lastRebaseTS + gap) {
             return 0;
         }
 
