@@ -215,16 +215,7 @@ contract YieldReserve is ReentrancyGuard, Ownable {
         if (_srcToken != Helpers.USDS) {
             // Mint USDs
             IERC20(_srcToken).safeApprove(vault, _amountIn);
-            (uint256 _minUSDSAmt, ) = IVault(vault).mintView(
-                _srcToken,
-                _amountIn
-            );
-            IVault(vault).mint(
-                _srcToken,
-                _amountIn,
-                _minUSDSAmt,
-                block.timestamp + 1200
-            );
+            IVault(vault).mint(_srcToken, _amountIn, 0, block.timestamp + 1200);
             // No need to do slippage check as it is our contract
             // and the vault does that.
         }
