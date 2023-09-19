@@ -12,8 +12,6 @@ import {Helpers} from "../libraries/Helpers.sol";
 contract Dripper is Ownable {
     using SafeERC20 for IERC20;
 
-    address public constant USDS = 0xD74f5255D557944cf7Dd0E45FF521520002D5748;
-
     address public vault; // Address of the contract to get the dripped tokens
     uint256 public dripRate; // Calculated dripping rate
     uint256 public dripDuration; // Duration to drip the available amount
@@ -50,10 +48,10 @@ contract Dripper is Ownable {
         uint256 collectableAmt = getCollectableAmt();
         if (collectableAmt > 0) {
             lastCollectTS = block.timestamp;
-            IERC20(USDS).safeTransfer(vault, collectableAmt);
+            IERC20(Helpers.USDS).safeTransfer(vault, collectableAmt);
             emit Collected(collectableAmt);
         }
-        dripRate = IERC20(USDS).balanceOf(address(this)) / dripDuration;
+        dripRate = IERC20(Helpers.USDS).balanceOf(address(this)) / dripDuration;
         return collectableAmt;
     }
 
@@ -78,7 +76,7 @@ contract Dripper is Ownable {
     function getCollectableAmt() public view returns (uint256) {
         uint256 timeElapsed = block.timestamp - lastCollectTS;
         uint256 dripped = timeElapsed * dripRate;
-        uint256 balance = IERC20(USDS).balanceOf(address(this));
+        uint256 balance = IERC20(Helpers.USDS).balanceOf(address(this));
         return (dripped > balance) ? balance : dripped;
     }
 }
