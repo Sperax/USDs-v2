@@ -38,7 +38,11 @@ contract AaveStrategy is InitializableAbstractStrategy {
             IPoolAddressesProvider(_platformAddress).getPool()
         ); // aave Lending Pool 0x794a61358D6845594F94dc1DB02A252b5b4814aD
 
-        InitializableAbstractStrategy._initialize(_vault, 0, 0);
+        InitializableAbstractStrategy._initialize({
+            _vault: _vault,
+            _depositSlippage: 0,
+            _withdrawSlippage: 0
+        });
     }
 
     /// @notice Provide support for asset by passing its lpToken address.
