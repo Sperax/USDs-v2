@@ -4,12 +4,13 @@ pragma solidity 0.8.16;
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Helpers} from "../libraries/Helpers.sol";
+import {IDripper} from "../interfaces/IDripper.sol";
 
 /// @title Dripper for USDs protocol
 /// @notice Contract to release tokens to a recipient at a steady rate
 /// @author Sperax Foundation
 /// @dev This contract releases USDs at a steady rate to the Vault for rebasing USDs
-contract Dripper is Ownable {
+contract Dripper is IDripper, Ownable {
     using SafeERC20 for IERC20;
 
     address public vault; // Address of the contract to get the dripped tokens
