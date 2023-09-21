@@ -39,7 +39,7 @@ contract StargateStrategy is InitializableAbstractStrategy {
 
     function initialize(
         address _router,
-        address vault,
+        address _vault,
         address _stg,
         address _farm,
         uint16 _depositSlippage, // 200 = 2%
@@ -55,7 +55,7 @@ contract StargateStrategy is InitializableAbstractStrategy {
         rewardTokenAddress.push(_stg);
 
         InitializableAbstractStrategy._initialize(
-            vault,
+            _vault,
             _depositSlippage,
             _withdrawSlippage
         );
@@ -363,6 +363,7 @@ contract StargateStrategy is InitializableAbstractStrategy {
     /// @param _asset Address of the asset token
     /// @param _amount Amount to be withdrawn
     /// @dev Validate if the farm has enough STG to withdraw as rewards.
+    /// @dev It is designed to be called from functions with the `nonReentrant` modifier to ensure reentrancy protection.
     function _withdraw(
         bool _withdrawInterest,
         address _recipient,
