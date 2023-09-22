@@ -28,3 +28,5 @@ jobs:
 
       - name: Run tests
         run: forge test -vvv
+        env:
+          FOUNDRY_PROFILE: ci
