@@ -47,7 +47,7 @@ contract Dripper is IDripper, Ownable {
     /// @dev Function also updates the dripRate based on the fund state
     function collect() external returns (uint256) {
         uint256 collectableAmt = getCollectableAmt();
-        if (collectableAmt > 0) {
+        if (collectableAmt != 0) {
             lastCollectTS = block.timestamp;
             IERC20(Helpers.USDS).safeTransfer(vault, collectableAmt);
             emit Collected(collectableAmt);

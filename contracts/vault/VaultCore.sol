@@ -302,7 +302,7 @@ contract VaultCore is
     /// @dev If Rebase manager returns a non zero value, it calls rebase function on token/ USDs contract
     function rebase() public {
         uint256 rebaseAmt = IRebaseManager(rebaseManager).fetchRebaseAmt();
-        if (rebaseAmt > 0) {
+        if (rebaseAmt != 0) {
             IUSDs(Helpers.USDS).rebase(rebaseAmt);
             emit RebasedUSDs(rebaseAmt);
         }
@@ -399,7 +399,7 @@ contract VaultCore is
             _collateralAmt
         );
         IUSDs(Helpers.USDS).mint(msg.sender, toMinterAmt);
-        if (feeAmt > 0) {
+        if (feeAmt != 0) {
             IUSDs(Helpers.USDS).mint(feeVault, feeAmt);
         }
 
@@ -436,7 +436,7 @@ contract VaultCore is
             IStrategy strategy
         ) = _redeemView(_collateral, _usdsAmt, _strategyAddr);
 
-        if (strategyAmt > 0) {
+        if (strategyAmt != 0) {
             // Withdraw from the strategy to VaultCore
             uint256 strategyAmtReceived = strategy.withdraw(
                 address(this),
@@ -460,7 +460,7 @@ contract VaultCore is
             _usdsAmt
         );
         IUSDs(Helpers.USDS).burn(burnAmt);
-        if (feeAmt > 0) {
+        if (feeAmt != 0) {
             IERC20Upgradeable(Helpers.USDS).safeTransfer(feeVault, feeAmt);
         }
         // Transfer desired collateral to the user

@@ -206,7 +206,7 @@ contract StargateStrategy is InitializableAbstractStrategy {
             address asset = assetsMapped[i];
             uint256 rewardAmt = checkPendingRewards(asset);
             if (
-                rewardAmt > 0 &&
+                rewardAmt != 0 &&
                 (skipRwdValidation ||
                     rewardAmt <= IERC20(rewardToken).balanceOf(farm))
             ) {

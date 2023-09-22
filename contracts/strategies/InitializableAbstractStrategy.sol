@@ -248,7 +248,7 @@ abstract contract InitializableAbstractStrategy is
         address _harvestor,
         uint256 _amount
     ) internal returns (uint256) {
-        if (harvestIncentiveRate > 0) {
+        if (harvestIncentiveRate != 0) {
             uint256 incentiveAmt = (_amount * harvestIncentiveRate) /
                 Helpers.MAX_PERCENTAGE;
             uint256 harvestedAmt = _amount - incentiveAmt;
