@@ -37,4 +37,5 @@ jobs:
         run: forge test -vvv
         env:
           FOUNDRY_PROFILE: ci
-          TEST_MNEMONIC: ${{ vars.TEST_MNEMONIC }}
+          TEST_MNEMONIC: ${{ secrets.TEST_MNEMONIC }}
+          ARB_URL: ${{ secrets.ARB_URL }}
