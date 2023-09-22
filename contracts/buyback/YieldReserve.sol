@@ -19,7 +19,7 @@ contract YieldReserve is ReentrancyGuard, Ownable {
     address public oracle;
     address public buyback;
     address public dripper;
-    // Percentage of USDs to be sent to Buyback 500 means 50%
+    // Percentage of USDs to be sent to Buyback 5000 means 50%
     uint256 public buybackPercentage;
 
     mapping(address => bool) public isAllowedSrc;
