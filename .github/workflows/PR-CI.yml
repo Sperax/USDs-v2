@@ -26,7 +26,7 @@ jobs:
           node-version: 16
           cache: 'npm'
 
-      - run: yarn
+      - run: npm i --ignore-scripts
 
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
