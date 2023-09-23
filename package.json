@@ -12,11 +12,12 @@
     "install-husky": "husky install",
     "prepare": "npm-run-all install-husky install-pip-packages",
     "slither-analyze": "slither .",
-    "lint:fix": "prettier --write 'scripts/**/*.{js,ts}' 'test/**/*.{js,ts}' '*.{js,ts}' && tslint --fix --config tslint.json --project tsconfig.json",
     "forge-coverage": "forge coverage --report lcov && lcov --remove ./lcov.info -o ./lcov.info 'test/*' && rm -rf ./coverage && genhtml lcov.info --output-dir coverage && mv lcov.info ./coverage",
     "lint-contract": "solhint 'contracts/**/*.sol' 'test/**/*.sol' -f table",
     "lint-contract:errors": "solhint 'contracts/**/*.sol' 'test/**/*.sol' -f table --quiet",
-    "lint-contract:fix": "prettier --write 'contracts/**/*.sol' 'test/**/*.sol'"
+    "lint-contract:fix": "prettier --write 'contracts/**/*.sol' 'test/**/*.sol'",
+    "prettier": "forge fmt",
+    "prettier-check": "forge fmt --check"
   },
   "keywords": [
     "USDs",
@@ -27,10 +28,7 @@
   "devDependencies": {
     "husky": "^8.0.3",
     "npm-run-all": "^4.1.5",
-    "prettier": "^2.8.8",
-    "prettier-plugin-solidity": "^1.1.3",
-    "solhint": "^3.5.1",
-    "solhint-plugin-prettier": "^0.0.5"
+    "solhint": "^3.5.1"
   },
   "dependencies": {
     "@chainlink/contracts": "^0.5.1",
