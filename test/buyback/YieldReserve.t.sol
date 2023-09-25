@@ -3,6 +3,7 @@ pragma solidity 0.8.16;
 
 import {YieldReserve, Helpers} from "../../contracts/buyback/YieldReserve.sol";
 import {IVault} from "../../contracts/interfaces/IVault.sol";
+import {IOracle} from "../../contracts/interfaces/IOracle.sol";
 import {VaultCore} from "../../contracts/vault/VaultCore.sol";
 import {IERC20, ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {PreMigrationSetup} from "../utils/DeploymentSetup.sol";
@@ -57,10 +58,30 @@ contract YieldReserveTest is PreMigrationSetup {
 
         assertEq(yieldReserve.isAllowedSrc(SPA), true);
 
+        assertEq(IOracle(ORACLE).priceFeedExists(SPA), true);
+
         vm.expectRevert(
             abi.encodeWithSelector(YieldReserve.AlreadyInDesiredState.selector)
         );
         yieldReserve.toggleSrcTokenPermission(SPA, true);
+
+        // toggle to false case
+        yieldReserve.toggleSrcTokenPermission(SPA, false);
+
+        assertEq(yieldReserve.isAllowedSrc(SPA), false);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(YieldReserve.AlreadyInDesiredState.selector)
+        );
+        yieldReserve.toggleSrcTokenPermission(SPA, false);
+
+        // priceFeed doesn't exist case.
+        address randomTokenAddress = address(0x9);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(YieldReserve.TokenPriceFeedMissing.selector)
+        );
+        yieldReserve.toggleSrcTokenPermission(randomTokenAddress, true);
     }
 
     function test_toggleDstTokenPermission_auth_error() public useActor(0) {
@@ -75,10 +96,30 @@ contract YieldReserveTest is PreMigrationSetup {
 
         assertEq(yieldReserve.isAllowedDst(SPA), true);
 
+        assertEq(IOracle(ORACLE).priceFeedExists(SPA), true);
+
         vm.expectRevert(
             abi.encodeWithSelector(YieldReserve.AlreadyInDesiredState.selector)
         );
         yieldReserve.toggleDstTokenPermission(SPA, true);
+
+        // toggle to false case
+        yieldReserve.toggleDstTokenPermission(SPA, false);
+
+        assertEq(yieldReserve.isAllowedSrc(SPA), false);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(YieldReserve.AlreadyInDesiredState.selector)
+        );
+        yieldReserve.toggleSrcTokenPermission(SPA, false);
+
+        // priceFeed doesn't exist case.
+        address randomTokenAddress = address(0x9);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(YieldReserve.TokenPriceFeedMissing.selector)
+        );
+        yieldReserve.toggleDstTokenPermission(randomTokenAddress, true);
     }
 
     function test_withdraw_auth_error() public useActor(0) {
