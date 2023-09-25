@@ -174,6 +174,11 @@ contract TestTransferFrom is USDsTest {
             currentAllowance - decrease_amount,
             usds.allowance(USER1, VAULT)
         );
+
+        currentAllowance = usds.allowance(USER1, VAULT);
+        usds.decreaseAllowance(VAULT, currentAllowance);
+
+        assertEq(0, usds.allowance(USER1, VAULT));
     }
 
     function test_allowance() public useKnownActor(USER1) {
@@ -404,10 +409,37 @@ contract TestRebase is USDsTest {
         super.setUp();
     }
 
+    function test_revertIf_IsAlreadyRebasingAccount()
+        public
+        useKnownActor(USDS_OWNER)
+    {
+        usds.rebaseOptIn(USDS_OWNER);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                USDs.IsAlreadyRebasingAccount.selector,
+                USDS_OWNER
+            )
+        );
+        usds.rebaseOptIn(USDS_OWNER);
+    }
+
     function test_rebaseOptIn() public useKnownActor(USDS_OWNER) {
         usds.rebaseOptIn(USDS_OWNER);
 
         assertEq(usds.nonRebasingCreditsPerToken(USDS_OWNER), 0);
+    }
+
+    function test_revertIf_IsAlreadyNonRebasingAccount()
+        public
+        useKnownActor(USDS_OWNER)
+    {
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                USDs.IsAlreadyNonRebasingAccount.selector,
+                USDS_OWNER
+            )
+        );
+        usds.rebaseOptIn(USDS_OWNER);
     }
 
     function test_rebaseOptOut() public useKnownActor(USDS_OWNER) {
