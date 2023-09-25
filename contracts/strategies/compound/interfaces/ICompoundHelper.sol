@@ -6,18 +6,18 @@ interface IComet {
     /// @notice Supply an amount of asset to the protocol
     /// @param asset The asset to supply
     /// @param amount The quantity to supply
-    function supply(address asset, uint amount) external;
+    function supply(address asset, uint256 amount) external;
 
     /// @notice Withdraw an amount of asset from the protocol
     /// @param asset The asset to withdraw
     /// @param amount The quantity to withdraw
-    function withdraw(address asset, uint amount) external;
+    function withdraw(address asset, uint256 amount) external;
 
     /// @notice Withdraw an amount of asset to `to`
     /// @param to The recipient address
     /// @param asset The asset to withdraw
     /// @param amount The quantity to withdraw
-    function withdrawTo(address to, address asset, uint amount) external;
+    function withdrawTo(address to, address asset, uint256 amount) external;
 
     /// @notice Query the current positive base balance of an account or zero
     /// @dev Note: uses updated interest indices to calculate
@@ -36,13 +36,13 @@ interface IComet {
     ) external view returns (uint64);
 
     /// @notice Gets the total amount of protocol reserves of the base asset
-    function getReserves() external view returns (int);
+    function getReserves() external view returns (int256);
 }
 
 interface IReward {
     struct RewardOwed {
         address token;
-        uint owed;
+        uint256 owed;
     }
 
     struct RewardConfig {
