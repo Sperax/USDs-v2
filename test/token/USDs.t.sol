@@ -495,3 +495,92 @@ contract TestRebase is USDsTest {
         assertEq(prevSupply, usds.totalSupply());
     }
 }
+
+contract TestEnsureRebasingMigration is USDsTest {
+    using StableMath for uint256;
+    uint256 amount;
+
+    function setUp() public override {
+        super.setUp();
+        amount = 10 * 10 ** ERC20(USDS).decimals();
+    }
+
+    function test_nocode_to_code() public {
+        uint256 salt = 123;
+        bytes memory bytecode = type(USDs).creationCode;
+
+        // Predict address using create2
+        address predictedAddress = _getAddress(bytecode, salt);
+
+        // Mint to predicted address
+        vm.prank(VAULT);
+        usds.mint(predictedAddress, amount);
+
+        // Predicted address should be rebasing
+        uint256 prevBalance = usds.balanceOf(predictedAddress);
+        uint256 prevNonRebasingSupply = usds.nonRebasingSupply();
+        assertEq(usds.nonRebasingCreditsPerToken(predictedAddress), 0);
+
+        // Deploy contract at predicted address
+        _deploy(bytecode, salt);
+
+        // Trigger _isNonRebasingAccount by sending amount2 to any non-rebasing account
+        vm.prank(USDS_OWNER);
+        usds.rebaseOptOut(msg.sender);
+        uint256 transferAmount = amount / 2;
+        vm.prank(predictedAddress);
+        usds.transfer(msg.sender, transferAmount);
+
+        // Predicted address should be non-rebasing
+        uint256 newBalance = usds.balanceOf(predictedAddress);
+        uint256 newNonRebasingSupply = usds.nonRebasingSupply();
+        assertEq(newBalance, prevBalance - transferAmount);
+        assertEq(newNonRebasingSupply, amount + prevNonRebasingSupply);
+        assertEq(usds.nonRebasingCreditsPerToken(predictedAddress), 1);
+    }
+
+    function _deploy(bytes memory _bytecode, uint _salt) internal {
+        address addr;
+
+        /*
+        NOTE: How to call create2
+
+        create2(v, p, n, s)
+        create new contract with code at memory p to p + n
+        and send v wei
+        and return the new address
+        where new address = first 20 bytes of keccak256(0xff + address(this) + s + keccak256(mem[p…(p+n)))
+              s = big-endian 256-bit value
+        */
+        assembly {
+            addr := create2(
+                callvalue(), // wei sent with current call
+                // Actual code starts after skipping the first 32 bytes
+                add(_bytecode, 0x20),
+                mload(_bytecode), // Load the size of code contained in the first 32 bytes
+                _salt // Salt from function arguments
+            )
+
+            if iszero(extcodesize(addr)) {
+                revert(0, 0)
+            }
+        }
+    }
+
+    function _getAddress(
+        bytes memory bytecode,
+        uint _salt
+    ) internal view returns (address) {
+        bytes32 hash = keccak256(
+            abi.encodePacked(
+                bytes1(0xff),
+                address(this),
+                _salt,
+                keccak256(bytecode)
+            )
+        );
+
+        // NOTE: cast last 20 bytes of hash to address
+        return address(uint160(uint(hash)));
+    }
+}
