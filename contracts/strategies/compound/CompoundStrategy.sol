@@ -39,7 +39,6 @@ contract CompoundStrategy is InitializableAbstractStrategy {
         Helpers._isNonZeroAddr(_vault);
         rewardPool = IReward(_rewardPool);
 
-        // register reward token
         InitializableAbstractStrategy._initialize({
             _vault: _vault,
             _depositSlippage: 0,
@@ -165,6 +164,9 @@ contract CompoundStrategy is InitializableAbstractStrategy {
                 yieldReceiver,
                 harvestAmt
             );
+            unchecked {
+                ++i;
+            }
         }
     }
 
