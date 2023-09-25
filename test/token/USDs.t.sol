@@ -433,13 +433,14 @@ contract TestRebase is USDsTest {
         public
         useKnownActor(USDS_OWNER)
     {
+        // usds.rebaseOptOut(USDS_OWNER);
         vm.expectRevert(
             abi.encodeWithSelector(
                 USDs.IsAlreadyNonRebasingAccount.selector,
                 USDS_OWNER
             )
         );
-        usds.rebaseOptIn(USDS_OWNER);
+        usds.rebaseOptOut(USDS_OWNER);
     }
 
     function test_rebaseOptOut() public useKnownActor(USDS_OWNER) {
