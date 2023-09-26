@@ -20,6 +20,7 @@ import {MasterPriceOracle} from "../../contracts/oracle/MasterPriceOracle.sol";
 import {ChainlinkOracle} from "../../contracts/oracle/ChainlinkOracle.sol";
 import {StargateStrategy} from "../../contracts/strategies/stargate/StargateStrategy.sol";
 import {AaveStrategy} from "../../contracts/strategies/aave/AaveStrategy.sol";
+import {CompoundStrategy} from "../../contracts/strategies/compound/CompoundStrategy.sol";
 import {VSTOracle} from "../../contracts/oracle/VSTOracle.sol";
 
 interface ICustomOracle {
@@ -43,6 +44,7 @@ abstract contract PreMigrationSetup is Setup {
     address internal usdsOracle;
     StargateStrategy internal stargateStrategy;
     AaveStrategy internal aaveStrategy;
+    CompoundStrategy internal compoundStrategy;
 
     function setUp() public virtual override {
         super.setUp();
@@ -184,6 +186,16 @@ abstract contract PreMigrationSetup is Setup {
         );
         AAVE_STRATEGY = address(aaveStrategy);
         STARGATE_STRATEGY = address(stargateStrategy);
+
+        // Deploying Compound strategy
+        address compoundRewardPool = 0x88730d254A2f7e6AC8388c3198aFd694bA9f7fae;
+        CompoundStrategy compoundStrategyImpl = new CompoundStrategy();
+        address compoundStrategyProxy = upgradeUtil.deployErc1967Proxy(
+            address(compoundStrategyImpl)
+        );
+        // vm.makePersistent(aaveStrategyProxy);
+        compoundStrategy = CompoundStrategy(compoundStrategyProxy);
+        compoundStrategy.initialize(compoundRewardPool, VAULT);
         vm.stopPrank();
     }
 
