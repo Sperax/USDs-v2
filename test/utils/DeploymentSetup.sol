@@ -195,7 +195,7 @@ abstract contract PreMigrationSetup is Setup {
         );
         // vm.makePersistent(aaveStrategyProxy);
         compoundStrategy = CompoundStrategy(compoundStrategyProxy);
-        compoundStrategy.initialize(compoundRewardPool, VAULT);
+        compoundStrategy.initialize(VAULT, compoundRewardPool);
         vm.stopPrank();
     }
 

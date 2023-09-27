@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.16;
 
+import {console} from "forge-std/console.sol";
 import {BaseStrategy} from "./BaseStrategy.t.sol";
 import {BaseTest} from "../utils/BaseTest.sol";
 import {UpgradeUtil} from "../utils/UpgradeUtil.sol";
-import {CompoundStrategy} from "../../contracts/strategies/compound/CompoundStrategy.sol";
+import {Helpers, CompoundStrategy, IComet} from "../../contracts/strategies/compound/CompoundStrategy.sol";
 import {IERC20, ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 contract CompoundStrategyTest is BaseStrategy, BaseTest {
@@ -45,7 +46,7 @@ contract CompoundStrategyTest is BaseStrategy, BaseTest {
     }
 
     function _initializeStrategy() internal {
-        strategy.initialize(REWARD_POOL, VAULT);
+        strategy.initialize(VAULT, REWARD_POOL);
     }
 
     function _deposit() internal {
@@ -88,17 +89,77 @@ contract CompoundStrategyTest is BaseStrategy, BaseTest {
 }
 
 contract InitializeTests is CompoundStrategyTest {
+    function test_invalid_address() public useKnownActor(USDS_OWNER) {
+        vm.expectRevert(
+            abi.encodeWithSelector(Helpers.InvalidAddress.selector)
+        );
+        strategy.initialize(address(0), VAULT);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(Helpers.InvalidAddress.selector)
+        );
+        strategy.initialize(REWARD_POOL, address(0));
+    }
+
+    function test_initialization() public useKnownActor(USDS_OWNER) {
+        assertEq(impl.owner(), address(0));
+        assertEq(strategy.owner(), address(0));
+
+        _initializeStrategy();
+
+        assertEq(impl.owner(), address(0));
+        assertEq(address(impl.rewardPool()), address(0));
+        assertEq(strategy.owner(), USDS_OWNER);
+        assertEq(strategy.vault(), VAULT);
+        assertEq(address(strategy.rewardPool()), REWARD_POOL);
+    }
+}
+
+contract SetPToken is CompoundStrategyTest {
     function setUp() public override {
         super.setUp();
         vm.startPrank(USDS_OWNER);
         _initializeStrategy();
-        _setAssetData();
-        _deposit();
-        _mockInsufficientAsset();
+        vm.stopPrank();
     }
 
-    function testInit() public {
-        assertTrue(strategy.vault() != address(0));
+    function test_RevertWhen_NotOwner() public useActor(0) {
+        vm.expectRevert("Ownable: caller is not the owner");
+        strategy.setPTokenAddress(ASSET, P_TOKEN, 0);
+    }
+
+    function test_RevertWhen_InvalidPToken() public useKnownActor(USDS_OWNER) {
+        address OTHER_P_TOKEN = 0x9c4ec768c28520B50860ea7a15bd7213a9fF58bf;
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                InvalidAssetLpPair.selector,
+                ASSET,
+                OTHER_P_TOKEN
+            )
+        );
+        strategy.setPTokenAddress(ASSET, OTHER_P_TOKEN, 0);
+    }
+
+    function test_SetPTokenAddress() public useKnownActor(USDS_OWNER) {
+        assertEq(strategy.assetToPToken(ASSET), address(0));
+
+        vm.expectEmit(true, false, false, false);
+        emit PTokenAdded(address(ASSET), address(P_TOKEN));
+        strategy.setPTokenAddress(ASSET, P_TOKEN, 0);
+
+        (, uint256 intLiqThreshold) = strategy.assetInfo(ASSET);
+
+        assertEq(intLiqThreshold, 0);
+        assertEq(strategy.assetToPToken(ASSET), P_TOKEN);
+        assertTrue(strategy.supportsCollateral(ASSET));
+    }
+
+    function test_RevertWhen_DuplicateAsset() public useKnownActor(USDS_OWNER) {
+        strategy.setPTokenAddress(ASSET, P_TOKEN, 0);
+        vm.expectRevert(
+            abi.encodeWithSelector(PTokenAlreadySet.selector, ASSET, P_TOKEN)
+        );
+        strategy.setPTokenAddress(ASSET, P_TOKEN, 0);
     }
 }
  
