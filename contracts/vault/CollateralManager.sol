@@ -347,6 +347,28 @@ contract CollateralManager is ICollateralManager, Ownable {
 
     /// @notice Get the required data for mint
     /// @param _collateral Address of the collateral
+    /// @return Base fee config for collateral (baseMintFee, baseRedeemFee)
+    function getCollateralFeeData(
+        address _collateral
+    ) external view returns (uint16, uint16, uint16) {
+        // Compose and return collateral mint params
+        CollateralData memory collateralStorageData = collateralInfo[
+            _collateral
+        ];
+
+        // Check if collateral exists
+        if (!collateralInfo[_collateral].exists)
+            revert CollateralDoesNotExist();
+
+        return (
+            collateralStorageData.baseFeeIn,
+            collateralStorageData.baseFeeOut,
+            collateralStorageData.desiredCollateralComposition
+        );
+    }
+
+    /// @notice Get the required data for mint
+    /// @param _collateral Address of the collateral
     /// @return mintData Mint configuration
     function getMintParams(
         address _collateral
