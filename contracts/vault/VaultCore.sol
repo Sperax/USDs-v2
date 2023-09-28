@@ -338,7 +338,7 @@ contract VaultCore is
         }
 
         // Skip fee collection for owner
-        uint256 feePercentage;
+        uint256 feePercentage = 0;
         uint256 feePercentagePrecision = 1;
         if (msg.sender != owner()) {
             // Calculate mint fee based on collateral data
@@ -515,7 +515,7 @@ contract VaultCore is
         );
 
         // Skip fee collection for Owner
-        uint256 feePercentage;
+        uint256 feePercentage = 0;
         uint256 feePercentagePrecision = 1;
         if (msg.sender != owner()) {
             (feePercentage, feePercentagePrecision) = IFeeCalculator(
