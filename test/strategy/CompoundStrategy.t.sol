@@ -23,11 +23,16 @@ contract CompoundStrategyTest is BaseStrategy, BaseTest {
     CompoundStrategy internal impl;
     UpgradeUtil internal upgradeUtil;
     uint256 internal depositAmount;
+    uint256 internal interestAmount;
     address internal proxyAddress;
     address internal ASSET;
     address internal P_TOKEN;
     address internal constant REWARD_POOL = 0x88730d254A2f7e6AC8388c3198aFd694bA9f7fae;
 
+    event IntLiqThresholdUpdated(
+        address indexed asset,
+        uint256 intLiqThreshold
+    );
 
     function setUp() public virtual override {
         super.setUp();
@@ -42,6 +47,7 @@ contract CompoundStrategyTest is BaseStrategy, BaseTest {
         ASSET = data[0].asset;
         P_TOKEN = data[0].pToken;
         depositAmount = 1 * 10 ** ERC20(ASSET).decimals();
+        interestAmount = 1 * 10 ** ERC20(ASSET).decimals();
         vm.stopPrank();
     }
 
@@ -115,7 +121,7 @@ contract InitializeTests is CompoundStrategyTest {
     }
 }
 
-contract SetPToken is CompoundStrategyTest {
+contract SetPTokenTest is CompoundStrategyTest {
     function setUp() public override {
         super.setUp();
         vm.startPrank(USDS_OWNER);
@@ -162,4 +168,171 @@ contract SetPToken is CompoundStrategyTest {
         strategy.setPTokenAddress(ASSET, P_TOKEN, 0);
     }
 }
- 
+
+contract UpdateIntLiqThresholdTest is CompoundStrategyTest {
+    function setUp() public override {
+        super.setUp();
+        vm.startPrank(USDS_OWNER);
+        _initializeStrategy();
+        _setAssetData();
+        vm.stopPrank();
+    }
+
+    function test_RevertWhen_NotOwner() public useActor(0) {
+        vm.expectRevert("Ownable: caller is not the owner");
+        strategy.updateIntLiqThreshold(ASSET, 2);
+    }
+
+    function test_RevertWhen_CollateralNotSupported()
+        public
+        useKnownActor(USDS_OWNER)
+    {
+        vm.expectRevert(
+            abi.encodeWithSelector(CollateralNotSupported.selector, P_TOKEN)
+        );
+        strategy.updateIntLiqThreshold(P_TOKEN, 2);
+    }
+
+    function test_UpdateIntLiqThreshold() public useKnownActor(USDS_OWNER) {
+        vm.expectEmit(true, false, false, false);
+        emit IntLiqThresholdUpdated(address(ASSET), uint256(2));
+        strategy.updateIntLiqThreshold(ASSET, 2);
+        (, uint256 intLiqThreshold) = strategy.assetInfo(ASSET);
+        assertEq(intLiqThreshold, 2);
+    }
+}
+
+contract RemovePTokenTest is CompoundStrategyTest {
+    function setUp() public override {
+        super.setUp();
+        vm.startPrank(USDS_OWNER);
+        _initializeStrategy();
+        _setAssetData();
+        vm.stopPrank();
+    }
+
+    function test_RevertWhen_NotOwner() public useActor(0) {
+        vm.expectRevert("Ownable: caller is not the owner");
+        strategy.removePToken(0);
+    }
+
+    function test_RevertWhen_InvalidId() public useKnownActor(USDS_OWNER) {
+        vm.expectRevert(abi.encodeWithSelector(InvalidIndex.selector));
+        strategy.removePToken(5);
+    }
+
+    function test_RevertWhen_CollateralAllocated()
+        public
+        useKnownActor(USDS_OWNER)
+    {
+        _deposit();
+        vm.expectRevert(
+            abi.encodeWithSelector(CollateralAllocated.selector, ASSET)
+        );
+        strategy.removePToken(0);
+    }
+
+    function test_RemovePToken() public useKnownActor(USDS_OWNER) {
+        assertEq(strategy.assetToPToken(ASSET), P_TOKEN);
+        assertTrue(strategy.supportsCollateral(ASSET));
+
+        vm.expectEmit(true, false, false, false);
+        emit PTokenRemoved(ASSET, P_TOKEN);
+        strategy.removePToken(0);
+
+        (uint256 allocatedAmt, uint256 intLiqThreshold) = strategy.assetInfo(
+            ASSET
+        );
+
+        assertEq(allocatedAmt, 0);
+        assertEq(intLiqThreshold, 0);
+        assertEq(strategy.assetToPToken(ASSET), address(0));
+        assertFalse(strategy.supportsCollateral(ASSET));
+    }
+}
+
+contract DepositTest is CompoundStrategyTest {
+    function setUp() public override {
+        super.setUp();
+        vm.startPrank(USDS_OWNER);
+        _initializeStrategy();
+        _setAssetData();
+        vm.stopPrank();
+    }
+
+    function test_deposit_Collateral_not_supported()
+        public
+        useKnownActor(VAULT)
+    {
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                CollateralNotSupported.selector,
+                makeAddr('DUMMY')
+            )
+        );
+        strategy.deposit(makeAddr('DUMMY'), 1);
+    }
+
+    function test_RevertWhen_InvalidAmount() public useKnownActor(VAULT) {
+        vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAmount.selector));
+        strategy.deposit(ASSET, 0);
+    }
+
+    function test_Deposit() public useKnownActor(VAULT) {
+        uint256 initial_bal = strategy.checkBalance(ASSET);
+
+        deal(ASSET, VAULT, depositAmount);
+        IERC20(ASSET).approve(address(strategy), depositAmount);
+        strategy.deposit(ASSET, depositAmount);
+
+        uint256 new_bal = strategy.checkBalance(ASSET);
+        assertEq(initial_bal + depositAmount, new_bal);
+    }
+}
+
+contract CollectInterestTest is CompoundStrategyTest {
+    address public yieldReceiver;
+
+    function setUp() public override {
+        super.setUp();
+        yieldReceiver = actors[0];
+        vm.startPrank(USDS_OWNER);
+        _initializeStrategy();
+        strategy.setPTokenAddress(ASSET, P_TOKEN, 0);
+
+        _deposit();
+        vm.stopPrank();
+    }
+
+    function test_CollectInterest() public useKnownActor(VAULT) {
+        vm.warp(block.timestamp + 10 days);
+        vm.roll(block.number + 1000);
+        uint256 initial_bal = IERC20(ASSET).balanceOf(yieldReceiver);
+
+        // IComet(P_TOKEN).accrueAccount(address(strategy));
+        vm.mockCall(
+            VAULT,
+            abi.encodeWithSignature("yieldReceiver()"),
+            abi.encode(yieldReceiver)
+        );
+
+        
+        uint256 interestEarned = strategy.checkInterestEarned(ASSET);
+
+        assert(interestEarned > 0);
+
+        uint256 incentiveAmt = (interestEarned * 10) / 10000;
+        uint256 harvestAmount = interestEarned - incentiveAmt;
+
+        vm.expectEmit(true, false, false, true);
+        emit InterestCollected(ASSET, yieldReceiver, harvestAmount);
+
+        strategy.collectInterest(ASSET);
+
+        uint256 current_bal = IERC20(ASSET).balanceOf(yieldReceiver);
+        uint256 newInterestEarned = strategy.checkInterestEarned(ASSET);
+
+        assertEq(newInterestEarned, 0);
+        assertEq(current_bal, (initial_bal + harvestAmount));
+    }
+}
