@@ -165,7 +165,6 @@ contract TestSetters is SPABuybackTestSetup {
     }
 
     function testUpdateRewardPercentage() external useKnownActor(USDS_OWNER) {
-        uint256 oldRewardPercentage = spaBuyback.rewardPercentage();
         uint256 newRewardPercentage = 8000;
         vm.expectEmit(true, true, true, true, address(spaBuyback));
         emit RewardPercentageUpdated(newRewardPercentage);

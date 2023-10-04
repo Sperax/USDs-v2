@@ -76,7 +76,11 @@ abstract contract PreMigrationSetup is Setup {
         CollateralManager collateralManager = new CollateralManager(VAULT);
 
         ORACLE = address(new MasterPriceOracle());
-        FEE_CALCULATOR = address(new FeeCalculator());
+        FeeCalculator feeCalculator = new FeeCalculator(
+            address(collateralManager)
+        );
+        FEE_CALCULATOR = address(feeCalculator);
+
         COLLATERAL_MANAGER = address(collateralManager);
         FEE_VAULT = 0xFbc0d3cA777722d234FE01dba94DeDeDb277AFe3;
         DRIPPER = address(new Dripper(VAULT, 7 days));
@@ -123,9 +127,9 @@ abstract contract PreMigrationSetup is Setup {
                 redeemAllowed: true,
                 allocationAllowed: true,
                 baseFeeIn: 0,
-                baseFeeOut: 500,
+                baseFeeOut: 0,
                 downsidePeg: 9800,
-                desiredCollateralComposition: 5000
+                desiredCollateralComposition: 1000
             });
 
         address stargateRouter = 0x53Bf833A5d6c4ddA888F69c22C88C9f356a41614;
@@ -168,6 +172,9 @@ abstract contract PreMigrationSetup is Setup {
         );
 
         collateralManager.addCollateral(USDCe, _data);
+        collateralManager.addCollateral(USDT, _data);
+        collateralManager.addCollateral(FRAX, _data);
+        collateralManager.addCollateral(VST, _data);
         collateralManager.addCollateralStrategy(
             USDCe,
             address(stargateStrategy),
@@ -184,6 +191,7 @@ abstract contract PreMigrationSetup is Setup {
         );
         AAVE_STRATEGY = address(aaveStrategy);
         STARGATE_STRATEGY = address(stargateStrategy);
+        feeCalculator.calibrateFeeForAll();
         vm.stopPrank();
     }
 
