@@ -775,7 +775,6 @@ contract Withdraw is StargateStrategyTest {
             vm.expectEmit(true, false, false, false);
             emit Withdrawal(
                 assetData[i].asset,
-                assetData[i].pToken,
                 initialBal
             );
             strategy.withdraw(VAULT, assetData[i].asset, initialBal);
@@ -810,7 +809,6 @@ contract Withdraw is StargateStrategyTest {
             vm.expectEmit(true, false, false, false);
             emit Withdrawal(
                 assetData[i].asset,
-                assetData[i].pToken,
                 initialBal
             );
             strategy.withdrawToVault(assetData[i].asset, initialBal);

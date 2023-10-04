@@ -102,7 +102,7 @@ contract CompoundStrategy is InitializableAbstractStrategy {
         // Supply Compound Strategy.
         IComet(lpToken).supply(_asset, _amount);
 
-        emit Deposit(_asset, lpToken, _amount);
+        emit Deposit(_asset, _amount);
     }
 
     /// @inheritdoc InitializableAbstractStrategy
@@ -267,7 +267,7 @@ contract CompoundStrategy is InitializableAbstractStrategy {
         address lpToken = _getPTokenFor(_asset);
         assetInfo[_asset].allocatedAmt -= _amount;
         IComet(lpToken).withdrawTo(_recipient, _asset, _amount);
-        emit Withdrawal(_asset, lpToken, _amount);
+        emit Withdrawal(_asset, _amount);
     }
 
     /// @dev Internal method to respond to the addition of new asset / cTokens

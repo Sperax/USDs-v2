@@ -99,7 +99,7 @@ contract AaveStrategy is InitializableAbstractStrategy {
         IERC20(_asset).safeApprove(address(aavePool), _amount);
         aavePool.supply(_asset, _amount, address(this), REFERRAL_CODE);
 
-        emit Deposit(_asset, assetToPToken[_asset], _amount);
+        emit Deposit(_asset, _amount);
     }
 
     /// @inheritdoc InitializableAbstractStrategy
@@ -214,11 +214,10 @@ contract AaveStrategy is InitializableAbstractStrategy {
     ) internal returns (uint256) {
         Helpers._isNonZeroAddr(_recipient);
         Helpers._isNonZeroAmt(_amount, "Must withdraw something");
-        address lpToken = _getPTokenFor(_asset);
         assetInfo[_asset].allocatedAmt -= _amount;
         uint256 actual = aavePool.withdraw(_asset, _amount, _recipient);
         if (actual < _amount) revert Helpers.MinSlippageError(actual, _amount);
-        emit Withdrawal(_asset, lpToken, actual);
+        emit Withdrawal(_asset, actual);
         return actual;
     }
 
