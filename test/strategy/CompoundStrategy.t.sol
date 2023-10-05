@@ -46,8 +46,8 @@ contract CompoundStrategyTest is BaseStrategy, BaseTest {
         _configAsset();
         ASSET = data[0].asset;
         P_TOKEN = data[0].pToken;
-        depositAmount = 1 * 10 ** ERC20(ASSET).decimals();
-        interestAmount = 1 * 10 ** ERC20(ASSET).decimals();
+        depositAmount = 100 * 10 ** ERC20(ASSET).decimals();
+        interestAmount = 10 * 10 ** ERC20(ASSET).decimals();
         vm.stopPrank();
     }
 
@@ -59,7 +59,7 @@ contract CompoundStrategyTest is BaseStrategy, BaseTest {
         changePrank(VAULT);
         deal(address(ASSET), VAULT, depositAmount);
         IERC20(ASSET).approve(address(strategy), depositAmount);
-        strategy.deposit(ASSET, 1);
+        strategy.deposit(ASSET, depositAmount);
         changePrank(USDS_OWNER);
     }
 

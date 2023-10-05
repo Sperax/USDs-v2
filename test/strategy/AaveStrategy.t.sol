@@ -58,7 +58,7 @@ contract AaveStrategyTest is BaseStrategy, BaseTest {
         changePrank(VAULT);
         deal(address(ASSET), VAULT, depositAmount);
         IERC20(ASSET).approve(address(strategy), depositAmount);
-        strategy.deposit(ASSET, 1);
+        strategy.deposit(ASSET, depositAmount);
         changePrank(USDS_OWNER);
     }
 
