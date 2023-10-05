@@ -25,6 +25,7 @@ contract CompoundStrategyTest is BaseStrategy, BaseTest {
     uint256 internal depositAmount;
     uint256 internal interestAmount;
     address internal proxyAddress;
+    address internal yieldReceiver;
     address internal ASSET;
     address internal P_TOKEN;
     address internal constant REWARD_POOL = 0x88730d254A2f7e6AC8388c3198aFd694bA9f7fae;
@@ -37,6 +38,7 @@ contract CompoundStrategyTest is BaseStrategy, BaseTest {
     function setUp() public virtual override {
         super.setUp();
         setArbitrumFork();
+        yieldReceiver = actors[0];
         vm.startPrank(USDS_OWNER);
         impl = new CompoundStrategy();
         upgradeUtil = new UpgradeUtil();
@@ -57,7 +59,7 @@ contract CompoundStrategyTest is BaseStrategy, BaseTest {
 
     function _deposit() internal {
         changePrank(VAULT);
-        deal(address(ASSET), VAULT, depositAmount);
+        deal(ASSET, VAULT, depositAmount);
         IERC20(ASSET).approve(address(strategy), depositAmount);
         strategy.deposit(ASSET, depositAmount);
         changePrank(USDS_OWNER);
@@ -291,11 +293,8 @@ contract DepositTest is CompoundStrategyTest {
 }
 
 contract CollectInterestTest is CompoundStrategyTest {
-    address public yieldReceiver;
-
     function setUp() public override {
         super.setUp();
-        yieldReceiver = actors[0];
         vm.startPrank(USDS_OWNER);
         _initializeStrategy();
         strategy.setPTokenAddress(ASSET, P_TOKEN, 0);
@@ -334,5 +333,77 @@ contract CollectInterestTest is CompoundStrategyTest {
 
         assertEq(newInterestEarned, 0);
         assertEq(current_bal, (initial_bal + harvestAmount));
+    }
+}
+
+contract WithdrawTest is CompoundStrategyTest {
+    function setUp() public override {
+        super.setUp();
+        vm.startPrank(USDS_OWNER);
+        _initializeStrategy();
+        strategy.setPTokenAddress(ASSET, P_TOKEN, 0);
+
+        _deposit();
+        vm.stopPrank();
+    }
+
+    function test_RevertWhen_Withdraw0() public useKnownActor(USDS_OWNER) {
+        AssetData memory assetData = data[0];
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Helpers.CustomError.selector,
+                "Must withdraw something"
+            )
+        );
+        strategy.withdrawToVault(assetData.asset, 0);
+    }
+
+    function test_RevertWhen_InvalidAddress() public useKnownActor(VAULT) {
+        vm.expectRevert(
+            abi.encodeWithSelector(Helpers.InvalidAddress.selector)
+        );
+        strategy.withdraw(address(0), ASSET, 1);
+    }
+
+    function test_RevertWhen_CallerNotVault() public useActor(0) {
+        vm.expectRevert(
+            abi.encodeWithSelector(CallerNotVault.selector, actors[0])
+        );
+        strategy.withdraw(VAULT, ASSET, 1);
+    }
+
+    function test_Withdraw() public useKnownActor(VAULT) {
+        uint256 initialVaultBal = IERC20(ASSET).balanceOf(VAULT);
+
+        vm.expectEmit(true, false, false, true);
+        emit Withdrawal(ASSET, strategy.assetToPToken(ASSET), depositAmount);
+
+        vm.warp(block.timestamp + 10 days);
+        vm.roll(block.number + 1000);
+
+        strategy.withdraw(VAULT, ASSET, depositAmount);
+        assertEq(initialVaultBal + depositAmount, IERC20(ASSET).balanceOf(VAULT));
+    }
+
+    function test_WithdrawToVault_RevertsIf_CallerNotOwner() public useActor(0) {
+        uint256 initialVaultBal = IERC20(ASSET).balanceOf(VAULT);
+        uint256 interestAmt = strategy.checkInterestEarned(ASSET);
+        uint256 amt = depositAmount + interestAmount;
+
+        vm.expectRevert("Ownable: caller is not the owner");
+        strategy.withdrawToVault(ASSET, amt);
+    }
+
+    function test_WithdrawToVault() public useKnownActor(USDS_OWNER) {
+        uint256 initialVaultBal = IERC20(ASSET).balanceOf(VAULT);
+
+        vm.warp(block.timestamp + 10 days);
+        vm.roll(block.number + 1000);
+
+        vm.expectEmit(true, false, false, true);
+        emit Withdrawal(ASSET, strategy.assetToPToken(ASSET), depositAmount);
+
+        strategy.withdrawToVault(ASSET, depositAmount);
+        assertEq(initialVaultBal + depositAmount, IERC20(ASSET).balanceOf(VAULT));
     }
 }
