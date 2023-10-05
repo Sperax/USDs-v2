@@ -15,7 +15,6 @@
     "forge-coverage": "forge coverage --report lcov && lcov --remove ./lcov.info -o ./lcov.info 'test/*' && rm -rf ./coverage && genhtml lcov.info --output-dir coverage && mv lcov.info ./coverage",
     "lint-contract": "solhint 'contracts/**/*.sol' 'test/**/*.sol' -f table",
     "lint-contract:errors": "solhint 'contracts/**/*.sol' 'test/**/*.sol' -f table --quiet",
-    "lint-contract:fix": "prettier --write 'contracts/**/*.sol' 'test/**/*.sol'",
     "prettier": "forge fmt",
     "prettier-check": "forge fmt --check"
   },
