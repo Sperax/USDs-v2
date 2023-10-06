@@ -41,8 +41,8 @@ contract FeeCalculator is IFeeCalculator {
     /// @notice Calibrates fee for a particular collateral
     /// @param _collateral Address of the desired collateral
     function calibrateFee(address _collateral) external {
-        FeeData memory feeData = collateralFee[_collateral];
-        if (block.timestamp < feeData.nextUpdate) revert InvalidCalibration();
+        if (block.timestamp < collateralFee[_collateral].nextUpdate)
+            revert InvalidCalibration();
         _calibrateFee(_collateral);
     }
 
@@ -50,7 +50,7 @@ contract FeeCalculator is IFeeCalculator {
     function getMintFee(address _collateral) external view returns (uint256) {
         FeeData memory feeData = collateralFee[_collateral];
         if (feeData.nextUpdate == 0) revert FeeNotCalibrated(_collateral);
-        return collateralFee[_collateral].mintFee;
+        return feeData.mintFee;
     }
 
     /// @inheritdoc IFeeCalculator
@@ -64,8 +64,7 @@ contract FeeCalculator is IFeeCalculator {
     function calibrateFeeForAll() public {
         address[] memory collaterals = collateralManager.getAllCollaterals();
         for (uint256 i; i < collaterals.length; ) {
-            FeeData memory feeData = collateralFee[collaterals[i]];
-            if (block.timestamp > feeData.nextUpdate) {
+            if (block.timestamp > collateralFee[collaterals[i]].nextUpdate) {
                 _calibrateFee(collaterals[i]);
             }
             unchecked {
@@ -82,11 +81,9 @@ contract FeeCalculator is IFeeCalculator {
         (
             uint16 baseFeeIn,
             uint16 baseFeeOut,
-            uint16 composition
-        ) = collateralManager.getCollateralFeeData(_collateral);
-        uint256 totalCollateral = collateralManager.getCollateralInVault(
-            _collateral
-        ) + collateralManager.getCollateralInStrategies(_collateral);
+            uint16 composition,
+            uint256 totalCollateral
+        ) = collateralManager.getFeeCalibrationData(_collateral);
 
         // compute segments
         uint256 desiredCollateralAmt = (tvl * composition) /

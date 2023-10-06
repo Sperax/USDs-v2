@@ -55,9 +55,9 @@ interface ICollateralManager {
     /// @notice Get the required data for mint
     /// @param _collateral Address of the collateral
     /// @return Base fee config for collateral (baseMintFee, baseRedeemFee, composition)
-    function getCollateralFeeData(
+    function getFeeCalibrationData(
         address _collateral
-    ) external view returns (uint16, uint16, uint16);
+    ) external view returns (uint16, uint16, uint16, uint256);
 
     /// @notice Get the required data for mint
     /// @param _collateral Address of the collateral

@@ -204,9 +204,10 @@ contract TestFeeCalculator is FeeCalculatorTestSetup {
     }
 
     function getMintFee() private returns (uint16) {
-        (baseMintFee, , composition) = ICollateralManager(COLLATERAL_MANAGER)
-            .getCollateralFeeData(_collateral);
-        uint256 totalCollateral = getTotalCollateral(_collateral);
+        uint256 totalCollateral;
+        (baseMintFee, , composition, totalCollateral) = ICollateralManager(
+            COLLATERAL_MANAGER
+        ).getFeeCalibrationData(USDCe);
         uint256 tvl = IUSDs(Helpers.USDS).totalSupply();
         uint256 desiredCollateralAmt = (tvl * composition) /
             (Helpers.MAX_PERCENTAGE);
@@ -224,9 +225,10 @@ contract TestFeeCalculator is FeeCalculatorTestSetup {
     }
 
     function getRedeemFee() private returns (uint16) {
-        (, baseRedeemFee, composition) = ICollateralManager(COLLATERAL_MANAGER)
-            .getCollateralFeeData(_collateral);
-        uint256 totalCollateral = getTotalCollateral(_collateral);
+        uint256 totalCollateral;
+        (, baseRedeemFee, composition, totalCollateral) = ICollateralManager(
+            COLLATERAL_MANAGER
+        ).getFeeCalibrationData(USDCe);
         uint256 tvl = IUSDs(Helpers.USDS).totalSupply();
         uint256 desiredCollateralAmt = (tvl * composition) /
             (Helpers.MAX_PERCENTAGE);
