@@ -84,6 +84,14 @@ contract CompoundStrategyTest is BaseStrategy, BaseTest {
                 intLiqThreshold: 0
             })
         );
+        data.push(
+            AssetData({
+                name: "USDC",
+                asset: 0xaf88d065e77c8cC2239327C5EDb3A432268e5831,
+                pToken: 0x9c4ec768c28520B50860ea7a15bd7213a9fF58bf,
+                intLiqThreshold: 0
+            })
+        );
     }
 
     function _mockInsufficientAsset() internal {
@@ -379,7 +387,6 @@ contract WithdrawTest is CompoundStrategyTest {
         emit Withdrawal(ASSET, strategy.assetToPToken(ASSET), depositAmount);
 
         vm.warp(block.timestamp + 10 days);
-        vm.roll(block.number + 1000);
 
         strategy.withdraw(VAULT, ASSET, depositAmount);
         assertEq(initialVaultBal + depositAmount, IERC20(ASSET).balanceOf(VAULT));
@@ -398,12 +405,36 @@ contract WithdrawTest is CompoundStrategyTest {
         uint256 initialVaultBal = IERC20(ASSET).balanceOf(VAULT);
 
         vm.warp(block.timestamp + 10 days);
-        vm.roll(block.number + 1000);
 
         vm.expectEmit(true, false, false, true);
         emit Withdrawal(ASSET, strategy.assetToPToken(ASSET), depositAmount);
 
         strategy.withdrawToVault(ASSET, depositAmount);
         assertEq(initialVaultBal + depositAmount, IERC20(ASSET).balanceOf(VAULT));
+    }
+}
+
+contract CheckRewardEarnedTest is CompoundStrategyTest {
+    function setUp() public override {
+        super.setUp();
+        vm.startPrank(USDS_OWNER);
+        _initializeStrategy();
+        _setAssetData();
+        ASSET = USDC;
+        P_TOKEN = data[1].pToken;
+        vm.stopPrank();
+    }
+
+    function test_CheckRewardEarned() public useKnownActor(USDS_OWNER){
+        changePrank(VAULT);
+        deal(ASSET, VAULT, depositAmount);
+        IERC20(ASSET).approve(address(strategy), depositAmount);
+        strategy.deposit(ASSET, depositAmount);
+        changePrank(USDS_OWNER);
+        vm.warp(block.timestamp + 10 days);
+        vm.mockCall(P_TOKEN, abi.encodeWithSignature("baseTrackingAccrued(address)"), abi.encode(1500000021232123));
+        IComet(P_TOKEN).accrueAccount(address(strategy));
+        uint256 reward = strategy.checkRewardEarned();
+        assertNotEq(reward, 0);
     }
 }

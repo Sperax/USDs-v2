@@ -170,6 +170,7 @@ abstract contract PreMigrationSetup is Setup {
         );
 
         collateralManager.addCollateral(USDCe, _data);
+        collateralManager.addCollateral(USDC, _data);
         collateralManager.addCollateralStrategy(
             USDCe,
             address(stargateStrategy),
@@ -196,6 +197,11 @@ abstract contract PreMigrationSetup is Setup {
         // vm.makePersistent(aaveStrategyProxy);
         compoundStrategy = CompoundStrategy(compoundStrategyProxy);
         compoundStrategy.initialize(VAULT, compoundRewardPool);
+        collateralManager.addCollateralStrategy(
+            USDC,
+            address(compoundStrategy),
+            4000
+        );
         vm.stopPrank();
     }
 

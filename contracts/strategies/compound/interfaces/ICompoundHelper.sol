@@ -19,6 +19,10 @@ interface IComet {
     /// @param amount The quantity to withdraw
     function withdrawTo(address to, address asset, uint256 amount) external;
 
+    /// @notice A function to call to accrue rewards and interest
+    /// @param account The account whose rewards to be accrued
+    function accrueAccount(address account) external;
+
     /// @notice Query the current positive base balance of an account or zero
     /// @dev Note: uses updated interest indices to calculate
     /// @param account The account whose balance to query
