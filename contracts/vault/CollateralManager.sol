@@ -22,8 +22,8 @@ contract CollateralManager is ICollateralManager, Ownable {
         bool allocationAllowed;
         bool exists;
         address defaultStrategy;
-        uint16 baseFeeIn;
-        uint16 baseFeeOut;
+        uint16 baseMintFee;
+        uint16 baseRedeemFee;
         uint16 downsidePeg;
         uint16 desiredCollateralComposition;
         uint16 collateralCapacityUsed;
@@ -77,8 +77,8 @@ contract CollateralManager is ICollateralManager, Ownable {
         if (collateralInfo[_collateral].exists) revert CollateralExists();
 
         Helpers._isLTEMaxPercentage(_data.downsidePeg);
-        Helpers._isLTEMaxPercentage(_data.baseFeeIn);
-        Helpers._isLTEMaxPercentage(_data.baseFeeOut);
+        Helpers._isLTEMaxPercentage(_data.baseMintFee);
+        Helpers._isLTEMaxPercentage(_data.baseRedeemFee);
 
         Helpers._isLTEMaxPercentage(
             _data.desiredCollateralComposition + collateralCompositionUsed,
@@ -90,8 +90,8 @@ contract CollateralManager is ICollateralManager, Ownable {
             redeemAllowed: _data.redeemAllowed,
             allocationAllowed: _data.allocationAllowed,
             defaultStrategy: address(0),
-            baseFeeIn: _data.baseFeeIn,
-            baseFeeOut: _data.baseFeeOut,
+            baseMintFee: _data.baseMintFee,
+            baseRedeemFee: _data.baseRedeemFee,
             downsidePeg: _data.downsidePeg,
             collateralCapacityUsed: 0,
             desiredCollateralComposition: _data.desiredCollateralComposition,
@@ -118,8 +118,8 @@ contract CollateralManager is ICollateralManager, Ownable {
             revert CollateralDoesNotExist();
 
         Helpers._isLTEMaxPercentage(_updateData.downsidePeg);
-        Helpers._isLTEMaxPercentage(_updateData.baseFeeIn);
-        Helpers._isLTEMaxPercentage(_updateData.baseFeeOut);
+        Helpers._isLTEMaxPercentage(_updateData.baseMintFee);
+        Helpers._isLTEMaxPercentage(_updateData.baseRedeemFee);
 
         CollateralData storage data = collateralInfo[_collateral];
 
@@ -135,8 +135,8 @@ contract CollateralManager is ICollateralManager, Ownable {
         data.mintAllowed = _updateData.mintAllowed;
         data.redeemAllowed = _updateData.redeemAllowed;
         data.allocationAllowed = _updateData.allocationAllowed;
-        data.baseFeeIn = _updateData.baseFeeIn;
-        data.baseFeeOut = _updateData.baseFeeOut;
+        data.baseMintFee = _updateData.baseMintFee;
+        data.baseRedeemFee = _updateData.baseRedeemFee;
         data.downsidePeg = _updateData.downsidePeg;
         data.desiredCollateralComposition = _updateData
             .desiredCollateralComposition;
@@ -361,8 +361,8 @@ contract CollateralManager is ICollateralManager, Ownable {
             revert CollateralDoesNotExist();
 
         return (
-            collateralStorageData.baseFeeIn,
-            collateralStorageData.baseFeeOut,
+            collateralStorageData.baseMintFee,
+            collateralStorageData.baseRedeemFee,
             collateralStorageData.desiredCollateralComposition
         );
     }
@@ -385,7 +385,7 @@ contract CollateralManager is ICollateralManager, Ownable {
         return
             CollateralMintData({
                 mintAllowed: collateralStorageData.mintAllowed,
-                baseFeeIn: collateralStorageData.baseFeeIn,
+                baseMintFee: collateralStorageData.baseMintFee,
                 downsidePeg: collateralStorageData.downsidePeg,
                 desiredCollateralComposition: collateralStorageData
                     .desiredCollateralComposition,
@@ -412,7 +412,7 @@ contract CollateralManager is ICollateralManager, Ownable {
             CollateralRedeemData({
                 redeemAllowed: collateralStorageData.redeemAllowed,
                 defaultStrategy: collateralStorageData.defaultStrategy,
-                baseFeeOut: collateralStorageData.baseFeeOut,
+                baseRedeemFee: collateralStorageData.baseRedeemFee,
                 desiredCollateralComposition: collateralStorageData
                     .desiredCollateralComposition,
                 conversionFactor: collateralStorageData.conversionFactor

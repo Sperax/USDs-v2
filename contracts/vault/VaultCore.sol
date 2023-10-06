@@ -341,7 +341,9 @@ contract VaultCore is
         uint256 feePercentage = 0;
         if (msg.sender != owner()) {
             // Calculate mint fee based on collateral data
-            feePercentage = IFeeCalculator(feeCalculator).getFeeIn(_collateral);
+            feePercentage = IFeeCalculator(feeCalculator).getMintFee(
+                _collateral
+            );
         }
 
         // Normalize _collateralAmt to be of decimals 18
@@ -509,7 +511,7 @@ contract VaultCore is
         // Skip fee collection for Owner
         uint256 feePercentage = 0;
         if (msg.sender != owner()) {
-            feePercentage = IFeeCalculator(feeCalculator).getFeeOut(
+            feePercentage = IFeeCalculator(feeCalculator).getRedeemFee(
                 _collateral
             );
         }

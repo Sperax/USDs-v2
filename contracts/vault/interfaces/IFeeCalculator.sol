@@ -8,10 +8,14 @@ interface IFeeCalculator {
     /// @notice Calculates fee to be collected for minting
     /// @param _collateralAddr Address of the collateral
     /// @return (uint256) baseFeeIn
-    function getFeeIn(address _collateralAddr) external view returns (uint256);
+    function getMintFee(
+        address _collateralAddr
+    ) external view returns (uint256);
 
     /// @notice Calculates fee to be collected for redeeming
     /// @param _collateralAddr Address of the collateral
     /// @return (uint256) baseFeeOut
-    function getFeeOut(address _collateralAddr) external view returns (uint256);
+    function getRedeemFee(
+        address _collateralAddr
+    ) external view returns (uint256);
 }

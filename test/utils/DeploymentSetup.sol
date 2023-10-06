@@ -126,8 +126,8 @@ abstract contract PreMigrationSetup is Setup {
                 mintAllowed: true,
                 redeemAllowed: true,
                 allocationAllowed: true,
-                baseFeeIn: 0,
-                baseFeeOut: 0,
+                baseMintFee: 0,
+                baseRedeemFee: 0,
                 downsidePeg: 9800,
                 desiredCollateralComposition: 1000
             });

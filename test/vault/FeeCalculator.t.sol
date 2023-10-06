@@ -66,15 +66,15 @@ contract TestCalibrateFee is FeeCalculatorTestSetup {
             (IUSDs(USDS).totalSupply() * 600) / 10000
         );
         feeCalculator.calibrateFee(_collateral);
-        uint256 oldFeeIn = feeCalculator.getFeeIn(_collateral);
-        uint256 oldFeeOut = feeCalculator.getFeeOut(_collateral);
+        uint256 oldFeeIn = feeCalculator.getMintFee(_collateral);
+        uint256 oldFeeOut = feeCalculator.getRedeemFee(_collateral);
         vm.warp(block.timestamp + 1 days);
         // Collateral composition calls are mocked to return lesser than lower limit
         mockCollateralCalls(availableCollateral / 2, availableCollateral / 2);
         feeCalculator.calibrateFee(_collateral);
         vm.clearMockedCalls();
-        uint256 newFeeIn = feeCalculator.getFeeIn(_collateral);
-        uint256 newFeeOut = feeCalculator.getFeeOut(_collateral);
+        uint256 newFeeIn = feeCalculator.getMintFee(_collateral);
+        uint256 newFeeOut = feeCalculator.getRedeemFee(_collateral);
 
         assertEq(oldFeeIn / 2, newFeeIn);
         assertEq(oldFeeOut * 2, newFeeOut);
@@ -92,8 +92,8 @@ contract TestCalibrateFee is FeeCalculatorTestSetup {
             (IUSDs(USDS).totalSupply() * 600) / 10000
         );
         feeCalculator.calibrateFee(_collateral);
-        uint256 oldFeeIn = feeCalculator.getFeeIn(_collateral);
-        uint256 oldFeeOut = feeCalculator.getFeeOut(_collateral);
+        uint256 oldFeeIn = feeCalculator.getMintFee(_collateral);
+        uint256 oldFeeOut = feeCalculator.getRedeemFee(_collateral);
         vm.warp(block.timestamp + 1 days);
         // Ratio is changed but still in desired range
         mockCollateralCalls(
@@ -102,8 +102,8 @@ contract TestCalibrateFee is FeeCalculatorTestSetup {
         );
         feeCalculator.calibrateFee(_collateral);
         vm.clearMockedCalls();
-        uint256 newFeeIn = feeCalculator.getFeeIn(_collateral);
-        uint256 newFeeOut = feeCalculator.getFeeOut(_collateral);
+        uint256 newFeeIn = feeCalculator.getMintFee(_collateral);
+        uint256 newFeeOut = feeCalculator.getRedeemFee(_collateral);
 
         assertEq(oldFeeIn, newFeeIn);
         assertEq(oldFeeOut, newFeeOut);
@@ -121,8 +121,8 @@ contract TestCalibrateFee is FeeCalculatorTestSetup {
             (IUSDs(USDS).totalSupply() * 100) / 10000
         );
         feeCalculator.calibrateFee(_collateral);
-        uint256 oldFeeIn = feeCalculator.getFeeIn(_collateral);
-        uint256 oldFeeOut = feeCalculator.getFeeOut(_collateral);
+        uint256 oldFeeIn = feeCalculator.getMintFee(_collateral);
+        uint256 oldFeeOut = feeCalculator.getRedeemFee(_collateral);
         vm.warp(block.timestamp + 1 days);
         // Collateral composition calls are mocked to return higher than upper limit
         mockCollateralCalls(
@@ -131,8 +131,8 @@ contract TestCalibrateFee is FeeCalculatorTestSetup {
         );
         feeCalculator.calibrateFee(_collateral);
         vm.clearMockedCalls();
-        uint256 newFeeIn = feeCalculator.getFeeIn(_collateral);
-        uint256 newFeeOut = feeCalculator.getFeeOut(_collateral);
+        uint256 newFeeIn = feeCalculator.getMintFee(_collateral);
+        uint256 newFeeOut = feeCalculator.getRedeemFee(_collateral);
 
         // Basis taken as 4 because the old fee would be LT lower limit
         // and new fee would be GT higher limit
@@ -148,8 +148,8 @@ contract TestCalibrateFee is FeeCalculatorTestSetup {
                 mintAllowed: true,
                 redeemAllowed: true,
                 allocationAllowed: true,
-                baseFeeIn: 500,
-                baseFeeOut: 500,
+                baseMintFee: 500,
+                baseRedeemFee: 500,
                 downsidePeg: 9800,
                 desiredCollateralComposition: 1000
             });
@@ -185,26 +185,26 @@ contract TestCalibrateFee is FeeCalculatorTestSetup {
 
 contract TestFeeCalculator is FeeCalculatorTestSetup {
     IOracle.PriceData private priceData;
-    uint16 private baseFeeIn;
-    uint16 private baseFeeOut;
+    uint16 private baseMintFee;
+    uint16 private baseRedeemFee;
     uint16 private composition;
     uint16 private constant LOWER_THRESHOLD = 5000;
     uint16 private constant UPPER_THRESHOLD = 15000;
 
     function testGetFeeIn() public {
-        baseFeeIn = getFeeIn();
-        uint256 feeIn = feeCalculator.getFeeIn(_collateral);
-        assertEq(feeIn, baseFeeIn, "Fee in mismatch");
+        baseMintFee = getMintFee();
+        uint256 feeIn = feeCalculator.getMintFee(USDCe);
+        assertEq(feeIn, baseMintFee, "Fee in mismatch");
     }
 
     function testGetFeeOut() public {
-        baseFeeOut = getFeeOut();
-        uint256 feeOut = feeCalculator.getFeeOut(USDT);
-        assertEq(feeOut, baseFeeOut, "Fee out mismatch");
+        baseRedeemFee = getRedeemFee();
+        uint256 feeOut = feeCalculator.getRedeemFee(USDT);
+        assertEq(feeOut, baseRedeemFee, "Fee out mismatch");
     }
 
-    function getFeeIn() private returns (uint16) {
-        (baseFeeIn, , composition) = ICollateralManager(COLLATERAL_MANAGER)
+    function getMintFee() private returns (uint16) {
+        (baseMintFee, , composition) = ICollateralManager(COLLATERAL_MANAGER)
             .getCollateralFeeData(_collateral);
         uint256 totalCollateral = getTotalCollateral(_collateral);
         uint256 tvl = IUSDs(Helpers.USDS).totalSupply();
@@ -215,16 +215,16 @@ contract TestFeeCalculator is FeeCalculatorTestSetup {
         uint256 upperLimit = (desiredCollateralAmt * UPPER_THRESHOLD) /
             (Helpers.MAX_PERCENTAGE);
         if (totalCollateral < lowerLimit) {
-            return baseFeeIn / DISCOUNT_FACTOR;
+            return baseMintFee / DISCOUNT_FACTOR;
         } else if (totalCollateral < upperLimit) {
-            return baseFeeIn;
+            return baseMintFee;
         } else {
-            return baseFeeIn * PENALTY_MULTIPLIER;
+            return baseMintFee * PENALTY_MULTIPLIER;
         }
     }
 
-    function getFeeOut() private returns (uint16) {
-        (, baseFeeOut, composition) = ICollateralManager(COLLATERAL_MANAGER)
+    function getRedeemFee() private returns (uint16) {
+        (, baseRedeemFee, composition) = ICollateralManager(COLLATERAL_MANAGER)
             .getCollateralFeeData(_collateral);
         uint256 totalCollateral = getTotalCollateral(_collateral);
         uint256 tvl = IUSDs(Helpers.USDS).totalSupply();
@@ -235,11 +235,11 @@ contract TestFeeCalculator is FeeCalculatorTestSetup {
         uint256 upperLimit = (desiredCollateralAmt * UPPER_THRESHOLD) /
             (Helpers.MAX_PERCENTAGE);
         if (totalCollateral < lowerLimit) {
-            return baseFeeOut * PENALTY_MULTIPLIER;
+            return baseRedeemFee * PENALTY_MULTIPLIER;
         } else if (totalCollateral < upperLimit) {
-            return baseFeeOut;
+            return baseRedeemFee;
         } else {
-            return baseFeeOut / DISCOUNT_FACTOR;
+            return baseRedeemFee / DISCOUNT_FACTOR;
         }
     }
 

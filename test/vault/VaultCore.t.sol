@@ -77,7 +77,7 @@ contract VaultCoreTest is PreMigrationSetup {
         IOracle.PriceData memory collateralPriceData = IOracle(ORACLE).getPrice(
             _collateral
         );
-        _feeAmt = FeeCalculator(FEE_CALCULATOR).getFeeOut(USDCe);
+        _feeAmt = FeeCalculator(FEE_CALCULATOR).getRedeemFee(USDCe);
         _usdsBurnAmt = _usdsAmt - _feeAmt;
         _calculatedCollateralAmt = _usdsBurnAmt;
         if (collateralPriceData.price >= collateralPriceData.precision) {
@@ -391,8 +391,8 @@ contract TestMint is VaultCoreTest {
                 mintAllowed: true,
                 redeemAllowed: true,
                 allocationAllowed: true,
-                baseFeeIn: 10,
-                baseFeeOut: 500,
+                baseMintFee: 10,
+                baseRedeemFee: 500,
                 downsidePeg: 9800,
                 desiredCollateralComposition: 5000
             });
@@ -436,8 +436,8 @@ contract TestMintView is VaultCoreTest {
                 mintAllowed: true,
                 redeemAllowed: true,
                 allocationAllowed: true,
-                baseFeeIn: 10,
-                baseFeeOut: 500,
+                baseMintFee: 10,
+                baseRedeemFee: 500,
                 downsidePeg: 9800,
                 desiredCollateralComposition: 5000
             });
@@ -453,8 +453,8 @@ contract TestMintView is VaultCoreTest {
                 mintAllowed: true,
                 redeemAllowed: true,
                 allocationAllowed: true,
-                baseFeeIn: 0,
-                baseFeeOut: 500,
+                baseMintFee: 0,
+                baseRedeemFee: 500,
                 downsidePeg: 1e4,
                 desiredCollateralComposition: 5000
             });
@@ -474,8 +474,8 @@ contract TestMintView is VaultCoreTest {
                 mintAllowed: false,
                 redeemAllowed: true,
                 allocationAllowed: true,
-                baseFeeIn: 0,
-                baseFeeOut: 500,
+                baseMintFee: 0,
+                baseRedeemFee: 500,
                 downsidePeg: 9800,
                 desiredCollateralComposition: 5000
             });
@@ -500,8 +500,8 @@ contract TestMintView is VaultCoreTest {
                 mintAllowed: true,
                 redeemAllowed: true,
                 allocationAllowed: true,
-                baseFeeIn: 450,
-                baseFeeOut: 0,
+                baseMintFee: 450,
+                baseRedeemFee: 0,
                 downsidePeg: 9800,
                 desiredCollateralComposition: 1000
             });
@@ -520,7 +520,7 @@ contract TestMintView is VaultCoreTest {
             _collateral
         );
         uint256 downsidePeg = (priceData.precision * 9800) / 1e4;
-        uint256 feeIn = FeeCalculator(FEE_CALCULATOR).getFeeIn(_collateral);
+        uint256 feeIn = FeeCalculator(FEE_CALCULATOR).getMintFee(_collateral);
         uint256 normalizedCollateralAmt = _collateralAmt *
             _mintData.conversionFactor;
         uint256 usdsAmt = normalizedCollateralAmt;
@@ -531,9 +531,10 @@ contract TestMintView is VaultCoreTest {
                 (normalizedCollateralAmt * priceData.price) /
                 priceData.precision;
         } else {
-            uint256 normalizedCollateralAmt = _collateralAmt *
+            normalizedCollateralAmt =
+                _collateralAmt *
                 _mintData.conversionFactor;
-            uint256 usdsAmt = normalizedCollateralAmt;
+            usdsAmt = normalizedCollateralAmt;
             expectedFee = (usdsAmt * feeIn) / Helpers.MAX_PERCENTAGE;
             expectedToMinter = usdsAmt - expectedFee;
         }
@@ -586,8 +587,8 @@ contract TestRedeemView is VaultCoreTest {
                 mintAllowed: true,
                 redeemAllowed: true,
                 allocationAllowed: true,
-                baseFeeIn: 10,
-                baseFeeOut: 500,
+                baseMintFee: 10,
+                baseRedeemFee: 500,
                 downsidePeg: 9800,
                 desiredCollateralComposition: 5000
             });
@@ -600,8 +601,8 @@ contract TestRedeemView is VaultCoreTest {
                 mintAllowed: true,
                 redeemAllowed: false,
                 allocationAllowed: true,
-                baseFeeIn: 10,
-                baseFeeOut: 500,
+                baseMintFee: 10,
+                baseRedeemFee: 500,
                 downsidePeg: 9800,
                 desiredCollateralComposition: 5000
             });
