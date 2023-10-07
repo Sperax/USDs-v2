@@ -547,7 +547,9 @@ contract VaultCore is
         vaultAmt = IERC20Upgradeable(_collateral).balanceOf(address(this));
 
         if (calculatedCollateralAmt > vaultAmt) {
+            unchecked {
             strategyAmt = calculatedCollateralAmt - vaultAmt;
+            }
             // Withdraw from default strategy
             if (_strategyAddr == address(0)) {
                 if (collateralRedeemConfig.defaultStrategy == address(0))
