@@ -384,7 +384,7 @@ contract WithdrawTest is CompoundStrategyTest {
         uint256 initialVaultBal = IERC20(ASSET).balanceOf(VAULT);
 
         vm.expectEmit(true, false, false, true);
-        emit Withdrawal(ASSET, strategy.assetToPToken(ASSET), depositAmount);
+        emit Withdrawal(ASSET, depositAmount);
 
         vm.warp(block.timestamp + 10 days);
 
@@ -407,7 +407,7 @@ contract WithdrawTest is CompoundStrategyTest {
         vm.warp(block.timestamp + 10 days);
 
         vm.expectEmit(true, false, false, true);
-        emit Withdrawal(ASSET, strategy.assetToPToken(ASSET), depositAmount);
+        emit Withdrawal(ASSET, depositAmount);
 
         strategy.withdrawToVault(ASSET, depositAmount);
         assertEq(initialVaultBal + depositAmount, IERC20(ASSET).balanceOf(VAULT));
