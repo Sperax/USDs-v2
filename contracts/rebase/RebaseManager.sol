@@ -9,22 +9,23 @@ import {IDripper} from "../interfaces/IDripper.sol";
 import {Helpers} from "../libraries/Helpers.sol";
 import {IRebaseManager} from "../interfaces/IRebaseManager.sol";
 
-/// @title RebaseManager for USDs protocol
+/// @title Rebase Manager for USDs Protocol
+/// @notice This contract handles the configuration and execution of the rebasing mechanism for the USDs stablecoin.
+///         It ensures that rebases occur only when certain prerequisites are fulfilled, such as the time gap between rebases and acceptable APR (Annual Percentage Rate) ranges.
+/// @dev The Rebase Manager coordinates with the Vault and Dripper contracts to manage the rebase process.
 /// @author Sperax Foundation
-/// @notice Contract handles the configuration for rebase of USDs token
-///         Which enables rebase only when the pre-requisites are fulfilled
 contract RebaseManager is IRebaseManager, Ownable {
     using SafeMath for uint256;
 
     uint256 private constant ONE_YEAR = 365 days;
 
-    address public vault; // address of the vault
-    address public dripper; // address of the dripper for collecting USDs
+    address public vault; // Address of the vault contract
+    address public dripper; // Address of the dripper contract for collecting USDs
 
-    uint256 public gap; // min gap between two consecutive rebases
-    uint256 public aprCap; // max allowed APR% for a rebase
-    uint256 public aprBottom; // min allowed APR% for a rebase
-    uint256 public lastRebaseTS; // timestamp of the last rebase transaction
+    uint256 public gap; // Minimum time gap required between two consecutive rebases
+    uint256 public aprCap; // Maximum allowed APR for a rebase
+    uint256 public aprBottom; // Minimum allowed APR for a rebase
+    uint256 public lastRebaseTS; // Timestamp of the last rebase transaction
 
     event VaultUpdated(address vault);
     event DripperUpdated(address dripper);
@@ -39,6 +40,12 @@ contract RebaseManager is IRebaseManager, Ownable {
         _;
     }
 
+    /// @notice Constructor to initialize the Rebase Manager
+    /// @param _vault Address of the vault contract
+    /// @param _dripper Address of the dripper contract for collecting USDs
+    /// @param _gap Minimum time gap required between two consecutive rebases
+    /// @param _aprCap Maximum allowed APR for a rebase
+    /// @param _aprBottom Minimum allowed APR for a rebase
     constructor(
         address _vault,
         address _dripper,
@@ -54,11 +61,11 @@ contract RebaseManager is IRebaseManager, Ownable {
     }
 
     /// @notice Get the current amount valid for rebase
-    /// @dev Function is called by vault while rebasing
-    /// @return returns the available amount for rebasing USDs
+    /// @dev Function is called by the vault while rebasing
+    /// @return The available amount for rebasing USDs
     function fetchRebaseAmt() external onlyVault returns (uint256) {
         uint256 rebaseFund = getAvailableRebaseAmt();
-        // Get the current min and max amount based on APR config
+        // Get the current minimum and maximum amount based on APR config
         (uint256 minRebaseAmt, uint256 maxRebaseAmt) = getMinAndMaxRebaseAmt();
 
         // Cap the rebase amount
@@ -66,12 +73,12 @@ contract RebaseManager is IRebaseManager, Ownable {
             ? maxRebaseAmt
             : rebaseFund;
 
-        // Skip if insufficient USDs to rebase or insufficient time has elapsed
+        // Skip if there are insufficient USDs to rebase or insufficient time has elapsed
         if (rebaseAmt < minRebaseAmt || block.timestamp < lastRebaseTS + gap) {
             return 0;
         }
 
-        // update the rebase timestamp
+        // Update the rebase timestamp
         lastRebaseTS = block.timestamp;
 
         // Collect the dripped USDs amount for rebase
@@ -81,31 +88,31 @@ contract RebaseManager is IRebaseManager, Ownable {
     }
 
     /// @notice Updates the vault address
-    /// @param _newVault Address of the new vault
+    /// @param _newVault Address of the new vault contract
     function updateVault(address _newVault) public onlyOwner {
         Helpers._isNonZeroAddr(_newVault);
         vault = _newVault;
         emit VaultUpdated(_newVault);
     }
 
-    /// @notice Updates the dripper for USDs vault
-    /// @param _dripper address of the new dripper contract
+    /// @notice Updates the dripper contract for USDs vault
+    /// @param _dripper Address of the new dripper contract
     function updateDripper(address _dripper) public onlyOwner {
         Helpers._isNonZeroAddr(_dripper);
         dripper = _dripper;
         emit DripperUpdated(_dripper);
     }
 
-    /// @notice Update the minimum gap required b/w two rebases
-    /// @param _gap updated gap time
+    /// @notice Update the minimum time gap required between two rebases
+    /// @param _gap Updated gap time
     function updateGap(uint256 _gap) public onlyOwner {
         gap = _gap;
         emit GapUpdated(_gap);
     }
 
     /// @notice Update the APR requirements for each rebase
-    /// @param _aprCap new MAX APR for rebase
-    /// @param _aprBottom new MIN APR for rebase
+    /// @param _aprCap New maximum APR for a rebase
+    /// @param _aprBottom New minimum APR for a rebase
     function updateAPR(uint256 _aprBottom, uint256 _aprCap) public onlyOwner {
         if (_aprCap < _aprBottom) revert InvalidAPRConfig(_aprBottom, _aprCap);
         aprCap = _aprCap;
@@ -114,15 +121,15 @@ contract RebaseManager is IRebaseManager, Ownable {
     }
 
     /// @notice Gets the current available rebase fund
-    /// @return Returns currentBal in vault + collectable dripped USDs amt
+    /// @return Current balance in the vault plus collectable dripped USDs amount
     function getAvailableRebaseAmt() public view returns (uint256) {
         uint256 collectableAmt = IDripper(dripper).getCollectableAmt();
         uint256 currentBal = IERC20(Helpers.USDS).balanceOf(vault);
         return currentBal + collectableAmt;
     }
 
-    /// @notice Gets the min and max rebase USDs amount based on the APR config
-    /// @return min and max rebase amount
+    /// @notice Gets the minimum and maximum rebase USDs amount based on the APR config
+    /// @return Minimum and maximum rebase amounts
     function getMinAndMaxRebaseAmt() public view returns (uint256, uint256) {
         uint256 principal = IUSDs(Helpers.USDS).totalSupply() -
             IUSDs(Helpers.USDS).nonRebasingSupply();

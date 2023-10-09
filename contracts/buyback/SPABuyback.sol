@@ -9,10 +9,14 @@ import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Ini
 import {IOracle} from "../interfaces/IOracle.sol";
 import {Helpers} from "../libraries/Helpers.sol";
 
-/// @title Buyback contract of the USDs Buyback protocol.
-/// @notice Users can give their SPA and get USDs in return.
-/// @notice The SPA in the contract is distributed as rewards based on the rewardPercentage and the rest is burned.
-/// @author Sperax Foundation
+/**
+ * @title SPABuyback
+ * @notice This contract allows users to exchange SPA tokens for USDs tokens.
+ * @dev Users can provide SPA tokens and receive USDs tokens in return based on the current exchange rate.
+ * @dev A percentage of the provided SPA tokens are distributed as rewards, and the rest are burned.
+ * @dev The contract is owned by an owner who can perform administrative functions.
+ * @author Sperax Foundation
+ */
 contract SPABuyback is
     Initializable,
     OwnableUpgradeable,
@@ -50,9 +54,11 @@ contract SPABuyback is
         _disableInitializers();
     }
 
-    /// @dev Contract initializer
-    /// @param _veSpaRewarder Rewarder's address
-    /// @param _rewardPercentage Percentage of SPA to be rewarded
+    /**
+     * @dev Contract initializer
+     * @param _veSpaRewarder Rewarder's address
+     * @param _rewardPercentage Percentage of SPA to be rewarded
+     */
     function initialize(
         address _veSpaRewarder,
         uint256 _rewardPercentage
@@ -65,11 +71,13 @@ contract SPABuyback is
         rewardPercentage = _rewardPercentage;
     }
 
-    /// @notice Emergency withdrawal function for unexpected situations
-    /// @param _token Address of the asset to be withdrawn
-    /// @param _receiver Address of the receiver of tokens
-    /// @param _amount Amount of tokens to be withdrawn
-    /// @dev Can only be called by the owner
+    /**
+     * @notice Emergency withdrawal function for unexpected situations
+     * @param _token Address of the asset to be withdrawn
+     * @param _receiver Address of the receiver of tokens
+     * @param _amount Amount of tokens to be withdrawn
+     * @dev Can only be called by the owner
+     */
     function withdraw(
         address _token,
         address _receiver,
@@ -83,9 +91,11 @@ contract SPABuyback is
         ERC20BurnableUpgradeable(_token).safeTransfer(_receiver, _amount);
     }
 
-    /// @notice Changes the reward percentage
-    /// @param _newRewardPercentage New Reward Percentage
-    /// @dev Example value for _newRewardPercentage = 5000 for 50%
+    /**
+     * @notice Changes the reward percentage
+     * @param _newRewardPercentage New Reward Percentage
+     * @dev Example value for _newRewardPercentage = 5000 for 50%
+     */
     function updateRewardPercentage(
         uint256 _newRewardPercentage
     ) external onlyOwner {
@@ -94,32 +104,40 @@ contract SPABuyback is
         emit RewardPercentageUpdated(_newRewardPercentage);
     }
 
-    /// @notice Update veSpaRewarder address
-    /// @param _newVeSpaRewarder is the address of desired veSpaRewarder
+    /**
+     * @notice Update veSpaRewarder address
+     * @param _newVeSpaRewarder is the address of desired veSpaRewarder
+     */
     function updateVeSpaRewarder(address _newVeSpaRewarder) external onlyOwner {
         Helpers._isNonZeroAddr(_newVeSpaRewarder);
         veSpaRewarder = _newVeSpaRewarder;
         emit VeSpaRewarderUpdated(_newVeSpaRewarder);
     }
 
-    /// @notice Update oracle address
-    /// @param _newOracle is the address of desired oracle
+    /**
+     * @notice Update oracle address
+     * @param _newOracle is the address of desired oracle
+     */
     function updateOracle(address _newOracle) external onlyOwner {
         Helpers._isNonZeroAddr(_newOracle);
         oracle = _newOracle;
         emit OracleUpdated(_newOracle);
     }
 
-    /// @notice Function to buy USDs for SPA for frontend
-    /// @param _spaIn Amount of SPA tokens
-    /// @param _minUSDsOut Minimum amount out in USDs
+    /**
+     * @notice Function to buy USDs for SPA for frontend
+     * @param _spaIn Amount of SPA tokens
+     * @param _minUSDsOut Minimum amount out in USDs
+     */
     function buyUSDs(uint256 _spaIn, uint256 _minUSDsOut) external {
         buyUSDs(msg.sender, _spaIn, _minUSDsOut);
     }
 
-    /// @notice Calculates and returns SPA amount required for _usdsAmount
-    /// @param _usdsAmount USDs amount the user wants
-    /// @return Amount of SPA required
+    /**
+     * @notice Calculates and returns SPA amount required for _usdsAmount
+     * @param _usdsAmount USDs amount the user wants
+     * @return Amount of SPA required
+     */
     function getSPAReqdForUSDs(
         uint256 _usdsAmount
     ) external view returns (uint256) {
@@ -140,10 +158,12 @@ contract SPABuyback is
         return spaAmtRequired;
     }
 
-    /// @notice Buy USDs for SPA if you want a different receiver
-    /// @param _receiver Receiver of USDs
-    /// @param _spaIn Amount of SPA tokens
-    /// @param _minUSDsOut Minimum amount out in USDs
+    /**
+     * @notice Buy USDs for SPA if you want a different receiver
+     * @param _receiver Receiver of USDs
+     * @param _spaIn Amount of SPA tokens
+     * @param _minUSDsOut Minimum amount out in USDs
+     */
     function buyUSDs(
         address _receiver,
         uint256 _spaIn,
@@ -183,7 +203,9 @@ contract SPABuyback is
         );
     }
 
-    /// @notice Sends available SPA in this contract to rewarder based on rewardPercentage and burns the rest
+    /**
+     * @notice Sends available SPA in this contract to rewarder based on rewardPercentage and burns the rest
+     */
     function distributeAndBurnSPA() public {
         uint256 balance = ERC20BurnableUpgradeable(Helpers.SPA).balanceOf(
             address(this)
@@ -206,17 +228,21 @@ contract SPABuyback is
         emit SPABurned(toBurn);
     }
 
-    /// @notice Returns the amount of USDS for SPA amount in
-    /// @param _spaIn Amount of SPA tokens
-    /// @return Amount of USDs user will get
+    /**
+     * @notice Returns the amount of USDS for SPA amount in
+     * @param _spaIn Amount of SPA tokens
+     * @return Amount of USDs user will get
+     */
     function getUsdsOutForSpa(uint256 _spaIn) public view returns (uint256) {
         (uint256 usdsOut, ) = _getUsdsOutForSpa(_spaIn);
         return usdsOut;
     }
 
-    /// @notice Returns the amount of USDS for SPA amount in
-    /// @param _spaIn Amount of SPA tokens
-    /// @return Amount of USDs user will get
+    /**
+     * @notice Returns the amount of USDS for SPA amount in
+     * @param _spaIn Amount of SPA tokens
+     * @return Amount of USDs user will get
+     */
     function _getUsdsOutForSpa(
         uint256 _spaIn
     ) private view returns (uint256, uint256) {
@@ -237,12 +263,16 @@ contract SPABuyback is
         return (usdsOut, spaPrice);
     }
 
+    /**
+     * @dev Retrieves price data from the oracle contract for SPA and USDS tokens.
+     * @return The price of USDS in SPA, the price of SPA in USDS, and their respective precisions.
+     */
     function _getOracleData()
         private
         view
         returns (uint256, uint256, uint256, uint256)
     {
-        // Fetches the price for SPA and USDS from oracle
+        // Fetches the price for SPA and USDS from the oracle contract
         IOracle.PriceData memory usdsData = IOracle(oracle).getPrice(
             Helpers.USDS
         );
@@ -258,6 +288,11 @@ contract SPABuyback is
         );
     }
 
+    /**
+     * @dev Checks if the provided reward percentage is valid.
+     * @param _rewardPercentage The reward percentage to validate.
+     * @dev The reward percentage must be a non-zero value and should not exceed the maximum percentage value.
+     */
     function _isValidRewardPercentage(uint256 _rewardPercentage) private pure {
         Helpers._isNonZeroAmt(_rewardPercentage);
         Helpers._isLTEMaxPercentage(_rewardPercentage);

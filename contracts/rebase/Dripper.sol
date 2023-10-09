@@ -6,17 +6,17 @@ import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeE
 import {Helpers} from "../libraries/Helpers.sol";
 import {IDripper} from "../interfaces/IDripper.sol";
 
-/// @title Dripper for USDs protocol
-/// @notice Contract to release tokens to a recipient at a steady rate
+/// @title Dripper for USDs Protocol
+/// @notice This contract releases tokens at a steady rate to a specified recipient, typically the Vault contract, for rebasing the USDs stablecoin.
+/// @dev The Dripper contract ensures that tokens are released gradually over time, allowing for consistent and controlled distribution.
 /// @author Sperax Foundation
-/// @dev This contract releases USDs at a steady rate to the Vault for rebasing USDs
 contract Dripper is IDripper, Ownable {
     using SafeERC20 for IERC20;
 
-    address public vault; // Address of the contract to get the dripped tokens
+    address public vault; // Address of the contract receiving the dripped tokens
     uint256 public dripRate; // Calculated dripping rate
-    uint256 public dripDuration; // Duration to drip the available amount
-    uint256 public lastCollectTS; // last collection ts
+    uint256 public dripDuration; // Duration over which tokens are dripped
+    uint256 public lastCollectTS; // Timestamp of the last collection
 
     event Collected(uint256 amount);
     event Recovered(address owner, uint256 amount);
@@ -25,6 +25,9 @@ contract Dripper is IDripper, Ownable {
 
     error NothingToRecover();
 
+    /// @notice Constructor to initialize the Dripper
+    /// @param _vault Address of the contract that receives the dripped tokens
+    /// @param _dripDuration The duration over which tokens are dripped
     constructor(address _vault, uint256 _dripDuration) {
         updateVault(_vault);
         updateDripDuration(_dripDuration);
@@ -34,7 +37,7 @@ contract Dripper is IDripper, Ownable {
     // Admin functions
 
     /// @notice Emergency fund recovery function
-    /// @param _asset Address of the asset
+    /// @param _asset Address of the asset to recover
     /// @dev Transfers the asset to the owner of the contract.
     function recoverTokens(address _asset) external onlyOwner {
         uint256 bal = IERC20(_asset).balanceOf(address(this));
@@ -44,7 +47,8 @@ contract Dripper is IDripper, Ownable {
     }
 
     /// @notice Transfers the dripped tokens to the vault
-    /// @dev Function also updates the dripRate based on the fund state
+    /// @dev This function also updates the dripRate based on the fund state
+    /// @return The amount of tokens collected and transferred to the vault
     function collect() external returns (uint256) {
         uint256 collectableAmt = getCollectableAmt();
         if (collectableAmt != 0) {
@@ -57,7 +61,7 @@ contract Dripper is IDripper, Ownable {
     }
 
     /// @notice Update the vault address
-    /// @param _vault Address of the new vault
+    /// @param _vault Address of the new vault contract
     function updateVault(address _vault) public onlyOwner {
         Helpers._isNonZeroAddr(_vault);
         vault = _vault;
@@ -72,8 +76,8 @@ contract Dripper is IDripper, Ownable {
         emit DripDurationUpdated(_dripDuration);
     }
 
-    /// @notice Gets the collectible amount of token at current time
-    /// @return Returns the collectible amount
+    /// @notice Gets the collectible amount of tokens at the current time
+    /// @return The amount of tokens that can be collected
     function getCollectableAmt() public view returns (uint256) {
         uint256 timeElapsed = block.timestamp - lastCollectTS;
         uint256 dripped = timeElapsed * dripRate;

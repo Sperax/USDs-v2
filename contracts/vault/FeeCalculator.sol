@@ -6,6 +6,11 @@ import {ICollateralManager} from "./interfaces/ICollateralManager.sol";
 import {IOracle} from "../interfaces/IOracle.sol";
 import {Helpers} from "../libraries/Helpers.sol";
 
+/**
+ * @title Fee Calculator Contract for the USDs Protocol
+ * @dev A contract that calculates fees for minting and redeeming USDs.
+ * @author Sperax Foundation
+ */
 contract FeeCalculator is IFeeCalculator {
     /// @inheritdoc IFeeCalculator
     function getFeeIn(
