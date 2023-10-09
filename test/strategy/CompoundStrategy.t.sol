@@ -5,7 +5,7 @@ import {console} from "forge-std/console.sol";
 import {BaseStrategy} from "./BaseStrategy.t.sol";
 import {BaseTest} from "../utils/BaseTest.sol";
 import {UpgradeUtil} from "../utils/UpgradeUtil.sol";
-import {Helpers, CompoundStrategy, IComet} from "../../contracts/strategies/compound/CompoundStrategy.sol";
+import {Helpers, CompoundStrategy, IComet, IReward} from "../../contracts/strategies/compound/CompoundStrategy.sol";
 import {IERC20, ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 contract CompoundStrategyTest is BaseStrategy, BaseTest {
@@ -395,7 +395,7 @@ contract WithdrawTest is CompoundStrategyTest {
     function test_WithdrawToVault_RevertsIf_CallerNotOwner() public useActor(0) {
         uint256 initialVaultBal = IERC20(ASSET).balanceOf(VAULT);
         uint256 interestAmt = strategy.checkInterestEarned(ASSET);
-        uint256 amt = depositAmount + interestAmount;
+        uint256 amt = initialVaultBal + interestAmt;
 
         vm.expectRevert("Ownable: caller is not the owner");
         strategy.withdrawToVault(ASSET, amt);
@@ -432,9 +432,67 @@ contract CheckRewardEarnedTest is CompoundStrategyTest {
         strategy.deposit(ASSET, depositAmount);
         changePrank(USDS_OWNER);
         vm.warp(block.timestamp + 10 days);
-        vm.mockCall(P_TOKEN, abi.encodeWithSignature("baseTrackingAccrued(address)"), abi.encode(1500000021232123));
+        vm.mockCall(P_TOKEN, abi.encodeWithSignature("baseTrackingAccrued(address)"), abi.encode(10000000));
         IComet(P_TOKEN).accrueAccount(address(strategy));
         uint256 reward = strategy.checkRewardEarned();
         assertNotEq(reward, 0);
+    }
+}
+
+contract CheckAvailableBalanceTest is CompoundStrategyTest {
+    function setUp() public override {
+        super.setUp();
+        vm.startPrank(USDS_OWNER);
+        _initializeStrategy();
+        _setAssetData();
+        _deposit();
+    }
+    
+    function test_checkAvilableBalance_LTAllocatedAmount() public {
+        vm.mockCall(
+            ASSET,
+            abi.encodeWithSignature("balanceOf(address)"),
+            abi.encode(depositAmount - 100)
+        );
+        uint256 availableBalance = strategy.checkAvailableBalance(ASSET);
+        assertTrue(availableBalance < depositAmount);
+    }
+
+    function test_checkAvailableBalance_MoreThanAllocated() public {
+        vm.warp(block.timestamp + 10 days);
+        uint256 availableBalance = strategy.checkAvailableBalance(ASSET);
+        assertEq(availableBalance, depositAmount);
+    }
+}
+
+contract CollectRewardTest is CheckRewardEarnedTest {
+    function test_collectReward() public useKnownActor(USDS_OWNER) {
+        deal(ASSET, VAULT, depositAmount);
+        changePrank(VAULT);
+        IERC20(ASSET).approve(address(strategy), depositAmount);
+        strategy.deposit(ASSET, depositAmount);
+        changePrank(USDS_OWNER);
+        vm.warp(block.timestamp + 10 days);
+        IComet(P_TOKEN).accrueAccount(address(strategy));
+        vm.mockCall(
+            VAULT,
+            abi.encodeWithSignature("yieldReceiver()"),
+            abi.encode(yieldReceiver)
+        );
+        vm.mockCall(P_TOKEN, abi.encodeWithSignature("baseTrackingAccrued(address)"), abi.encode(10000000));
+        uint16 harvestIncentiveRate = strategy.harvestIncentiveRate();
+        IReward.RewardOwed memory rewardData = IReward(address(strategy.rewardPool())).getRewardOwed(P_TOKEN, address(strategy));
+        address rwdToken = rewardData.token;
+        uint256 rwdAmount = rewardData.owed;
+        uint256 harvestAmt = (rwdAmount * harvestIncentiveRate) / Helpers.MAX_PERCENTAGE;
+        rwdAmount -= harvestAmt;
+        address harvester = actors[2];
+        changePrank(harvester);
+        vm.expectEmit(true, true, true, true);
+        emit RewardTokenCollected(rwdToken, yieldReceiver, rwdAmount);
+        strategy.collectReward();
+        assertEq(harvestAmt, IERC20(rwdToken).balanceOf(harvester));
+        assertEq(rwdAmount, IERC20(rwdToken).balanceOf(yieldReceiver));
+        vm.clearMockedCalls();
     }
 }
