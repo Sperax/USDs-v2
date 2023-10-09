@@ -405,7 +405,7 @@ contract WithdrawTest is AaveStrategyTest {
         uint256 amt = 1000;
 
         vm.expectEmit(true, false, false, true);
-        emit Withdrawal(ASSET, strategy.assetToPToken(ASSET), amt);
+        emit Withdrawal(ASSET, amt);
 
         vm.warp(block.timestamp + 10 days);
         vm.roll(block.number + 1000);
@@ -422,7 +422,7 @@ contract WithdrawTest is AaveStrategyTest {
         vm.roll(block.number + 1000);
 
         vm.expectEmit(true, false, false, true);
-        emit Withdrawal(ASSET, strategy.assetToPToken(ASSET), amt);
+        emit Withdrawal(ASSET, amt);
 
         strategy.withdrawToVault(ASSET, amt);
         assertEq(initialVaultBal + amt, IERC20(ASSET).balanceOf(VAULT));
