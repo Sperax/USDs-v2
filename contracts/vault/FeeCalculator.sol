@@ -57,7 +57,7 @@ contract FeeCalculator is IFeeCalculator {
     function getRedeemFee(address _collateral) external view returns (uint256) {
         FeeData memory feeData = collateralFee[_collateral];
         if (feeData.nextUpdate == 0) revert FeeNotCalibrated(_collateral);
-        return collateralFee[_collateral].redeemFee;
+        return feeData.redeemFee;
     }
 
     /// @notice Calibrates fee for all the collaterals registered
