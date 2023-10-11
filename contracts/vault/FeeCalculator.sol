@@ -63,7 +63,8 @@ contract FeeCalculator is IFeeCalculator {
     /// @notice Calibrates fee for all the collaterals registered
     function calibrateFeeForAll() public {
         address[] memory collaterals = collateralManager.getAllCollaterals();
-        for (uint256 i; i < collaterals.length; ) {
+        uint256 collateralsLength = collaterals.length;
+        for (uint256 i; i < collateralsLength; ) {
             if (block.timestamp > collateralFee[collaterals[i]].nextUpdate) {
                 _calibrateFee(collaterals[i]);
             }
