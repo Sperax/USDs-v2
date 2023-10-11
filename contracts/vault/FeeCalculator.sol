@@ -20,7 +20,7 @@ contract FeeCalculator is IFeeCalculator {
     uint16 private constant PENALTY_MULTIPLIER = 2;
     uint32 private constant CALIBRATION_GAP = 1 days;
 
-    ICollateralManager private immutable collateralManager;
+    ICollateralManager public immutable collateralManager;
 
     mapping(address => FeeData) public collateralFee;
 
@@ -57,7 +57,7 @@ contract FeeCalculator is IFeeCalculator {
     function getRedeemFee(address _collateral) external view returns (uint256) {
         FeeData memory feeData = collateralFee[_collateral];
         if (feeData.nextUpdate == 0) revert FeeNotCalibrated(_collateral);
-        return collateralFee[_collateral].redeemFee;
+        return feeData.redeemFee;
     }
 
     /// @notice Calibrates fee for all the collaterals registered
