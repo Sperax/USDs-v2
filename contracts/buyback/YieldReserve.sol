@@ -8,12 +8,10 @@ import {IVault} from "../interfaces/IVault.sol";
 import {IOracle} from "../interfaces/IOracle.sol";
 import {Helpers} from "../libraries/Helpers.sol";
 
-/**
- * @title YieldReserve of USDs Protocol
- * @notice This contract allows users to swap supported stablecoins for yield earned by the USDs protocol.
- * It sends USDs to the dripper for rebase and to the Buyback Contract for buyback.
- * @author Sperax Foundation
- */
+/// @title YieldReserve of USDs Protocol
+/// @notice This contract allows users to swap supported stablecoins for yield earned by the USDs protocol.
+/// It sends USDs to the dripper for rebase and to the Buyback Contract for buyback.
+/// @author Sperax Foundation
 contract YieldReserve is ReentrancyGuard, Ownable {
     using SafeERC20 for IERC20;
 
@@ -62,13 +60,11 @@ contract YieldReserve is ReentrancyGuard, Ownable {
     error AlreadyInDesiredState();
     error TokenPriceFeedMissing();
 
-    /**
-     * @notice Constructor of the YieldReserve contract
-     * @param _buyback Address of the Buyback contract
-     * @param _vault Address of the Vault
-     * @param _oracle Address of the Oracle
-     * @param _dripper Address of the Dripper contract
-     */
+    /// @notice Constructor of the YieldReserve contract
+    /// @param _buyback Address of the Buyback contract
+    /// @param _vault Address of the Vault
+    /// @param _oracle Address of the Oracle
+    /// @param _dripper Address of the Dripper contract
     constructor(
         address _buyback,
         address _vault,
@@ -86,13 +82,11 @@ contract YieldReserve is ReentrancyGuard, Ownable {
 
     // OPERATION FUNCTIONS
 
-    /**
-     * @notice Swap function to be called by frontend users
-     * @param _srcToken Source/Input token
-     * @param _dstToken Destination/Output token
-     * @param _amountIn Input token amount
-     * @param _minAmountOut Minimum output tokens expected
-     */
+    /// @notice Swap function to be called by frontend users
+    /// @param _srcToken Source/Input token
+    /// @param _dstToken Destination/Output token
+    /// @param _amountIn Input token amount
+    /// @param _minAmountOut Minimum output tokens expected
     function swap(
         address _srcToken,
         address _dstToken,
@@ -111,13 +105,11 @@ contract YieldReserve is ReentrancyGuard, Ownable {
 
     // ADMIN FUNCTIONS
 
-    /**
-     * @notice Allow or disallow a specific token for use as a source/input token.
-     * @param _token Address of the token to be allowed or disallowed.
-     * @param _isAllowed If set to `true`, the token will be allowed as a source/input token; otherwise, it will be disallowed.
-     * @dev Only the contract owner can call this function.
-     * @dev If allowing a token, ensure that it has a valid price feed in the Oracle.
-     */
+    /// @notice Allow or disallow a specific token for use as a source/input token.
+    /// @param _token Address of the token to be allowed or disallowed.
+    /// @param _isAllowed If set to `true`, the token will be allowed as a source/input token; otherwise, it will be disallowed.
+    /// @dev Only the contract owner can call this function.
+    /// @dev If allowing a token, ensure that it has a valid price feed in the Oracle.
     function toggleSrcTokenPermission(
         address _token,
         bool _isAllowed
@@ -129,13 +121,11 @@ contract YieldReserve is ReentrancyGuard, Ownable {
         emit SrcTokenPermissionUpdated(_token, _isAllowed);
     }
 
-    /**
-     * @notice Allow or disallow a specific token for use as a destination/output token.
-     * @param _token Address of the token to be allowed or disallowed.
-     * @param _isAllowed If set to `true`, the token will be allowed as a destination/output token; otherwise, it will be disallowed.
-     * @dev Only the contract owner can call this function.
-     * @dev If allowing a token, ensure that it has a valid price feed in the Oracle.
-     */
+    /// @notice Allow or disallow a specific token for use as a destination/output token.
+    /// @param _token Address of the token to be allowed or disallowed.
+    /// @param _isAllowed If set to `true`, the token will be allowed as a destination/output token; otherwise, it will be disallowed.
+    /// @dev Only the contract owner can call this function.
+    /// @dev If allowing a token, ensure that it has a valid price feed in the Oracle.
     function toggleDstTokenPermission(
         address _token,
         bool _isAllowed
@@ -147,13 +137,11 @@ contract YieldReserve is ReentrancyGuard, Ownable {
         emit DstTokenPermissionUpdated(_token, _isAllowed);
     }
 
-    /**
-     * @notice Emergency withdrawal function for unexpected situations.
-     * @param _token Address of the asset to be withdrawn.
-     * @param _receiver Address of the receiver of tokens.
-     * @param _amount Amount of tokens to be withdrawn.
-     * @dev Only the contract owner can call this function.
-     */
+    /// @notice Emergency withdrawal function for unexpected situations.
+    /// @param _token Address of the asset to be withdrawn.
+    /// @param _receiver Address of the receiver of tokens.
+    /// @param _amount Amount of tokens to be withdrawn.
+    /// @dev Only the contract owner can call this function.
     function withdraw(
         address _token,
         address _receiver,
@@ -164,12 +152,10 @@ contract YieldReserve is ReentrancyGuard, Ownable {
         emit Withdrawn(_token, _receiver, _amount);
     }
 
-    /**
-     * @notice Set the percentage of newly minted USDs to be sent to the Buyback contract.
-     * @param _toBuyback The percentage of USDs sent to Buyback (e.g., 3000 for 30%).
-     * @dev The remaining USDs are sent to VaultCore for rebase.
-     * @dev Only the contract owner can call this function.
-     */
+    /// @notice Set the percentage of newly minted USDs to be sent to the Buyback contract.
+    /// @param _toBuyback The percentage of USDs sent to Buyback (e.g., 3000 for 30%).
+    /// @dev The remaining USDs are sent to VaultCore for rebase.
+    /// @dev Only the contract owner can call this function.
     function updateBuybackPercentage(uint256 _toBuyback) public onlyOwner {
         Helpers._isNonZeroAmt(_toBuyback);
         Helpers._isLTEMaxPercentage(_toBuyback);
@@ -177,58 +163,48 @@ contract YieldReserve is ReentrancyGuard, Ownable {
         emit BuybackPercentageUpdated(_toBuyback);
     }
 
-    /**
-     * @notice Update the address of the Buyback contract.
-     * @param _newBuyBack New address of the Buyback contract.
-     * @dev Only the contract owner can call this function.
-     */
+    /// @notice Update the address of the Buyback contract.
+    /// @param _newBuyBack New address of the Buyback contract.
+    /// @dev Only the contract owner can call this function.
     function updateBuybackAddress(address _newBuyBack) public onlyOwner {
         Helpers._isNonZeroAddr(_newBuyBack);
         buyback = _newBuyBack;
         emit BuybackAddressUpdated(_newBuyBack);
     }
 
-    /**
-     * @notice Update the address of the Oracle contract.
-     * @param _newOracle New address of the Oracle contract.
-     * @dev Only the contract owner can call this function.
-     */
+    /// @notice Update the address of the Oracle contract.
+    /// @param _newOracle New address of the Oracle contract.
+    /// @dev Only the contract owner can call this function.
     function updateOracleAddress(address _newOracle) public onlyOwner {
         Helpers._isNonZeroAddr(_newOracle);
         oracle = _newOracle;
         emit OracleUpdated(_newOracle);
     }
 
-    /**
-     * @notice Update the address of the Dripper contract.
-     * @param _newDripper New address of the Dripper contract.
-     * @dev Only the contract owner can call this function.
-     */
+    /// @notice Update the address of the Dripper contract.
+    /// @param _newDripper New address of the Dripper contract.
+    /// @dev Only the contract owner can call this function.
     function updateDripperAddress(address _newDripper) public onlyOwner {
         Helpers._isNonZeroAddr(_newDripper);
         dripper = _newDripper;
         emit DripperAddressUpdated(_newDripper);
     }
 
-    /**
-     * @notice Update the address of the VaultCore contract.
-     * @param _newVault New address of the VaultCore contract.
-     * @dev Only the contract owner can call this function.
-     */
+    /// @notice Update the address of the VaultCore contract.
+    /// @param _newVault New address of the VaultCore contract.
+    /// @dev Only the contract owner can call this function.
     function updateVaultAddress(address _newVault) public onlyOwner {
         Helpers._isNonZeroAddr(_newVault);
         vault = _newVault;
         emit VaultAddressUpdated(_newVault);
     }
 
-    /**
-     * @notice Swap allowed source token for allowed destination token
-     * @param _srcToken Source/Input token
-     * @param _dstToken Destination/Output token
-     * @param _amountIn Input token amount
-     * @param _minAmountOut Minimum output tokens expected
-     * @param _receiver Receiver of the tokens
-     */
+    /// @notice Swap allowed source token for allowed destination token
+    /// @param _srcToken Source/Input token
+    /// @param _dstToken Destination/Output token
+    /// @param _amountIn Input token amount
+    /// @param _minAmountOut Minimum output tokens expected
+    /// @param _receiver Receiver of the tokens
     function swap(
         address _srcToken,
         address _dstToken,
@@ -266,13 +242,11 @@ contract YieldReserve is ReentrancyGuard, Ownable {
         });
     }
 
-    /**
-     * @notice Get an estimate of the output token amount for a given input token amount
-     * @param _srcToken Input token address
-     * @param _dstToken Output token address
-     * @param _amountIn Input amount of _srcToken
-     * @return Estimated output token amount
-     */
+    /// @notice Get an estimate of the output token amount for a given input token amount
+    /// @param _srcToken Input token address
+    /// @param _dstToken Output token address
+    /// @param _amountIn Input amount of _srcToken
+    /// @return Estimated output token amount
     function getTokenBForTokenA(
         address _srcToken,
         address _dstToken,
@@ -298,10 +272,8 @@ contract YieldReserve is ReentrancyGuard, Ownable {
 
     // UTILITY FUNCTIONS
 
-    /**
-     * @notice Distributes USDs to the Buyback and Dripper contracts based on buybackPercentage
-     * @dev Sends a portion of the USDs balance to the Buyback contract and the remaining to the Dripper for rebase
-     */
+    /// @notice Distributes USDs to the Buyback and Dripper contracts based on buybackPercentage
+    /// @dev Sends a portion of the USDs balance to the Buyback contract and the remaining to the Dripper for rebase
     function _sendUSDs() private {
         uint256 balance = IERC20(Helpers.USDS).balanceOf(address(this));
 
