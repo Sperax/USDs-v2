@@ -20,7 +20,7 @@ contract FeeCalculator is IFeeCalculator {
     uint16 private constant PENALTY_MULTIPLIER = 2;
     uint32 private constant CALIBRATION_GAP = 1 days;
 
-    ICollateralManager private immutable collateralManager;
+    ICollateralManager public immutable collateralManager;
 
     mapping(address => FeeData) public collateralFee;
 
