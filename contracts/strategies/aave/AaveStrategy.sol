@@ -120,7 +120,6 @@ contract AaveStrategy is InitializableAbstractStrategy {
     /// @inheritdoc InitializableAbstractStrategy
     function collectInterest(address _asset) external override nonReentrant {
         address yieldReceiver = IStrategyVault(vault).yieldReceiver();
-        address harvestor = msg.sender;
         uint256 assetInterest = checkInterestEarned(_asset);
         if (assetInterest > assetInfo[_asset].intLiqThreshold) {
             uint256 interestCollected = aavePool.withdraw(
@@ -131,7 +130,7 @@ contract AaveStrategy is InitializableAbstractStrategy {
             uint256 harvestAmt = _splitAndSendReward(
                 _asset,
                 yieldReceiver,
-                harvestor,
+                msg.sender,
                 interestCollected
             );
             emit InterestCollected(_asset, yieldReceiver, harvestAmt);

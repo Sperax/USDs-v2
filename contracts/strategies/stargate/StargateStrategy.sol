@@ -177,7 +177,6 @@ contract StargateStrategy is InitializableAbstractStrategy {
     /// @inheritdoc InitializableAbstractStrategy
     function collectInterest(address _asset) external override nonReentrant {
         address yieldReceiver = IStrategyVault(vault).yieldReceiver();
-        address harvestor = msg.sender;
         uint256 earnedInterest = checkInterestEarned(_asset);
         if (earnedInterest > assetInfo[_asset].intLiqThreshold) {
             uint256 interestCollected = _withdraw(
@@ -189,7 +188,7 @@ contract StargateStrategy is InitializableAbstractStrategy {
             uint256 harvestAmt = _splitAndSendReward(
                 _asset,
                 yieldReceiver,
-                harvestor,
+                msg.sender,
                 interestCollected
             );
             emit InterestCollected(_asset, yieldReceiver, harvestAmt);
@@ -199,7 +198,6 @@ contract StargateStrategy is InitializableAbstractStrategy {
     /// @inheritdoc InitializableAbstractStrategy
     function collectReward() external override nonReentrant {
         address yieldReceiver = IStrategyVault(vault).yieldReceiver();
-        address harvestor = msg.sender;
         address rewardToken = rewardTokenAddress[0];
         uint256 numAssets = assetsMapped.length;
         for (uint256 i; i < numAssets; ) {
@@ -220,7 +218,7 @@ contract StargateStrategy is InitializableAbstractStrategy {
         uint256 harvestAmt = _splitAndSendReward(
             rewardToken,
             yieldReceiver,
-            harvestor,
+            msg.sender,
             rewardEarned
         );
         emit RewardTokenCollected(rewardToken, yieldReceiver, harvestAmt);
