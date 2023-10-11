@@ -79,8 +79,8 @@ contract FeeCalculator is IFeeCalculator {
         // get current stats
         uint256 tvl = IERC20(Helpers.USDS).totalSupply();
         (
-            uint16 baseFeeIn,
-            uint16 baseFeeOut,
+            uint16 baseMintFee,
+            uint16 baseRedeemFee,
             uint16 composition,
             uint256 totalCollateral
         ) = collateralManager.getFeeCalibrationData(_collateral);
@@ -97,20 +97,20 @@ contract FeeCalculator is IFeeCalculator {
         if (totalCollateral < lowerLimit) {
             updatedFeeData = FeeData({
                 nextUpdate: uint32(block.timestamp) + CALIBRATION_GAP,
-                mintFee: baseFeeIn / DISCOUNT_FACTOR,
-                redeemFee: baseFeeOut * PENALTY_MULTIPLIER
+                mintFee: baseMintFee / DISCOUNT_FACTOR,
+                redeemFee: baseRedeemFee * PENALTY_MULTIPLIER
             });
         } else if (totalCollateral < upperLimit) {
             updatedFeeData = FeeData({
                 nextUpdate: uint32(block.timestamp) + CALIBRATION_GAP,
-                mintFee: baseFeeIn,
-                redeemFee: baseFeeOut
+                mintFee: baseMintFee,
+                redeemFee: baseRedeemFee
             });
         } else {
             updatedFeeData = FeeData({
                 nextUpdate: uint32(block.timestamp) + CALIBRATION_GAP,
-                mintFee: baseFeeIn * PENALTY_MULTIPLIER,
-                redeemFee: baseFeeOut / DISCOUNT_FACTOR
+                mintFee: baseMintFee * PENALTY_MULTIPLIER,
+                redeemFee: baseRedeemFee / DISCOUNT_FACTOR
             });
         }
         collateralFee[_collateral] = updatedFeeData;
