@@ -356,7 +356,7 @@ contract CollateralManager is ICollateralManager, Ownable {
             collateralStorageData.baseMintFee,
             collateralStorageData.baseRedeemFee,
             collateralStorageData.desiredCollateralComposition,
-            totalCollateral * 10 ** collateralStorageData.conversionFactor
+            totalCollateral * collateralStorageData.conversionFactor
         );
     }
 
