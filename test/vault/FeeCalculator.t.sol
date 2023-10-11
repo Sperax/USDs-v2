@@ -24,7 +24,15 @@ contract FeeCalculatorTestSetup is PreMigrationSetup {
 }
 
 contract TestFeeCalculatorInit is FeeCalculatorTestSetup {
+    FeeCalculator _feeCalculator;
+
     function testInitialization() public {
+        _feeCalculator = new FeeCalculator(address(collateralManager));
+        vm.warp(block.timestamp + 1 days);
+        _feeCalculator.calibrateFeeForAll();
+        vm.warp(block.timestamp + 1 days);
+        _feeCalculator.calibrateFee(USDCe);
+        _feeCalculator.calibrateFeeForAll();
         address[] memory collaterals = collateralManager.getAllCollaterals();
         uint256 colLength = collaterals.length;
         for (uint256 i; i < colLength; ) {
@@ -61,23 +69,23 @@ contract TestCalibrateFee is FeeCalculatorTestSetup {
         // But in Fee calculator the desired composition would be 500 to 1500 hence
         // below mocking would return the collateral as 1200 means 12% of TVL
         // equally divided in vault and strategies
-        mockCollateralCalls(
-            (IUSDs(USDS).totalSupply() * 600) / 10000,
-            (IUSDs(USDS).totalSupply() * 600) / 10000
-        );
+        mockCollateralCalls((IUSDs(USDS).totalSupply() * 1200) / 10000);
         feeCalculator.calibrateFee(_collateral);
-        uint256 oldFeeIn = feeCalculator.getMintFee(_collateral);
-        uint256 oldFeeOut = feeCalculator.getRedeemFee(_collateral);
+        uint256 oldMintFee = feeCalculator.getMintFee(_collateral);
+        uint256 oldRedeemFee = feeCalculator.getRedeemFee(_collateral);
+        assertEq(oldMintFee, 500);
+        assertEq(oldRedeemFee, 500);
+        vm.clearMockedCalls();
         vm.warp(block.timestamp + 1 days);
         // Collateral composition calls are mocked to return lesser than lower limit
-        mockCollateralCalls(availableCollateral / 2, availableCollateral / 2);
+        mockCollateralCalls(availableCollateral / 2);
         feeCalculator.calibrateFee(_collateral);
         vm.clearMockedCalls();
-        uint256 newFeeIn = feeCalculator.getMintFee(_collateral);
-        uint256 newFeeOut = feeCalculator.getRedeemFee(_collateral);
+        uint256 newMintFee = feeCalculator.getMintFee(_collateral);
+        uint256 newRedeemFee = feeCalculator.getRedeemFee(_collateral);
 
-        assertEq(oldFeeIn / 2, newFeeIn);
-        assertEq(oldFeeOut * 2, newFeeOut);
+        assertEq(oldMintFee / 2, newMintFee);
+        assertEq(oldRedeemFee * 2, newRedeemFee);
     }
 
     function test_CalibrateFee_TotalCollateralIsInDesiredRange() public {
@@ -87,26 +95,22 @@ contract TestCalibrateFee is FeeCalculatorTestSetup {
         // But in Fee calculator the desired composition would be 500 to 1500 hence
         // below mocking would return the collateral as 1200 means 12% of TVL
         // equally divided in vault and strategies
-        mockCollateralCalls(
-            (IUSDs(USDS).totalSupply() * 600) / 10000,
-            (IUSDs(USDS).totalSupply() * 600) / 10000
-        );
+        mockCollateralCalls((IUSDs(USDS).totalSupply() * 1200) / 10000);
         feeCalculator.calibrateFee(_collateral);
-        uint256 oldFeeIn = feeCalculator.getMintFee(_collateral);
-        uint256 oldFeeOut = feeCalculator.getRedeemFee(_collateral);
+        uint256 oldMintFee = feeCalculator.getMintFee(_collateral);
+        uint256 oldRedeemFee = feeCalculator.getRedeemFee(_collateral);
+        assertEq(oldMintFee, 500);
+        assertEq(oldRedeemFee, 500);
         vm.warp(block.timestamp + 1 days);
         // Ratio is changed but still in desired range
-        mockCollateralCalls(
-            (IUSDs(USDS).totalSupply() * 300) / 10000,
-            (IUSDs(USDS).totalSupply() * 300) / 10000
-        );
+        mockCollateralCalls((IUSDs(USDS).totalSupply() * 600) / 10000);
         feeCalculator.calibrateFee(_collateral);
         vm.clearMockedCalls();
-        uint256 newFeeIn = feeCalculator.getMintFee(_collateral);
-        uint256 newFeeOut = feeCalculator.getRedeemFee(_collateral);
+        uint256 newMintFee = feeCalculator.getMintFee(_collateral);
+        uint256 newRedeemFee = feeCalculator.getRedeemFee(_collateral);
 
-        assertEq(oldFeeIn, newFeeIn);
-        assertEq(oldFeeOut, newFeeOut);
+        assertEq(oldMintFee, newMintFee);
+        assertEq(oldRedeemFee, newRedeemFee);
     }
 
     function test_CalibrateFee_TotalCollateralGTUpperLimit() public {
@@ -116,31 +120,25 @@ contract TestCalibrateFee is FeeCalculatorTestSetup {
         // But in Fee calculator the desired composition would be 500 to 1500 hence
         // below mocking would return the collateral as 200 means 2% of TVL LT lower limit
         // equally divided in vault and strategies
-        mockCollateralCalls(
-            (IUSDs(USDS).totalSupply() * 100) / 10000,
-            (IUSDs(USDS).totalSupply() * 100) / 10000
-        );
+        mockCollateralCalls((IUSDs(USDS).totalSupply() * 200) / 10000);
         feeCalculator.calibrateFee(_collateral);
-        uint256 oldFeeIn = feeCalculator.getMintFee(_collateral);
-        uint256 oldFeeOut = feeCalculator.getRedeemFee(_collateral);
+        uint256 oldMintFee = feeCalculator.getMintFee(_collateral);
+        uint256 oldRedeemFee = feeCalculator.getRedeemFee(_collateral);
+        assertEq(oldMintFee, 500 / 2);
+        assertEq(oldRedeemFee, 500 * 2);
         vm.warp(block.timestamp + 1 days);
         // Collateral composition calls are mocked to return higher than upper limit
-        mockCollateralCalls(
-            (IUSDs(USDS).totalSupply() * 800) / 10000,
-            (IUSDs(USDS).totalSupply() * 800) / 10000
-        );
+        mockCollateralCalls((IUSDs(USDS).totalSupply() * 1600) / 10000);
         feeCalculator.calibrateFee(_collateral);
         vm.clearMockedCalls();
-        uint256 newFeeIn = feeCalculator.getMintFee(_collateral);
-        uint256 newFeeOut = feeCalculator.getRedeemFee(_collateral);
+        uint256 newMintFee = feeCalculator.getMintFee(_collateral);
+        uint256 newRedeemFee = feeCalculator.getRedeemFee(_collateral);
 
         // Basis taken as 4 because the old fee would be LT lower limit
         // and new fee would be GT higher limit
-        assertEq(oldFeeIn * 4, newFeeIn);
-        assertEq(oldFeeOut / 4, newFeeOut);
+        assertEq(oldMintFee * 4, newMintFee);
+        assertEq(oldRedeemFee / 4, newRedeemFee);
     }
-
-    // @todo add fuzzing test cases
 
     function setCollateralData(address _collateral) internal {
         ICollateralManager.CollateralBaseData memory _data = ICollateralManager
@@ -160,25 +158,14 @@ contract TestCalibrateFee is FeeCalculatorTestSetup {
         );
     }
 
-    function mockCollateralCalls(
-        uint256 _vaultAmt,
-        uint256 _strategyAmt
-    ) internal {
+    function mockCollateralCalls(uint256 _totalCollateral) internal {
         vm.mockCall(
             COLLATERAL_MANAGER,
             abi.encodeWithSignature(
-                "getCollateralInVault(address)",
+                "getFeeCalibrationData(address)",
                 _collateral
             ),
-            abi.encode(_vaultAmt)
-        );
-        vm.mockCall(
-            COLLATERAL_MANAGER,
-            abi.encodeWithSignature(
-                "getCollateralInStrategies(address)",
-                _collateral
-            ),
-            abi.encode(_strategyAmt)
+            abi.encode(500, 500, 1000, _totalCollateral)
         );
     }
 }
@@ -191,16 +178,16 @@ contract TestFeeCalculator is FeeCalculatorTestSetup {
     uint16 private constant LOWER_THRESHOLD = 5000;
     uint16 private constant UPPER_THRESHOLD = 15000;
 
-    function testGetFeeIn() public {
+    function testGetMintFee() public {
         baseMintFee = getMintFee();
-        uint256 feeIn = feeCalculator.getMintFee(USDCe);
-        assertEq(feeIn, baseMintFee, "Fee in mismatch");
+        uint256 mintFee = feeCalculator.getMintFee(USDCe);
+        assertEq(mintFee, baseMintFee, "Fee in mismatch");
     }
 
-    function testGetFeeOut() public {
+    function testGetRedeemFee() public {
         baseRedeemFee = getRedeemFee();
-        uint256 feeOut = feeCalculator.getRedeemFee(USDT);
-        assertEq(feeOut, baseRedeemFee, "Fee out mismatch");
+        uint256 redeemFee = feeCalculator.getRedeemFee(USDT);
+        assertEq(redeemFee, baseRedeemFee, "Fee out mismatch");
     }
 
     function getMintFee() private returns (uint16) {
