@@ -548,7 +548,7 @@ contract VaultCore is
 
         if (calculatedCollateralAmt > vaultAmt) {
             unchecked {
-            strategyAmt = calculatedCollateralAmt - vaultAmt;
+                strategyAmt = calculatedCollateralAmt - vaultAmt;
             }
             // Withdraw from default strategy
             if (_strategyAddr == address(0)) {
