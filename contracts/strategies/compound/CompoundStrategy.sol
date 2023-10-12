@@ -91,8 +91,8 @@ contract CompoundStrategy is InitializableAbstractStrategy {
         address _asset,
         uint256 _amount
     ) external override nonReentrant {
-        address lpToken = _getPTokenFor(_asset);
         Helpers._isNonZeroAmt(_amount);
+        address lpToken = _getPTokenFor(_asset);
 
         // Following line also doubles as a check that we are depositing
         // an asset that we support.
