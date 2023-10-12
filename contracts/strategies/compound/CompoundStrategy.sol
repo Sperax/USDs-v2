@@ -50,6 +50,7 @@ contract CompoundStrategy is InitializableAbstractStrategy {
     ///      This method can only be called by the system owner
     /// @param _asset    Address for the asset
     /// @param _lpToken   Address for the corresponding platform token
+    /// @param _intLiqThreshold   Integer representing the liquidity threshold
     function setPTokenAddress(
         address _asset,
         address _lpToken,
