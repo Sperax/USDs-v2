@@ -202,7 +202,6 @@ contract CompoundStrategy is InitializableAbstractStrategy {
                 ++i;
             }
         }
-        return total;
     }
 
     /// @inheritdoc InitializableAbstractStrategy
