@@ -129,14 +129,13 @@ contract CompoundStrategy is InitializableAbstractStrategy {
     /// @inheritdoc InitializableAbstractStrategy
     function collectInterest(address _asset) external override nonReentrant {
         address yieldReceiver = IStrategyVault(vault).yieldReceiver();
-        address harvestor = msg.sender;
         uint256 assetInterest = checkInterestEarned(_asset);
         if (assetInterest > assetInfo[_asset].intLiqThreshold) {
             IComet(assetToPToken[_asset]).withdraw(_asset, assetInterest);
             uint256 harvestAmt = _splitAndSendReward(
                 _asset,
                 yieldReceiver,
-                harvestor,
+                msg.sender,
                 assetInterest
             );
             emit InterestCollected(_asset, yieldReceiver, harvestAmt);
@@ -146,7 +145,6 @@ contract CompoundStrategy is InitializableAbstractStrategy {
     /// @inheritdoc InitializableAbstractStrategy
     function collectReward() external override {
         address yieldReceiver = IStrategyVault(vault).yieldReceiver();
-        address harvestor = msg.sender;
         uint256 numAssets = assetsMapped.length;
         for (uint256 i; i < numAssets; ) {
             address lpToken = assetToPToken[assetsMapped[i]];
@@ -158,7 +156,7 @@ contract CompoundStrategy is InitializableAbstractStrategy {
             uint256 harvestAmt = _splitAndSendReward(
                 rewardData.token,
                 yieldReceiver,
-                harvestor,
+                msg.sender,
                 rewardData.owed
             );
             emit RewardTokenCollected(
@@ -185,7 +183,6 @@ contract CompoundStrategy is InitializableAbstractStrategy {
             uint256 accrued = uint256(
                 IComet(lpToken).baseTrackingAccrued(address(this))
             );
-            uint256 claimed = rewardPool.rewardsClaimed(lpToken, address(this));
             IReward.RewardConfig memory config = rewardPool.rewardConfig(
                 lpToken
             );
@@ -197,7 +194,7 @@ contract CompoundStrategy is InitializableAbstractStrategy {
             accrued = ((accrued * config.multiplier) / FACTOR_SCALE);
 
             // assuming homogeneous reward tokens
-            total = total + accrued - claimed;
+            total = total + accrued - rewardPool.rewardsClaimed(lpToken, address(this));
             unchecked {
                 ++i;
             }
