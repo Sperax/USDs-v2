@@ -86,6 +86,7 @@ contract CompoundStrategy is InitializableAbstractStrategy {
         emit IntLiqThresholdUpdated(_asset, _intLiqThreshold);
     }
 
+    /// @inheritdoc InitializableAbstractStrategy
     function deposit(
         address _asset,
         uint256 _amount
