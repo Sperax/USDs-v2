@@ -194,7 +194,9 @@ contract CompoundStrategy is InitializableAbstractStrategy {
             accrued = ((accrued * config.multiplier) / FACTOR_SCALE);
 
             // assuming homogeneous reward tokens
-            total = total + accrued - rewardPool.rewardsClaimed(lpToken, address(this));
+            total +=
+                accrued -
+                rewardPool.rewardsClaimed(lpToken, address(this));
             unchecked {
                 ++i;
             }
