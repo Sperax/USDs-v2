@@ -210,7 +210,9 @@ contract CompoundStrategy is InitializableAbstractStrategy {
         uint256 balance = checkLPTokenBalance(_asset);
         uint256 allocatedAmt = assetInfo[_asset].allocatedAmt;
         if (balance > allocatedAmt) {
-            return balance - allocatedAmt;
+            unchecked {
+                return balance - allocatedAmt;
+            }
         } else {
             return 0;
         }
