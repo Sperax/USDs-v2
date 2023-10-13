@@ -205,6 +205,11 @@ abstract contract PreMigrationSetup is Setup {
         // vm.makePersistent(aaveStrategyProxy);
         compoundStrategy = CompoundStrategy(compoundStrategyProxy);
         compoundStrategy.initialize(VAULT, compoundRewardPool);
+        compoundStrategy.setPTokenAddress(
+            USDC,
+            0x9c4ec768c28520B50860ea7a15bd7213a9fF58bf,
+            0
+        );
         collateralManager.addCollateralStrategy(
             USDC,
             address(compoundStrategy),
