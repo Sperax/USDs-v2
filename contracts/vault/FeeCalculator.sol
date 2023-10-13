@@ -48,16 +48,12 @@ contract FeeCalculator is IFeeCalculator {
 
     /// @inheritdoc IFeeCalculator
     function getMintFee(address _collateral) external view returns (uint256) {
-        FeeData memory feeData = collateralFee[_collateral];
-        if (feeData.nextUpdate == 0) revert FeeNotCalibrated(_collateral);
-        return feeData.mintFee;
+        return collateralFee[_collateral].mintFee;
     }
 
     /// @inheritdoc IFeeCalculator
     function getRedeemFee(address _collateral) external view returns (uint256) {
-        FeeData memory feeData = collateralFee[_collateral];
-        if (feeData.nextUpdate == 0) revert FeeNotCalibrated(_collateral);
-        return feeData.redeemFee;
+        return collateralFee[_collateral].redeemFee;
     }
 
     /// @notice Calibrates fee for all the collaterals registered
