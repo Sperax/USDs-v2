@@ -343,11 +343,12 @@ contract TestBurn is USDsTest {
         usds.rebaseOptIn(VAULT);
         usds.rebaseOptOut(VAULT);
 
+        changePrank(VAULT);
+        usds.mint(VAULT, amount);
+
         uint256 prevSupply = usds.totalSupply();
         uint256 prevNonRebasingSupply = usds.nonRebasingSupply();
         uint256 preBalance = usds.balanceOf(VAULT);
-
-        changePrank(VAULT);
 
         usds.burn(amount);
         assertEq(usds.totalSupply(), prevSupply - amount);
@@ -361,7 +362,7 @@ contract TestBurn is USDsTest {
     {
         usds.rebaseOptIn(VAULT);
         changePrank(VAULT);
-
+        usds.mint(VAULT, amount);
         uint256 creditAmount = amount.mulTruncate(
             usds.rebasingCreditsPerToken()
         );
@@ -385,7 +386,7 @@ contract TestBurn is USDsTest {
         usds.burn(amount);
 
         // account for mathematical
-        assertApproxEqAbs(bal - amount, usds.balanceOf(VAULT), 1);
+        assertApproxEqAbs(amount - bal, usds.balanceOf(VAULT), 1);
     }
 
     function test_burn_case3() public useKnownActor(USDS_OWNER) {
@@ -398,6 +399,7 @@ contract TestBurn is USDsTest {
     }
 
     function test_burn() public useKnownActor(VAULT) {
+        usds.mint(VAULT, amount);
         uint256 prevSupply = usds.totalSupply();
         usds.burn(amount);
         assertEq(usds.totalSupply(), prevSupply - amount);
@@ -478,7 +480,7 @@ contract TestRebase is USDsTest {
         usds.rebaseOptIn(VAULT);
         uint256 amount = 100000;
         changePrank(VAULT);
-
+        usds.mint(VAULT, amount);
         uint256 prevSupply = usds.totalSupply();
         usds.rebase(amount);
         assertEq(prevSupply, usds.totalSupply());
@@ -489,7 +491,7 @@ contract TestRebase is USDsTest {
         usds.rebaseOptOut(VAULT);
         uint256 amount = 100000;
         changePrank(VAULT);
-
+        usds.mint(VAULT, amount);
         uint256 prevSupply = usds.totalSupply();
         usds.rebase(amount);
         assertEq(prevSupply, usds.totalSupply());

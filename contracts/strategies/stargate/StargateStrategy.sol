@@ -154,7 +154,7 @@ contract StargateStrategy is InitializableAbstractStrategy {
 
         IERC20(lpToken).safeApprove(farm, lpTokenBal);
         ILPStaking(farm).deposit(assetInfo[_asset].rewardPID, lpTokenBal);
-        emit Deposit(_asset, lpToken, depositAmt);
+        emit Deposit(_asset, depositAmt);
     }
 
     /// @inheritdoc InitializableAbstractStrategy
@@ -371,7 +371,6 @@ contract StargateStrategy is InitializableAbstractStrategy {
         Helpers._isNonZeroAddr(_recipient);
         Helpers._isNonZeroAmt(_amount, "Must withdraw something");
         if (!_validateRwdClaim(_asset)) revert InsufficientRewardFundInFarm();
-        address lpToken = assetToPToken[_asset];
         uint256 lpTokenAmt = _convertToPToken(_asset, _amount);
         ILPStaking(farm).withdraw(assetInfo[_asset].rewardPID, lpTokenAmt);
         uint256 minRecvAmt = (_amount *
@@ -387,7 +386,7 @@ contract StargateStrategy is InitializableAbstractStrategy {
 
         if (!_withdrawInterest) {
             assetInfo[_asset].allocatedAmt -= amtRecv;
-            emit Withdrawal(_asset, lpToken, amtRecv);
+            emit Withdrawal(_asset, amtRecv);
         }
 
         return amtRecv;
