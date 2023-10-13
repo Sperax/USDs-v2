@@ -140,12 +140,15 @@ contract TestGetters is SPABuybackTestSetup {
 contract TestSetters is SPABuybackTestSetup {
     event RewardPercentageUpdated(uint256 newRewardPercentage);
     event VeSpaRewarderUpdated(address newVeSpaRewarder);
+    event OracleUpdated(address newOracle);
 
     function testCannotIfCallerNotOwner() external useActor(0) {
         vm.expectRevert("Ownable: caller is not the owner");
         spaBuyback.updateRewardPercentage(9000);
         vm.expectRevert("Ownable: caller is not the owner");
         spaBuyback.updateVeSpaRewarder(actors[0]);
+        vm.expectRevert("Ownable: caller is not the owner");
+        spaBuyback.updateOracle(actors[0]);
     }
 
     // function updateRewardPercentage
@@ -186,6 +189,25 @@ contract TestSetters is SPABuybackTestSetup {
         emit VeSpaRewarderUpdated(newRewarder);
         spaBuyback.updateVeSpaRewarder(newRewarder);
         assertEq(spaBuyback.veSpaRewarder(), newRewarder);
+    }
+
+    // function updateOracle
+    function testCannotIfInvalidAddressOracle()
+        external
+        useKnownActor(USDS_OWNER)
+    {
+        vm.expectRevert(
+            abi.encodeWithSelector(Helpers.InvalidAddress.selector)
+        );
+        spaBuyback.updateOracle(address(0));
+    }
+
+    function testUpdateOracle() external useKnownActor(USDS_OWNER) {
+        address newOracle = actors[1];
+        vm.expectEmit(true, true, true, true, address(spaBuyback));
+        emit OracleUpdated(newOracle);
+        spaBuyback.updateOracle(newOracle);
+        assertEq(spaBuyback.oracle(), newOracle);
     }
 }
 

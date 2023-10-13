@@ -39,7 +39,7 @@ contract StargateStrategy is InitializableAbstractStrategy {
 
     function initialize(
         address _router,
-        address vault,
+        address _vault,
         address _stg,
         address _farm,
         uint16 _depositSlippage, // 200 = 2%
@@ -55,7 +55,7 @@ contract StargateStrategy is InitializableAbstractStrategy {
         rewardTokenAddress.push(_stg);
 
         InitializableAbstractStrategy._initialize(
-            vault,
+            _vault,
             _depositSlippage,
             _withdrawSlippage
         );
@@ -154,7 +154,7 @@ contract StargateStrategy is InitializableAbstractStrategy {
 
         IERC20(lpToken).safeApprove(farm, lpTokenBal);
         ILPStaking(farm).deposit(assetInfo[_asset].rewardPID, lpTokenBal);
-        emit Deposit(_asset, lpToken, depositAmt);
+        emit Deposit(_asset, depositAmt);
     }
 
     /// @inheritdoc InitializableAbstractStrategy
@@ -177,7 +177,6 @@ contract StargateStrategy is InitializableAbstractStrategy {
     /// @inheritdoc InitializableAbstractStrategy
     function collectInterest(address _asset) external override nonReentrant {
         address yieldReceiver = IStrategyVault(vault).yieldReceiver();
-        address harvestor = msg.sender;
         uint256 earnedInterest = checkInterestEarned(_asset);
         if (earnedInterest > assetInfo[_asset].intLiqThreshold) {
             uint256 interestCollected = _withdraw(
@@ -189,7 +188,7 @@ contract StargateStrategy is InitializableAbstractStrategy {
             uint256 harvestAmt = _splitAndSendReward(
                 _asset,
                 yieldReceiver,
-                harvestor,
+                msg.sender,
                 interestCollected
             );
             emit InterestCollected(_asset, yieldReceiver, harvestAmt);
@@ -199,14 +198,13 @@ contract StargateStrategy is InitializableAbstractStrategy {
     /// @inheritdoc InitializableAbstractStrategy
     function collectReward() external override nonReentrant {
         address yieldReceiver = IStrategyVault(vault).yieldReceiver();
-        address harvestor = msg.sender;
         address rewardToken = rewardTokenAddress[0];
         uint256 numAssets = assetsMapped.length;
-        for (uint256 i = 0; i < numAssets; ) {
+        for (uint256 i; i < numAssets; ) {
             address asset = assetsMapped[i];
             uint256 rewardAmt = checkPendingRewards(asset);
             if (
-                rewardAmt > 0 &&
+                rewardAmt != 0 &&
                 (skipRwdValidation ||
                     rewardAmt <= IERC20(rewardToken).balanceOf(farm))
             ) {
@@ -220,7 +218,7 @@ contract StargateStrategy is InitializableAbstractStrategy {
         uint256 harvestAmt = _splitAndSendReward(
             rewardToken,
             yieldReceiver,
-            harvestor,
+            msg.sender,
             rewardEarned
         );
         emit RewardTokenCollected(rewardToken, yieldReceiver, harvestAmt);
@@ -248,7 +246,7 @@ contract StargateStrategy is InitializableAbstractStrategy {
     function checkRewardEarned() public view override returns (uint256) {
         uint256 pendingRewards = 0;
         uint256 numAssets = assetsMapped.length;
-        for (uint256 i = 0; i < numAssets; ) {
+        for (uint256 i; i < numAssets; ) {
             address asset = assetsMapped[i];
             pendingRewards += ILPStaking(farm).pendingStargate(
                 assetInfo[asset].rewardPID,
@@ -363,6 +361,7 @@ contract StargateStrategy is InitializableAbstractStrategy {
     /// @param _asset Address of the asset token
     /// @param _amount Amount to be withdrawn
     /// @dev Validate if the farm has enough STG to withdraw as rewards.
+    /// @dev It is designed to be called from functions with the `nonReentrant` modifier to ensure reentrancy protection.
     function _withdraw(
         bool _withdrawInterest,
         address _recipient,
@@ -372,7 +371,6 @@ contract StargateStrategy is InitializableAbstractStrategy {
         Helpers._isNonZeroAddr(_recipient);
         Helpers._isNonZeroAmt(_amount, "Must withdraw something");
         if (!_validateRwdClaim(_asset)) revert InsufficientRewardFundInFarm();
-        address lpToken = assetToPToken[_asset];
         uint256 lpTokenAmt = _convertToPToken(_asset, _amount);
         ILPStaking(farm).withdraw(assetInfo[_asset].rewardPID, lpTokenAmt);
         uint256 minRecvAmt = (_amount *
@@ -388,7 +386,7 @@ contract StargateStrategy is InitializableAbstractStrategy {
 
         if (!_withdrawInterest) {
             assetInfo[_asset].allocatedAmt -= amtRecv;
-            emit Withdrawal(_asset, lpToken, amtRecv);
+            emit Withdrawal(_asset, amtRecv);
         }
 
         return amtRecv;

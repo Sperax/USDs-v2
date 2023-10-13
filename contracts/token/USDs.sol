@@ -490,8 +490,8 @@ contract USDs is
     /// @param _account Address of the account.
     function _balanceOf(address _account) private view returns (uint256) {
         uint256 credits = _creditBalances[_account];
-        if (credits > 0) {
-            if (nonRebasingCreditsPerToken[_account] > 0) {
+        if (credits != 0) {
+            if (nonRebasingCreditsPerToken[_account] != 0) {
                 return credits;
             }
             return credits.divPrecisely(rebasingCreditsPerToken);
