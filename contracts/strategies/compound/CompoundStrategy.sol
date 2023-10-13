@@ -50,6 +50,7 @@ contract CompoundStrategy is InitializableAbstractStrategy {
     ///      This method can only be called by the system owner
     /// @param _asset    Address for the asset
     /// @param _lpToken   Address for the corresponding platform token
+    /// @param _intLiqThreshold   Integer representing the liquidity threshold
     function setPTokenAddress(
         address _asset,
         address _lpToken,
@@ -85,12 +86,13 @@ contract CompoundStrategy is InitializableAbstractStrategy {
         emit IntLiqThresholdUpdated(_asset, _intLiqThreshold);
     }
 
+    /// @inheritdoc InitializableAbstractStrategy
     function deposit(
         address _asset,
         uint256 _amount
     ) external override nonReentrant {
-        address lpToken = _getPTokenFor(_asset);
         Helpers._isNonZeroAmt(_amount);
+        address lpToken = _getPTokenFor(_asset);
 
         // Following line also doubles as a check that we are depositing
         // an asset that we support.
@@ -127,14 +129,13 @@ contract CompoundStrategy is InitializableAbstractStrategy {
     /// @inheritdoc InitializableAbstractStrategy
     function collectInterest(address _asset) external override nonReentrant {
         address yieldReceiver = IStrategyVault(vault).yieldReceiver();
-        address harvestor = msg.sender;
         uint256 assetInterest = checkInterestEarned(_asset);
         if (assetInterest > assetInfo[_asset].intLiqThreshold) {
             IComet(assetToPToken[_asset]).withdraw(_asset, assetInterest);
             uint256 harvestAmt = _splitAndSendReward(
                 _asset,
                 yieldReceiver,
-                harvestor,
+                msg.sender,
                 assetInterest
             );
             emit InterestCollected(_asset, yieldReceiver, harvestAmt);
@@ -144,7 +145,6 @@ contract CompoundStrategy is InitializableAbstractStrategy {
     /// @inheritdoc InitializableAbstractStrategy
     function collectReward() external override {
         address yieldReceiver = IStrategyVault(vault).yieldReceiver();
-        address harvestor = msg.sender;
         uint256 numAssets = assetsMapped.length;
         for (uint256 i; i < numAssets; ) {
             address lpToken = assetToPToken[assetsMapped[i]];
@@ -156,7 +156,7 @@ contract CompoundStrategy is InitializableAbstractStrategy {
             uint256 harvestAmt = _splitAndSendReward(
                 rewardData.token,
                 yieldReceiver,
-                harvestor,
+                msg.sender,
                 rewardData.owed
             );
             emit RewardTokenCollected(
@@ -183,7 +183,6 @@ contract CompoundStrategy is InitializableAbstractStrategy {
             uint256 accrued = uint256(
                 IComet(lpToken).baseTrackingAccrued(address(this))
             );
-            uint256 claimed = rewardPool.rewardsClaimed(lpToken, address(this));
             IReward.RewardConfig memory config = rewardPool.rewardConfig(
                 lpToken
             );
@@ -195,12 +194,13 @@ contract CompoundStrategy is InitializableAbstractStrategy {
             accrued = ((accrued * config.multiplier) / FACTOR_SCALE);
 
             // assuming homogeneous reward tokens
-            total = total + accrued - claimed;
+            total +=
+                accrued -
+                rewardPool.rewardsClaimed(lpToken, address(this));
             unchecked {
                 ++i;
             }
         }
-        return total;
     }
 
     /// @inheritdoc InitializableAbstractStrategy
@@ -210,7 +210,9 @@ contract CompoundStrategy is InitializableAbstractStrategy {
         uint256 balance = checkLPTokenBalance(_asset);
         uint256 allocatedAmt = assetInfo[_asset].allocatedAmt;
         if (balance > allocatedAmt) {
-            return balance - allocatedAmt;
+            unchecked {
+                return balance - allocatedAmt;
+            }
         } else {
             return 0;
         }
