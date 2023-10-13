@@ -10,7 +10,7 @@ library Helpers {
 
     error CustomError(string message);
     error InvalidAddress();
-    error GTMaxPercentage(uint256 _actual);
+    error GTMaxPercentage(uint256 actual);
     error InvalidAmount();
     error MinSlippageError(uint256 actualAmt, uint256 minExpectedAmt);
     error MaxSlippageError(uint256 actualAmt, uint256 maxExpectedAmt);
@@ -56,8 +56,8 @@ library Helpers {
     /// @dev Reverts with a CustomError and a string
     function _isLTEMaxPercentage(
         uint256 _percentage,
-        string memory err
+        string memory _err
     ) internal pure {
-        if (_percentage > MAX_PERCENTAGE) revert CustomError(err);
+        if (_percentage > MAX_PERCENTAGE) revert CustomError(_err);
     }
 }

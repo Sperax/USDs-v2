@@ -156,7 +156,7 @@ contract CollateralManager is ICollateralManager, Ownable {
 
         uint256 numCollateral = collaterals.length;
 
-        for (uint256 i = 0; i < numCollateral; ) {
+        for (uint256 i; i < numCollateral; ) {
             if (collaterals[i] == _collateral) {
                 collaterals[i] = collaterals[numCollateral - 1];
                 collaterals.pop();
@@ -183,9 +183,10 @@ contract CollateralManager is ICollateralManager, Ownable {
         address _strategy,
         uint16 _allocationCap
     ) external onlyOwner {
+        CollateralData storage collateralData = collateralInfo[_collateral];
+
         // Check if the collateral is valid
-        if (!collateralInfo[_collateral].exists)
-            revert CollateralDoesNotExist();
+        if (!collateralData.exists) revert CollateralDoesNotExist();
         // Check if collateral strategy not already added.
         if (collateralStrategyInfo[_collateral][_strategy].exists)
             revert CollateralStrategyMapped();
@@ -195,7 +196,7 @@ contract CollateralManager is ICollateralManager, Ownable {
 
         // Check if _allocation Per <= 100 - collateralCapacityUsed
         Helpers._isLTEMaxPercentage(
-            _allocationCap + collateralInfo[_collateral].collateralCapacityUsed,
+            _allocationCap + collateralData.collateralCapacityUsed,
             "Allocation percentage exceeded"
         );
 
@@ -205,7 +206,7 @@ contract CollateralManager is ICollateralManager, Ownable {
             true
         );
         collateralStrategies[_collateral].push(_strategy);
-        collateralInfo[_collateral].collateralCapacityUsed += _allocationCap;
+        collateralData.collateralCapacityUsed += _allocationCap;
 
         emit CollateralStrategyAdded(_collateral, _strategy);
     }
@@ -276,7 +277,7 @@ contract CollateralManager is ICollateralManager, Ownable {
 
         uint256 numStrategy = collateralStrategies[_collateral].length;
 
-        for (uint256 i = 0; i < numStrategy; ) {
+        for (uint256 i; i < numStrategy; ) {
             if (collateralStrategies[_collateral][i] == _strategy) {
                 collateralStrategies[_collateral][i] = collateralStrategies[
                     _collateral
@@ -429,16 +430,12 @@ contract CollateralManager is ICollateralManager, Ownable {
     function getCollateralInStrategies(
         address _collateral
     ) public view returns (uint256 amountInStrategies) {
-        amountInStrategies = 0;
-
         uint256 numStrategy = collateralStrategies[_collateral].length;
 
-        for (uint256 i = 0; i < numStrategy; ) {
-            amountInStrategies =
-                amountInStrategies +
-                IStrategy(collateralStrategies[_collateral][i]).checkBalance(
-                    _collateral
-                );
+        for (uint256 i; i < numStrategy; ) {
+            amountInStrategies += IStrategy(
+                collateralStrategies[_collateral][i]
+            ).checkBalance(_collateral);
             unchecked {
                 ++i;
             }

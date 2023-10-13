@@ -248,12 +248,12 @@ abstract contract InitializableAbstractStrategy is
         address _harvestor,
         uint256 _amount
     ) internal returns (uint256) {
-        if (harvestIncentiveRate > 0) {
+        if (harvestIncentiveRate != 0) {
             uint256 incentiveAmt = (_amount * harvestIncentiveRate) /
                 Helpers.MAX_PERCENTAGE;
             uint256 harvestedAmt = _amount - incentiveAmt;
             IERC20(_token).safeTransfer(_harvestor, incentiveAmt);
-            IERC20(_token).safeTransfer(_yieldReceiver, _amount - incentiveAmt);
+            IERC20(_token).safeTransfer(_yieldReceiver, harvestedAmt);
             emit HarvestIncentiveCollected(_token, _harvestor, incentiveAmt);
             return harvestedAmt;
         }

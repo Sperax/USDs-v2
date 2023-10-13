@@ -250,7 +250,7 @@ contract TestAllocate is VaultCoreTest {
         _strategy = AAVE_STRATEGY;
     }
 
-    function test_revertIf_AllocationNotAllowed() public useActor(1) {
+    function test_revertIf_CollateralAllocationPaused() public useActor(1) {
         // DAI
         _collateral = 0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1;
         vm.expectRevert(
@@ -259,6 +259,29 @@ contract TestAllocate is VaultCoreTest {
             )
         );
         IVault(VAULT).allocate(_collateral, _strategy, _amount);
+    }
+
+    function test_revertIf_AllocationNotAllowed() public useActor(1) {
+        uint16 cap = 3000;
+        uint256 maxCollateralUsage = (cap *
+            (ERC20(_collateral).balanceOf(VAULT) +
+                ICollateralManager(IVault(VAULT).collateralManager())
+                    .getCollateralInStrategies(_collateral))) / 10000;
+
+        uint256 _moreThanMaxCollateralUsage = maxCollateralUsage + 1;
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                VaultCore.AllocationNotAllowed.selector,
+                _collateral,
+                _strategy,
+                _moreThanMaxCollateralUsage
+            )
+        );
+        IVault(VAULT).allocate(
+            _collateral,
+            _strategy,
+            _moreThanMaxCollateralUsage
+        );
     }
 
     function testFuzz_Allocate(uint256 __amount) public useActor(1) {

@@ -7,12 +7,13 @@ import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import {IUSDs} from "../interfaces/IUSDs.sol";
 import {IDripper} from "../interfaces/IDripper.sol";
 import {Helpers} from "../libraries/Helpers.sol";
+import {IRebaseManager} from "../interfaces/IRebaseManager.sol";
 
 /// @title RebaseManager for USDs protocol
 /// @author Sperax Foundation
 /// @notice Contract handles the configuration for rebase of USDs token
 ///         Which enables rebase only when the pre-requisites are fulfilled
-contract RebaseManager is Ownable {
+contract RebaseManager is IRebaseManager, Ownable {
     using SafeMath for uint256;
 
     uint256 private constant ONE_YEAR = 365 days;
@@ -66,7 +67,7 @@ contract RebaseManager is Ownable {
             : rebaseFund;
 
         // Skip if insufficient USDs to rebase or insufficient time has elapsed
-        if (rebaseAmt < minRebaseAmt || block.timestamp <= lastRebaseTS + gap) {
+        if (rebaseAmt < minRebaseAmt || block.timestamp < lastRebaseTS + gap) {
             return 0;
         }
 
