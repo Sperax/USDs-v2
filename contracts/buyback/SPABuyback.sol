@@ -9,11 +9,10 @@ import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Ini
 import {IOracle} from "../interfaces/IOracle.sol";
 import {Helpers} from "../libraries/Helpers.sol";
 
-/// @title SPABuyback of USDs Protocol
+/// @title SPABuyback of USDs Protocol.
 /// @notice This contract allows users to exchange SPA tokens for USDs tokens.
 /// @dev Users can provide SPA tokens and receive USDs tokens in return based on the current exchange rate.
 /// @dev A percentage of the provided SPA tokens are distributed as rewards, and the rest are burned.
-/// @dev The contract is owned by an owner who can perform administrative functions.
 /// @author Sperax Foundation
 contract SPABuyback is
     Initializable,
