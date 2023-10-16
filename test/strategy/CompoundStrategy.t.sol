@@ -9,7 +9,6 @@ import {Helpers, CompoundStrategy, IComet, IReward} from "../../contracts/strate
 import {IERC20, ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 contract CompoundStrategyTest is BaseStrategy, BaseTest {
-
     struct AssetData {
         string name;
         address asset;
@@ -28,7 +27,8 @@ contract CompoundStrategyTest is BaseStrategy, BaseTest {
     address internal yieldReceiver;
     address internal ASSET;
     address internal P_TOKEN;
-    address internal constant REWARD_POOL = 0x88730d254A2f7e6AC8388c3198aFd694bA9f7fae;
+    address internal constant REWARD_POOL =
+        0x88730d254A2f7e6AC8388c3198aFd694bA9f7fae;
 
     event IntLiqThresholdUpdated(
         address indexed asset,
@@ -277,10 +277,10 @@ contract DepositTest is CompoundStrategyTest {
         vm.expectRevert(
             abi.encodeWithSelector(
                 CollateralNotSupported.selector,
-                makeAddr('DUMMY')
+                makeAddr("DUMMY")
             )
         );
-        strategy.deposit(makeAddr('DUMMY'), 1);
+        strategy.deposit(makeAddr("DUMMY"), 1);
     }
 
     function test_RevertWhen_InvalidAmount() public useKnownActor(VAULT) {
@@ -323,7 +323,6 @@ contract CollectInterestTest is CompoundStrategyTest {
             abi.encode(yieldReceiver)
         );
 
-        
         uint256 interestEarned = strategy.checkInterestEarned(ASSET);
 
         assert(interestEarned > 0);
@@ -389,10 +388,16 @@ contract WithdrawTest is CompoundStrategyTest {
         vm.warp(block.timestamp + 10 days);
 
         strategy.withdraw(VAULT, ASSET, depositAmount);
-        assertEq(initialVaultBal + depositAmount, IERC20(ASSET).balanceOf(VAULT));
+        assertEq(
+            initialVaultBal + depositAmount,
+            IERC20(ASSET).balanceOf(VAULT)
+        );
     }
 
-    function test_WithdrawToVault_RevertsIf_CallerNotOwner() public useActor(0) {
+    function test_WithdrawToVault_RevertsIf_CallerNotOwner()
+        public
+        useActor(0)
+    {
         uint256 initialVaultBal = IERC20(ASSET).balanceOf(VAULT);
         uint256 interestAmt = strategy.checkInterestEarned(ASSET);
         uint256 amt = initialVaultBal + interestAmt;
@@ -410,7 +415,10 @@ contract WithdrawTest is CompoundStrategyTest {
         emit Withdrawal(ASSET, depositAmount);
 
         strategy.withdrawToVault(ASSET, depositAmount);
-        assertEq(initialVaultBal + depositAmount, IERC20(ASSET).balanceOf(VAULT));
+        assertEq(
+            initialVaultBal + depositAmount,
+            IERC20(ASSET).balanceOf(VAULT)
+        );
     }
 }
 
@@ -425,14 +433,18 @@ contract CheckRewardEarnedTest is CompoundStrategyTest {
         vm.stopPrank();
     }
 
-    function test_CheckRewardEarned() public useKnownActor(USDS_OWNER){
+    function test_CheckRewardEarned() public useKnownActor(USDS_OWNER) {
         changePrank(VAULT);
         deal(ASSET, VAULT, depositAmount);
         IERC20(ASSET).approve(address(strategy), depositAmount);
         strategy.deposit(ASSET, depositAmount);
         changePrank(USDS_OWNER);
         vm.warp(block.timestamp + 10 days);
-        vm.mockCall(P_TOKEN, abi.encodeWithSignature("baseTrackingAccrued(address)"), abi.encode(10000000));
+        vm.mockCall(
+            P_TOKEN,
+            abi.encodeWithSignature("baseTrackingAccrued(address)"),
+            abi.encode(10000000)
+        );
         IComet(P_TOKEN).accrueAccount(address(strategy));
         uint256 reward = strategy.checkRewardEarned();
         assertNotEq(reward, 0);
@@ -447,7 +459,7 @@ contract CheckAvailableBalanceTest is CompoundStrategyTest {
         _setAssetData();
         _deposit();
     }
-    
+
     function test_checkAvilableBalance_LTAllocatedAmount() public {
         vm.mockCall(
             ASSET,
@@ -479,12 +491,19 @@ contract CollectRewardTest is CheckRewardEarnedTest {
             abi.encodeWithSignature("yieldReceiver()"),
             abi.encode(yieldReceiver)
         );
-        vm.mockCall(P_TOKEN, abi.encodeWithSignature("baseTrackingAccrued(address)"), abi.encode(10000000));
+        vm.mockCall(
+            P_TOKEN,
+            abi.encodeWithSignature("baseTrackingAccrued(address)"),
+            abi.encode(10000000)
+        );
         uint16 harvestIncentiveRate = strategy.harvestIncentiveRate();
-        IReward.RewardOwed memory rewardData = IReward(address(strategy.rewardPool())).getRewardOwed(P_TOKEN, address(strategy));
+        IReward.RewardOwed memory rewardData = IReward(
+            address(strategy.rewardPool())
+        ).getRewardOwed(P_TOKEN, address(strategy));
         address rwdToken = rewardData.token;
         uint256 rwdAmount = rewardData.owed;
-        uint256 harvestAmt = (rwdAmount * harvestIncentiveRate) / Helpers.MAX_PERCENTAGE;
+        uint256 harvestAmt = (rwdAmount * harvestIncentiveRate) /
+            Helpers.MAX_PERCENTAGE;
         rwdAmount -= harvestAmt;
         address harvester = actors[2];
         changePrank(harvester);
