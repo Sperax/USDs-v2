@@ -62,7 +62,6 @@ contract SPAOracle is BaseUniOracle {
         uint256 spaPrice = weightedSPAUniPrice.add(weightedSPADiaPrice).div(
             MAX_WEIGHT
         );
-        spaPrice = spaPrice.mul(SPA_PRICE_PRECISION).div(DIA_PRECISION);
         return (spaPrice, SPA_PRICE_PRECISION);
     }
 
