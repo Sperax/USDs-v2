@@ -82,7 +82,7 @@ contract VaultCore is
     }
 
     /// @notice Updates the address receiving fee.
-    /// @param _feeVault Updated address of the fee vault.
+    /// @param _feeVault New desired address.
     function updateFeeVault(address _feeVault) external onlyOwner {
         Helpers._isNonZeroAddr(_feeVault);
         feeVault = _feeVault;

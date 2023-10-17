@@ -6,8 +6,8 @@ import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeE
 import {Helpers} from "../libraries/Helpers.sol";
 import {IDripper} from "../interfaces/IDripper.sol";
 
-/// @title Dripper for USDs Protocol
-/// @notice This contract releases tokens at a steady rate to a specified recipient, typically the Vault contract, for rebasing the USDs stablecoin.
+/// @title Dripper for USDs Protocol.
+/// @notice This contract releases tokens at a steady rate to the Vault contract, for rebasing the USDs stablecoin.
 /// @dev The Dripper contract ensures that tokens are released gradually over time, allowing for consistent and controlled distribution.
 /// @author Sperax Foundation
 contract Dripper is IDripper, Ownable {
