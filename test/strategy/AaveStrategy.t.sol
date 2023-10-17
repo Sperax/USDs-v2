@@ -29,10 +29,7 @@ contract AaveStrategyTest is BaseStrategy, BaseTest {
     address internal ASSET;
     address internal P_TOKEN;
 
-    event IntLiqThresholdUpdated(
-        address indexed asset,
-        uint256 intLiqThreshold
-    );
+    event IntLiqThresholdUpdated(address indexed asset, uint256 intLiqThreshold);
 
     function setUp() public virtual override {
         super.setUp();
@@ -64,11 +61,7 @@ contract AaveStrategyTest is BaseStrategy, BaseTest {
 
     function _setAssetData() internal {
         for (uint8 i = 0; i < data.length; ++i) {
-            strategy.setPTokenAddress(
-                data[i].asset,
-                data[i].pToken,
-                data[i].intLiqThreshold
-            );
+            strategy.setPTokenAddress(data[i].asset, data[i].pToken, data[i].intLiqThreshold);
         }
     }
 
@@ -102,25 +95,18 @@ contract AaveStrategyTest is BaseStrategy, BaseTest {
 
     function _mockInsufficientAsset() internal {
         vm.startPrank(strategy.assetToPToken(ASSET));
-        IERC20(ASSET).transfer(
-            actors[0],
-            IERC20(ASSET).balanceOf(strategy.assetToPToken(ASSET))
-        );
+        IERC20(ASSET).transfer(actors[0], IERC20(ASSET).balanceOf(strategy.assetToPToken(ASSET)));
         vm.stopPrank();
     }
 }
 
 contract InitializeTests is AaveStrategyTest {
     function test_empty_address() public useKnownActor(USDS_OWNER) {
-        vm.expectRevert(
-            abi.encodeWithSelector(Helpers.InvalidAddress.selector)
-        );
+        vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAddress.selector));
 
         strategy.initialize(address(0), VAULT);
 
-        vm.expectRevert(
-            abi.encodeWithSelector(Helpers.InvalidAddress.selector)
-        );
+        vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAddress.selector));
 
         strategy.initialize(AAVE_POOL_PROVIDER, address(0));
     }
@@ -152,13 +138,7 @@ contract SetPToken is AaveStrategyTest {
     }
 
     function test_RevertWhen_InvalidPToken() public useKnownActor(USDS_OWNER) {
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                InvalidAssetLpPair.selector,
-                ASSET,
-                data[1].pToken
-            )
-        );
+        vm.expectRevert(abi.encodeWithSelector(InvalidAssetLpPair.selector, ASSET, data[1].pToken));
         strategy.setPTokenAddress(ASSET, data[1].pToken, 0);
     }
 
@@ -179,9 +159,7 @@ contract SetPToken is AaveStrategyTest {
 
     function test_RevertWhen_DuplicateAsset() public useKnownActor(USDS_OWNER) {
         strategy.setPTokenAddress(ASSET, P_TOKEN, 0);
-        vm.expectRevert(
-            abi.encodeWithSelector(PTokenAlreadySet.selector, ASSET, P_TOKEN)
-        );
+        vm.expectRevert(abi.encodeWithSelector(PTokenAlreadySet.selector, ASSET, P_TOKEN));
         strategy.setPTokenAddress(ASSET, P_TOKEN, 0);
     }
 }
@@ -201,13 +179,8 @@ contract UpdateIntLiqThreshold is AaveStrategyTest {
         strategy.updateIntLiqThreshold(P_TOKEN, 2);
     }
 
-    function test_RevertWhen_CollateralNotSupported()
-        public
-        useKnownActor(USDS_OWNER)
-    {
-        vm.expectRevert(
-            abi.encodeWithSelector(CollateralNotSupported.selector, P_TOKEN)
-        );
+    function test_RevertWhen_CollateralNotSupported() public useKnownActor(USDS_OWNER) {
+        vm.expectRevert(abi.encodeWithSelector(CollateralNotSupported.selector, P_TOKEN));
 
         strategy.updateIntLiqThreshold(P_TOKEN, 2);
     }
@@ -242,14 +215,9 @@ contract RemovePToken is AaveStrategyTest {
         strategy.removePToken(5);
     }
 
-    function test_RevertWhen_CollateralAllocated()
-        public
-        useKnownActor(USDS_OWNER)
-    {
+    function test_RevertWhen_CollateralAllocated() public useKnownActor(USDS_OWNER) {
         _deposit();
-        vm.expectRevert(
-            abi.encodeWithSelector(CollateralAllocated.selector, ASSET)
-        );
+        vm.expectRevert(abi.encodeWithSelector(CollateralAllocated.selector, ASSET));
         strategy.removePToken(0);
     }
 
@@ -259,9 +227,7 @@ contract RemovePToken is AaveStrategyTest {
 
         strategy.removePToken(0);
 
-        (uint256 allocatedAmt, uint256 intLiqThreshold) = strategy.assetInfo(
-            ASSET
-        );
+        (uint256 allocatedAmt, uint256 intLiqThreshold) = strategy.assetInfo(ASSET);
 
         assertEq(allocatedAmt, 0);
         assertEq(intLiqThreshold, 0);
@@ -279,16 +245,8 @@ contract Deposit is AaveStrategyTest {
         vm.stopPrank();
     }
 
-    function test_deposit_Collateral_not_supported()
-        public
-        useKnownActor(VAULT)
-    {
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                CollateralNotSupported.selector,
-                DUMMY_ADDRESS
-            )
-        );
+    function test_deposit_Collateral_not_supported() public useKnownActor(VAULT) {
+        vm.expectRevert(abi.encodeWithSelector(CollateralNotSupported.selector, DUMMY_ADDRESS));
         strategy.deposit(DUMMY_ADDRESS, 1);
     }
 
@@ -332,11 +290,7 @@ contract CollectInterest is AaveStrategyTest {
 
         uint256 initial_bal = IERC20(ASSET).balanceOf(yieldReceiver);
 
-        vm.mockCall(
-            VAULT,
-            abi.encodeWithSignature("yieldReceiver()"),
-            abi.encode(yieldReceiver)
-        );
+        vm.mockCall(VAULT, abi.encodeWithSignature("yieldReceiver()"), abi.encode(yieldReceiver));
 
         uint256 interestEarned = strategy.checkInterestEarned(ASSET);
 
@@ -377,26 +331,17 @@ contract WithdrawTest is AaveStrategyTest {
 
     function test_RevertWhen_Withdraw0() public useKnownActor(USDS_OWNER) {
         AssetData memory assetData = data[0];
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                Helpers.CustomError.selector,
-                "Must withdraw something"
-            )
-        );
+        vm.expectRevert(abi.encodeWithSelector(Helpers.CustomError.selector, "Must withdraw something"));
         strategy.withdrawToVault(assetData.asset, 0);
     }
 
     function test_RevertWhen_InvalidAddress() public useKnownActor(VAULT) {
-        vm.expectRevert(
-            abi.encodeWithSelector(Helpers.InvalidAddress.selector)
-        );
+        vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAddress.selector));
         strategy.withdraw(address(0), ASSET, 1);
     }
 
     function test_RevertWhen_CallerNotVault() public useActor(0) {
-        vm.expectRevert(
-            abi.encodeWithSelector(CallerNotVault.selector, actors[0])
-        );
+        vm.expectRevert(abi.encodeWithSelector(CallerNotVault.selector, actors[0]));
         strategy.withdraw(VAULT, ASSET, 1);
     }
 
@@ -444,7 +389,7 @@ contract MiscellaneousTest is AaveStrategyTest {
     }
 
     function test_CheckBalance() public {
-        (uint256 balance, ) = strategy.assetInfo(ASSET);
+        (uint256 balance,) = strategy.assetInfo(ASSET);
         uint256 bal = strategy.checkBalance(ASSET);
         assertEq(bal, balance);
     }
@@ -470,10 +415,7 @@ contract MiscellaneousTest is AaveStrategyTest {
         _mockInsufficientAsset();
 
         uint256 bal_after = strategy.checkAvailableBalance(ASSET);
-        assertEq(
-            bal_after,
-            IERC20(ASSET).balanceOf(strategy.assetToPToken(ASSET))
-        );
+        assertEq(bal_after, IERC20(ASSET).balanceOf(strategy.assetToPToken(ASSET)));
     }
 
     function test_CollectReward() public {

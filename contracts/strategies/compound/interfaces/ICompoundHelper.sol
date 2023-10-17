@@ -35,9 +35,7 @@ interface IComet {
     /// @notice Query the total accrued base rewards for an account
     /// @param account The account to query
     /// @return The accrued rewards, scaled by `BASE_ACCRUAL_SCALE`
-    function baseTrackingAccrued(
-        address account
-    ) external view returns (uint64);
+    function baseTrackingAccrued(address account) external view returns (uint64);
 
     /// @notice Gets the total amount of protocol reserves of the base asset
     function getReserves() external view returns (int256);
@@ -60,10 +58,7 @@ interface IReward {
     //  @notice Calculates the amount of a reward token owed to an account
     //  @param comet The protocol instance
     //  @param account The account to check rewards for
-    function getRewardOwed(
-        address comet,
-        address account
-    ) external returns (RewardOwed memory);
+    function getRewardOwed(address comet, address account) external returns (RewardOwed memory);
 
     /// @notice Claim rewards of token type from a comet instance to owner address
     /// @param comet The protocol instance
@@ -75,19 +70,9 @@ interface IReward {
     /// @param comet The protocol instance
     /// @param src The owner to claim for
     /// @param to The address to receive the rewards
-    function claimTo(
-        address comet,
-        address src,
-        address to,
-        bool shouldAccrue
-    ) external;
+    function claimTo(address comet, address src, address to, bool shouldAccrue) external;
 
-    function rewardConfig(
-        address comet
-    ) external view returns (RewardConfig memory);
+    function rewardConfig(address comet) external view returns (RewardConfig memory);
 
-    function rewardsClaimed(
-        address commet,
-        address account
-    ) external view returns (uint256);
+    function rewardsClaimed(address commet, address account) external view returns (uint256);
 }

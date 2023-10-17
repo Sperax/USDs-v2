@@ -5,27 +5,19 @@ pragma solidity 0.8.16;
 /// For special uses of supporting built-in protocols only
 interface IVstOracle {
     /// @dev returns current price data including price, round & time of last update
-    function getPriceData()
-        external
-        view
-        returns (
-            uint256 _currentPrice,
-            uint256 _lastPrice,
-            uint256 _lastUpdate
-        );
+    function getPriceData() external view returns (uint256 _currentPrice, uint256 _lastPrice, uint256 _lastUpdate);
 }
 
 /// @title VST Oracle for USDs protocol
 /// @author Sperax Foundation
 /// @dev consults VST Price feed for getting the price
 contract VSTOracle {
-    address public constant PRICE_FEED =
-        0x46bAc6210DcB43b4269ffe766f31B36267C41EdE;
+    address public constant PRICE_FEED = 0x46bAc6210DcB43b4269ffe766f31B36267C41EdE;
     uint256 public constant VST_PRICE_PRECISION = 1e8;
 
     /// @notice Gets the price feed for vst
     function getPrice() external view returns (uint256 price, uint256) {
-        (price, , ) = IVstOracle(PRICE_FEED).getPriceData();
+        (price,,) = IVstOracle(PRICE_FEED).getPriceData();
         return (price, VST_PRICE_PRECISION);
     }
 }

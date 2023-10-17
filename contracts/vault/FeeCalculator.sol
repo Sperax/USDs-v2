@@ -24,11 +24,7 @@ contract FeeCalculator is IFeeCalculator {
 
     mapping(address => FeeData) public collateralFee;
 
-    event FeeCalibrated(
-        address indexed collateral,
-        uint16 mintFee,
-        uint16 redeemFee
-    );
+    event FeeCalibrated(address indexed collateral, uint16 mintFee, uint16 redeemFee);
 
     error InvalidCalibration();
     error FeeNotCalibrated(address collateral);
@@ -41,8 +37,9 @@ contract FeeCalculator is IFeeCalculator {
     /// @notice Calibrates fee for a particular collateral
     /// @param _collateral Address of the desired collateral
     function calibrateFee(address _collateral) external {
-        if (block.timestamp < collateralFee[_collateral].nextUpdate)
+        if (block.timestamp < collateralFee[_collateral].nextUpdate) {
             revert InvalidCalibration();
+        }
         _calibrateFee(_collateral);
     }
 
@@ -60,7 +57,7 @@ contract FeeCalculator is IFeeCalculator {
     function calibrateFeeForAll() public {
         address[] memory collaterals = collateralManager.getAllCollaterals();
         uint256 collateralsLength = collaterals.length;
-        for (uint256 i; i < collateralsLength; ) {
+        for (uint256 i; i < collateralsLength;) {
             if (block.timestamp > collateralFee[collaterals[i]].nextUpdate) {
                 _calibrateFee(collaterals[i]);
             }
@@ -75,20 +72,13 @@ contract FeeCalculator is IFeeCalculator {
     function _calibrateFee(address _collateral) private {
         // get current stats
         uint256 tvl = IERC20(Helpers.USDS).totalSupply();
-        (
-            uint16 baseMintFee,
-            uint16 baseRedeemFee,
-            uint16 composition,
-            uint256 totalCollateral
-        ) = collateralManager.getFeeCalibrationData(_collateral);
+        (uint16 baseMintFee, uint16 baseRedeemFee, uint16 composition, uint256 totalCollateral) =
+            collateralManager.getFeeCalibrationData(_collateral);
 
         // compute segments
-        uint256 desiredCollateralAmt = (tvl * composition) /
-            (Helpers.MAX_PERCENTAGE);
-        uint256 lowerLimit = (desiredCollateralAmt * LOWER_THRESHOLD) /
-            (Helpers.MAX_PERCENTAGE);
-        uint256 upperLimit = (desiredCollateralAmt * UPPER_THRESHOLD) /
-            (Helpers.MAX_PERCENTAGE);
+        uint256 desiredCollateralAmt = (tvl * composition) / (Helpers.MAX_PERCENTAGE);
+        uint256 lowerLimit = (desiredCollateralAmt * LOWER_THRESHOLD) / (Helpers.MAX_PERCENTAGE);
+        uint256 upperLimit = (desiredCollateralAmt * UPPER_THRESHOLD) / (Helpers.MAX_PERCENTAGE);
 
         FeeData memory updatedFeeData;
         if (totalCollateral < lowerLimit) {
@@ -111,10 +101,6 @@ contract FeeCalculator is IFeeCalculator {
             });
         }
         collateralFee[_collateral] = updatedFeeData;
-        emit FeeCalibrated(
-            _collateral,
-            updatedFeeData.mintFee,
-            updatedFeeData.redeemFee
-        );
+        emit FeeCalibrated(_collateral, updatedFeeData.mintFee, updatedFeeData.redeemFee);
     }
 }

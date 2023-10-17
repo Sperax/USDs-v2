@@ -40,26 +40,15 @@ contract RebaseManagerTest is PreMigrationSetup {
         deal(address(USDCe), USDS_OWNER, amountIn);
 
         IERC20(USDCe).approve(VAULT, amountIn);
-        IVault(VAULT).mintBySpecifyingCollateralAmt(
-            USDCe,
-            amountIn,
-            0,
-            0,
-            block.timestamp + 1200
-        );
+        IVault(VAULT).mintBySpecifyingCollateralAmt(USDCe, amountIn, 0, 0, block.timestamp + 1200);
         vm.stopPrank();
     }
 }
 
 contract UpdateVault is RebaseManagerTest {
-    function test_RevertWhen_VaultIsZeroAddress()
-        external
-        useKnownActor(USDS_OWNER)
-    {
+    function test_RevertWhen_VaultIsZeroAddress() external useKnownActor(USDS_OWNER) {
         address newVaultAddress = address(0);
-        vm.expectRevert(
-            abi.encodeWithSelector(Helpers.InvalidAddress.selector)
-        );
+        vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAddress.selector));
         rebaseManager.updateVault(newVaultAddress);
     }
 
@@ -81,14 +70,9 @@ contract UpdateVault is RebaseManagerTest {
 }
 
 contract UpdateDripper is RebaseManagerTest {
-    function test_RevertWhen_DripperIsZeroAddress()
-        external
-        useKnownActor(USDS_OWNER)
-    {
+    function test_RevertWhen_DripperIsZeroAddress() external useKnownActor(USDS_OWNER) {
         address newDripperAddress = address(0);
-        vm.expectRevert(
-            abi.encodeWithSelector(Helpers.InvalidAddress.selector)
-        );
+        vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAddress.selector));
         rebaseManager.updateDripper(newDripperAddress);
     }
 
@@ -129,30 +113,19 @@ contract UpdateGap is RebaseManagerTest {
 }
 
 contract UpdateAPR is RebaseManagerTest {
-    function test_RevertWhen_InvalidConfig(
-        uint256 aprBottom,
-        uint256 aprCap
-    ) external useKnownActor(USDS_OWNER) {
+    function test_RevertWhen_InvalidConfig(uint256 aprBottom, uint256 aprCap) external useKnownActor(USDS_OWNER) {
         vm.assume(aprBottom > aprCap);
-        vm.expectRevert(
-            abi.encodeWithSelector(InvalidAPRConfig.selector, aprBottom, aprCap)
-        );
+        vm.expectRevert(abi.encodeWithSelector(InvalidAPRConfig.selector, aprBottom, aprCap));
         rebaseManager.updateAPR(aprBottom, aprCap);
     }
 
-    function test_RevertWhen_CallerIsNotOwner(
-        uint256 aprBottom,
-        uint256 aprCap
-    ) external useActor(0) {
+    function test_RevertWhen_CallerIsNotOwner(uint256 aprBottom, uint256 aprCap) external useActor(0) {
         vm.assume(aprBottom <= aprCap);
         vm.expectRevert("Ownable: caller is not the owner");
         rebaseManager.updateAPR(aprBottom, aprCap);
     }
 
-    function test_UpdateAPR(
-        uint256 aprBottom,
-        uint256 aprCap
-    ) external useKnownActor(USDS_OWNER) {
+    function test_UpdateAPR(uint256 aprBottom, uint256 aprCap) external useKnownActor(USDS_OWNER) {
         vm.assume(aprBottom <= aprCap);
         vm.expectEmit(true, true, false, true);
         emit APRUpdated(aprBottom, aprCap);
@@ -162,9 +135,7 @@ contract UpdateAPR is RebaseManagerTest {
 
 contract FetchRebaseAmt is RebaseManagerTest {
     function test_RevertWhen_CallerIsNotOwner() external useActor(0) {
-        vm.expectRevert(
-            abi.encodeWithSelector(CallerNotVault.selector, actors[0])
-        );
+        vm.expectRevert(abi.encodeWithSelector(CallerNotVault.selector, actors[0]));
         rebaseManager.fetchRebaseAmt();
     }
 
@@ -182,23 +153,13 @@ contract FetchRebaseAmt is RebaseManagerTest {
         console.log("Day 1 After Minting USDs");
         skip(86400 * 1);
         (uint256 min, uint256 max) = rebaseManager.getMinAndMaxRebaseAmt();
-        console.log(
-            "Min Rebase Amt",
-            min / (10 ** 18),
-            "max Rebase Amt",
-            max / (10 ** 18)
-        );
+        console.log("Min Rebase Amt", min / (10 ** 18), "max Rebase Amt", max / (10 ** 18));
         uint256 collectable0 = dripper.getCollectableAmt();
         console.log("collectable0", collectable0 / 10 ** 18);
         skip(86400 * 1);
         console.log("Day 2 After Minting USDs");
         (uint256 min2, uint256 max2) = rebaseManager.getMinAndMaxRebaseAmt();
-        console.log(
-            "Min Rebase Amt",
-            min2 / (10 ** 18),
-            "max Rebase Amt",
-            max2 / (10 ** 18)
-        );
+        console.log("Min Rebase Amt", min2 / (10 ** 18), "max Rebase Amt", max2 / (10 ** 18));
         uint256 collectable = dripper.getCollectableAmt();
         console.log("collectable1", collectable / 10 ** 18);
         uint256 rebaseAmt1 = rebaseManager.fetchRebaseAmt();
@@ -208,12 +169,7 @@ contract FetchRebaseAmt is RebaseManagerTest {
         skip(86400 * 1);
         console.log("Day 3 After Minting USDs");
         (uint256 min3, uint256 max3) = rebaseManager.getMinAndMaxRebaseAmt();
-        console.log(
-            "Min Rebase Amt",
-            min3 / (10 ** 18),
-            "max Rebase Amt",
-            max3 / (10 ** 18)
-        );
+        console.log("Min Rebase Amt", min3 / (10 ** 18), "max Rebase Amt", max3 / (10 ** 18));
         uint256 collectable3 = dripper.getCollectableAmt();
         console.log("collectable3", collectable3 / 10 ** 18);
         uint256 rebaseAmt3 = rebaseManager.fetchRebaseAmt();

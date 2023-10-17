@@ -35,10 +35,8 @@ contract TestFeeCalculatorInit is FeeCalculatorTestSetup {
         _feeCalculator.calibrateFeeForAll();
         address[] memory collaterals = collateralManager.getAllCollaterals();
         uint256 colLength = collaterals.length;
-        for (uint256 i; i < colLength; ) {
-            (uint32 nextUpdate, , ) = feeCalculator.collateralFee(
-                collaterals[i]
-            );
+        for (uint256 i; i < colLength;) {
+            (uint32 nextUpdate,,) = feeCalculator.collateralFee(collaterals[i]);
             assertTrue(nextUpdate != 0);
             unchecked {
                 ++i;
@@ -56,9 +54,7 @@ contract TestCalibrateFee is FeeCalculatorTestSetup {
     }
 
     function test_revertsIf_InvalidCalibration() public {
-        vm.expectRevert(
-            abi.encodeWithSelector(FeeCalculator.InvalidCalibration.selector)
-        );
+        vm.expectRevert(abi.encodeWithSelector(FeeCalculator.InvalidCalibration.selector));
         feeCalculator.calibrateFee(_collateral);
     }
 
@@ -141,30 +137,23 @@ contract TestCalibrateFee is FeeCalculatorTestSetup {
     }
 
     function setCollateralData(address _collateral) internal {
-        ICollateralManager.CollateralBaseData memory _data = ICollateralManager
-            .CollateralBaseData({
-                mintAllowed: true,
-                redeemAllowed: true,
-                allocationAllowed: true,
-                baseMintFee: 500,
-                baseRedeemFee: 500,
-                downsidePeg: 9800,
-                desiredCollateralComposition: 1000
-            });
+        ICollateralManager.CollateralBaseData memory _data = ICollateralManager.CollateralBaseData({
+            mintAllowed: true,
+            redeemAllowed: true,
+            allocationAllowed: true,
+            baseMintFee: 500,
+            baseRedeemFee: 500,
+            downsidePeg: 9800,
+            desiredCollateralComposition: 1000
+        });
         vm.prank(USDS_OWNER);
-        ICollateralManager(COLLATERAL_MANAGER).updateCollateralData(
-            _collateral,
-            _data
-        );
+        ICollateralManager(COLLATERAL_MANAGER).updateCollateralData(_collateral, _data);
     }
 
     function mockCollateralCalls(uint256 _totalCollateral) internal {
         vm.mockCall(
             COLLATERAL_MANAGER,
-            abi.encodeWithSignature(
-                "getFeeCalibrationData(address)",
-                _collateral
-            ),
+            abi.encodeWithSignature("getFeeCalibrationData(address)", _collateral),
             abi.encode(500, 500, 1000, _totalCollateral)
         );
     }
@@ -192,16 +181,12 @@ contract TestFeeCalculator is FeeCalculatorTestSetup {
 
     function getMintFee() private returns (uint16) {
         uint256 totalCollateral;
-        (baseMintFee, , composition, totalCollateral) = ICollateralManager(
-            COLLATERAL_MANAGER
-        ).getFeeCalibrationData(USDCe);
+        (baseMintFee,, composition, totalCollateral) =
+            ICollateralManager(COLLATERAL_MANAGER).getFeeCalibrationData(USDCe);
         uint256 tvl = IUSDs(Helpers.USDS).totalSupply();
-        uint256 desiredCollateralAmt = (tvl * composition) /
-            (Helpers.MAX_PERCENTAGE);
-        uint256 lowerLimit = (desiredCollateralAmt * LOWER_THRESHOLD) /
-            (Helpers.MAX_PERCENTAGE);
-        uint256 upperLimit = (desiredCollateralAmt * UPPER_THRESHOLD) /
-            (Helpers.MAX_PERCENTAGE);
+        uint256 desiredCollateralAmt = (tvl * composition) / (Helpers.MAX_PERCENTAGE);
+        uint256 lowerLimit = (desiredCollateralAmt * LOWER_THRESHOLD) / (Helpers.MAX_PERCENTAGE);
+        uint256 upperLimit = (desiredCollateralAmt * UPPER_THRESHOLD) / (Helpers.MAX_PERCENTAGE);
         if (totalCollateral < lowerLimit) {
             return baseMintFee / DISCOUNT_FACTOR;
         } else if (totalCollateral < upperLimit) {
@@ -213,16 +198,12 @@ contract TestFeeCalculator is FeeCalculatorTestSetup {
 
     function getRedeemFee() private returns (uint16) {
         uint256 totalCollateral;
-        (, baseRedeemFee, composition, totalCollateral) = ICollateralManager(
-            COLLATERAL_MANAGER
-        ).getFeeCalibrationData(USDCe);
+        (, baseRedeemFee, composition, totalCollateral) =
+            ICollateralManager(COLLATERAL_MANAGER).getFeeCalibrationData(USDCe);
         uint256 tvl = IUSDs(Helpers.USDS).totalSupply();
-        uint256 desiredCollateralAmt = (tvl * composition) /
-            (Helpers.MAX_PERCENTAGE);
-        uint256 lowerLimit = (desiredCollateralAmt * LOWER_THRESHOLD) /
-            (Helpers.MAX_PERCENTAGE);
-        uint256 upperLimit = (desiredCollateralAmt * UPPER_THRESHOLD) /
-            (Helpers.MAX_PERCENTAGE);
+        uint256 desiredCollateralAmt = (tvl * composition) / (Helpers.MAX_PERCENTAGE);
+        uint256 lowerLimit = (desiredCollateralAmt * LOWER_THRESHOLD) / (Helpers.MAX_PERCENTAGE);
+        uint256 upperLimit = (desiredCollateralAmt * UPPER_THRESHOLD) / (Helpers.MAX_PERCENTAGE);
         if (totalCollateral < lowerLimit) {
             return baseRedeemFee * PENALTY_MULTIPLIER;
         } else if (totalCollateral < upperLimit) {
@@ -232,15 +213,8 @@ contract TestFeeCalculator is FeeCalculatorTestSetup {
         }
     }
 
-    function getTotalCollateral(
-        address _collateral
-    ) private view returns (uint256) {
-        return
-            ICollateralManager(COLLATERAL_MANAGER).getCollateralInVault(
-                _collateral
-            ) +
-            ICollateralManager(COLLATERAL_MANAGER).getCollateralInStrategies(
-                _collateral
-            );
+    function getTotalCollateral(address _collateral) private view returns (uint256) {
+        return ICollateralManager(COLLATERAL_MANAGER).getCollateralInVault(_collateral)
+            + ICollateralManager(COLLATERAL_MANAGER).getCollateralInStrategies(_collateral);
     }
 }

@@ -7,14 +7,11 @@ import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transpa
 
 // @note This file is only for facilitating contract imports for brownie script
 
-contract PA is ProxyAdmin {
-
-}
+contract PA is ProxyAdmin {}
 
 contract TUP is TransparentUpgradeableProxy {
-    constructor(
-        address _logic,
-        address admin_,
-        bytes memory _data
-    ) payable TransparentUpgradeableProxy(_logic, admin_, _data) {}
+    constructor(address _logic, address admin_, bytes memory _data)
+        payable
+        TransparentUpgradeableProxy(_logic, admin_, _data)
+    {}
 }

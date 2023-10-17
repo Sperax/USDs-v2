@@ -5,9 +5,7 @@ pragma experimental ABIEncoderV2;
 import {BaseUniOracle} from "./BaseUniOracle.sol";
 
 interface IDiaOracle {
-    function getValue(
-        string memory key
-    ) external view returns (uint128 price, uint128 lastUpdateTime);
+    function getValue(string memory key) external view returns (uint128 price, uint128 lastUpdateTime);
 }
 
 /// @title Oracle contract for USDs protocol for SPA token
@@ -15,8 +13,7 @@ interface IDiaOracle {
 /// @author Sperax Foundation
 contract SPAOracle is BaseUniOracle {
     address public constant SPA = 0x5575552988A3A80504bBaeB1311674fCFd40aD4B;
-    address public constant DIA_ORACLE =
-        0x7919D08e0f41398cBc1e0A8950Df831e4895c19b;
+    address public constant DIA_ORACLE = 0x7919D08e0f41398cBc1e0A8950Df831e4895c19b;
     uint128 private constant SPA_PRECISION = 1e18;
     uint128 private constant SPA_PRICE_PRECISION = 1e8;
     uint256 private constant DIA_PRECISION = 1e8;
@@ -27,13 +24,9 @@ contract SPAOracle is BaseUniOracle {
 
     event DIAParamsUpdated(uint256 weightDIA, uint128 diaMaxTimeThreshold);
 
-    constructor(
-        address _masterOracle,
-        address _quoteToken,
-        uint24 _feeTier,
-        uint32 _maPeriod,
-        uint256 _weightDIA
-    ) public {
+    constructor(address _masterOracle, address _quoteToken, uint24 _feeTier, uint32 _maPeriod, uint256 _weightDIA)
+        public
+    {
         _isNonZeroAddr(_masterOracle);
         masterOracle = _masterOracle;
         setUniMAPriceData(SPA, _quoteToken, _feeTier, _maPeriod);
@@ -50,18 +43,12 @@ contract SPAOracle is BaseUniOracle {
         uint256 weightedSPAUniPrice = weightUNI.mul(_getSPAUniPrice());
 
         // calculate weighted DIA USDsPerSPA
-        (uint128 spaDiaPrice, uint128 lastUpdated) = IDiaOracle(DIA_ORACLE)
-            .getValue("SPA/USD");
+        (uint128 spaDiaPrice, uint128 lastUpdated) = IDiaOracle(DIA_ORACLE).getValue("SPA/USD");
 
-        require(
-            block.timestamp - lastUpdated <= diaMaxTimeThreshold,
-            "Price too old"
-        );
+        require(block.timestamp - lastUpdated <= diaMaxTimeThreshold, "Price too old");
 
         uint256 weightedSPADiaPrice = weightDIA.mul(spaDiaPrice);
-        uint256 spaPrice = weightedSPAUniPrice.add(weightedSPADiaPrice).div(
-            MAX_WEIGHT
-        );
+        uint256 spaPrice = weightedSPAUniPrice.add(weightedSPADiaPrice).div(MAX_WEIGHT);
         return (spaPrice, SPA_PRICE_PRECISION);
     }
 
@@ -72,10 +59,7 @@ contract SPAOracle is BaseUniOracle {
     ///     weights on SPA's final price
     /// @param _weightDIA weight for DIA price feed
     /// @param _maxTime max age of price feed from DIA
-    function updateDIAParams(
-        uint256 _weightDIA,
-        uint128 _maxTime
-    ) public onlyOwner {
+    function updateDIAParams(uint256 _weightDIA, uint128 _maxTime) public onlyOwner {
         require(_weightDIA <= MAX_WEIGHT, "Invalid weight");
         require(_maxTime > 120, "Invalid time"); // 120 is the update frequency
         weightDIA = _weightDIA;
@@ -87,15 +71,9 @@ contract SPAOracle is BaseUniOracle {
     /// @return uint256 SPA Uni price with precision DIA_PRECISION
     function _getSPAUniPrice() private view returns (uint256) {
         uint256 quoteTokenAmtPerSPA = _getUniMAPrice(SPA, SPA_PRECISION);
-        (
-            uint256 quoteTokenPrice,
-            uint256 quoteTokenPricePrecision
-        ) = _getQuoteTokenPrice();
-        return
-            quoteTokenPrice
-                .mul(quoteTokenAmtPerSPA)
-                .mul(SPA_PRICE_PRECISION)
-                .div(quoteTokenPrecision)
-                .div(quoteTokenPricePrecision);
+        (uint256 quoteTokenPrice, uint256 quoteTokenPricePrecision) = _getQuoteTokenPrice();
+        return quoteTokenPrice.mul(quoteTokenAmtPerSPA).mul(SPA_PRICE_PRECISION).div(quoteTokenPrecision).div(
+            quoteTokenPricePrecision
+        );
     }
 }

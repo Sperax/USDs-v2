@@ -12,6 +12,7 @@ import {IComet, IReward} from "./interfaces/ICompoundHelper.sol";
 ///         Addresses https://docs.compound.finance/#networks
 contract CompoundStrategy is InitializableAbstractStrategy {
     using SafeERC20 for IERC20;
+
     struct AssetInfo {
         uint256 allocatedAmt; // tracks the allocated amount for an asset.
         uint256 intLiqThreshold; // tracks the interest liq threshold for an asset.
@@ -21,29 +22,19 @@ contract CompoundStrategy is InitializableAbstractStrategy {
     IReward public rewardPool;
     mapping(address => AssetInfo) public assetInfo;
 
-    event IntLiqThresholdUpdated(
-        address indexed asset,
-        uint256 intLiqThreshold
-    );
+    event IntLiqThresholdUpdated(address indexed asset, uint256 intLiqThreshold);
 
     /// Initializer for setting up strategy internal state. This overrides the
     /// InitializableAbstractStrategy initializer as Compound needs several extra
     /// addresses for the rewards program.
     /// @param _rewardPool Address of the Compound's reward pool
     /// @param _vault Address of the vault
-    function initialize(
-        address _vault,
-        address _rewardPool
-    ) external initializer {
+    function initialize(address _vault, address _rewardPool) external initializer {
         Helpers._isNonZeroAddr(_rewardPool);
         Helpers._isNonZeroAddr(_vault);
         rewardPool = IReward(_rewardPool);
 
-        InitializableAbstractStrategy._initialize({
-            _vault: _vault,
-            _depositSlippage: 0,
-            _withdrawSlippage: 0
-        });
+        InitializableAbstractStrategy._initialize({_vault: _vault, _depositSlippage: 0, _withdrawSlippage: 0});
     }
 
     /// @notice Provide support for asset by passing its lpToken address.
@@ -51,16 +42,9 @@ contract CompoundStrategy is InitializableAbstractStrategy {
     /// @param _asset    Address for the asset
     /// @param _lpToken   Address for the corresponding platform token
     /// @param _intLiqThreshold   Integer representing the liquidity threshold
-    function setPTokenAddress(
-        address _asset,
-        address _lpToken,
-        uint256 _intLiqThreshold
-    ) external onlyOwner {
+    function setPTokenAddress(address _asset, address _lpToken, uint256 _intLiqThreshold) external onlyOwner {
         _setPTokenAddress(_asset, _lpToken);
-        assetInfo[_asset] = AssetInfo({
-            allocatedAmt: 0,
-            intLiqThreshold: _intLiqThreshold
-        });
+        assetInfo[_asset] = AssetInfo({allocatedAmt: 0, intLiqThreshold: _intLiqThreshold});
     }
 
     /// @notice Remove a supported asset by passing its index.
@@ -68,18 +52,16 @@ contract CompoundStrategy is InitializableAbstractStrategy {
     /// @param _assetIndex Index of the asset to be removed
     function removePToken(uint256 _assetIndex) external onlyOwner {
         address asset = _removePTokenAddress(_assetIndex);
-        if (assetInfo[asset].allocatedAmt != 0)
+        if (assetInfo[asset].allocatedAmt != 0) {
             revert CollateralAllocated(asset);
+        }
         delete assetInfo[asset];
     }
 
     /// @notice Update the interest liquidity threshold for an asset.
     /// @param _asset Address of the asset
     /// @param _intLiqThreshold Liquidity threshold for interest
-    function updateIntLiqThreshold(
-        address _asset,
-        uint256 _intLiqThreshold
-    ) external onlyOwner {
+    function updateIntLiqThreshold(address _asset, uint256 _intLiqThreshold) external onlyOwner {
         if (!supportsCollateral(_asset)) revert CollateralNotSupported(_asset);
         assetInfo[_asset].intLiqThreshold = _intLiqThreshold;
 
@@ -87,10 +69,7 @@ contract CompoundStrategy is InitializableAbstractStrategy {
     }
 
     /// @inheritdoc InitializableAbstractStrategy
-    function deposit(
-        address _asset,
-        uint256 _amount
-    ) external override nonReentrant {
+    function deposit(address _asset, uint256 _amount) external override nonReentrant {
         Helpers._isNonZeroAmt(_amount);
         address lpToken = _getPTokenFor(_asset);
 
@@ -108,20 +87,25 @@ contract CompoundStrategy is InitializableAbstractStrategy {
     }
 
     /// @inheritdoc InitializableAbstractStrategy
-    function withdraw(
-        address _recipient,
-        address _asset,
-        uint256 _amount
-    ) external override onlyVault nonReentrant returns (uint256) {
+    function withdraw(address _recipient, address _asset, uint256 _amount)
+        external
+        override
+        onlyVault
+        nonReentrant
+        returns (uint256)
+    {
         _withdraw(_recipient, _asset, _amount);
         return _amount;
     }
 
     /// @inheritdoc InitializableAbstractStrategy
-    function withdrawToVault(
-        address _asset,
-        uint256 _amount
-    ) external override onlyOwner nonReentrant returns (uint256) {
+    function withdrawToVault(address _asset, uint256 _amount)
+        external
+        override
+        onlyOwner
+        nonReentrant
+        returns (uint256)
+    {
         _withdraw(vault, _asset, _amount);
         return _amount;
     }
@@ -132,12 +116,7 @@ contract CompoundStrategy is InitializableAbstractStrategy {
         uint256 assetInterest = checkInterestEarned(_asset);
         if (assetInterest > assetInfo[_asset].intLiqThreshold) {
             IComet(assetToPToken[_asset]).withdraw(_asset, assetInterest);
-            uint256 harvestAmt = _splitAndSendReward(
-                _asset,
-                yieldReceiver,
-                msg.sender,
-                assetInterest
-            );
+            uint256 harvestAmt = _splitAndSendReward(_asset, yieldReceiver, msg.sender, assetInterest);
             emit InterestCollected(_asset, yieldReceiver, harvestAmt);
         }
     }
@@ -146,24 +125,12 @@ contract CompoundStrategy is InitializableAbstractStrategy {
     function collectReward() external override {
         address yieldReceiver = IStrategyVault(vault).yieldReceiver();
         uint256 numAssets = assetsMapped.length;
-        for (uint256 i; i < numAssets; ) {
+        for (uint256 i; i < numAssets;) {
             address lpToken = assetToPToken[assetsMapped[i]];
-            IReward.RewardOwed memory rewardData = rewardPool.getRewardOwed(
-                lpToken,
-                address(this)
-            );
+            IReward.RewardOwed memory rewardData = rewardPool.getRewardOwed(lpToken, address(this));
             rewardPool.claim(lpToken, address(this), false);
-            uint256 harvestAmt = _splitAndSendReward(
-                rewardData.token,
-                yieldReceiver,
-                msg.sender,
-                rewardData.owed
-            );
-            emit RewardTokenCollected(
-                rewardData.token,
-                yieldReceiver,
-                harvestAmt
-            );
+            uint256 harvestAmt = _splitAndSendReward(rewardData.token, yieldReceiver, msg.sender, rewardData.owed);
+            emit RewardTokenCollected(rewardData.token, yieldReceiver, harvestAmt);
             unchecked {
                 ++i;
             }
@@ -171,21 +138,12 @@ contract CompoundStrategy is InitializableAbstractStrategy {
     }
 
     /// @inheritdoc InitializableAbstractStrategy
-    function checkRewardEarned()
-        external
-        view
-        override
-        returns (uint256 total)
-    {
+    function checkRewardEarned() external view override returns (uint256 total) {
         uint256 numAssets = assetsMapped.length;
-        for (uint256 i; i < numAssets; ) {
+        for (uint256 i; i < numAssets;) {
             address lpToken = assetToPToken[assetsMapped[i]];
-            uint256 accrued = uint256(
-                IComet(lpToken).baseTrackingAccrued(address(this))
-            );
-            IReward.RewardConfig memory config = rewardPool.rewardConfig(
-                lpToken
-            );
+            uint256 accrued = uint256(IComet(lpToken).baseTrackingAccrued(address(this)));
+            IReward.RewardConfig memory config = rewardPool.rewardConfig(lpToken);
             if (config.shouldUpscale) {
                 accrued *= config.rescaleFactor;
             } else {
@@ -194,9 +152,7 @@ contract CompoundStrategy is InitializableAbstractStrategy {
             accrued = ((accrued * config.multiplier) / FACTOR_SCALE);
 
             // assuming homogeneous reward tokens
-            total +=
-                accrued -
-                rewardPool.rewardsClaimed(lpToken, address(this));
+            total += accrued - rewardPool.rewardsClaimed(lpToken, address(this));
             unchecked {
                 ++i;
             }
@@ -204,9 +160,7 @@ contract CompoundStrategy is InitializableAbstractStrategy {
     }
 
     /// @inheritdoc InitializableAbstractStrategy
-    function checkInterestEarned(
-        address _asset
-    ) public view override returns (uint256) {
+    function checkInterestEarned(address _asset) public view override returns (uint256) {
         uint256 balance = checkLPTokenBalance(_asset);
         uint256 allocatedAmt = assetInfo[_asset].allocatedAmt;
         if (balance > allocatedAmt) {
@@ -219,20 +173,14 @@ contract CompoundStrategy is InitializableAbstractStrategy {
     }
 
     /// @inheritdoc InitializableAbstractStrategy
-    function checkBalance(
-        address _asset
-    ) public view override returns (uint256 balance) {
+    function checkBalance(address _asset) public view override returns (uint256 balance) {
         // Balance is always with token lpToken decimals
         balance = assetInfo[_asset].allocatedAmt;
     }
 
     /// @inheritdoc InitializableAbstractStrategy
-    function checkAvailableBalance(
-        address _asset
-    ) public view override returns (uint256) {
-        uint256 availableLiquidity = IERC20(_asset).balanceOf(
-            _getPTokenFor(_asset)
-        );
+    function checkAvailableBalance(address _asset) public view override returns (uint256) {
+        uint256 availableLiquidity = IERC20(_asset).balanceOf(_getPTokenFor(_asset));
         uint256 allocatedValue = assetInfo[_asset].allocatedAmt;
         if (availableLiquidity <= allocatedValue) {
             return availableLiquidity;
@@ -241,17 +189,13 @@ contract CompoundStrategy is InitializableAbstractStrategy {
     }
 
     /// @inheritdoc InitializableAbstractStrategy
-    function checkLPTokenBalance(
-        address _asset
-    ) public view override returns (uint256 balance) {
+    function checkLPTokenBalance(address _asset) public view override returns (uint256 balance) {
         address lpToken = _getPTokenFor(_asset);
         balance = IComet(lpToken).balanceOf(address(this));
     }
 
     /// @inheritdoc InitializableAbstractStrategy
-    function supportsCollateral(
-        address _asset
-    ) public view override returns (bool) {
+    function supportsCollateral(address _asset) public view override returns (bool) {
         return assetToPToken[_asset] != address(0);
     }
 
@@ -259,11 +203,7 @@ contract CompoundStrategy is InitializableAbstractStrategy {
     /// @param _recipient Address to receive withdrawn asset
     /// @param _asset Address of asset to withdraw
     /// @param _amount Amount of asset to withdraw
-    function _withdraw(
-        address _recipient,
-        address _asset,
-        uint256 _amount
-    ) internal {
+    function _withdraw(address _recipient, address _asset, uint256 _amount) internal {
         Helpers._isNonZeroAddr(_recipient);
         Helpers._isNonZeroAmt(_amount, "Must withdraw something");
         address lpToken = _getPTokenFor(_asset);
@@ -276,12 +216,10 @@ contract CompoundStrategy is InitializableAbstractStrategy {
     ///      cToken and give it permission to spend the asset
     /// @param _asset Address of the asset to approve
     /// @param _lpToken Address of the lpToken
-    function _abstractSetPToken(
-        address _asset,
-        address _lpToken
-    ) internal view override {
-        if (IComet(_lpToken).baseToken() != _asset)
+    function _abstractSetPToken(address _asset, address _lpToken) internal view override {
+        if (IComet(_lpToken).baseToken() != _asset) {
             revert InvalidAssetLpPair(_asset, _lpToken);
+        }
     }
 
     /// @notice Get the lpToken wrapped in the IERC20 interface for this asset.
