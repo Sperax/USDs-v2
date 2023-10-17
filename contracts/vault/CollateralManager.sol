@@ -272,7 +272,7 @@ contract CollateralManager is ICollateralManager, Ownable {
 
         if (collateralInfo[_collateral].defaultStrategy == _strategy)
             revert IsDefaultStrategy();
-        if (getCollateralInAStrategy(_collateral, _strategy) != 0)
+        if (IStrategy(_strategy).checkBalance(_collateral) != 0)
             revert CollateralStrategyInUse();
 
         uint256 numStrategy = collateralStrategies[_collateral].length;
@@ -327,9 +327,8 @@ contract CollateralManager is ICollateralManager, Ownable {
                 getCollateralInStrategies(_collateral))) /
             Helpers.MAX_PERCENTAGE;
 
-        uint256 collateralBalance = getCollateralInAStrategy(
-            _collateral,
-            _strategy
+        uint256 collateralBalance = IStrategy(_strategy).checkBalance(
+            _collateral
         );
 
         if (maxCollateralUsage >= collateralBalance) {
