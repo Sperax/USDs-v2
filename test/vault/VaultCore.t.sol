@@ -11,7 +11,7 @@ import {IOracle} from "../../contracts/interfaces/IOracle.sol";
 import {IRebaseManager} from "../../contracts/interfaces/IRebaseManager.sol";
 import {IDripper} from "../../contracts/interfaces/IDripper.sol";
 import {ICollateralManager} from "../../contracts/vault/interfaces/ICollateralManager.sol";
-import {IFeeCalculator} from "../../contracts/vault/interfaces/IFeeCalculator.sol";
+import {FeeCalculator} from "../../contracts/vault/FeeCalculator.sol";
 import {IUSDs} from "../../contracts/interfaces/IUSDs.sol";
 import {console} from "forge-std/console.sol";
 import {CollateralManager} from "../../contracts/vault/CollateralManager.sol";
@@ -77,7 +77,7 @@ contract VaultCoreTest is PreMigrationSetup {
         IOracle.PriceData memory collateralPriceData = IOracle(ORACLE).getPrice(
             _collateral
         );
-        _feeAmt = (_usdsAmt * 500) / 1e4; // feePerc = 500 and feePercPrecision = 1e4
+        _feeAmt = FeeCalculator(FEE_CALCULATOR).getRedeemFee(USDCe);
         _usdsBurnAmt = _usdsAmt - _feeAmt;
         _calculatedCollateralAmt = _usdsBurnAmt;
         if (collateralPriceData.price >= collateralPriceData.precision) {
@@ -250,7 +250,7 @@ contract TestAllocate is VaultCoreTest {
         _strategy = AAVE_STRATEGY;
     }
 
-    function test_revertIf_AllocationNotAllowed() public useActor(1) {
+    function test_revertIf_CollateralAllocationPaused() public useActor(1) {
         // DAI
         _collateral = 0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1;
         vm.expectRevert(
@@ -259,6 +259,29 @@ contract TestAllocate is VaultCoreTest {
             )
         );
         IVault(VAULT).allocate(_collateral, _strategy, _amount);
+    }
+
+    function test_revertIf_AllocationNotAllowed() public useActor(1) {
+        uint16 cap = 3000;
+        uint256 maxCollateralUsage = (cap *
+            (ERC20(_collateral).balanceOf(VAULT) +
+                ICollateralManager(IVault(VAULT).collateralManager())
+                    .getCollateralInStrategies(_collateral))) / 10000;
+
+        uint256 _moreThanMaxCollateralUsage = maxCollateralUsage + 1;
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                VaultCore.AllocationNotAllowed.selector,
+                _collateral,
+                _strategy,
+                _moreThanMaxCollateralUsage
+            )
+        );
+        IVault(VAULT).allocate(
+            _collateral,
+            _strategy,
+            _moreThanMaxCollateralUsage
+        );
     }
 
     function testFuzz_Allocate(uint256 __amount) public useActor(1) {
@@ -391,8 +414,8 @@ contract TestMint is VaultCoreTest {
                 mintAllowed: true,
                 redeemAllowed: true,
                 allocationAllowed: true,
-                baseFeeIn: 10,
-                baseFeeOut: 500,
+                baseMintFee: 10,
+                baseRedeemFee: 500,
                 downsidePeg: 9800,
                 desiredCollateralComposition: 5000
             });
@@ -436,8 +459,8 @@ contract TestMintView is VaultCoreTest {
                 mintAllowed: true,
                 redeemAllowed: true,
                 allocationAllowed: true,
-                baseFeeIn: 10,
-                baseFeeOut: 500,
+                baseMintFee: 10,
+                baseRedeemFee: 500,
                 downsidePeg: 9800,
                 desiredCollateralComposition: 5000
             });
@@ -453,8 +476,8 @@ contract TestMintView is VaultCoreTest {
                 mintAllowed: true,
                 redeemAllowed: true,
                 allocationAllowed: true,
-                baseFeeIn: 0,
-                baseFeeOut: 500,
+                baseMintFee: 0,
+                baseRedeemFee: 500,
                 downsidePeg: 1e4,
                 desiredCollateralComposition: 5000
             });
@@ -474,8 +497,8 @@ contract TestMintView is VaultCoreTest {
                 mintAllowed: false,
                 redeemAllowed: true,
                 allocationAllowed: true,
-                baseFeeIn: 0,
-                baseFeeOut: 500,
+                baseMintFee: 0,
+                baseRedeemFee: 500,
                 downsidePeg: 9800,
                 desiredCollateralComposition: 5000
             });
@@ -495,6 +518,23 @@ contract TestMintView is VaultCoreTest {
     function test_MintView() public mockOracle(101e6) {
         uint256 expectedFee;
         uint256 expectedToMinter;
+        ICollateralManager.CollateralBaseData memory _data = ICollateralManager
+            .CollateralBaseData({
+                mintAllowed: true,
+                redeemAllowed: true,
+                allocationAllowed: true,
+                baseMintFee: 450,
+                baseRedeemFee: 0,
+                downsidePeg: 9800,
+                desiredCollateralComposition: 1000
+            });
+        vm.prank(USDS_OWNER);
+        ICollateralManager(COLLATERAL_MANAGER).updateCollateralData(
+            _collateral,
+            _data
+        );
+        vm.warp(block.timestamp + 2 days);
+        FeeCalculator(FEE_CALCULATOR).calibrateFee(_collateral);
         (_toMinter, _fee) = IVault(VAULT).mintView(_collateral, _collateralAmt);
         ICollateralManager.CollateralMintData
             memory _mintData = ICollateralManager(COLLATERAL_MANAGER)
@@ -503,14 +543,22 @@ contract TestMintView is VaultCoreTest {
             _collateral
         );
         uint256 downsidePeg = (priceData.precision * 9800) / 1e4;
+        uint256 feeIn = FeeCalculator(FEE_CALCULATOR).getMintFee(_collateral);
+        uint256 normalizedCollateralAmt = _collateralAmt *
+            _mintData.conversionFactor;
+        uint256 usdsAmt = normalizedCollateralAmt;
         if (priceData.price < downsidePeg) {
             expectedFee = 0;
             expectedToMinter = 0;
+            usdsAmt =
+                (normalizedCollateralAmt * priceData.price) /
+                priceData.precision;
         } else {
-            uint256 normalizedCollateralAmt = _collateralAmt *
+            normalizedCollateralAmt =
+                _collateralAmt *
                 _mintData.conversionFactor;
-            uint256 usdsAmt = normalizedCollateralAmt;
-            expectedFee = (10 * (_toMinter + _fee)) / 1e4;
+            usdsAmt = normalizedCollateralAmt;
+            expectedFee = (usdsAmt * feeIn) / Helpers.MAX_PERCENTAGE;
             expectedToMinter = usdsAmt - expectedFee;
         }
         assertEq(_toMinter, expectedToMinter);
@@ -562,8 +610,8 @@ contract TestRedeemView is VaultCoreTest {
                 mintAllowed: true,
                 redeemAllowed: true,
                 allocationAllowed: true,
-                baseFeeIn: 10,
-                baseFeeOut: 500,
+                baseMintFee: 10,
+                baseRedeemFee: 500,
                 downsidePeg: 9800,
                 desiredCollateralComposition: 5000
             });
@@ -576,8 +624,8 @@ contract TestRedeemView is VaultCoreTest {
                 mintAllowed: true,
                 redeemAllowed: false,
                 allocationAllowed: true,
-                baseFeeIn: 10,
-                baseFeeOut: 500,
+                baseMintFee: 10,
+                baseRedeemFee: 500,
                 downsidePeg: 9800,
                 desiredCollateralComposition: 5000
             });

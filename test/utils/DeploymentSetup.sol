@@ -20,6 +20,7 @@ import {MasterPriceOracle} from "../../contracts/oracle/MasterPriceOracle.sol";
 import {ChainlinkOracle} from "../../contracts/oracle/ChainlinkOracle.sol";
 import {StargateStrategy} from "../../contracts/strategies/stargate/StargateStrategy.sol";
 import {AaveStrategy} from "../../contracts/strategies/aave/AaveStrategy.sol";
+import {CompoundStrategy} from "../../contracts/strategies/compound/CompoundStrategy.sol";
 import {VSTOracle} from "../../contracts/oracle/VSTOracle.sol";
 
 interface ICustomOracle {
@@ -43,6 +44,7 @@ abstract contract PreMigrationSetup is Setup {
     address internal usdsOracle;
     StargateStrategy internal stargateStrategy;
     AaveStrategy internal aaveStrategy;
+    CompoundStrategy internal compoundStrategy;
 
     function setUp() public virtual override {
         super.setUp();
@@ -76,7 +78,11 @@ abstract contract PreMigrationSetup is Setup {
         CollateralManager collateralManager = new CollateralManager(VAULT);
 
         ORACLE = address(new MasterPriceOracle());
-        FEE_CALCULATOR = address(new FeeCalculator());
+        FeeCalculator feeCalculator = new FeeCalculator(
+            address(collateralManager)
+        );
+        FEE_CALCULATOR = address(feeCalculator);
+
         COLLATERAL_MANAGER = address(collateralManager);
         FEE_VAULT = 0xFbc0d3cA777722d234FE01dba94DeDeDb277AFe3;
         DRIPPER = address(new Dripper(VAULT, 7 days));
@@ -122,10 +128,10 @@ abstract contract PreMigrationSetup is Setup {
                 mintAllowed: true,
                 redeemAllowed: true,
                 allocationAllowed: true,
-                baseFeeIn: 0,
-                baseFeeOut: 500,
+                baseMintFee: 0,
+                baseRedeemFee: 0,
                 downsidePeg: 9800,
-                desiredCollateralComposition: 5000
+                desiredCollateralComposition: 1000
             });
 
         address stargateRouter = 0x53Bf833A5d6c4ddA888F69c22C88C9f356a41614;
@@ -168,6 +174,10 @@ abstract contract PreMigrationSetup is Setup {
         );
 
         collateralManager.addCollateral(USDCe, _data);
+        collateralManager.addCollateral(USDT, _data);
+        collateralManager.addCollateral(FRAX, _data);
+        collateralManager.addCollateral(VST, _data);
+        collateralManager.addCollateral(USDC, _data);
         collateralManager.addCollateralStrategy(
             USDCe,
             address(stargateStrategy),
@@ -184,6 +194,27 @@ abstract contract PreMigrationSetup is Setup {
         );
         AAVE_STRATEGY = address(aaveStrategy);
         STARGATE_STRATEGY = address(stargateStrategy);
+        feeCalculator.calibrateFeeForAll();
+
+        // Deploying Compound strategy
+        address compoundRewardPool = 0x88730d254A2f7e6AC8388c3198aFd694bA9f7fae;
+        CompoundStrategy compoundStrategyImpl = new CompoundStrategy();
+        address compoundStrategyProxy = upgradeUtil.deployErc1967Proxy(
+            address(compoundStrategyImpl)
+        );
+        // vm.makePersistent(aaveStrategyProxy);
+        compoundStrategy = CompoundStrategy(compoundStrategyProxy);
+        compoundStrategy.initialize(VAULT, compoundRewardPool);
+        compoundStrategy.setPTokenAddress(
+            USDC,
+            0x9c4ec768c28520B50860ea7a15bd7213a9fF58bf,
+            0
+        );
+        collateralManager.addCollateralStrategy(
+            USDC,
+            address(compoundStrategy),
+            4000
+        );
         vm.stopPrank();
     }
 
