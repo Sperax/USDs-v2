@@ -9,7 +9,7 @@ interface ILPStaking {
 
     function emergencyWithdraw(uint256 _pid) external;
 
-    function pendingStargate(
+    function pendingEmissionToken(
         uint256 _poolId,
         address _user
     ) external view returns (uint256);

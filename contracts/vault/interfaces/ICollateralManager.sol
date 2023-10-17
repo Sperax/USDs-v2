@@ -6,15 +6,15 @@ interface ICollateralManager {
         bool mintAllowed;
         bool redeemAllowed;
         bool allocationAllowed;
-        uint16 baseFeeIn;
-        uint16 baseFeeOut;
+        uint16 baseMintFee;
+        uint16 baseRedeemFee;
         uint16 downsidePeg;
         uint16 desiredCollateralComposition;
     }
 
     struct CollateralMintData {
         bool mintAllowed;
-        uint16 baseFeeIn;
+        uint16 baseMintFee;
         uint16 downsidePeg;
         uint16 desiredCollateralComposition;
         uint256 conversionFactor;
@@ -23,7 +23,7 @@ interface ICollateralManager {
     struct CollateralRedeemData {
         bool redeemAllowed;
         address defaultStrategy;
-        uint16 baseFeeOut;
+        uint16 baseRedeemFee;
         uint16 desiredCollateralComposition;
         uint256 conversionFactor;
     }
@@ -51,6 +51,13 @@ interface ICollateralManager {
         address _strategy,
         uint256 _amount
     ) external view returns (bool);
+
+    /// @notice Get the required data for mint
+    /// @param _collateral Address of the collateral
+    /// @return Base fee config for collateral (baseMintFee, baseRedeemFee, composition, totalCollateral)
+    function getFeeCalibrationData(
+        address _collateral
+    ) external view returns (uint16, uint16, uint16, uint256);
 
     /// @notice Get the required data for mint
     /// @param _collateral Address of the collateral

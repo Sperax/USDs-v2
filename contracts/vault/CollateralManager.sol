@@ -22,8 +22,8 @@ contract CollateralManager is ICollateralManager, Ownable {
         bool allocationAllowed;
         bool exists;
         address defaultStrategy;
-        uint16 baseFeeIn;
-        uint16 baseFeeOut;
+        uint16 baseMintFee;
+        uint16 baseRedeemFee;
         uint16 downsidePeg;
         uint16 desiredCollateralComposition;
         uint16 collateralCapacityUsed;
@@ -77,8 +77,8 @@ contract CollateralManager is ICollateralManager, Ownable {
         if (collateralInfo[_collateral].exists) revert CollateralExists();
 
         Helpers._isLTEMaxPercentage(_data.downsidePeg);
-        Helpers._isLTEMaxPercentage(_data.baseFeeIn);
-        Helpers._isLTEMaxPercentage(_data.baseFeeOut);
+        Helpers._isLTEMaxPercentage(_data.baseMintFee);
+        Helpers._isLTEMaxPercentage(_data.baseRedeemFee);
 
         Helpers._isLTEMaxPercentage(
             _data.desiredCollateralComposition + collateralCompositionUsed,
@@ -90,8 +90,8 @@ contract CollateralManager is ICollateralManager, Ownable {
             redeemAllowed: _data.redeemAllowed,
             allocationAllowed: _data.allocationAllowed,
             defaultStrategy: address(0),
-            baseFeeIn: _data.baseFeeIn,
-            baseFeeOut: _data.baseFeeOut,
+            baseMintFee: _data.baseMintFee,
+            baseRedeemFee: _data.baseRedeemFee,
             downsidePeg: _data.downsidePeg,
             collateralCapacityUsed: 0,
             desiredCollateralComposition: _data.desiredCollateralComposition,
@@ -118,8 +118,8 @@ contract CollateralManager is ICollateralManager, Ownable {
             revert CollateralDoesNotExist();
 
         Helpers._isLTEMaxPercentage(_updateData.downsidePeg);
-        Helpers._isLTEMaxPercentage(_updateData.baseFeeIn);
-        Helpers._isLTEMaxPercentage(_updateData.baseFeeOut);
+        Helpers._isLTEMaxPercentage(_updateData.baseMintFee);
+        Helpers._isLTEMaxPercentage(_updateData.baseRedeemFee);
 
         CollateralData storage data = collateralInfo[_collateral];
 
@@ -135,8 +135,8 @@ contract CollateralManager is ICollateralManager, Ownable {
         data.mintAllowed = _updateData.mintAllowed;
         data.redeemAllowed = _updateData.redeemAllowed;
         data.allocationAllowed = _updateData.allocationAllowed;
-        data.baseFeeIn = _updateData.baseFeeIn;
-        data.baseFeeOut = _updateData.baseFeeOut;
+        data.baseMintFee = _updateData.baseMintFee;
+        data.baseRedeemFee = _updateData.baseRedeemFee;
         data.downsidePeg = _updateData.downsidePeg;
         data.desiredCollateralComposition = _updateData
             .desiredCollateralComposition;
@@ -299,11 +299,7 @@ contract CollateralManager is ICollateralManager, Ownable {
         emit CollateralStrategyRemoved(_collateral, _strategy);
     }
 
-    /// @notice Update the collateral's default strategy for redemption.
-    /// @dev In case of redemption if there is not enough collateral in vault
-    /// collateral is withdrawn from the defaultStrategy.
-    /// @param _collateral Address of the collateral
-    /// @param _strategy Address of the Strategy
+    /// @inheritdoc ICollateralManager
     function updateCollateralDefaultStrategy(
         address _collateral,
         address _strategy
@@ -315,11 +311,7 @@ contract CollateralManager is ICollateralManager, Ownable {
         collateralInfo[_collateral].defaultStrategy = _strategy;
     }
 
-    /// @notice Validate allocation for a collateral
-    /// @param _collateral Address of the collateral
-    /// @param _strategy Address of the desired strategy
-    /// @param _amount Amount to be allocated.
-    /// @return True for valid allocation request.
+    /// @inheritdoc ICollateralManager
     function validateAllocation(
         address _collateral,
         address _strategy,
@@ -346,9 +338,30 @@ contract CollateralManager is ICollateralManager, Ownable {
         return false;
     }
 
-    /// @notice Get the required data for mint
-    /// @param _collateral Address of the collateral
-    /// @return mintData Mint configuration
+    /// @inheritdoc ICollateralManager
+    function getFeeCalibrationData(
+        address _collateral
+    ) external view returns (uint16, uint16, uint16, uint256) {
+        // Compose and return collateral mint params
+        CollateralData memory collateralStorageData = collateralInfo[
+            _collateral
+        ];
+
+        // Check if collateral exists
+        if (!collateralStorageData.exists) revert CollateralDoesNotExist();
+
+        uint256 totalCollateral = getCollateralInStrategies(_collateral) +
+            getCollateralInVault(_collateral);
+
+        return (
+            collateralStorageData.baseMintFee,
+            collateralStorageData.baseRedeemFee,
+            collateralStorageData.desiredCollateralComposition,
+            totalCollateral * collateralStorageData.conversionFactor
+        );
+    }
+
+    /// @inheritdoc ICollateralManager
     function getMintParams(
         address _collateral
     ) external view returns (CollateralMintData memory mintData) {
@@ -364,7 +377,7 @@ contract CollateralManager is ICollateralManager, Ownable {
         return
             CollateralMintData({
                 mintAllowed: collateralStorageData.mintAllowed,
-                baseFeeIn: collateralStorageData.baseFeeIn,
+                baseMintFee: collateralStorageData.baseMintFee,
                 downsidePeg: collateralStorageData.downsidePeg,
                 desiredCollateralComposition: collateralStorageData
                     .desiredCollateralComposition,
@@ -372,9 +385,7 @@ contract CollateralManager is ICollateralManager, Ownable {
             });
     }
 
-    /// @notice Get the required data for USDs redemption
-    /// @param _collateral Address of the collateral
-    /// @return redeemData Redeem configuration
+    /// @inheritdoc ICollateralManager
     function getRedeemParams(
         address _collateral
     ) external view returns (CollateralRedeemData memory redeemData) {
@@ -391,7 +402,7 @@ contract CollateralManager is ICollateralManager, Ownable {
             CollateralRedeemData({
                 redeemAllowed: collateralStorageData.redeemAllowed,
                 defaultStrategy: collateralStorageData.defaultStrategy,
-                baseFeeOut: collateralStorageData.baseFeeOut,
+                baseRedeemFee: collateralStorageData.baseRedeemFee,
                 desiredCollateralComposition: collateralStorageData
                     .desiredCollateralComposition,
                 conversionFactor: collateralStorageData.conversionFactor
@@ -424,9 +435,7 @@ contract CollateralManager is ICollateralManager, Ownable {
         return collateralStrategyInfo[_collateral][_strategy].exists;
     }
 
-    /// @notice Get the amount of collateral in all Strategies
-    /// @param _collateral Address of the collateral
-    /// @return amountInStrategies Amount in strategies
+    /// @inheritdoc ICollateralManager
     function getCollateralInStrategies(
         address _collateral
     ) public view returns (uint256 amountInStrategies) {
@@ -444,9 +453,7 @@ contract CollateralManager is ICollateralManager, Ownable {
         return amountInStrategies;
     }
 
-    /// @notice Get the amount of collateral in vault
-    /// @param _collateral Address of the collateral
-    /// @return amountInVault Amount in Vault
+    /// @inheritdoc ICollateralManager
     function getCollateralInVault(
         address _collateral
     ) public view returns (uint256 amountInVault) {

@@ -339,17 +339,11 @@ contract VaultCore is
 
         // Skip fee collection for owner
         uint256 feePercentage = 0;
-        uint256 feePercentagePrecision = 1;
         if (msg.sender != owner()) {
             // Calculate mint fee based on collateral data
-            (feePercentage, feePercentagePrecision) = IFeeCalculator(
-                feeCalculator
-            ).getFeeIn(
-                    _collateral,
-                    _collateralAmt,
-                    collateralMintConfig,
-                    collateralPriceData
-                );
+            feePercentage = IFeeCalculator(feeCalculator).getMintFee(
+                _collateral
+            );
         }
 
         // Normalize _collateralAmt to be of decimals 18
@@ -365,7 +359,7 @@ contract VaultCore is
         }
 
         // Calculate the fee amount and usds to mint
-        uint256 feeAmt = (usdsAmt * feePercentage) / feePercentagePrecision;
+        uint256 feeAmt = (usdsAmt * feePercentage) / Helpers.MAX_PERCENTAGE;
         uint256 toMinterAmt = usdsAmt - feeAmt;
 
         return (toMinterAmt, feeAmt);
@@ -516,20 +510,14 @@ contract VaultCore is
 
         // Skip fee collection for Owner
         uint256 feePercentage = 0;
-        uint256 feePercentagePrecision = 1;
         if (msg.sender != owner()) {
-            (feePercentage, feePercentagePrecision) = IFeeCalculator(
-                feeCalculator
-            ).getFeeOut(
-                    _collateral,
-                    _usdsAmt,
-                    collateralRedeemConfig,
-                    collateralPriceData
-                );
+            feePercentage = IFeeCalculator(feeCalculator).getRedeemFee(
+                _collateral
+            );
         }
 
         // Calculate actual fee and burn amount in terms of USDs
-        feeAmt = (_usdsAmt * feePercentage) / feePercentagePrecision;
+        feeAmt = (_usdsAmt * feePercentage) / Helpers.MAX_PERCENTAGE;
         usdsBurnAmt = _usdsAmt - feeAmt;
 
         // Calculate collateral amount
