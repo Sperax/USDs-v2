@@ -22,20 +22,17 @@ contract USDsUpgradabilityTest is BaseTest {
 
     function test_data() public {
         uint256 totalSupply = USDs(USDS).totalSupply();
-        (uint256 vaultBalance, ) = USDs(USDS).creditsBalanceOf(VAULT);
+        (uint256 vaultBalance,) = USDs(USDS).creditsBalanceOf(VAULT);
         uint256 nonRebasingSupply = USDs(USDS).nonRebasingSupply();
 
         USDs usdsImpl = new USDs();
         vm.prank(ProxyAdmin(PROXY_ADMIN).owner());
-        ProxyAdmin(PROXY_ADMIN).upgrade(
-            ITransparentUpgradeableProxy(USDS),
-            address(usdsImpl)
-        );
+        ProxyAdmin(PROXY_ADMIN).upgrade(ITransparentUpgradeableProxy(USDS), address(usdsImpl));
 
         vm.startPrank(USDS_OWNER);
         usds = USDs(USDS);
 
-        (uint256 vaultBalanceModified, ) = usds.creditsBalanceOf(VAULT);
+        (uint256 vaultBalanceModified,) = usds.creditsBalanceOf(VAULT);
 
         assertEq(totalSupply, usds.totalSupply());
         assertEq(vaultBalance, vaultBalanceModified);
@@ -45,6 +42,7 @@ contract USDsUpgradabilityTest is BaseTest {
 
 contract USDsTest is BaseTest {
     using StableMath for uint256;
+
     uint256 USDsPrecision;
     USDs internal usds;
     USDs internal impl;
@@ -60,16 +58,8 @@ contract USDsTest is BaseTest {
 
         _;
         // @note account for precision error in USDs calculation for rebasing accounts
-        assertApproxEqAbs(
-            prevBalUser1 - amountToTransfer,
-            usds.balanceOf(USER1),
-            1
-        );
-        assertApproxEqAbs(
-            prevBalUser2 + amountToTransfer,
-            usds.balanceOf(USER2),
-            1
-        );
+        assertApproxEqAbs(prevBalUser1 - amountToTransfer, usds.balanceOf(USER1), 1);
+        assertApproxEqAbs(prevBalUser2 + amountToTransfer, usds.balanceOf(USER2), 1);
     }
 
     function setUp() public virtual override {
@@ -82,10 +72,7 @@ contract USDsTest is BaseTest {
 
         USDs usdsImpl = new USDs();
         vm.prank(ProxyAdmin(PROXY_ADMIN).owner());
-        ProxyAdmin(PROXY_ADMIN).upgrade(
-            ITransparentUpgradeableProxy(USDS),
-            address(usdsImpl)
-        );
+        ProxyAdmin(PROXY_ADMIN).upgrade(ITransparentUpgradeableProxy(USDS), address(usdsImpl));
 
         vm.startPrank(USDS_OWNER);
         usds = USDs(USDS);
@@ -136,11 +123,7 @@ contract TestTransferFrom is USDsTest {
         uint256 amountToTransfer = usds.balanceOf(USER1) + 1;
 
         vm.expectRevert(
-            abi.encodeWithSelector(
-                USDs.TransferGreaterThanBal.selector,
-                amountToTransfer,
-                amountToTransfer - 1
-            )
+            abi.encodeWithSelector(USDs.TransferGreaterThanBal.selector, amountToTransfer, amountToTransfer - 1)
         );
         usds.transferFrom(USER1, USER2, amountToTransfer);
     }
@@ -148,9 +131,7 @@ contract TestTransferFrom is USDsTest {
     function test_revert_invalid_input() public useKnownActor(USER1) {
         uint256 amountToTransfer = usds.balanceOf(USER1);
 
-        vm.expectRevert(
-            abi.encodeWithSelector(USDs.TransferToZeroAddr.selector)
-        );
+        vm.expectRevert(abi.encodeWithSelector(USDs.TransferToZeroAddr.selector));
         usds.transferFrom(USER1, address(0), amountToTransfer);
     }
 
@@ -170,10 +151,7 @@ contract TestTransferFrom is USDsTest {
         uint256 currentAllowance = usds.allowance(USER1, VAULT);
         usds.decreaseAllowance(VAULT, decrease_amount);
 
-        assertEq(
-            currentAllowance - decrease_amount,
-            usds.allowance(USER1, VAULT)
-        );
+        assertEq(currentAllowance - decrease_amount, usds.allowance(USER1, VAULT));
 
         currentAllowance = usds.allowance(USER1, VAULT);
         usds.decreaseAllowance(VAULT, currentAllowance);
@@ -253,22 +231,14 @@ contract TestTransfer is USDsTest {
         uint256 bal = usds.balanceOf(USER1);
         uint256 amountToTransfer = bal + 1;
 
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                USDs.TransferGreaterThanBal.selector,
-                amountToTransfer,
-                bal
-            )
-        );
+        vm.expectRevert(abi.encodeWithSelector(USDs.TransferGreaterThanBal.selector, amountToTransfer, bal));
         usds.transfer(USER2, amountToTransfer);
     }
 
     function test_revert_invalid_input() public useKnownActor(USER1) {
         uint256 amountToTransfer = usds.balanceOf(USER1);
 
-        vm.expectRevert(
-            abi.encodeWithSelector(USDs.TransferToZeroAddr.selector)
-        );
+        vm.expectRevert(abi.encodeWithSelector(USDs.TransferToZeroAddr.selector));
         usds.transfer(address(0), amountToTransfer);
     }
 
@@ -286,9 +256,7 @@ contract TestMint is USDsTest {
     }
 
     function test_mint_owner_check() public useActor(0) {
-        vm.expectRevert(
-            abi.encodeWithSelector(USDs.CallerNotVault.selector, actors[0])
-        );
+        vm.expectRevert(abi.encodeWithSelector(USDs.CallerNotVault.selector, actors[0]));
         usds.mint(USDS_OWNER, amount);
     }
 
@@ -299,12 +267,7 @@ contract TestMint is USDsTest {
 
     function test_max_supply() public useKnownActor(VAULT) {
         uint256 MAX_SUPPLY = ~uint128(0);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                USDs.MaxSupplyReached.selector,
-                MAX_SUPPLY + usds.totalSupply()
-            )
-        );
+        vm.expectRevert(abi.encodeWithSelector(USDs.MaxSupplyReached.selector, MAX_SUPPLY + usds.totalSupply()));
         usds.mint(USDS_OWNER, MAX_SUPPLY);
     }
 
@@ -332,6 +295,7 @@ contract TestMint is USDsTest {
 
 contract TestBurn is USDsTest {
     using StableMath for uint256;
+
     uint256 amount;
 
     function setUp() public override {
@@ -356,21 +320,16 @@ contract TestBurn is USDsTest {
         assertEq(usds.balanceOf(VAULT), preBalance - amount);
     }
 
-    function test_credit_amount_changes_case1()
-        public
-        useKnownActor(USDS_OWNER)
-    {
+    function test_credit_amount_changes_case1() public useKnownActor(USDS_OWNER) {
         usds.rebaseOptIn(VAULT);
         changePrank(VAULT);
         usds.mint(VAULT, amount);
-        uint256 creditAmount = amount.mulTruncate(
-            usds.rebasingCreditsPerToken()
-        );
+        uint256 creditAmount = amount.mulTruncate(usds.rebasingCreditsPerToken());
 
-        (uint256 currentCredits, ) = usds.creditsBalanceOf(VAULT);
+        (uint256 currentCredits,) = usds.creditsBalanceOf(VAULT);
         usds.burn(amount);
 
-        (uint256 newCredits, ) = usds.creditsBalanceOf(VAULT);
+        (uint256 newCredits,) = usds.creditsBalanceOf(VAULT);
 
         assertEq(newCredits, currentCredits - creditAmount);
     }
@@ -411,17 +370,9 @@ contract TestRebase is USDsTest {
         super.setUp();
     }
 
-    function test_revertIf_IsAlreadyRebasingAccount()
-        public
-        useKnownActor(USDS_OWNER)
-    {
+    function test_revertIf_IsAlreadyRebasingAccount() public useKnownActor(USDS_OWNER) {
         usds.rebaseOptIn(USDS_OWNER);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                USDs.IsAlreadyRebasingAccount.selector,
-                USDS_OWNER
-            )
-        );
+        vm.expectRevert(abi.encodeWithSelector(USDs.IsAlreadyRebasingAccount.selector, USDS_OWNER));
         usds.rebaseOptIn(USDS_OWNER);
     }
 
@@ -431,17 +382,9 @@ contract TestRebase is USDsTest {
         assertEq(usds.nonRebasingCreditsPerToken(USDS_OWNER), 0);
     }
 
-    function test_revertIf_IsAlreadyNonRebasingAccount()
-        public
-        useKnownActor(USDS_OWNER)
-    {
+    function test_revertIf_IsAlreadyNonRebasingAccount() public useKnownActor(USDS_OWNER) {
         // usds.rebaseOptOut(USDS_OWNER);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                USDs.IsAlreadyNonRebasingAccount.selector,
-                USDS_OWNER
-            )
-        );
+        vm.expectRevert(abi.encodeWithSelector(USDs.IsAlreadyNonRebasingAccount.selector, USDS_OWNER));
         usds.rebaseOptOut(USDS_OWNER);
     }
 
@@ -500,6 +443,7 @@ contract TestRebase is USDsTest {
 
 contract TestEnsureRebasingMigration is USDsTest {
     using StableMath for uint256;
+
     uint256 amount;
 
     function setUp() public override {
@@ -541,7 +485,7 @@ contract TestEnsureRebasingMigration is USDsTest {
         assertEq(usds.nonRebasingCreditsPerToken(predictedAddress), 1);
     }
 
-    function _deploy(bytes memory _bytecode, uint _salt) internal {
+    function _deploy(bytes memory _bytecode, uint256 _salt) internal {
         address addr;
 
         /*
@@ -555,34 +499,23 @@ contract TestEnsureRebasingMigration is USDsTest {
               s = big-endian 256-bit value
         */
         assembly {
-            addr := create2(
-                callvalue(), // wei sent with current call
-                // Actual code starts after skipping the first 32 bytes
-                add(_bytecode, 0x20),
-                mload(_bytecode), // Load the size of code contained in the first 32 bytes
-                _salt // Salt from function arguments
-            )
+            addr :=
+                create2(
+                    callvalue(), // wei sent with current call
+                    // Actual code starts after skipping the first 32 bytes
+                    add(_bytecode, 0x20),
+                    mload(_bytecode), // Load the size of code contained in the first 32 bytes
+                    _salt // Salt from function arguments
+                )
 
-            if iszero(extcodesize(addr)) {
-                revert(0, 0)
-            }
+            if iszero(extcodesize(addr)) { revert(0, 0) }
         }
     }
 
-    function _getAddress(
-        bytes memory bytecode,
-        uint _salt
-    ) internal view returns (address) {
-        bytes32 hash = keccak256(
-            abi.encodePacked(
-                bytes1(0xff),
-                address(this),
-                _salt,
-                keccak256(bytecode)
-            )
-        );
+    function _getAddress(bytes memory bytecode, uint256 _salt) internal view returns (address) {
+        bytes32 hash = keccak256(abi.encodePacked(bytes1(0xff), address(this), _salt, keccak256(bytecode)));
 
         // NOTE: cast last 20 bytes of hash to address
-        return address(uint160(uint(hash)));
+        return address(uint160(uint256(hash)));
     }
 }

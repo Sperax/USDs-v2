@@ -13,32 +13,21 @@ interface IChainlinkOracle {
 
     function setTokenData(address _token, TokenData memory _tokenData) external;
 
-    function getTokenPrice(
-        address _token
-    ) external view returns (uint256, uint256);
+    function getTokenPrice(address _token) external view returns (uint256, uint256);
 }
 
 interface IMasterOracle {
-    function updateTokenPriceFeed(
-        address token,
-        address source,
-        bytes calldata msgData
-    ) external;
+    function updateTokenPriceFeed(address token, address source, bytes calldata msgData) external;
 
     function removeTokenPriceFeed(address _token) external;
 }
 
 abstract contract BaseUniOracleTest is BaseTest {
-    address public constant UNISWAP_FACTORY =
-        0x1F98431c8aD98523631AE4a59f267346ea31F984;
+    address public constant UNISWAP_FACTORY = 0x1F98431c8aD98523631AE4a59f267346ea31F984;
     address masterOracle;
     address chainlinkOracle;
 
-    event UniMAPriceDataChanged(
-        address quoteToken,
-        uint24 feeTier,
-        uint32 maPeriod
-    );
+    event UniMAPriceDataChanged(address quoteToken, uint24 feeTier, uint32 maPeriod);
     event MasterOracleUpdated(address newOracle);
 
     function setUp() public virtual override {
@@ -47,24 +36,14 @@ abstract contract BaseUniOracleTest is BaseTest {
         vm.startPrank(USDS_OWNER);
         masterOracle = deployCode("MasterPriceOracle.sol");
 
-        chainlinkOracle = deployCode(
-            "ChainlinkOracle.sol",
-            abi.encode(new IChainlinkOracle.TokenData[](0))
-        );
-        IChainlinkOracle.TokenData memory usdcData = IChainlinkOracle.TokenData(
-            0x50834F3163758fcC1Df9973b6e91f0F0F0434aD3,
-            1e8
-        );
+        chainlinkOracle = deployCode("ChainlinkOracle.sol", abi.encode(new IChainlinkOracle.TokenData[](0)));
+        IChainlinkOracle.TokenData memory usdcData =
+            IChainlinkOracle.TokenData(0x50834F3163758fcC1Df9973b6e91f0F0F0434aD3, 1e8);
 
         IChainlinkOracle(chainlinkOracle).setTokenData(USDCe, usdcData);
 
         IMasterOracle(masterOracle).updateTokenPriceFeed(
-            USDCe,
-            address(chainlinkOracle),
-            abi.encodeWithSelector(
-                IChainlinkOracle.getTokenPrice.selector,
-                USDCe
-            )
+            USDCe, address(chainlinkOracle), abi.encodeWithSelector(IChainlinkOracle.getTokenPrice.selector, USDCe)
         );
 
         vm.stopPrank();
@@ -72,8 +51,7 @@ abstract contract BaseUniOracleTest is BaseTest {
 }
 
 contract SPAOracleTest is BaseUniOracleTest {
-    address public constant DIA_ORACLE =
-        0x7919D08e0f41398cBc1e0A8950Df831e4895c19b;
+    address public constant DIA_ORACLE = 0x7919D08e0f41398cBc1e0A8950Df831e4895c19b;
     uint128 public constant SPA_PRICE_PRECISION = 1e8;
     uint24 public constant FEE_TIER = 10000;
     uint32 public constant MA_PERIOD = 600;
@@ -100,10 +78,7 @@ contract SPAOracleTest is BaseUniOracleTest {
 
 contract Test_Init is SPAOracleTest {
     function test_initialization() public {
-        assertEq(
-            spaOracle.pool(),
-            IUniswapV3Factory(UNISWAP_FACTORY).getPool(SPA, USDCe, FEE_TIER)
-        );
+        assertEq(spaOracle.pool(), IUniswapV3Factory(UNISWAP_FACTORY).getPool(SPA, USDCe, FEE_TIER));
         assertEq(uint256(spaOracle.maPeriod()), uint256(MA_PERIOD));
         assertEq(spaOracle.weightDIA(), WEIGHT_DIA);
     }
@@ -141,18 +116,12 @@ contract Test_updateMasterOracle is SPAOracleTest {
         spaOracle.updateMasterOracle(masterOracle);
     }
 
-    function test_revertsWhen_invalidAddress()
-        public
-        useKnownActor(USDS_OWNER)
-    {
+    function test_revertsWhen_invalidAddress() public useKnownActor(USDS_OWNER) {
         vm.expectRevert("Invalid Address");
         spaOracle.updateMasterOracle(address(0));
     }
 
-    function test_revertsWhen_quoteTokenPriceFeedUnavailable()
-        public
-        useKnownActor(USDS_OWNER)
-    {
+    function test_revertsWhen_quoteTokenPriceFeedUnavailable() public useKnownActor(USDS_OWNER) {
         IMasterOracle(masterOracle).removeTokenPriceFeed(USDCe);
         vm.expectRevert();
         spaOracle.updateMasterOracle(masterOracle);

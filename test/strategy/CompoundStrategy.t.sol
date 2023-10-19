@@ -27,13 +27,9 @@ contract CompoundStrategyTest is BaseStrategy, BaseTest {
     address internal yieldReceiver;
     address internal ASSET;
     address internal P_TOKEN;
-    address internal constant REWARD_POOL =
-        0x88730d254A2f7e6AC8388c3198aFd694bA9f7fae;
+    address internal constant REWARD_POOL = 0x88730d254A2f7e6AC8388c3198aFd694bA9f7fae;
 
-    event IntLiqThresholdUpdated(
-        address indexed asset,
-        uint256 intLiqThreshold
-    );
+    event IntLiqThresholdUpdated(address indexed asset, uint256 intLiqThreshold);
 
     function setUp() public virtual override {
         super.setUp();
@@ -67,11 +63,7 @@ contract CompoundStrategyTest is BaseStrategy, BaseTest {
 
     function _setAssetData() internal {
         for (uint8 i = 0; i < data.length; ++i) {
-            strategy.setPTokenAddress(
-                data[i].asset,
-                data[i].pToken,
-                data[i].intLiqThreshold
-            );
+            strategy.setPTokenAddress(data[i].asset, data[i].pToken, data[i].intLiqThreshold);
         }
     }
 
@@ -96,24 +88,17 @@ contract CompoundStrategyTest is BaseStrategy, BaseTest {
 
     function _mockInsufficientAsset() internal {
         vm.startPrank(strategy.assetToPToken(ASSET));
-        IERC20(ASSET).transfer(
-            actors[0],
-            IERC20(ASSET).balanceOf(strategy.assetToPToken(ASSET))
-        );
+        IERC20(ASSET).transfer(actors[0], IERC20(ASSET).balanceOf(strategy.assetToPToken(ASSET)));
         vm.stopPrank();
     }
 }
 
 contract InitializeTests is CompoundStrategyTest {
     function test_invalid_address() public useKnownActor(USDS_OWNER) {
-        vm.expectRevert(
-            abi.encodeWithSelector(Helpers.InvalidAddress.selector)
-        );
+        vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAddress.selector));
         strategy.initialize(address(0), VAULT);
 
-        vm.expectRevert(
-            abi.encodeWithSelector(Helpers.InvalidAddress.selector)
-        );
+        vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAddress.selector));
         strategy.initialize(REWARD_POOL, address(0));
     }
 
@@ -146,13 +131,7 @@ contract SetPTokenTest is CompoundStrategyTest {
 
     function test_RevertWhen_InvalidPToken() public useKnownActor(USDS_OWNER) {
         address OTHER_P_TOKEN = 0x9c4ec768c28520B50860ea7a15bd7213a9fF58bf;
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                InvalidAssetLpPair.selector,
-                ASSET,
-                OTHER_P_TOKEN
-            )
-        );
+        vm.expectRevert(abi.encodeWithSelector(InvalidAssetLpPair.selector, ASSET, OTHER_P_TOKEN));
         strategy.setPTokenAddress(ASSET, OTHER_P_TOKEN, 0);
     }
 
@@ -172,9 +151,7 @@ contract SetPTokenTest is CompoundStrategyTest {
 
     function test_RevertWhen_DuplicateAsset() public useKnownActor(USDS_OWNER) {
         strategy.setPTokenAddress(ASSET, P_TOKEN, 0);
-        vm.expectRevert(
-            abi.encodeWithSelector(PTokenAlreadySet.selector, ASSET, P_TOKEN)
-        );
+        vm.expectRevert(abi.encodeWithSelector(PTokenAlreadySet.selector, ASSET, P_TOKEN));
         strategy.setPTokenAddress(ASSET, P_TOKEN, 0);
     }
 }
@@ -193,13 +170,8 @@ contract UpdateIntLiqThresholdTest is CompoundStrategyTest {
         strategy.updateIntLiqThreshold(ASSET, 2);
     }
 
-    function test_RevertWhen_CollateralNotSupported()
-        public
-        useKnownActor(USDS_OWNER)
-    {
-        vm.expectRevert(
-            abi.encodeWithSelector(CollateralNotSupported.selector, P_TOKEN)
-        );
+    function test_RevertWhen_CollateralNotSupported() public useKnownActor(USDS_OWNER) {
+        vm.expectRevert(abi.encodeWithSelector(CollateralNotSupported.selector, P_TOKEN));
         strategy.updateIntLiqThreshold(P_TOKEN, 2);
     }
 
@@ -231,14 +203,9 @@ contract RemovePTokenTest is CompoundStrategyTest {
         strategy.removePToken(5);
     }
 
-    function test_RevertWhen_CollateralAllocated()
-        public
-        useKnownActor(USDS_OWNER)
-    {
+    function test_RevertWhen_CollateralAllocated() public useKnownActor(USDS_OWNER) {
         _deposit();
-        vm.expectRevert(
-            abi.encodeWithSelector(CollateralAllocated.selector, ASSET)
-        );
+        vm.expectRevert(abi.encodeWithSelector(CollateralAllocated.selector, ASSET));
         strategy.removePToken(0);
     }
 
@@ -250,9 +217,7 @@ contract RemovePTokenTest is CompoundStrategyTest {
         emit PTokenRemoved(ASSET, P_TOKEN);
         strategy.removePToken(0);
 
-        (uint256 allocatedAmt, uint256 intLiqThreshold) = strategy.assetInfo(
-            ASSET
-        );
+        (uint256 allocatedAmt, uint256 intLiqThreshold) = strategy.assetInfo(ASSET);
 
         assertEq(allocatedAmt, 0);
         assertEq(intLiqThreshold, 0);
@@ -270,16 +235,8 @@ contract DepositTest is CompoundStrategyTest {
         vm.stopPrank();
     }
 
-    function test_deposit_Collateral_not_supported()
-        public
-        useKnownActor(VAULT)
-    {
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                CollateralNotSupported.selector,
-                makeAddr("DUMMY")
-            )
-        );
+    function test_deposit_Collateral_not_supported() public useKnownActor(VAULT) {
+        vm.expectRevert(abi.encodeWithSelector(CollateralNotSupported.selector, makeAddr("DUMMY")));
         strategy.deposit(makeAddr("DUMMY"), 1);
     }
 
@@ -317,11 +274,7 @@ contract CollectInterestTest is CompoundStrategyTest {
         uint256 initial_bal = IERC20(ASSET).balanceOf(yieldReceiver);
 
         // IComet(P_TOKEN).accrueAccount(address(strategy));
-        vm.mockCall(
-            VAULT,
-            abi.encodeWithSignature("yieldReceiver()"),
-            abi.encode(yieldReceiver)
-        );
+        vm.mockCall(VAULT, abi.encodeWithSignature("yieldReceiver()"), abi.encode(yieldReceiver));
 
         uint256 interestEarned = strategy.checkInterestEarned(ASSET);
 
@@ -356,26 +309,17 @@ contract WithdrawTest is CompoundStrategyTest {
 
     function test_RevertWhen_Withdraw0() public useKnownActor(USDS_OWNER) {
         AssetData memory assetData = data[0];
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                Helpers.CustomError.selector,
-                "Must withdraw something"
-            )
-        );
+        vm.expectRevert(abi.encodeWithSelector(Helpers.CustomError.selector, "Must withdraw something"));
         strategy.withdrawToVault(assetData.asset, 0);
     }
 
     function test_RevertWhen_InvalidAddress() public useKnownActor(VAULT) {
-        vm.expectRevert(
-            abi.encodeWithSelector(Helpers.InvalidAddress.selector)
-        );
+        vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAddress.selector));
         strategy.withdraw(address(0), ASSET, 1);
     }
 
     function test_RevertWhen_CallerNotVault() public useActor(0) {
-        vm.expectRevert(
-            abi.encodeWithSelector(CallerNotVault.selector, actors[0])
-        );
+        vm.expectRevert(abi.encodeWithSelector(CallerNotVault.selector, actors[0]));
         strategy.withdraw(VAULT, ASSET, 1);
     }
 
@@ -388,16 +332,10 @@ contract WithdrawTest is CompoundStrategyTest {
         vm.warp(block.timestamp + 10 days);
 
         strategy.withdraw(VAULT, ASSET, depositAmount);
-        assertEq(
-            initialVaultBal + depositAmount,
-            IERC20(ASSET).balanceOf(VAULT)
-        );
+        assertEq(initialVaultBal + depositAmount, IERC20(ASSET).balanceOf(VAULT));
     }
 
-    function test_WithdrawToVault_RevertsIf_CallerNotOwner()
-        public
-        useActor(0)
-    {
+    function test_WithdrawToVault_RevertsIf_CallerNotOwner() public useActor(0) {
         uint256 initialVaultBal = IERC20(ASSET).balanceOf(VAULT);
         uint256 interestAmt = strategy.checkInterestEarned(ASSET);
         uint256 amt = initialVaultBal + interestAmt;
@@ -415,10 +353,7 @@ contract WithdrawTest is CompoundStrategyTest {
         emit Withdrawal(ASSET, depositAmount);
 
         strategy.withdrawToVault(ASSET, depositAmount);
-        assertEq(
-            initialVaultBal + depositAmount,
-            IERC20(ASSET).balanceOf(VAULT)
-        );
+        assertEq(initialVaultBal + depositAmount, IERC20(ASSET).balanceOf(VAULT));
     }
 }
 
@@ -440,11 +375,7 @@ contract CheckRewardEarnedTest is CompoundStrategyTest {
         strategy.deposit(ASSET, depositAmount);
         changePrank(USDS_OWNER);
         vm.warp(block.timestamp + 10 days);
-        vm.mockCall(
-            P_TOKEN,
-            abi.encodeWithSignature("baseTrackingAccrued(address)"),
-            abi.encode(10000000)
-        );
+        vm.mockCall(P_TOKEN, abi.encodeWithSignature("baseTrackingAccrued(address)"), abi.encode(10000000));
         IComet(P_TOKEN).accrueAccount(address(strategy));
         uint256 reward = strategy.checkRewardEarned();
         assertNotEq(reward, 0);
@@ -461,11 +392,7 @@ contract CheckAvailableBalanceTest is CompoundStrategyTest {
     }
 
     function test_checkAvilableBalance_LTAllocatedAmount() public {
-        vm.mockCall(
-            ASSET,
-            abi.encodeWithSignature("balanceOf(address)"),
-            abi.encode(depositAmount - 100)
-        );
+        vm.mockCall(ASSET, abi.encodeWithSignature("balanceOf(address)"), abi.encode(depositAmount - 100));
         uint256 availableBalance = strategy.checkAvailableBalance(ASSET);
         assertTrue(availableBalance < depositAmount);
     }
@@ -486,24 +413,14 @@ contract CollectRewardTest is CheckRewardEarnedTest {
         changePrank(USDS_OWNER);
         vm.warp(block.timestamp + 10 days);
         IComet(P_TOKEN).accrueAccount(address(strategy));
-        vm.mockCall(
-            VAULT,
-            abi.encodeWithSignature("yieldReceiver()"),
-            abi.encode(yieldReceiver)
-        );
-        vm.mockCall(
-            P_TOKEN,
-            abi.encodeWithSignature("baseTrackingAccrued(address)"),
-            abi.encode(10000000)
-        );
+        vm.mockCall(VAULT, abi.encodeWithSignature("yieldReceiver()"), abi.encode(yieldReceiver));
+        vm.mockCall(P_TOKEN, abi.encodeWithSignature("baseTrackingAccrued(address)"), abi.encode(10000000));
         uint16 harvestIncentiveRate = strategy.harvestIncentiveRate();
-        IReward.RewardOwed memory rewardData = IReward(
-            address(strategy.rewardPool())
-        ).getRewardOwed(P_TOKEN, address(strategy));
+        IReward.RewardOwed memory rewardData =
+            IReward(address(strategy.rewardPool())).getRewardOwed(P_TOKEN, address(strategy));
         address rwdToken = rewardData.token;
         uint256 rwdAmount = rewardData.owed;
-        uint256 harvestAmt = (rwdAmount * harvestIncentiveRate) /
-            Helpers.MAX_PERCENTAGE;
+        uint256 harvestAmt = (rwdAmount * harvestIncentiveRate) / Helpers.MAX_PERCENTAGE;
         rwdAmount -= harvestAmt;
         address harvester = actors[2];
         changePrank(harvester);

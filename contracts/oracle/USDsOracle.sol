@@ -12,12 +12,7 @@ contract USDsOracle is BaseUniOracle {
     uint128 private constant USDS_PRECISION = 1e18;
     uint128 private constant USDS_PRICE_PRECISION = 1e8;
 
-    constructor(
-        address _masterOracle,
-        address _quoteToken,
-        uint24 _feeTier,
-        uint32 _maPeriod
-    ) public {
+    constructor(address _masterOracle, address _quoteToken, uint24 _feeTier, uint32 _maPeriod) public {
         _isNonZeroAddr(_masterOracle);
         masterOracle = _masterOracle;
         setUniMAPriceData(USDS, _quoteToken, _feeTier, _maPeriod);
@@ -27,14 +22,8 @@ contract USDsOracle is BaseUniOracle {
     /// @return (uint256, uint256) price and pricePrecision
     function getPrice() external view override returns (uint256, uint256) {
         uint256 quoteTokenAmtPerUSDs = _getUniMAPrice(USDS, USDS_PRECISION);
-        (
-            uint256 quoteTokenPrice,
-            uint256 quoteTokenPricePrecision
-        ) = _getQuoteTokenPrice();
-        uint256 usdsPrice = quoteTokenPrice
-            .mul(quoteTokenAmtPerUSDs)
-            .mul(USDS_PRICE_PRECISION)
-            .div(quoteTokenPrecision)
+        (uint256 quoteTokenPrice, uint256 quoteTokenPricePrecision) = _getQuoteTokenPrice();
+        uint256 usdsPrice = quoteTokenPrice.mul(quoteTokenAmtPerUSDs).mul(USDS_PRICE_PRECISION).div(quoteTokenPrecision)
             .div(quoteTokenPricePrecision);
         return (usdsPrice, USDS_PRICE_PRECISION);
     }

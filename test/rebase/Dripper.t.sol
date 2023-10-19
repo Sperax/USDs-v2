@@ -9,11 +9,7 @@ address constant WHALE_USDS = 0x50450351517117Cb58189edBa6bbaD6284D45902;
 interface IUSDS {
     function approve(address _spender, uint256 _value) external returns (bool);
 
-    function transferFrom(
-        address _from,
-        address _to,
-        uint256 _value
-    ) external returns (bool);
+    function transferFrom(address _from, address _to, uint256 _value) external returns (bool);
 }
 
 contract DripperTest is BaseTest {
@@ -37,14 +33,9 @@ contract DripperTest is BaseTest {
 }
 
 contract UpdateVault is DripperTest {
-    function test_RevertWhen_VaultIsZeroAddress()
-        external
-        useKnownActor(USDS_OWNER)
-    {
+    function test_RevertWhen_VaultIsZeroAddress() external useKnownActor(USDS_OWNER) {
         address newVaultAddress = address(0);
-        vm.expectRevert(
-            abi.encodeWithSelector(Helpers.InvalidAddress.selector)
-        );
+        vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAddress.selector));
         dripper.updateVault(newVaultAddress);
     }
 
@@ -66,18 +57,14 @@ contract UpdateVault is DripperTest {
 }
 
 contract SetDripDuration is DripperTest {
-    function test_RevertWhen_InvalidInput(
-        uint256 dripDuration
-    ) external useKnownActor(USDS_OWNER) {
+    function test_RevertWhen_InvalidInput(uint256 dripDuration) external useKnownActor(USDS_OWNER) {
         vm.assume(dripDuration == 0);
         vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAmount.selector));
         dripper.updateDripDuration(dripDuration);
     }
 
     // Can't set the fuzzer for address type
-    function test_UpdateDripDuration(
-        uint256 dripDuration
-    ) external useKnownActor(USDS_OWNER) {
+    function test_UpdateDripDuration(uint256 dripDuration) external useKnownActor(USDS_OWNER) {
         vm.assume(dripDuration != 0);
         vm.expectEmit(true, true, false, true);
         emit DripDurationUpdated(dripDuration);
@@ -85,9 +72,7 @@ contract SetDripDuration is DripperTest {
         dripper.updateDripDuration(dripDuration);
     }
 
-    function test_RevertWhen_CallerIsNotOwner(
-        uint256 dripDuration
-    ) external useActor(0) {
+    function test_RevertWhen_CallerIsNotOwner(uint256 dripDuration) external useActor(0) {
         vm.assume(dripDuration != 0);
 
         vm.expectRevert("Ownable: caller is not the owner");
@@ -101,17 +86,12 @@ contract RecoverTokens is DripperTest {
         dripper.recoverTokens(USDCe);
     }
 
-    function test_RevertWhen_NothingToRecover()
-        external
-        useKnownActor(USDS_OWNER)
-    {
+    function test_RevertWhen_NothingToRecover() external useKnownActor(USDS_OWNER) {
         vm.expectRevert(abi.encodeWithSelector(NothingToRecover.selector));
         dripper.recoverTokens(USDCe);
     }
 
-    function test_RecoverTokens(
-        uint128 amount
-    ) external useKnownActor(USDS_OWNER) {
+    function test_RecoverTokens(uint128 amount) external useKnownActor(USDS_OWNER) {
         address[5] memory assets = [USDCe, USDT, VST, FRAX, DAI];
         vm.assume(amount != 0);
         for (uint8 i = 0; i < assets.length; i++) {

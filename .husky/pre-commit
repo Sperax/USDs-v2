@@ -4,3 +4,4 @@
 chmod +x .husky/hooks/validate-branch-name.sh
 forge build
 npm run lint-contract
+npm run prettier-check

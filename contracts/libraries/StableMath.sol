@@ -27,9 +27,11 @@ library StableMath {
         return FULL_SCALE;
     }
 
-    /***************************************
-              PRECISE ARITHMETIC
-    ****************************************/
+    /**
+     *
+     *           PRECISE ARITHMETIC
+     *
+     */
 
     /**
      * @dev Multiplies two precise units, and then truncates by the full scale
@@ -51,11 +53,7 @@ library StableMath {
      * @return      Result after multiplying the two inputs and then dividing by the shared
      *              scale unit
      */
-    function mulTruncateScale(
-        uint256 x,
-        uint256 y,
-        uint256 scale
-    ) internal pure returns (uint256) {
+    function mulTruncateScale(uint256 x, uint256 y, uint256 scale) internal pure returns (uint256) {
         // e.g. assume scale = fullScale
         // z = 10e18 * 9e17 = 9e36
         // return 9e36 / 1e18 = 9e18
@@ -69,10 +67,7 @@ library StableMath {
      * @return      Result after multiplying the two inputs and then dividing by the shared
      *              scale unit, rounded up to the closest base unit.
      */
-    function mulTruncateCeil(
-        uint256 x,
-        uint256 y
-    ) internal pure returns (uint256) {
+    function mulTruncateCeil(uint256 x, uint256 y) internal pure returns (uint256) {
         // e.g. 8e17 * 17268172638 = 138145381104e17
         uint256 scaled = x * y;
         // e.g. 138145381104e17 + 9.99...e17 = 138145381113.99...e17
@@ -89,10 +84,7 @@ library StableMath {
      * @return      Result after multiplying the left operand by the scale, and
      *              executing the division on the right hand input.
      */
-    function divPrecisely(
-        uint256 x,
-        uint256 y
-    ) internal pure returns (uint256) {
+    function divPrecisely(uint256 x, uint256 y) internal pure returns (uint256) {
         // e.g. 8e18 * 1e18 = 8e36
         // e.g. 8e36 / 10e18 = 8e17
         return (x * FULL_SCALE) / y;

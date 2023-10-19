@@ -62,9 +62,7 @@ contract RebaseManager is IRebaseManager, Ownable {
         (uint256 minRebaseAmt, uint256 maxRebaseAmt) = getMinAndMaxRebaseAmt();
 
         // Cap the rebase amount
-        uint256 rebaseAmt = (rebaseFund > maxRebaseAmt)
-            ? maxRebaseAmt
-            : rebaseFund;
+        uint256 rebaseAmt = (rebaseFund > maxRebaseAmt) ? maxRebaseAmt : rebaseFund;
 
         // Skip if insufficient USDs to rebase or insufficient time has elapsed
         if (rebaseAmt < minRebaseAmt || block.timestamp < lastRebaseTS + gap) {
@@ -124,13 +122,10 @@ contract RebaseManager is IRebaseManager, Ownable {
     /// @notice Gets the min and max rebase USDs amount based on the APR config
     /// @return min and max rebase amount
     function getMinAndMaxRebaseAmt() public view returns (uint256, uint256) {
-        uint256 principal = IUSDs(Helpers.USDS).totalSupply() -
-            IUSDs(Helpers.USDS).nonRebasingSupply();
+        uint256 principal = IUSDs(Helpers.USDS).totalSupply() - IUSDs(Helpers.USDS).nonRebasingSupply();
         uint256 timeElapsed = block.timestamp - lastRebaseTS;
-        uint256 minRebaseAmt = (principal * aprBottom * timeElapsed) /
-            (ONE_YEAR * Helpers.MAX_PERCENTAGE);
-        uint256 maxRebaseAmt = (principal * aprCap * timeElapsed) /
-            (ONE_YEAR * Helpers.MAX_PERCENTAGE);
+        uint256 minRebaseAmt = (principal * aprBottom * timeElapsed) / (ONE_YEAR * Helpers.MAX_PERCENTAGE);
+        uint256 maxRebaseAmt = (principal * aprCap * timeElapsed) / (ONE_YEAR * Helpers.MAX_PERCENTAGE);
         return (minRebaseAmt, maxRebaseAmt);
     }
 }

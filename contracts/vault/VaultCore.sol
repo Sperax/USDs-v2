@@ -3,7 +3,10 @@ pragma solidity 0.8.16;
 
 import {OwnableUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
-import {SafeERC20Upgradeable, IERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
+import {
+    SafeERC20Upgradeable,
+    IERC20Upgradeable
+} from "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import {IFeeCalculator} from "./interfaces/IFeeCalculator.sol";
 import {IUSDs} from "../interfaces/IUSDs.sol";
 import {IOracle} from "../interfaces/IOracle.sol";
@@ -16,11 +19,7 @@ import {Helpers} from "../libraries/Helpers.sol";
 /// @author Sperax Foundation
 /// @notice Lets users mint/redeem USDs for/with allowed collaterals
 /// @notice Allocates collateral in strategies by consulting Collateral Manager contract
-contract VaultCore is
-    Initializable,
-    OwnableUpgradeable,
-    ReentrancyGuardUpgradeable
-{
+contract VaultCore is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradeable {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
     address public feeVault; // SPABuyback contract
@@ -37,38 +36,17 @@ contract VaultCore is
     event RebaseManagerUpdated(address newRebaseManager);
     event OracleUpdated(address newOracle);
     event Minted(
-        address indexed wallet,
-        address indexed collateralAddr,
-        uint256 usdsAmt,
-        uint256 collateralAmt,
-        uint256 feeAmt
+        address indexed wallet, address indexed collateralAddr, uint256 usdsAmt, uint256 collateralAmt, uint256 feeAmt
     );
     event Redeemed(
-        address indexed wallet,
-        address indexed collateralAddr,
-        uint256 usdsAmt,
-        uint256 collateralAmt,
-        uint256 feeAmt
+        address indexed wallet, address indexed collateralAddr, uint256 usdsAmt, uint256 collateralAmt, uint256 feeAmt
     );
     event RebasedUSDs(uint256 rebaseAmt);
-    event Allocated(
-        address indexed collateral,
-        address indexed strategy,
-        uint256 amount
-    );
+    event Allocated(address indexed collateral, address indexed strategy, uint256 amount);
 
-    error AllocationNotAllowed(
-        address collateral,
-        address strategy,
-        uint256 amount
-    );
+    error AllocationNotAllowed(address collateral, address strategy, uint256 amount);
     error RedemptionPausedForCollateral(address collateral);
-    error InsufficientCollateral(
-        address collateral,
-        address strategy,
-        uint256 amount,
-        uint256 availableAmount
-    );
+    error InsufficientCollateral(address collateral, address strategy, uint256 amount, uint256 availableAmount);
     error InvalidStrategy(address _collateral, address _strategyAddr);
     error MintFailed();
 
@@ -99,9 +77,7 @@ contract VaultCore is
 
     /// @notice Updates the address having the config for collaterals
     /// @param _collateralManager new desired address
-    function updateCollateralManager(
-        address _collateralManager
-    ) external onlyOwner {
+    function updateCollateralManager(address _collateralManager) external onlyOwner {
         Helpers._isNonZeroAddr(_collateralManager);
         collateralManager = _collateralManager;
         emit CollateralManagerUpdated(_collateralManager);
@@ -135,23 +111,12 @@ contract VaultCore is
     /// @param _collateral address of the desired collateral
     /// @param _strategy address of the desired strategy
     /// @param _amount amount of collateral to be allocated
-    function allocate(
-        address _collateral,
-        address _strategy,
-        uint256 _amount
-    ) external nonReentrant {
+    function allocate(address _collateral, address _strategy, uint256 _amount) external nonReentrant {
         // Validate the allocation is based on the desired configuration
-        if (
-            !ICollateralManager(collateralManager).validateAllocation(
-                _collateral,
-                _strategy,
-                _amount
-            )
-        ) revert AllocationNotAllowed(_collateral, _strategy, _amount);
-        IERC20Upgradeable(_collateral).safeIncreaseAllowance(
-            _strategy,
-            _amount
-        );
+        if (!ICollateralManager(collateralManager).validateAllocation(_collateral, _strategy, _amount)) {
+            revert AllocationNotAllowed(_collateral, _strategy, _amount);
+        }
+        IERC20Upgradeable(_collateral).safeIncreaseAllowance(_strategy, _amount);
         IStrategy(_strategy).deposit(_collateral, _amount);
         emit Allocated(_collateral, _strategy, _amount);
     }
@@ -161,12 +126,10 @@ contract VaultCore is
     /// @param _collateralAmt amount of collateral to mint USDs with
     /// @param _minUSDSAmt minimum expected amount of USDs to be minted
     /// @param _deadline the expiry time of the transaction
-    function mint(
-        address _collateral,
-        uint256 _collateralAmt,
-        uint256 _minUSDSAmt,
-        uint256 _deadline
-    ) external nonReentrant {
+    function mint(address _collateral, uint256 _collateralAmt, uint256 _minUSDSAmt, uint256 _deadline)
+        external
+        nonReentrant
+    {
         _mint(_collateral, _collateralAmt, _minUSDSAmt, _deadline);
     }
 
@@ -193,12 +156,10 @@ contract VaultCore is
     /// @param _deadline expiry time of the transaction
     /// @dev In case where there is not sufficient collateral available in the vault,
     ///      the collateral is withdrawn from the default strategy configured for the collateral.
-    function redeem(
-        address _collateral,
-        uint256 _usdsAmt,
-        uint256 _minCollAmt,
-        uint256 _deadline
-    ) external nonReentrant {
+    function redeem(address _collateral, uint256 _usdsAmt, uint256 _minCollAmt, uint256 _deadline)
+        external
+        nonReentrant
+    {
         _redeem({
             _collateral: _collateral,
             _usdsAmt: _usdsAmt,
@@ -214,13 +175,10 @@ contract VaultCore is
     /// @param _minCollAmt minimum expected amount of collateral to be received
     /// @param _deadline expiry time of the transaction
     /// @param _strategy address of the strategy to withdraw excess collateral from
-    function redeem(
-        address _collateral,
-        uint256 _usdsAmt,
-        uint256 _minCollAmt,
-        uint256 _deadline,
-        address _strategy
-    ) external nonReentrant {
+    function redeem(address _collateral, uint256 _usdsAmt, uint256 _minCollAmt, uint256 _deadline, address _strategy)
+        external
+        nonReentrant
+    {
         _redeem({
             _collateral: _collateral,
             _usdsAmt: _usdsAmt,
@@ -239,10 +197,7 @@ contract VaultCore is
     /// @return feeAmt amount of USDs collected as fee for redemption
     /// @return vaultAmt amount of Collateral released from Vault
     /// @return strategyAmt amount of Collateral to withdraw from strategy
-    function redeemView(
-        address _collateral,
-        uint256 _usdsAmt
-    )
+    function redeemView(address _collateral, uint256 _usdsAmt)
         external
         view
         returns (
@@ -253,14 +208,8 @@ contract VaultCore is
             uint256 strategyAmt
         )
     {
-        (
-            calculatedCollateralAmt,
-            usdsBurnAmt,
-            feeAmt,
-            vaultAmt,
-            strategyAmt,
-
-        ) = _redeemView(_collateral, _usdsAmt, address(0));
+        (calculatedCollateralAmt, usdsBurnAmt, feeAmt, vaultAmt, strategyAmt,) =
+            _redeemView(_collateral, _usdsAmt, address(0));
     }
 
     /// @notice Get the expected redeem result
@@ -273,11 +222,7 @@ contract VaultCore is
     /// @return feeAmt amount of USDs collected as fee for redemption
     /// @return vaultAmt amount of Collateral released from Vault
     /// @return strategyAmt amount of Collateral to withdraw from strategy
-    function redeemView(
-        address _collateral,
-        uint256 _usdsAmt,
-        address _strategyAddr
-    )
+    function redeemView(address _collateral, uint256 _usdsAmt, address _strategyAddr)
         external
         view
         returns (
@@ -288,14 +233,8 @@ contract VaultCore is
             uint256 strategyAmt
         )
     {
-        (
-            calculatedCollateralAmt,
-            usdsBurnAmt,
-            feeAmt,
-            vaultAmt,
-            strategyAmt,
-
-        ) = _redeemView(_collateral, _usdsAmt, _strategyAddr);
+        (calculatedCollateralAmt, usdsBurnAmt, feeAmt, vaultAmt, strategyAmt,) =
+            _redeemView(_collateral, _usdsAmt, _strategyAddr);
     }
 
     /// @notice Rebase USDs to share earned yield with the USDs holders
@@ -312,28 +251,19 @@ contract VaultCore is
     /// @param _collateral address of the collateral
     /// @param _collateralAmt amount of collateral
     /// @return Returns the expected USDs mint amount and fee for minting
-    function mintView(
-        address _collateral,
-        uint256 _collateralAmt
-    ) public view returns (uint256, uint256) {
+    function mintView(address _collateral, uint256 _collateralAmt) public view returns (uint256, uint256) {
         // Get mint configuration
-        ICollateralManager.CollateralMintData
-            memory collateralMintConfig = ICollateralManager(collateralManager)
-                .getMintParams(_collateral);
+        ICollateralManager.CollateralMintData memory collateralMintConfig =
+            ICollateralManager(collateralManager).getMintParams(_collateral);
 
         // Fetch the latest price of the collateral
-        IOracle.PriceData memory collateralPriceData = IOracle(oracle).getPrice(
-            _collateral
-        );
+        IOracle.PriceData memory collateralPriceData = IOracle(oracle).getPrice(_collateral);
         // Calculate the downside peg
-        uint256 downsidePeg = (collateralPriceData.precision *
-            collateralMintConfig.downsidePeg) / Helpers.MAX_PERCENTAGE;
+        uint256 downsidePeg =
+            (collateralPriceData.precision * collateralMintConfig.downsidePeg) / Helpers.MAX_PERCENTAGE;
 
         // Downside peg check
-        if (
-            collateralPriceData.price < downsidePeg ||
-            !collateralMintConfig.mintAllowed
-        ) {
+        if (collateralPriceData.price < downsidePeg || !collateralMintConfig.mintAllowed) {
             return (0, 0);
         }
 
@@ -341,21 +271,16 @@ contract VaultCore is
         uint256 feePercentage = 0;
         if (msg.sender != owner()) {
             // Calculate mint fee based on collateral data
-            feePercentage = IFeeCalculator(feeCalculator).getMintFee(
-                _collateral
-            );
+            feePercentage = IFeeCalculator(feeCalculator).getMintFee(_collateral);
         }
 
         // Normalize _collateralAmt to be of decimals 18
-        uint256 normalizedCollateralAmt = _collateralAmt *
-            collateralMintConfig.conversionFactor;
+        uint256 normalizedCollateralAmt = _collateralAmt * collateralMintConfig.conversionFactor;
 
         // Calculate total USDs amount
         uint256 usdsAmt = normalizedCollateralAmt;
         if (collateralPriceData.price < collateralPriceData.precision) {
-            usdsAmt =
-                (normalizedCollateralAmt * collateralPriceData.price) /
-                collateralPriceData.precision;
+            usdsAmt = (normalizedCollateralAmt * collateralPriceData.price) / collateralPriceData.precision;
         }
 
         // Calculate the fee amount and usds to mint
@@ -370,28 +295,17 @@ contract VaultCore is
     /// @param _collateralAmt amount of collateral to deposit
     /// @param _minUSDSAmt min expected USDs amount to be minted
     /// @param _deadline Deadline timestamp for executing mint
-    function _mint(
-        address _collateral,
-        uint256 _collateralAmt,
-        uint256 _minUSDSAmt,
-        uint256 _deadline
-    ) private {
+    function _mint(address _collateral, uint256 _collateralAmt, uint256 _minUSDSAmt, uint256 _deadline) private {
         Helpers._checkDeadline(_deadline);
-        (uint256 toMinterAmt, uint256 feeAmt) = mintView(
-            _collateral,
-            _collateralAmt
-        );
+        (uint256 toMinterAmt, uint256 feeAmt) = mintView(_collateral, _collateralAmt);
         if (toMinterAmt == 0) revert MintFailed();
-        if (toMinterAmt < _minUSDSAmt)
+        if (toMinterAmt < _minUSDSAmt) {
             revert Helpers.MinSlippageError(toMinterAmt, _minUSDSAmt);
+        }
 
         rebase();
 
-        IERC20Upgradeable(_collateral).safeTransferFrom(
-            msg.sender,
-            address(this),
-            _collateralAmt
-        );
+        IERC20Upgradeable(_collateral).safeTransferFrom(msg.sender, address(this), _collateralAmt);
         IUSDs(Helpers.USDS).mint(msg.sender, toMinterAmt);
         if (feeAmt != 0) {
             IUSDs(Helpers.USDS).mint(feeVault, feeAmt);
@@ -432,27 +346,18 @@ contract VaultCore is
 
         if (strategyAmt != 0) {
             // Withdraw from the strategy to VaultCore
-            uint256 strategyAmtReceived = strategy.withdraw(
-                address(this),
-                _collateral,
-                strategyAmt
-            );
+            uint256 strategyAmtReceived = strategy.withdraw(address(this), _collateral, strategyAmt);
             // Update collateral amount according to the received amount from the strategy
-            strategyAmt = strategyAmtReceived < strategyAmt
-                ? strategyAmtReceived
-                : strategyAmt;
+            strategyAmt = strategyAmtReceived < strategyAmt ? strategyAmtReceived : strategyAmt;
             collateralAmt = vaultAmt + strategyAmt;
         }
 
-        if (collateralAmt < _minCollateralAmt)
+        if (collateralAmt < _minCollateralAmt) {
             revert Helpers.MinSlippageError(collateralAmt, _minCollateralAmt);
+        }
 
         // Collect USDs for Redemption
-        IERC20Upgradeable(Helpers.USDS).safeTransferFrom(
-            msg.sender,
-            address(this),
-            _usdsAmt
-        );
+        IERC20Upgradeable(Helpers.USDS).safeTransferFrom(msg.sender, address(this), _usdsAmt);
         IUSDs(Helpers.USDS).burn(burnAmt);
         if (feeAmt != 0) {
             IERC20Upgradeable(Helpers.USDS).safeTransfer(feeVault, feeAmt);
@@ -480,11 +385,7 @@ contract VaultCore is
     /// @return vaultAmt amount of Collateral released from Vault
     /// @return strategyAmt amount of Collateral to withdraw from strategy
     /// @return strategy Strategy to withdraw collateral from
-    function _redeemView(
-        address _collateral,
-        uint256 _usdsAmt,
-        address _strategyAddr
-    )
+    function _redeemView(address _collateral, uint256 _usdsAmt, address _strategyAddr)
         private
         view
         returns (
@@ -496,24 +397,19 @@ contract VaultCore is
             IStrategy strategy
         )
     {
-        ICollateralManager.CollateralRedeemData
-            memory collateralRedeemConfig = ICollateralManager(
-                collateralManager
-            ).getRedeemParams(_collateral);
+        ICollateralManager.CollateralRedeemData memory collateralRedeemConfig =
+            ICollateralManager(collateralManager).getRedeemParams(_collateral);
 
-        if (!collateralRedeemConfig.redeemAllowed)
+        if (!collateralRedeemConfig.redeemAllowed) {
             revert RedemptionPausedForCollateral(_collateral);
+        }
 
-        IOracle.PriceData memory collateralPriceData = IOracle(oracle).getPrice(
-            _collateral
-        );
+        IOracle.PriceData memory collateralPriceData = IOracle(oracle).getPrice(_collateral);
 
         // Skip fee collection for Owner
         uint256 feePercentage = 0;
         if (msg.sender != owner()) {
-            feePercentage = IFeeCalculator(feeCalculator).getRedeemFee(
-                _collateral
-            );
+            feePercentage = IFeeCalculator(feeCalculator).getRedeemFee(_collateral);
         }
 
         // Calculate actual fee and burn amount in terms of USDs
@@ -524,9 +420,7 @@ contract VaultCore is
         calculatedCollateralAmt = usdsBurnAmt;
         if (collateralPriceData.price >= collateralPriceData.precision) {
             // Apply downside peg
-            calculatedCollateralAmt =
-                (usdsBurnAmt * collateralPriceData.precision) /
-                collateralPriceData.price;
+            calculatedCollateralAmt = (usdsBurnAmt * collateralPriceData.precision) / collateralPriceData.price;
         }
 
         // Normalize collateral amount to be of base decimal
@@ -540,32 +434,23 @@ contract VaultCore is
             }
             // Withdraw from default strategy
             if (_strategyAddr == address(0)) {
-                if (collateralRedeemConfig.defaultStrategy == address(0))
-                    revert InsufficientCollateral(
-                        _collateral,
-                        address(0),
-                        calculatedCollateralAmt,
-                        vaultAmt
-                    );
+                if (collateralRedeemConfig.defaultStrategy == address(0)) {
+                    revert InsufficientCollateral(_collateral, address(0), calculatedCollateralAmt, vaultAmt);
+                }
                 strategy = IStrategy(collateralRedeemConfig.defaultStrategy);
                 // Withdraw from specified strategy
             } else {
-                if (
-                    !ICollateralManager(collateralManager).isValidStrategy(
-                        _collateral,
-                        _strategyAddr
-                    )
-                ) revert InvalidStrategy(_collateral, _strategyAddr);
+                if (!ICollateralManager(collateralManager).isValidStrategy(_collateral, _strategyAddr)) {
+                    revert InvalidStrategy(_collateral, _strategyAddr);
+                }
                 strategy = IStrategy(_strategyAddr);
             }
             uint256 availableBal = strategy.checkAvailableBalance(_collateral);
-            if (availableBal < strategyAmt)
+            if (availableBal < strategyAmt) {
                 revert InsufficientCollateral(
-                    _collateral,
-                    _strategyAddr,
-                    calculatedCollateralAmt,
-                    vaultAmt + availableBal
+                    _collateral, _strategyAddr, calculatedCollateralAmt, vaultAmt + availableBal
                 );
+            }
         }
     }
 }

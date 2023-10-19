@@ -10,13 +10,10 @@ interface IAaveLendingPool {
      * @param onBehalfOf The beneficiary of the supply, receiving the aTokens
      * @param amount The amount supplied
      * @param referralCode The referral code used
-     **/
+     *
+     */
     event Supply(
-        address indexed reserve,
-        address user,
-        address indexed onBehalfOf,
-        uint256 amount,
-        uint16 indexed referralCode
+        address indexed reserve, address user, address indexed onBehalfOf, uint256 amount, uint16 indexed referralCode
     );
 
     /**
@@ -25,13 +22,9 @@ interface IAaveLendingPool {
      * @param user The address initiating the withdrawal, owner of aTokens
      * @param to The address that will receive the underlying
      * @param amount The amount to be withdrawn
-     **/
-    event Withdraw(
-        address indexed reserve,
-        address indexed user,
-        address indexed to,
-        uint256 amount
-    );
+     *
+     */
+    event Withdraw(address indexed reserve, address indexed user, address indexed to, uint256 amount);
 
     /**
      * @notice Supplies an `amount` of underlying asset into the reserve, receiving in return overlying aTokens.
@@ -43,13 +36,9 @@ interface IAaveLendingPool {
      *   is a different wallet
      * @param referralCode Code used to register the integrator originating the operation, for potential rewards.
      *   0 if the action is executed directly by the user, without any middle-man
-     **/
-    function supply(
-        address asset,
-        uint256 amount,
-        address onBehalfOf,
-        uint16 referralCode
-    ) external;
+     *
+     */
+    function supply(address asset, uint256 amount, address onBehalfOf, uint16 referralCode) external;
 
     /**
      * @notice Withdraws an `amount` of underlying asset from the reserve, burning the equivalent aTokens owned
@@ -61,12 +50,9 @@ interface IAaveLendingPool {
      *   wants to receive it on his own wallet, or a different address if the beneficiary is a
      *   different wallet
      * @return The final amount withdrawn
-     **/
-    function withdraw(
-        address asset,
-        uint256 amount,
-        address to
-    ) external returns (uint256);
+     *
+     */
+    function withdraw(address asset, uint256 amount, address to) external returns (uint256);
 
     /**
      * @notice Supplies an `amount` of underlying asset into the reserve, receiving in return overlying aTokens.
@@ -79,13 +65,9 @@ interface IAaveLendingPool {
      *   is a different wallet
      * @param referralCode Code used to register the integrator originating the operation, for potential rewards.
      *   0 if the action is executed directly by the user, without any middle-man
-     **/
-    function deposit(
-        address asset,
-        uint256 amount,
-        address onBehalfOf,
-        uint16 referralCode
-    ) external;
+     *
+     */
+    function deposit(address asset, uint256 amount, address onBehalfOf, uint16 referralCode) external;
 }
 
 /**
@@ -104,12 +86,14 @@ interface IPoolAddressesProvider {
  * @title IAToken
  * @author Aave
  * @notice Defines the basic interface for an AToken.
- **/
+ *
+ */
 interface IAToken is IERC20 {
     /**
      * @notice Returns the address of the underlying asset of this aToken (E.g. WETH for aWETH)
      * @return The address of the underlying asset
-     **/
+     *
+     */
     /* solhint-disable func-name-mixedcase */
     function UNDERLYING_ASSET_ADDRESS() external view returns (address);
 }

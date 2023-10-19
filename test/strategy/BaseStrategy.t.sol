@@ -9,22 +9,10 @@ contract BaseStrategy {
     event Deposit(address indexed asset, uint256 amount);
     event Withdrawal(address indexed asset, uint256 amount);
     event SlippageUpdated(uint16 depositSlippage, uint16 withdrawSlippage);
-    event HarvestIncentiveCollected(
-        address indexed token,
-        address indexed harvestor,
-        uint256 amount
-    );
+    event HarvestIncentiveCollected(address indexed token, address indexed harvestor, uint256 amount);
     event HarvestIncentiveRateUpdated(uint16 newRate);
-    event InterestCollected(
-        address indexed asset,
-        address indexed recipient,
-        uint256 amount
-    );
-    event RewardTokenCollected(
-        address indexed rwdToken,
-        address indexed recipient,
-        uint256 amount
-    );
+    event InterestCollected(address indexed asset, address indexed recipient, uint256 amount);
+    event RewardTokenCollected(address indexed rwdToken, address indexed recipient, uint256 amount);
 
     error CallerNotVault(address caller);
     error CallerNotVaultOrOwner(address caller);

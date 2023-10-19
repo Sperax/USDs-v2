@@ -21,10 +21,7 @@ abstract contract USDsOracleTest is BaseUniOracleTest {
 
 contract Test_Init is USDsOracleTest {
     function test_initialization() public {
-        assertEq(
-            usdsOracle.pool(),
-            IUniswapV3Factory(UNISWAP_FACTORY).getPool(USDS, USDCe, FEE_TIER)
-        );
+        assertEq(usdsOracle.pool(), IUniswapV3Factory(UNISWAP_FACTORY).getPool(USDS, USDCe, FEE_TIER));
         assertEq(uint256(usdsOracle.maPeriod()), uint256(MA_PERIOD));
     }
 }

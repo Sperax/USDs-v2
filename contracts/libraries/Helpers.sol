@@ -54,10 +54,7 @@ library Helpers {
     /// @notice A function to check whether the `_percentage` is lesser or equal to `MAX_PERCENTAGE`
     /// @param _percentage The percentage which is to be checked
     /// @dev Reverts with a CustomError and a string
-    function _isLTEMaxPercentage(
-        uint256 _percentage,
-        string memory _err
-    ) internal pure {
+    function _isLTEMaxPercentage(uint256 _percentage, string memory _err) internal pure {
         if (_percentage > MAX_PERCENTAGE) revert CustomError(_err);
     }
 }
