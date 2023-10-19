@@ -156,7 +156,6 @@ contract VaultCore is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradea
     /// @param _deadline Expiry time of the transaction.
     /// @dev In case where there is not sufficient collateral available in the vault,
     ///      the collateral is withdrawn from the default strategy configured for the collateral.
-
     function redeem(address _collateral, uint256 _usdsAmt, uint256 _minCollAmt, uint256 _deadline)
         external
         nonReentrant
@@ -270,12 +269,9 @@ contract VaultCore is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradea
 
         // Skip fee collection for owner
         uint256 feePercentage = 0;
-        uint256 feePercentagePrecision = 1;
         if (msg.sender != owner()) {
             // Calculate mint fee based on collateral data
-            (feePercentage, feePercentagePrecision) = IFeeCalculator(feeCalculator).getFeeIn(
-                _collateral, _collateralAmt, collateralMintConfig, collateralPriceData
-            );
+            feePercentage = IFeeCalculator(feeCalculator).getMintFee(_collateral);
         }
 
         // Normalize _collateralAmt to be of decimals 18
@@ -287,8 +283,8 @@ contract VaultCore is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradea
             usdsAmt = (normalizedCollateralAmt * collateralPriceData.price) / collateralPriceData.precision;
         }
 
-        // Calculate the fee amount and USDs to mint
-        uint256 feeAmt = (usdsAmt * feePercentage) / feePercentagePrecision;
+        // Calculate the fee amount and usds to mint
+        uint256 feeAmt = (usdsAmt * feePercentage) / Helpers.MAX_PERCENTAGE;
         uint256 toMinterAmt = usdsAmt - feeAmt;
 
         return (toMinterAmt, feeAmt);
@@ -428,15 +424,12 @@ contract VaultCore is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradea
 
         // Skip fee collection for Owner
         uint256 feePercentage = 0;
-        uint256 feePercentagePrecision = 1;
         if (msg.sender != owner()) {
-            (feePercentage, feePercentagePrecision) = IFeeCalculator(feeCalculator).getFeeOut(
-                _collateral, _usdsAmt, collateralRedeemConfig, collateralPriceData
-            );
+            feePercentage = IFeeCalculator(feeCalculator).getRedeemFee(_collateral);
         }
 
         // Calculate actual fee and burn amount in terms of USDs
-        feeAmt = (_usdsAmt * feePercentage) / feePercentagePrecision;
+        feeAmt = (_usdsAmt * feePercentage) / Helpers.MAX_PERCENTAGE;
         usdsBurnAmt = _usdsAmt - feeAmt;
 
         // Calculate collateral amount
@@ -452,7 +445,9 @@ contract VaultCore is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradea
         vaultAmt = IERC20Upgradeable(_collateral).balanceOf(address(this));
 
         if (calculatedCollateralAmt > vaultAmt) {
-            strategyAmt = calculatedCollateralAmt - vaultAmt;
+            unchecked {
+                strategyAmt = calculatedCollateralAmt - vaultAmt;
+            }
             // Withdraw from default strategy
             if (_strategyAddr == address(0)) {
                 if (collateralRedeemConfig.defaultStrategy == address(0)) {

@@ -2,7 +2,6 @@
   "extends": "solhint:recommended",
 
   "rules": {
-    "prettier/prettier": "error",
     "compiler-version": "off",
     "ordering": "error",
     "avoid-throw": "off",
@@ -11,8 +10,6 @@
     "not-rely-on-time": "off",
     "no-console": "warn",
     "func-named-parameters": ["warn", 4],
-    "func-visibility":["warn", {"ignoreConstructors": true}]
-
-  },
-  "plugins": ["prettier"]
+    "func-visibility": ["warn", { "ignoreConstructors": true }]
+  }
 }

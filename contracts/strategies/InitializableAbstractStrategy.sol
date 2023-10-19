@@ -30,8 +30,8 @@ abstract contract InitializableAbstractStrategy is Initializable, OwnableUpgrade
     event YieldReceiverUpdated(address newYieldReceiver);
     event PTokenAdded(address indexed asset, address pToken);
     event PTokenRemoved(address indexed asset, address pToken);
-    event Deposit(address indexed asset, address pToken, uint256 amount);
-    event Withdrawal(address indexed asset, address pToken, uint256 amount);
+    event Deposit(address indexed asset, uint256 amount);
+    event Withdrawal(address indexed asset, uint256 amount);
     event SlippageUpdated(uint16 depositSlippage, uint16 withdrawSlippage);
     event HarvestIncentiveCollected(address indexed token, address indexed harvestor, uint256 amount);
     event HarvestIncentiveRateUpdated(uint16 newRate);

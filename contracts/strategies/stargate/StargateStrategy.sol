@@ -23,34 +23,31 @@ contract StargateStrategy is InitializableAbstractStrategy {
         uint16 pid; // maps asset to pool id
     }
 
-    bool public skipRwdValidation; // skip reward validation, for emergency use.
     address public router;
     address public farm;
     mapping(address => AssetInfo) public assetInfo;
 
-    event SkipRwdValidationStatus(bool status);
     event IntLiqThresholdUpdated(address indexed asset, uint256 intLiqThreshold);
 
     error IncorrectPoolId(address asset, uint16 pid);
     error IncorrectRewardPoolId(address asset, uint256 rewardPid);
-    error InsufficientRewardFundInFarm();
 
     function initialize(
         address _router,
         address _vault,
-        address _stg,
+        address _eToken,
         address _farm,
         uint16 _depositSlippage, // 200 = 2%
         uint16 _withdrawSlippage // 200 = 2%
     ) external initializer {
         Helpers._isNonZeroAddr(_router);
-        Helpers._isNonZeroAddr(_stg);
+        Helpers._isNonZeroAddr(_eToken);
         Helpers._isNonZeroAddr(_farm);
         router = _router;
         farm = _farm;
 
         // register reward token
-        rewardTokenAddress.push(_stg);
+        rewardTokenAddress.push(_eToken);
 
         InitializableAbstractStrategy._initialize(_vault, _depositSlippage, _withdrawSlippage);
     }
@@ -105,18 +102,10 @@ contract StargateStrategy is InitializableAbstractStrategy {
         emit IntLiqThresholdUpdated(_asset, _intLiqThreshold);
     }
 
-    /// @notice Toggle the skip reward validation flag.
-    /// @dev When switched on, the reward validation will be skipped.
-    ///    Can result in a forfeiting of rewards.
-    function toggleRwdValidation() external onlyOwner {
-        skipRwdValidation = !skipRwdValidation;
-        emit SkipRwdValidationStatus(skipRwdValidation);
-    }
-
     /// @inheritdoc InitializableAbstractStrategy
     function deposit(address _asset, uint256 _amount) external override nonReentrant {
         Helpers._isNonZeroAmt(_amount);
-        if (!_validateRwdClaim(_asset)) revert InsufficientRewardFundInFarm();
+        if (!supportsCollateral(_asset)) revert CollateralNotSupported(_asset);
         address lpToken = assetToPToken[_asset];
         IERC20(_asset).safeTransferFrom(msg.sender, address(this), _amount);
         IERC20(_asset).safeApprove(router, _amount);
@@ -137,7 +126,7 @@ contract StargateStrategy is InitializableAbstractStrategy {
 
         IERC20(lpToken).safeApprove(farm, lpTokenBal);
         ILPStaking(farm).deposit(assetInfo[_asset].rewardPID, lpTokenBal);
-        emit Deposit(_asset, lpToken, depositAmt);
+        emit Deposit(_asset, depositAmt);
     }
 
     /// @inheritdoc InitializableAbstractStrategy
@@ -162,14 +151,25 @@ contract StargateStrategy is InitializableAbstractStrategy {
         return _withdraw(false, vault, _asset, _amount);
     }
 
+    /// @notice Function to withdraw position from LPStaking
+    /// @dev Useful when there are not enough rewards in the pool
+    /// @param _asset Asset to withdraw
+    function emergencyWithdrawToVault(address _asset) external onlyOwner nonReentrant {
+        uint256 lpTokenAmt = checkLPTokenBalance(_asset);
+        // Withdraw from LPStaking without caring for rewards
+        ILPStaking(farm).emergencyWithdraw(assetInfo[_asset].rewardPID);
+        uint256 amtRecv = IStargateRouter(router).instantRedeemLocal(assetInfo[_asset].pid, lpTokenAmt, vault)
+            * IStargatePool(assetToPToken[_asset]).convertRate();
+        emit Withdrawal(_asset, amtRecv);
+    }
+
     /// @inheritdoc InitializableAbstractStrategy
     function collectInterest(address _asset) external override nonReentrant {
         address yieldReceiver = IStrategyVault(vault).yieldReceiver();
-        address harvestor = msg.sender;
         uint256 earnedInterest = checkInterestEarned(_asset);
         if (earnedInterest > assetInfo[_asset].intLiqThreshold) {
             uint256 interestCollected = _withdraw(true, address(this), _asset, earnedInterest);
-            uint256 harvestAmt = _splitAndSendReward(_asset, yieldReceiver, harvestor, interestCollected);
+            uint256 harvestAmt = _splitAndSendReward(_asset, yieldReceiver, msg.sender, interestCollected);
             emit InterestCollected(_asset, yieldReceiver, harvestAmt);
         }
     }
@@ -177,13 +177,12 @@ contract StargateStrategy is InitializableAbstractStrategy {
     /// @inheritdoc InitializableAbstractStrategy
     function collectReward() external override nonReentrant {
         address yieldReceiver = IStrategyVault(vault).yieldReceiver();
-        address harvestor = msg.sender;
         address rewardToken = rewardTokenAddress[0];
         uint256 numAssets = assetsMapped.length;
         for (uint256 i; i < numAssets;) {
             address asset = assetsMapped[i];
             uint256 rewardAmt = checkPendingRewards(asset);
-            if (rewardAmt != 0 && (skipRwdValidation || rewardAmt <= IERC20(rewardToken).balanceOf(farm))) {
+            if (rewardAmt != 0) {
                 ILPStaking(farm).deposit(assetInfo[asset].rewardPID, 0);
             }
             unchecked {
@@ -191,7 +190,7 @@ contract StargateStrategy is InitializableAbstractStrategy {
             }
         }
         uint256 rewardEarned = IERC20(rewardToken).balanceOf(address(this));
-        uint256 harvestAmt = _splitAndSendReward(rewardToken, yieldReceiver, harvestor, rewardEarned);
+        uint256 harvestAmt = _splitAndSendReward(rewardToken, yieldReceiver, msg.sender, rewardEarned);
         emit RewardTokenCollected(rewardToken, yieldReceiver, harvestAmt);
     }
 
@@ -204,7 +203,7 @@ contract StargateStrategy is InitializableAbstractStrategy {
     /// @param _asset Address for the asset
     function checkPendingRewards(address _asset) public view returns (uint256) {
         if (!supportsCollateral(_asset)) revert CollateralNotSupported(_asset);
-        return ILPStaking(farm).pendingStargate(assetInfo[_asset].rewardPID, address(this));
+        return ILPStaking(farm).pendingEmissionToken(assetInfo[_asset].rewardPID, address(this));
     }
 
     /// @inheritdoc InitializableAbstractStrategy
@@ -213,7 +212,7 @@ contract StargateStrategy is InitializableAbstractStrategy {
         uint256 numAssets = assetsMapped.length;
         for (uint256 i; i < numAssets;) {
             address asset = assetsMapped[i];
-            pendingRewards += ILPStaking(farm).pendingStargate(assetInfo[asset].rewardPID, address(this));
+            pendingRewards += ILPStaking(farm).pendingEmissionToken(assetInfo[asset].rewardPID, address(this));
             unchecked {
                 ++i;
             }
@@ -245,12 +244,6 @@ contract StargateStrategy is InitializableAbstractStrategy {
 
     /// @inheritdoc InitializableAbstractStrategy
     function checkAvailableBalance(address _asset) public view override returns (uint256) {
-        if (!_validateRwdClaim(_asset)) {
-            // Insufficient rwd fund in farm
-            // @dev to bypass this check toggle skipRwdValidation to true
-            return 0;
-        }
-
         IStargatePool pool = IStargatePool(assetToPToken[_asset]);
         uint256 availableFunds = _convertToCollateral(_asset, pool.deltaCredit());
         if (availableFunds <= assetInfo[_asset].allocatedAmt) {
@@ -301,8 +294,6 @@ contract StargateStrategy is InitializableAbstractStrategy {
     {
         Helpers._isNonZeroAddr(_recipient);
         Helpers._isNonZeroAmt(_amount, "Must withdraw something");
-        if (!_validateRwdClaim(_asset)) revert InsufficientRewardFundInFarm();
-        address lpToken = assetToPToken[_asset];
         uint256 lpTokenAmt = _convertToPToken(_asset, _amount);
         ILPStaking(farm).withdraw(assetInfo[_asset].rewardPID, lpTokenAmt);
         uint256 minRecvAmt = (_amount * (Helpers.MAX_PERCENTAGE - withdrawSlippage)) / Helpers.MAX_PERCENTAGE;
@@ -314,7 +305,7 @@ contract StargateStrategy is InitializableAbstractStrategy {
 
         if (!_withdrawInterest) {
             assetInfo[_asset].allocatedAmt -= amtRecv;
-            emit Withdrawal(_asset, lpToken, amtRecv);
+            emit Withdrawal(_asset, amtRecv);
         }
 
         return amtRecv;
@@ -324,9 +315,6 @@ contract StargateStrategy is InitializableAbstractStrategy {
     /// @param _asset Address for the asset
     /// @dev skipRwdValidation is a flag to skip the validation.
     function _validateRwdClaim(address _asset) private view returns (bool) {
-        if (skipRwdValidation) {
-            return true;
-        }
         return checkPendingRewards(_asset) <= IERC20(rewardTokenAddress[0]).balanceOf(farm);
     }
 }

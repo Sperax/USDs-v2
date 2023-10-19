@@ -213,9 +213,10 @@ contract YieldReserve is ReentrancyGuard, Ownable {
         IOracle.PriceData memory tokenAPriceData = IOracle(oracle).getPrice(_srcToken);
         IOracle.PriceData memory tokenBPriceData = IOracle(oracle).getPrice(_dstToken);
         // Calculating the value
-        uint256 totalUSDValueIn = (_amountIn * tokenAPriceData.price) / tokenAPriceData.precision;
-        uint256 tokenBOut = (totalUSDValueIn * tokenBPriceData.precision) / tokenBPriceData.price;
-        return tokenBOut;
+        return (
+            (_amountIn * tokenAPriceData.price * tokenBPriceData.precision)
+                / (tokenBPriceData.price * tokenAPriceData.precision)
+        );
     }
 
     // UTILITY FUNCTIONS

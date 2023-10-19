@@ -61,7 +61,7 @@ contract VaultCoreTest is PreMigrationSetup {
     {
         IStrategy _strategy;
         IOracle.PriceData memory collateralPriceData = IOracle(ORACLE).getPrice(_collateral);
-        _feeAmt = (_usdsAmt * 500) / 1e4; // feePerc = 500 and feePercPrecision = 1e4
+        _feeAmt = IFeeCalculator(FEE_CALCULATOR).getRedeemFee(USDCe);
         _usdsBurnAmt = _usdsAmt - _feeAmt;
         _calculatedCollateralAmt = _usdsBurnAmt;
         if (collateralPriceData.price >= collateralPriceData.precision) {
