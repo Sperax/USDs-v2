@@ -23,11 +23,7 @@ contract VaultCoreTest is PreMigrationSetup {
     address internal otherStrategy;
 
     modifier mockOracle(uint256 _price) {
-        vm.mockCall(
-            address(ORACLE),
-            abi.encodeWithSignature("getPrice(address)", USDCe),
-            abi.encode(_price, 1e8)
-        );
+        vm.mockCall(address(ORACLE), abi.encodeWithSignature("getPrice(address)", USDCe), abi.encode(_price, 1e8));
         _;
         vm.clearMockedCalls();
     }
@@ -40,29 +36,17 @@ contract VaultCoreTest is PreMigrationSetup {
         otherStrategy = AAVE_STRATEGY;
     }
 
-    function _updateCollateralData(
-        ICollateralManager.CollateralBaseData memory _data
-    ) internal {
+    function _updateCollateralData(ICollateralManager.CollateralBaseData memory _data) internal {
         vm.prank(USDS_OWNER);
-        ICollateralManager(COLLATERAL_MANAGER).updateCollateralData(
-            USDCe,
-            _data
-        );
+        ICollateralManager(COLLATERAL_MANAGER).updateCollateralData(USDCe, _data);
     }
 
-    function _allocateIntoStrategy(
-        address __collateral,
-        address _strategy,
-        uint256 _amount
-    ) internal useActor(1) {
+    function _allocateIntoStrategy(address __collateral, address _strategy, uint256 _amount) internal useActor(1) {
         deal(USDCe, VAULT, _amount * 4);
         IVault(VAULT).allocate(__collateral, _strategy, _amount);
     }
 
-    function _redeemViewTest(
-        uint256 _usdsAmt,
-        address _strategyAddr
-    )
+    function _redeemViewTest(uint256 _usdsAmt, address _strategyAddr)
         internal
         view
         returns (
@@ -74,16 +58,12 @@ contract VaultCoreTest is PreMigrationSetup {
         )
     {
         IStrategy _strategy;
-        IOracle.PriceData memory collateralPriceData = IOracle(ORACLE).getPrice(
-            _collateral
-        );
+        IOracle.PriceData memory collateralPriceData = IOracle(ORACLE).getPrice(_collateral);
         _feeAmt = (_usdsAmt * 500) / 1e4; // feePerc = 500 and feePercPrecision = 1e4
         _usdsBurnAmt = _usdsAmt - _feeAmt;
         _calculatedCollateralAmt = _usdsBurnAmt;
         if (collateralPriceData.price >= collateralPriceData.precision) {
-            _calculatedCollateralAmt =
-                (_usdsBurnAmt * collateralPriceData.precision) /
-                collateralPriceData.price;
+            _calculatedCollateralAmt = (_usdsBurnAmt * collateralPriceData.precision) / collateralPriceData.price;
         }
         _calculatedCollateralAmt = _calculatedCollateralAmt / 1e12;
         _vaultAmt = ERC20(_collateral).balanceOf(VAULT);
@@ -94,10 +74,7 @@ contract VaultCoreTest is PreMigrationSetup {
                 _strategy = IStrategy(defaultStrategy);
             } else {
                 require(
-                    ICollateralManager(COLLATERAL_MANAGER).isValidStrategy(
-                        _collateral,
-                        _strategyAddr
-                    ),
+                    ICollateralManager(COLLATERAL_MANAGER).isValidStrategy(_collateral, _strategyAddr),
                     "Invalid strategy"
                 );
                 _strategy = IStrategy(_strategyAddr);
@@ -165,29 +142,17 @@ contract TestSetters is VaultCoreTest {
     }
 
     function test_revertIf_InvalidAddress() public useKnownActor(USDS_OWNER) {
-        vm.expectRevert(
-            abi.encodeWithSelector(Helpers.InvalidAddress.selector)
-        );
+        vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAddress.selector));
         IVault(VAULT).updateFeeVault(address(0));
-        vm.expectRevert(
-            abi.encodeWithSelector(Helpers.InvalidAddress.selector)
-        );
+        vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAddress.selector));
         IVault(VAULT).updateYieldReceiver(address(0));
-        vm.expectRevert(
-            abi.encodeWithSelector(Helpers.InvalidAddress.selector)
-        );
+        vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAddress.selector));
         IVault(VAULT).updateCollateralManager(address(0));
-        vm.expectRevert(
-            abi.encodeWithSelector(Helpers.InvalidAddress.selector)
-        );
+        vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAddress.selector));
         IVault(VAULT).updateRebaseManager(address(0));
-        vm.expectRevert(
-            abi.encodeWithSelector(Helpers.InvalidAddress.selector)
-        );
+        vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAddress.selector));
         IVault(VAULT).updateFeeCalculator(address(0));
-        vm.expectRevert(
-            abi.encodeWithSelector(Helpers.InvalidAddress.selector)
-        );
+        vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAddress.selector));
         IVault(VAULT).updateOracle(address(0));
     }
 
@@ -238,11 +203,7 @@ contract TestAllocate is VaultCoreTest {
     address private _strategy;
     uint256 private _amount;
 
-    event Allocated(
-        address indexed collateral,
-        address indexed strategy,
-        uint256 amount
-    );
+    event Allocated(address indexed collateral, address indexed strategy, uint256 amount);
 
     function setUp() public override {
         super.setUp();
@@ -253,35 +214,27 @@ contract TestAllocate is VaultCoreTest {
     function test_revertIf_CollateralAllocationPaused() public useActor(1) {
         // DAI
         _collateral = 0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1;
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                CollateralManager.CollateralAllocationPaused.selector
-            )
-        );
+        vm.expectRevert(abi.encodeWithSelector(CollateralManager.CollateralAllocationPaused.selector));
         IVault(VAULT).allocate(_collateral, _strategy, _amount);
     }
 
     function test_revertIf_AllocationNotAllowed() public useActor(1) {
         uint16 cap = 3000;
-        uint256 maxCollateralUsage = (cap *
-            (ERC20(_collateral).balanceOf(VAULT) +
-                ICollateralManager(IVault(VAULT).collateralManager())
-                    .getCollateralInStrategies(_collateral))) / 10000;
+        uint256 maxCollateralUsage = (
+            cap
+                * (
+                    ERC20(_collateral).balanceOf(VAULT)
+                        + ICollateralManager(IVault(VAULT).collateralManager()).getCollateralInStrategies(_collateral)
+                )
+        ) / 10000;
 
         uint256 _moreThanMaxCollateralUsage = maxCollateralUsage + 1;
         vm.expectRevert(
             abi.encodeWithSelector(
-                VaultCore.AllocationNotAllowed.selector,
-                _collateral,
-                _strategy,
-                _moreThanMaxCollateralUsage
+                VaultCore.AllocationNotAllowed.selector, _collateral, _strategy, _moreThanMaxCollateralUsage
             )
         );
-        IVault(VAULT).allocate(
-            _collateral,
-            _strategy,
-            _moreThanMaxCollateralUsage
-        );
+        IVault(VAULT).allocate(_collateral, _strategy, _moreThanMaxCollateralUsage);
     }
 
     function testFuzz_Allocate(uint256 __amount) public useActor(1) {
@@ -311,14 +264,15 @@ contract TestAllocate is VaultCoreTest {
 
     function _possibleAllocation() internal view returns (uint256) {
         uint16 cap = 3000;
-        uint256 maxCollateralUsage = (cap *
-            (ERC20(_collateral).balanceOf(VAULT) +
-                ICollateralManager(IVault(VAULT).collateralManager())
-                    .getCollateralInStrategies(_collateral))) / 10000;
+        uint256 maxCollateralUsage = (
+            cap
+                * (
+                    ERC20(_collateral).balanceOf(VAULT)
+                        + ICollateralManager(IVault(VAULT).collateralManager()).getCollateralInStrategies(_collateral)
+                )
+        ) / 10000;
 
-        uint256 collateralBalance = IStrategy(_strategy).checkBalance(
-            _collateral
-        );
+        uint256 collateralBalance = IStrategy(_strategy).checkBalance(_collateral);
         if (maxCollateralUsage >= collateralBalance) {
             return maxCollateralUsage - collateralBalance;
         }
@@ -335,11 +289,7 @@ contract TestMint is VaultCoreTest {
     address private feeVault;
 
     event Minted(
-        address indexed wallet,
-        address indexed collateralAddr,
-        uint256 usdsAmt,
-        uint256 collateralAmt,
-        uint256 feeAmt
+        address indexed wallet, address indexed collateralAddr, uint256 usdsAmt, uint256 collateralAmt, uint256 feeAmt
     );
 
     function setUp() public override {
@@ -353,17 +303,10 @@ contract TestMint is VaultCoreTest {
         IVault(VAULT).updateFeeVault(feeVault);
     }
 
-    function testFuzz_RevertsIf_DeadlinePassed(
-        uint256 __deadline
-    ) public useKnownActor(minter) {
+    function testFuzz_RevertsIf_DeadlinePassed(uint256 __deadline) public useKnownActor(minter) {
         uint256 _latestDeadline = block.timestamp - 1;
         _deadline = bound(__deadline, 0, _latestDeadline);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                Helpers.CustomError.selector,
-                "Deadline passed"
-            )
-        );
+        vm.expectRevert(abi.encodeWithSelector(Helpers.CustomError.selector, "Deadline passed"));
         IVault(VAULT).mint(_collateral, _collateralAmt, _minUSDSAmt, _deadline);
     }
 
@@ -374,21 +317,10 @@ contract TestMint is VaultCoreTest {
     }
 
     function test_RevertsIf_SlippageScrewsYou() public useKnownActor(minter) {
-        (_minUSDSAmt, ) = IVault(VAULT).mintView(_collateral, _collateralAmt);
+        (_minUSDSAmt,) = IVault(VAULT).mintView(_collateral, _collateralAmt);
         uint256 _expectedMinAmt = _minUSDSAmt + 10e18;
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                Helpers.MinSlippageError.selector,
-                _minUSDSAmt,
-                _expectedMinAmt
-            )
-        );
-        IVault(VAULT).mint(
-            _collateral,
-            _collateralAmt,
-            _expectedMinAmt,
-            _deadline
-        );
+        vm.expectRevert(abi.encodeWithSelector(Helpers.MinSlippageError.selector, _minUSDSAmt, _expectedMinAmt));
+        IVault(VAULT).mint(_collateral, _collateralAmt, _expectedMinAmt, _deadline);
     }
 
     function test_Mint() public useKnownActor(minter) {
@@ -397,10 +329,7 @@ contract TestMint is VaultCoreTest {
         assertEq(ERC20(USDS).balanceOf(minter), 0);
         ERC20(USDCe).approve(VAULT, _collateralAmt);
         uint256 feeAmt;
-        (_minUSDSAmt, feeAmt) = IVault(VAULT).mintView(
-            _collateral,
-            _collateralAmt
-        );
+        (_minUSDSAmt, feeAmt) = IVault(VAULT).mintView(_collateral, _collateralAmt);
         vm.expectEmit(true, true, true, true, VAULT);
         emit Minted(minter, USDCe, _minUSDSAmt, _collateralAmt, feeAmt);
         IVault(VAULT).mint(_collateral, _collateralAmt, _minUSDSAmt, _deadline);
@@ -409,16 +338,15 @@ contract TestMint is VaultCoreTest {
     }
 
     function test_MintBySpecifyingCollateralAmt() public {
-        ICollateralManager.CollateralBaseData memory _data = ICollateralManager
-            .CollateralBaseData({
-                mintAllowed: true,
-                redeemAllowed: true,
-                allocationAllowed: true,
-                baseFeeIn: 10,
-                baseFeeOut: 500,
-                downsidePeg: 9800,
-                desiredCollateralComposition: 5000
-            });
+        ICollateralManager.CollateralBaseData memory _data = ICollateralManager.CollateralBaseData({
+            mintAllowed: true,
+            redeemAllowed: true,
+            allocationAllowed: true,
+            baseFeeIn: 10,
+            baseFeeOut: 500,
+            downsidePeg: 9800,
+            desiredCollateralComposition: 5000
+        });
         _updateCollateralData(_data);
         uint256 _maxSPAburnt = 1e18; // This doesn't have any effect on mint
         deal(USDCe, minter, _collateralAmt);
@@ -427,20 +355,11 @@ contract TestMint is VaultCoreTest {
         vm.prank(minter);
         ERC20(USDCe).approve(VAULT, _collateralAmt);
         uint256 feeAmt;
-        (_minUSDSAmt, feeAmt) = IVault(VAULT).mintView(
-            _collateral,
-            _collateralAmt
-        );
+        (_minUSDSAmt, feeAmt) = IVault(VAULT).mintView(_collateral, _collateralAmt);
         vm.expectEmit(true, true, true, true, VAULT);
         emit Minted(minter, USDCe, _minUSDSAmt, _collateralAmt, feeAmt);
         vm.prank(minter);
-        IVault(VAULT).mintBySpecifyingCollateralAmt(
-            _collateral,
-            _collateralAmt,
-            _minUSDSAmt,
-            _maxSPAburnt,
-            _deadline
-        );
+        IVault(VAULT).mintBySpecifyingCollateralAmt(_collateral, _collateralAmt, _minUSDSAmt, _maxSPAburnt, _deadline);
         assertGe(ERC20(USDS).balanceOf(minter), _minUSDSAmt);
     }
 }
@@ -454,54 +373,45 @@ contract TestMintView is VaultCoreTest {
         super.setUp();
         _collateral = USDCe;
         _collateralAmt = 10000 * USDC_PRECISION;
-        ICollateralManager.CollateralBaseData memory _data = ICollateralManager
-            .CollateralBaseData({
-                mintAllowed: true,
-                redeemAllowed: true,
-                allocationAllowed: true,
-                baseFeeIn: 10,
-                baseFeeOut: 500,
-                downsidePeg: 9800,
-                desiredCollateralComposition: 5000
-            });
+        ICollateralManager.CollateralBaseData memory _data = ICollateralManager.CollateralBaseData({
+            mintAllowed: true,
+            redeemAllowed: true,
+            allocationAllowed: true,
+            baseFeeIn: 10,
+            baseFeeOut: 500,
+            downsidePeg: 9800,
+            desiredCollateralComposition: 5000
+        });
         _updateCollateralData(_data);
     }
 
-    function test_MintView_Returns0When_PriceLowerThanDownsidePeg()
-        public
-        mockOracle(99e6)
-    {
-        ICollateralManager.CollateralBaseData memory _data = ICollateralManager
-            .CollateralBaseData({
-                mintAllowed: true,
-                redeemAllowed: true,
-                allocationAllowed: true,
-                baseFeeIn: 0,
-                baseFeeOut: 500,
-                downsidePeg: 1e4,
-                desiredCollateralComposition: 5000
-            });
+    function test_MintView_Returns0When_PriceLowerThanDownsidePeg() public mockOracle(99e6) {
+        ICollateralManager.CollateralBaseData memory _data = ICollateralManager.CollateralBaseData({
+            mintAllowed: true,
+            redeemAllowed: true,
+            allocationAllowed: true,
+            baseFeeIn: 0,
+            baseFeeOut: 500,
+            downsidePeg: 1e4,
+            desiredCollateralComposition: 5000
+        });
         vm.prank(USDS_OWNER);
-        ICollateralManager(COLLATERAL_MANAGER).updateCollateralData(
-            USDCe,
-            _data
-        );
+        ICollateralManager(COLLATERAL_MANAGER).updateCollateralData(USDCe, _data);
         (_toMinter, _fee) = IVault(VAULT).mintView(_collateral, _collateralAmt);
         assertEq(_toMinter, 0);
         assertEq(_fee, 0);
     }
 
     function test_MintView_Returns0When_MintIsNotAllowed() public {
-        ICollateralManager.CollateralBaseData memory _data = ICollateralManager
-            .CollateralBaseData({
-                mintAllowed: false,
-                redeemAllowed: true,
-                allocationAllowed: true,
-                baseFeeIn: 0,
-                baseFeeOut: 500,
-                downsidePeg: 9800,
-                desiredCollateralComposition: 5000
-            });
+        ICollateralManager.CollateralBaseData memory _data = ICollateralManager.CollateralBaseData({
+            mintAllowed: false,
+            redeemAllowed: true,
+            allocationAllowed: true,
+            baseFeeIn: 0,
+            baseFeeOut: 500,
+            downsidePeg: 9800,
+            desiredCollateralComposition: 5000
+        });
         _updateCollateralData(_data);
         (_toMinter, _fee) = IVault(VAULT).mintView(_collateral, _collateralAmt);
         assertEq(_toMinter, 0);
@@ -519,19 +429,15 @@ contract TestMintView is VaultCoreTest {
         uint256 expectedFee;
         uint256 expectedToMinter;
         (_toMinter, _fee) = IVault(VAULT).mintView(_collateral, _collateralAmt);
-        ICollateralManager.CollateralMintData
-            memory _mintData = ICollateralManager(COLLATERAL_MANAGER)
-                .getMintParams(_collateral);
-        IOracle.PriceData memory priceData = IOracle(ORACLE).getPrice(
-            _collateral
-        );
+        ICollateralManager.CollateralMintData memory _mintData =
+            ICollateralManager(COLLATERAL_MANAGER).getMintParams(_collateral);
+        IOracle.PriceData memory priceData = IOracle(ORACLE).getPrice(_collateral);
         uint256 downsidePeg = (priceData.precision * 9800) / 1e4;
         if (priceData.price < downsidePeg) {
             expectedFee = 0;
             expectedToMinter = 0;
         } else {
-            uint256 normalizedCollateralAmt = _collateralAmt *
-                _mintData.conversionFactor;
+            uint256 normalizedCollateralAmt = _collateralAmt * _mintData.conversionFactor;
             uint256 usdsAmt = normalizedCollateralAmt;
             expectedFee = (10 * (_toMinter + _fee)) / 1e4;
             expectedToMinter = usdsAmt - expectedFee;
@@ -553,8 +459,7 @@ contract TestRebase is VaultCoreTest {
         IUSDs(USDS).mint(DRIPPER, 1e22);
         IDripper(DRIPPER).collect();
         skip(1 days);
-        (uint256 min, uint256 max) = IRebaseManager(REBASE_MANAGER)
-            .getMinAndMaxRebaseAmt();
+        (uint256 min, uint256 max) = IRebaseManager(REBASE_MANAGER).getMinAndMaxRebaseAmt();
         vm.expectEmit(true, true, true, true, VAULT);
         emit RebasedUSDs(max);
         IVault(VAULT).rebase();
@@ -580,37 +485,30 @@ contract TestRedeemView is VaultCoreTest {
         _collateral = USDCe;
         vm.prank(VAULT);
         IUSDs(USDS).mint(redeemer, usdsAmt);
-        ICollateralManager.CollateralBaseData memory _data = ICollateralManager
-            .CollateralBaseData({
-                mintAllowed: true,
-                redeemAllowed: true,
-                allocationAllowed: true,
-                baseFeeIn: 10,
-                baseFeeOut: 500,
-                downsidePeg: 9800,
-                desiredCollateralComposition: 5000
-            });
+        ICollateralManager.CollateralBaseData memory _data = ICollateralManager.CollateralBaseData({
+            mintAllowed: true,
+            redeemAllowed: true,
+            allocationAllowed: true,
+            baseFeeIn: 10,
+            baseFeeOut: 500,
+            downsidePeg: 9800,
+            desiredCollateralComposition: 5000
+        });
         _updateCollateralData(_data);
     }
 
     function test_RevertsIf_RedeemNotAllowed() public {
-        ICollateralManager.CollateralBaseData memory _data = ICollateralManager
-            .CollateralBaseData({
-                mintAllowed: true,
-                redeemAllowed: false,
-                allocationAllowed: true,
-                baseFeeIn: 10,
-                baseFeeOut: 500,
-                downsidePeg: 9800,
-                desiredCollateralComposition: 5000
-            });
+        ICollateralManager.CollateralBaseData memory _data = ICollateralManager.CollateralBaseData({
+            mintAllowed: true,
+            redeemAllowed: false,
+            allocationAllowed: true,
+            baseFeeIn: 10,
+            baseFeeOut: 500,
+            downsidePeg: 9800,
+            desiredCollateralComposition: 5000
+        });
         _updateCollateralData(_data);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                VaultCore.RedemptionPausedForCollateral.selector,
-                _collateral
-            )
-        );
+        vm.expectRevert(abi.encodeWithSelector(VaultCore.RedemptionPausedForCollateral.selector, _collateral));
         vm.prank(redeemer);
         IVault(VAULT).redeemView(_collateral, usdsAmt);
     }
@@ -618,50 +516,32 @@ contract TestRedeemView is VaultCoreTest {
     function test_RedeemViewFee0IfCallerIsFacilitator() public {
         deal(USDCe, VAULT, (usdsAmt * 2) / 1e12);
         vm.prank(USDS_OWNER);
-        (, , uint256 fee, , ) = IVault(VAULT).redeemView(_collateral, usdsAmt);
+        (,, uint256 fee,,) = IVault(VAULT).redeemView(_collateral, usdsAmt);
         assertEq(fee, 0);
     }
 
-    function test_RedeemViewFee0AndCollAmtDownsidePegged()
-        public
-        mockOracle(99e6)
-    {
+    function test_RedeemViewFee0AndCollAmtDownsidePegged() public mockOracle(99e6) {
         deal(USDCe, VAULT, (usdsAmt * 2) / 1e12);
         vm.prank(USDS_OWNER);
-        (uint256 calculatedCollateralAmt, , uint256 fee, , ) = IVault(VAULT)
-            .redeemView(_collateral, usdsAmt);
+        (uint256 calculatedCollateralAmt,, uint256 fee,,) = IVault(VAULT).redeemView(_collateral, usdsAmt);
         assertEq(fee, 0);
         assertEq(calculatedCollateralAmt, usdsAmt / 1e12);
     }
 
-    function test_RedeemViewFee0AndCollAmtNotDownsidePegged()
-        public
-        mockOracle(101e4)
-    {
+    function test_RedeemViewFee0AndCollAmtNotDownsidePegged() public mockOracle(101e4) {
         deal(USDCe, VAULT, (usdsAmt * 2) / 1e12);
         vm.prank(USDS_OWNER);
-        (uint256 calculatedCollateralAmt, , uint256 fee, , ) = IVault(VAULT)
-            .redeemView(_collateral, usdsAmt);
+        (uint256 calculatedCollateralAmt,, uint256 fee,,) = IVault(VAULT).redeemView(_collateral, usdsAmt);
         assertEq(fee, 0);
         assertGe(calculatedCollateralAmt, ((usdsAmt * 1e8) / 101e6) / 1e12);
     }
 
     function test_RedeemViewApplyDownsidePeg() public mockOracle(101e6) {
         deal(USDCe, VAULT, (usdsAmt * 2) / 1e12);
-        (
-            uint256 _calculatedCollateralAmt,
-            uint256 _usdsBurnAmt,
-            uint256 _feeAmt,
-            uint256 _vaultAmt,
-
-        ) = _redeemViewTest(usdsAmt, address(0));
-        (
-            uint256 calculatedCollateralAmt,
-            uint256 usdsBurnAmt,
-            uint256 feeAmt,
-            uint256 vaultAmt,
-            uint256 strategyAmt
-        ) = IVault(VAULT).redeemView(_collateral, usdsAmt);
+        (uint256 _calculatedCollateralAmt, uint256 _usdsBurnAmt, uint256 _feeAmt, uint256 _vaultAmt,) =
+            _redeemViewTest(usdsAmt, address(0));
+        (uint256 calculatedCollateralAmt, uint256 usdsBurnAmt, uint256 feeAmt, uint256 vaultAmt, uint256 strategyAmt) =
+            IVault(VAULT).redeemView(_collateral, usdsAmt);
         assertEq(_calculatedCollateralAmt, calculatedCollateralAmt);
         assertEq(_usdsBurnAmt, usdsBurnAmt);
         assertEq(_feeAmt, feeAmt);
@@ -671,20 +551,10 @@ contract TestRedeemView is VaultCoreTest {
 
     function test_RedeemViewWithoutDownsidePeg() public mockOracle(99e6) {
         deal(USDCe, VAULT, (usdsAmt * 2) / 1e12);
-        (
-            uint256 _calculatedCollateralAmt,
-            uint256 _usdsBurnAmt,
-            uint256 _feeAmt,
-            uint256 _vaultAmt,
-
-        ) = _redeemViewTest(usdsAmt, address(0));
-        (
-            uint256 calculatedCollateralAmt,
-            uint256 usdsBurnAmt,
-            uint256 feeAmt,
-            uint256 vaultAmt,
-            uint256 strategyAmt
-        ) = IVault(VAULT).redeemView(_collateral, usdsAmt);
+        (uint256 _calculatedCollateralAmt, uint256 _usdsBurnAmt, uint256 _feeAmt, uint256 _vaultAmt,) =
+            _redeemViewTest(usdsAmt, address(0));
+        (uint256 calculatedCollateralAmt, uint256 usdsBurnAmt, uint256 feeAmt, uint256 vaultAmt, uint256 strategyAmt) =
+            IVault(VAULT).redeemView(_collateral, usdsAmt);
         assertEq(_calculatedCollateralAmt, calculatedCollateralAmt);
         assertEq(_usdsBurnAmt, usdsBurnAmt);
         assertEq(_feeAmt, feeAmt);
@@ -692,21 +562,13 @@ contract TestRedeemView is VaultCoreTest {
         assertEq(strategyAmt, 0);
     }
 
-    function test_RevertsIf_CollateralAmtMoreThanVaultAmtAndDefaultStrategyNotSet()
-        public
-    {
+    function test_RevertsIf_CollateralAmtMoreThanVaultAmtAndDefaultStrategyNotSet() public {
         deal(USDCe, VAULT, (usdsAmt / 2) / 1e12);
         vm.prank(USDS_OWNER);
-        ICollateralManager(COLLATERAL_MANAGER).updateCollateralDefaultStrategy(
-            USDCe,
-            address(0)
-        );
-        (uint256 _calculatedCollateralAmt, , , , ) = _redeemViewTest(
-            usdsAmt,
-            defaultStrategy
-        );
-        uint256 _availableAmount = ERC20(_collateral).balanceOf(VAULT) +
-            IStrategy(defaultStrategy).checkAvailableBalance(_collateral);
+        ICollateralManager(COLLATERAL_MANAGER).updateCollateralDefaultStrategy(USDCe, address(0));
+        (uint256 _calculatedCollateralAmt,,,,) = _redeemViewTest(usdsAmt, defaultStrategy);
+        uint256 _availableAmount =
+            ERC20(_collateral).balanceOf(VAULT) + IStrategy(defaultStrategy).checkAvailableBalance(_collateral);
         vm.expectRevert(
             abi.encodeWithSelector(
                 VaultCore.InsufficientCollateral.selector,
@@ -719,16 +581,11 @@ contract TestRedeemView is VaultCoreTest {
         IVault(VAULT).redeemView(_collateral, usdsAmt);
     }
 
-    function test_RedeemView_WhenDefaultStrategySetButBalanceIsNotAvailable()
-        public
-    {
+    function test_RedeemView_WhenDefaultStrategySetButBalanceIsNotAvailable() public {
         deal(USDCe, VAULT, (usdsAmt / 2) / 1e12);
-        (uint256 _calculatedCollateralAmt, , , , ) = _redeemViewTest(
-            usdsAmt,
-            defaultStrategy
-        );
-        uint256 _availableAmount = ERC20(_collateral).balanceOf(VAULT) +
-            IStrategy(defaultStrategy).checkAvailableBalance(_collateral);
+        (uint256 _calculatedCollateralAmt,,,,) = _redeemViewTest(usdsAmt, defaultStrategy);
+        uint256 _availableAmount =
+            ERC20(_collateral).balanceOf(VAULT) + IStrategy(defaultStrategy).checkAvailableBalance(_collateral);
         vm.expectRevert(
             abi.encodeWithSelector(
                 VaultCore.InsufficientCollateral.selector,
@@ -743,11 +600,7 @@ contract TestRedeemView is VaultCoreTest {
 
     function test_RedeemView_FromDefaultStrategy() public {
         deal(USDCe, VAULT, (usdsAmt / 2) / 1e12);
-        _allocateIntoStrategy(
-            _collateral,
-            defaultStrategy,
-            (usdsAmt / 2) / 1e12
-        );
+        _allocateIntoStrategy(_collateral, defaultStrategy, (usdsAmt / 2) / 1e12);
         (
             uint256 _calculatedCollateralAmt,
             uint256 _usdsBurnAmt,
@@ -755,13 +608,8 @@ contract TestRedeemView is VaultCoreTest {
             uint256 _vaultAmt,
             uint256 _strategyAmt
         ) = _redeemViewTest(usdsAmt, address(0));
-        (
-            uint256 calculatedCollateralAmt,
-            uint256 usdsBurnAmt,
-            uint256 feeAmt,
-            uint256 vaultAmt,
-            uint256 strategyAmt
-        ) = IVault(VAULT).redeemView(_collateral, usdsAmt);
+        (uint256 calculatedCollateralAmt, uint256 usdsBurnAmt, uint256 feeAmt, uint256 vaultAmt, uint256 strategyAmt) =
+            IVault(VAULT).redeemView(_collateral, usdsAmt);
         assertEq(_calculatedCollateralAmt, calculatedCollateralAmt);
         assertEq(_usdsBurnAmt, usdsBurnAmt);
         assertEq(_feeAmt, feeAmt);
@@ -770,23 +618,14 @@ contract TestRedeemView is VaultCoreTest {
     }
 
     function test_RedeemView_RevertsIf_InvalidStrategy() public {
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                VaultCore.InvalidStrategy.selector,
-                _collateral,
-                COLLATERAL_MANAGER
-            )
-        );
+        vm.expectRevert(abi.encodeWithSelector(VaultCore.InvalidStrategy.selector, _collateral, COLLATERAL_MANAGER));
         IVault(VAULT).redeemView(_collateral, usdsAmt, COLLATERAL_MANAGER);
     }
 
     function test_RedeemView_RevertsIf_InsufficientCollateral() public {
-        (uint256 _calculatedCollateralAmt, , , , ) = _redeemViewTest(
-            usdsAmt,
-            otherStrategy
-        );
-        uint256 _availableAmount = ERC20(_collateral).balanceOf(VAULT) +
-            IStrategy(otherStrategy).checkAvailableBalance(_collateral);
+        (uint256 _calculatedCollateralAmt,,,,) = _redeemViewTest(usdsAmt, otherStrategy);
+        uint256 _availableAmount =
+            ERC20(_collateral).balanceOf(VAULT) + IStrategy(otherStrategy).checkAvailableBalance(_collateral);
         vm.expectRevert(
             abi.encodeWithSelector(
                 VaultCore.InsufficientCollateral.selector,
@@ -802,13 +641,8 @@ contract TestRedeemView is VaultCoreTest {
     function test_RedeemView_FromOtherStrategy() public {
         deal(USDCe, VAULT, (usdsAmt / 2) / 1e12);
         _allocateIntoStrategy(_collateral, otherStrategy, (usdsAmt / 2) / 1e12);
-        (
-            uint256 calculatedCollateralAmt,
-            uint256 usdsBurnAmt,
-            uint256 feeAmt,
-            uint256 vaultAmt,
-            uint256 strategyAmt
-        ) = IVault(VAULT).redeemView(_collateral, usdsAmt, otherStrategy);
+        (uint256 calculatedCollateralAmt, uint256 usdsBurnAmt, uint256 feeAmt, uint256 vaultAmt, uint256 strategyAmt) =
+            IVault(VAULT).redeemView(_collateral, usdsAmt, otherStrategy);
         (
             uint256 _calculatedCollateralAmt,
             uint256 _usdsBurnAmt,
@@ -831,11 +665,7 @@ contract TestRedeem is VaultCoreTest {
     uint256 private _deadline;
 
     event Redeemed(
-        address indexed wallet,
-        address indexed collateralAddr,
-        uint256 usdsAmt,
-        uint256 collateralAmt,
-        uint256 feeAmt
+        address indexed wallet, address indexed collateralAddr, uint256 usdsAmt, uint256 collateralAmt, uint256 feeAmt
     );
 
     function setUp() public override {
@@ -846,27 +676,13 @@ contract TestRedeem is VaultCoreTest {
         _deadline = block.timestamp + 120;
     }
 
-    function test_RedeemFromVault_RevertsIf_SlippageMoreThanExpected()
-        public
-        useKnownActor(redeemer)
-    {
+    function test_RedeemFromVault_RevertsIf_SlippageMoreThanExpected() public useKnownActor(redeemer) {
         deal(_collateral, VAULT, (_usdsAmt * 2) / 1e12);
-        (_minCollAmt, , , , ) = _redeemViewTest(_usdsAmt, address(0));
+        (_minCollAmt,,,,) = _redeemViewTest(_usdsAmt, address(0));
         emit log_named_uint("_minCollAmt", _minCollAmt);
         uint256 _expectedCollAmt = _minCollAmt + 10 * USDC_PRECISION;
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                Helpers.MinSlippageError.selector,
-                _minCollAmt,
-                _expectedCollAmt
-            )
-        );
-        IVault(VAULT).redeem(
-            _collateral,
-            _usdsAmt,
-            _expectedCollAmt,
-            _deadline
-        );
+        vm.expectRevert(abi.encodeWithSelector(Helpers.MinSlippageError.selector, _minCollAmt, _expectedCollAmt));
+        IVault(VAULT).redeem(_collateral, _usdsAmt, _expectedCollAmt, _deadline);
     }
 
     function test_RedeemFromVault() public {
@@ -875,56 +691,28 @@ contract TestRedeem is VaultCoreTest {
         IUSDs(USDS).mint(redeemer, _usdsAmt);
         vm.prank(redeemer);
         ERC20(USDS).approve(VAULT, _usdsAmt);
-        (
-            uint256 _calculatedCollateralAmt,
-            uint256 _usdsBurnAmt,
-            uint256 _feeAmt,
-            ,
-
-        ) = _redeemViewTest(_usdsAmt, otherStrategy);
+        (uint256 _calculatedCollateralAmt, uint256 _usdsBurnAmt, uint256 _feeAmt,,) =
+            _redeemViewTest(_usdsAmt, otherStrategy);
         uint256 balBeforeFeeVault = ERC20(USDS).balanceOf(FEE_VAULT);
         uint256 balBeforeUSDsRedeemer = ERC20(USDS).balanceOf(redeemer);
         uint256 balBeforeUSDCeRedeemer = ERC20(USDCe).balanceOf(redeemer);
         vm.expectEmit(true, true, true, true, VAULT);
-        emit Redeemed(
-            redeemer,
-            _collateral,
-            _usdsBurnAmt,
-            _calculatedCollateralAmt,
-            _feeAmt
-        );
+        emit Redeemed(redeemer, _collateral, _usdsBurnAmt, _calculatedCollateralAmt, _feeAmt);
         vm.prank(redeemer);
-        IVault(VAULT).redeem(
-            _collateral,
-            _usdsAmt,
-            _calculatedCollateralAmt,
-            _deadline
-        );
+        IVault(VAULT).redeem(_collateral, _usdsAmt, _calculatedCollateralAmt, _deadline);
         uint256 balAfterFeeVault = ERC20(USDS).balanceOf(FEE_VAULT);
         uint256 balAfterUSDsRedeemer = ERC20(USDS).balanceOf(redeemer);
         uint256 balAfterUSDCeRedeemer = ERC20(USDCe).balanceOf(redeemer);
         assertEq(balAfterFeeVault - balBeforeFeeVault, _feeAmt);
         assertEq(balBeforeUSDsRedeemer - balAfterUSDsRedeemer, _usdsAmt);
-        assertEq(
-            balAfterUSDCeRedeemer - balBeforeUSDCeRedeemer,
-            _calculatedCollateralAmt
-        );
+        assertEq(balAfterUSDCeRedeemer - balBeforeUSDCeRedeemer, _calculatedCollateralAmt);
     }
 
     function test_RedeemFromDefaultStrategy() public {
         deal(USDCe, VAULT, (_usdsAmt / 2) / 1e12);
-        _allocateIntoStrategy(
-            _collateral,
-            defaultStrategy,
-            (_usdsAmt / 2) / 1e12
-        );
-        (
-            uint256 _calculatedCollateralAmt,
-            uint256 _usdsBurnAmt,
-            uint256 _feeAmt,
-            ,
-
-        ) = _redeemViewTest(_usdsAmt, address(0));
+        _allocateIntoStrategy(_collateral, defaultStrategy, (_usdsAmt / 2) / 1e12);
+        (uint256 _calculatedCollateralAmt, uint256 _usdsBurnAmt, uint256 _feeAmt,,) =
+            _redeemViewTest(_usdsAmt, address(0));
         vm.prank(VAULT);
         IUSDs(USDS).mint(redeemer, _usdsAmt);
         vm.prank(redeemer);
@@ -933,45 +721,22 @@ contract TestRedeem is VaultCoreTest {
         uint256 balBeforeUSDsRedeemer = ERC20(USDS).balanceOf(redeemer);
         uint256 balBeforeUSDCeRedeemer = ERC20(USDCe).balanceOf(redeemer);
         vm.expectEmit(true, true, true, true, VAULT);
-        emit Redeemed(
-            redeemer,
-            _collateral,
-            _usdsBurnAmt,
-            _calculatedCollateralAmt,
-            _feeAmt
-        );
+        emit Redeemed(redeemer, _collateral, _usdsBurnAmt, _calculatedCollateralAmt, _feeAmt);
         vm.prank(redeemer);
-        IVault(VAULT).redeem(
-            _collateral,
-            _usdsAmt,
-            _calculatedCollateralAmt,
-            _deadline
-        );
+        IVault(VAULT).redeem(_collateral, _usdsAmt, _calculatedCollateralAmt, _deadline);
         uint256 balAfterFeeVault = ERC20(USDS).balanceOf(FEE_VAULT);
         uint256 balAfterUSDsRedeemer = ERC20(USDS).balanceOf(redeemer);
         uint256 balAfterUSDCeRedeemer = ERC20(USDCe).balanceOf(redeemer);
         assertEq(balAfterFeeVault - balBeforeFeeVault, _feeAmt);
         assertEq(balBeforeUSDsRedeemer - balAfterUSDsRedeemer, _usdsAmt);
-        assertEq(
-            balAfterUSDCeRedeemer - balBeforeUSDCeRedeemer,
-            _calculatedCollateralAmt
-        );
+        assertEq(balAfterUSDCeRedeemer - balBeforeUSDCeRedeemer, _calculatedCollateralAmt);
     }
 
     function test_RedeemFromSpecificOtherStrategy() public {
         deal(USDCe, VAULT, (_usdsAmt / 2) / 1e12);
-        _allocateIntoStrategy(
-            _collateral,
-            otherStrategy,
-            (_usdsAmt / 2) / 1e12
-        );
-        (
-            uint256 _calculatedCollateralAmt,
-            uint256 _usdsBurnAmt,
-            uint256 _feeAmt,
-            ,
-
-        ) = _redeemViewTest(_usdsAmt, otherStrategy);
+        _allocateIntoStrategy(_collateral, otherStrategy, (_usdsAmt / 2) / 1e12);
+        (uint256 _calculatedCollateralAmt, uint256 _usdsBurnAmt, uint256 _feeAmt,,) =
+            _redeemViewTest(_usdsAmt, otherStrategy);
         vm.prank(VAULT);
         IUSDs(USDS).mint(redeemer, _usdsAmt);
         vm.prank(redeemer);
@@ -980,46 +745,22 @@ contract TestRedeem is VaultCoreTest {
         uint256 balBeforeUSDsRedeemer = ERC20(USDS).balanceOf(redeemer);
         uint256 balBeforeUSDCeRedeemer = ERC20(USDCe).balanceOf(redeemer);
         vm.expectEmit(true, true, true, true, VAULT);
-        emit Redeemed(
-            redeemer,
-            _collateral,
-            _usdsBurnAmt,
-            _calculatedCollateralAmt,
-            _feeAmt
-        );
+        emit Redeemed(redeemer, _collateral, _usdsBurnAmt, _calculatedCollateralAmt, _feeAmt);
         vm.prank(redeemer);
-        IVault(VAULT).redeem(
-            _collateral,
-            _usdsAmt,
-            _calculatedCollateralAmt,
-            _deadline,
-            otherStrategy
-        );
+        IVault(VAULT).redeem(_collateral, _usdsAmt, _calculatedCollateralAmt, _deadline, otherStrategy);
         uint256 balAfterFeeVault = ERC20(USDS).balanceOf(FEE_VAULT);
         uint256 balAfterUSDsRedeemer = ERC20(USDS).balanceOf(redeemer);
         uint256 balAfterUSDCeRedeemer = ERC20(USDCe).balanceOf(redeemer);
         assertEq(balAfterFeeVault - balBeforeFeeVault, _feeAmt);
         assertEq(balBeforeUSDsRedeemer - balAfterUSDsRedeemer, _usdsAmt);
-        assertEq(
-            balAfterUSDCeRedeemer - balBeforeUSDCeRedeemer,
-            _calculatedCollateralAmt
-        );
+        assertEq(balAfterUSDCeRedeemer - balBeforeUSDCeRedeemer, _calculatedCollateralAmt);
     }
 
     function test_RedeemFromSpecifiedDefaultStrategy() public {
         deal(USDCe, VAULT, (_usdsAmt / 2) / 1e12);
-        _allocateIntoStrategy(
-            _collateral,
-            defaultStrategy,
-            (_usdsAmt / 2) / 1e12
-        );
-        (
-            uint256 _calculatedCollateralAmt,
-            uint256 _usdsBurnAmt,
-            uint256 _feeAmt,
-            ,
-
-        ) = _redeemViewTest(_usdsAmt, defaultStrategy);
+        _allocateIntoStrategy(_collateral, defaultStrategy, (_usdsAmt / 2) / 1e12);
+        (uint256 _calculatedCollateralAmt, uint256 _usdsBurnAmt, uint256 _feeAmt,,) =
+            _redeemViewTest(_usdsAmt, defaultStrategy);
         vm.prank(VAULT);
         IUSDs(USDS).mint(redeemer, _usdsAmt);
         vm.prank(redeemer);
@@ -1028,29 +769,14 @@ contract TestRedeem is VaultCoreTest {
         uint256 balBeforeUSDsRedeemer = ERC20(USDS).balanceOf(redeemer);
         uint256 balBeforeUSDCeRedeemer = ERC20(USDCe).balanceOf(redeemer);
         vm.expectEmit(true, true, true, true, VAULT);
-        emit Redeemed(
-            redeemer,
-            _collateral,
-            _usdsBurnAmt,
-            _calculatedCollateralAmt,
-            _feeAmt
-        );
+        emit Redeemed(redeemer, _collateral, _usdsBurnAmt, _calculatedCollateralAmt, _feeAmt);
         vm.prank(redeemer);
-        IVault(VAULT).redeem(
-            _collateral,
-            _usdsAmt,
-            _calculatedCollateralAmt,
-            _deadline,
-            defaultStrategy
-        );
+        IVault(VAULT).redeem(_collateral, _usdsAmt, _calculatedCollateralAmt, _deadline, defaultStrategy);
         uint256 balAfterFeeVault = ERC20(USDS).balanceOf(FEE_VAULT);
         uint256 balAfterUSDsRedeemer = ERC20(USDS).balanceOf(redeemer);
         uint256 balAfterUSDCeRedeemer = ERC20(USDCe).balanceOf(redeemer);
         assertEq(balAfterFeeVault - balBeforeFeeVault, _feeAmt);
         assertEq(balBeforeUSDsRedeemer - balAfterUSDsRedeemer, _usdsAmt);
-        assertEq(
-            balAfterUSDCeRedeemer - balBeforeUSDCeRedeemer,
-            _calculatedCollateralAmt
-        );
+        assertEq(balAfterUSDCeRedeemer - balBeforeUSDCeRedeemer, _calculatedCollateralAmt);
     }
 }

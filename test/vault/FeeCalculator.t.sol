@@ -24,12 +24,7 @@ contract TestFeeCalculator is BaseTest {
     function testGetFeeIn() public {
         ICollateralManager.CollateralMintData memory mintData;
         mintData.baseFeeIn = _baseFeeIn;
-        (uint256 feeIn, uint256 precision) = feeCalculator.getFeeIn(
-            USDCe,
-            100e18,
-            mintData,
-            priceData
-        );
+        (uint256 feeIn, uint256 precision) = feeCalculator.getFeeIn(USDCe, 100e18, mintData, priceData);
         assertEq(feeIn, _baseFeeIn, "Fee in mismatch");
         assertEq(precision, PERCENT_PRECISION, "Precision mismatch");
     }
@@ -37,12 +32,7 @@ contract TestFeeCalculator is BaseTest {
     function testGetFeeOut() public {
         ICollateralManager.CollateralRedeemData memory redeemData;
         redeemData.baseFeeOut = _baseFeeOut;
-        (uint256 feeOut, uint256 precision) = feeCalculator.getFeeOut(
-            USDT,
-            1000e18,
-            redeemData,
-            priceData
-        );
+        (uint256 feeOut, uint256 precision) = feeCalculator.getFeeOut(USDT, 1000e18, redeemData, priceData);
         assertEq(feeOut, _baseFeeOut, "Fee out mismatch");
         assertEq(precision, PERCENT_PRECISION, "Precision mismatch");
     }

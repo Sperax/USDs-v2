@@ -1,5 +1,6 @@
 pragma solidity >=0.6.2 <0.9.0;
 pragma experimental ABIEncoderV2;
+
 import {Test} from "forge-std/Test.sol";
 
 abstract contract Setup is Test {
@@ -35,11 +36,9 @@ abstract contract Setup is Test {
     address internal FEE_VAULT;
 
     // Define Strategies Constants here
-    address public constant STARGATE =
-        0xF30Db0F56674b51050630e53043c403f8E162Bf2;
+    address public constant STARGATE = 0xF30Db0F56674b51050630e53043c403f8E162Bf2;
     address public constant AAVE = 0xF2badbB9817A40D29393fa88951415a4A334a898;
-    address public constant USDT_TWO_POOL_STRATEGY =
-        0xdc118F2F00812326Fe0De5c9c74c1c0c609d1eB4;
+    address public constant USDT_TWO_POOL_STRATEGY = 0xdc118F2F00812326Fe0De5c9c74c1c0c609d1eB4;
     // Define fork networks
     uint256 internal arbFork;
 
@@ -68,7 +67,7 @@ abstract contract Setup is Test {
         /// @dev Initialize actors for testing.
         string memory mnemonic = vm.envString("TEST_MNEMONIC");
         for (uint32 i = 0; i < NUM_ACTORS; ++i) {
-            (address act, ) = deriveRememberKey(mnemonic, i);
+            (address act,) = deriveRememberKey(mnemonic, i);
             actors.push(act);
         }
     }

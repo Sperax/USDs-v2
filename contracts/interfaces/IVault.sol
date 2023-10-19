@@ -15,35 +15,16 @@ interface IVault {
     /// @param _collateralAmt amount of collateral to mint USDs with
     /// @param _minUSDSAmt minimum expected amount of USDs to be minted
     /// @param _deadline the expiry time of the transaction
-    function mint(
-        address _collateral,
-        uint256 _collateralAmt,
-        uint256 _minUSDSAmt,
-        uint256 _deadline
-    ) external;
+    function mint(address _collateral, uint256 _collateralAmt, uint256 _minUSDSAmt, uint256 _deadline) external;
 
-    function redeem(
-        address _collateral,
-        uint256 _usdsAmt,
-        uint256 _minCollAmt,
-        uint256 _deadline,
-        address _strategy
-    ) external;
+    function redeem(address _collateral, uint256 _usdsAmt, uint256 _minCollAmt, uint256 _deadline, address _strategy)
+        external;
 
-    function redeem(
-        address _collateral,
-        uint256 _usdsAmt,
-        uint256 _minCollAmt,
-        uint256 _deadline
-    ) external;
+    function redeem(address _collateral, uint256 _usdsAmt, uint256 _minCollAmt, uint256 _deadline) external;
 
     function rebase() external;
 
-    function allocate(
-        address _collateral,
-        address _strategy,
-        uint256 _amount
-    ) external;
+    function allocate(address _collateral, address _strategy, uint256 _amount) external;
 
     function updateFeeVault(address _feeVault) external;
 
@@ -61,16 +42,9 @@ interface IVault {
     /// @param _collateral address of the collateral
     /// @param _collateralAmt amount of collateral
     /// @return Returns the expected USDs mint amount and fee for minting
-    function mintView(
-        address _collateral,
-        uint256 _collateralAmt
-    ) external view returns (uint256, uint256);
+    function mintView(address _collateral, uint256 _collateralAmt) external view returns (uint256, uint256);
 
-    function redeemView(
-        address _collateral,
-        uint256 _usdsAmt,
-        address _strategyAddr
-    )
+    function redeemView(address _collateral, uint256 _usdsAmt, address _strategyAddr)
         external
         view
         returns (
@@ -81,10 +55,7 @@ interface IVault {
             uint256 strategyAmt
         );
 
-    function redeemView(
-        address _collateral,
-        uint256 _usdsAmt
-    )
+    function redeemView(address _collateral, uint256 _usdsAmt)
         external
         view
         returns (

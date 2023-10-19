@@ -9,17 +9,9 @@ interface ILPStaking {
 
     function emergencyWithdraw(uint256 _pid) external;
 
-    function pendingStargate(
-        uint256 _poolId,
-        address _user
-    ) external view returns (uint256);
+    function pendingStargate(uint256 _poolId, address _user) external view returns (uint256);
 
-    function poolInfo(
-        uint256 _poolId
-    ) external view returns (IERC20, uint256, uint256, address);
+    function poolInfo(uint256 _poolId) external view returns (IERC20, uint256, uint256, address);
 
-    function userInfo(
-        uint256 _poolId,
-        address _user
-    ) external view returns (uint256 balance, uint256 rewardDebt);
+    function userInfo(uint256 _poolId, address _user) external view returns (uint256 balance, uint256 rewardDebt);
 }

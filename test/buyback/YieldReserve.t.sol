@@ -29,21 +29,11 @@ contract YieldReserveTest is PreMigrationSetup {
     function mintUSDs(uint256 amountIn) public {
         deal(address(USDCe), USDS_OWNER, amountIn * USDCePrecision);
         IERC20(USDCe).approve(VAULT, amountIn);
-        IVault(VAULT).mintBySpecifyingCollateralAmt(
-            USDCe,
-            amountIn,
-            0,
-            0,
-            block.timestamp + 1200
-        );
+        IVault(VAULT).mintBySpecifyingCollateralAmt(USDCe, amountIn, 0, 0, block.timestamp + 1200);
     }
 
     function mockPrice(address token, uint256 price, uint256 precision) public {
-        vm.mockCall(
-            ORACLE,
-            abi.encodeWithSignature("getPrice(address)", token),
-            abi.encode([price, precision])
-        );
+        vm.mockCall(ORACLE, abi.encodeWithSignature("getPrice(address)", token), abi.encode([price, precision]));
     }
 
     function test_toggleSrcTokenPermission_auth_error() public useActor(0) {
@@ -60,9 +50,7 @@ contract YieldReserveTest is PreMigrationSetup {
 
         assertEq(IOracle(ORACLE).priceFeedExists(SPA), true);
 
-        vm.expectRevert(
-            abi.encodeWithSelector(YieldReserve.AlreadyInDesiredState.selector)
-        );
+        vm.expectRevert(abi.encodeWithSelector(YieldReserve.AlreadyInDesiredState.selector));
         yieldReserve.toggleSrcTokenPermission(SPA, true);
 
         // toggle to false case
@@ -70,17 +58,13 @@ contract YieldReserveTest is PreMigrationSetup {
 
         assertEq(yieldReserve.isAllowedSrc(SPA), false);
 
-        vm.expectRevert(
-            abi.encodeWithSelector(YieldReserve.AlreadyInDesiredState.selector)
-        );
+        vm.expectRevert(abi.encodeWithSelector(YieldReserve.AlreadyInDesiredState.selector));
         yieldReserve.toggleSrcTokenPermission(SPA, false);
 
         // priceFeed doesn't exist case.
         address randomTokenAddress = address(0x9);
 
-        vm.expectRevert(
-            abi.encodeWithSelector(YieldReserve.TokenPriceFeedMissing.selector)
-        );
+        vm.expectRevert(abi.encodeWithSelector(YieldReserve.TokenPriceFeedMissing.selector));
         yieldReserve.toggleSrcTokenPermission(randomTokenAddress, true);
     }
 
@@ -98,9 +82,7 @@ contract YieldReserveTest is PreMigrationSetup {
 
         assertEq(IOracle(ORACLE).priceFeedExists(SPA), true);
 
-        vm.expectRevert(
-            abi.encodeWithSelector(YieldReserve.AlreadyInDesiredState.selector)
-        );
+        vm.expectRevert(abi.encodeWithSelector(YieldReserve.AlreadyInDesiredState.selector));
         yieldReserve.toggleDstTokenPermission(SPA, true);
 
         // toggle to false case
@@ -108,17 +90,13 @@ contract YieldReserveTest is PreMigrationSetup {
 
         assertEq(yieldReserve.isAllowedSrc(SPA), false);
 
-        vm.expectRevert(
-            abi.encodeWithSelector(YieldReserve.AlreadyInDesiredState.selector)
-        );
+        vm.expectRevert(abi.encodeWithSelector(YieldReserve.AlreadyInDesiredState.selector));
         yieldReserve.toggleSrcTokenPermission(SPA, false);
 
         // priceFeed doesn't exist case.
         address randomTokenAddress = address(0x9);
 
-        vm.expectRevert(
-            abi.encodeWithSelector(YieldReserve.TokenPriceFeedMissing.selector)
-        );
+        vm.expectRevert(abi.encodeWithSelector(YieldReserve.TokenPriceFeedMissing.selector));
         yieldReserve.toggleDstTokenPermission(randomTokenAddress, true);
     }
 
@@ -156,17 +134,9 @@ contract YieldReserveTest is PreMigrationSetup {
         yieldReserve.updateBuybackPercentage(2000);
     }
 
-    function test_updateBuybackPercentage_inputs()
-        public
-        useKnownActor(USDS_OWNER)
-    {
+    function test_updateBuybackPercentage_inputs() public useKnownActor(USDS_OWNER) {
         uint256 buybackPercentage = 10001;
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                Helpers.GTMaxPercentage.selector,
-                buybackPercentage
-            )
-        );
+        vm.expectRevert(abi.encodeWithSelector(Helpers.GTMaxPercentage.selector, buybackPercentage));
         yieldReserve.updateBuybackPercentage(buybackPercentage);
 
         buybackPercentage = 0;
@@ -186,13 +156,8 @@ contract YieldReserveTest is PreMigrationSetup {
         yieldReserve.updateBuybackAddress(VAULT);
     }
 
-    function test_updateBuybackAddress_inputs()
-        public
-        useKnownActor(USDS_OWNER)
-    {
-        vm.expectRevert(
-            abi.encodeWithSelector(Helpers.InvalidAddress.selector)
-        );
+    function test_updateBuybackAddress_inputs() public useKnownActor(USDS_OWNER) {
+        vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAddress.selector));
         yieldReserve.updateBuybackAddress(address(0));
     }
 
@@ -206,13 +171,8 @@ contract YieldReserveTest is PreMigrationSetup {
         yieldReserve.updateOracleAddress(VAULT);
     }
 
-    function test_updateOracleAddress_inputs()
-        public
-        useKnownActor(USDS_OWNER)
-    {
-        vm.expectRevert(
-            abi.encodeWithSelector(Helpers.InvalidAddress.selector)
-        );
+    function test_updateOracleAddress_inputs() public useKnownActor(USDS_OWNER) {
+        vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAddress.selector));
         yieldReserve.updateOracleAddress(address(0));
     }
 
@@ -226,13 +186,8 @@ contract YieldReserveTest is PreMigrationSetup {
         yieldReserve.updateDripperAddress(VAULT);
     }
 
-    function test_updateDripperAddress_inputs()
-        public
-        useKnownActor(USDS_OWNER)
-    {
-        vm.expectRevert(
-            abi.encodeWithSelector(Helpers.InvalidAddress.selector)
-        );
+    function test_updateDripperAddress_inputs() public useKnownActor(USDS_OWNER) {
+        vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAddress.selector));
         yieldReserve.updateDripperAddress(address(0));
     }
 
@@ -247,9 +202,7 @@ contract YieldReserveTest is PreMigrationSetup {
     }
 
     function test_updateVaultAddress_inputs() public useKnownActor(USDS_OWNER) {
-        vm.expectRevert(
-            abi.encodeWithSelector(Helpers.InvalidAddress.selector)
-        );
+        vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAddress.selector));
         yieldReserve.updateVaultAddress(address(0));
     }
 
@@ -262,17 +215,11 @@ contract YieldReserveTest is PreMigrationSetup {
         mockPrice(USDCe, 10, USDCePrecision);
         mockPrice(USDS, 10, USDsPrecision);
 
-        vm.expectRevert(
-            abi.encodeWithSelector(YieldReserve.InvalidSourceToken.selector)
-        );
+        vm.expectRevert(abi.encodeWithSelector(YieldReserve.InvalidSourceToken.selector));
         yieldReserve.getTokenBForTokenA(USDS, USDCe, 10000);
         yieldReserve.toggleSrcTokenPermission(USDS, true);
 
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                YieldReserve.InvalidDestinationToken.selector
-            )
-        );
+        vm.expectRevert(abi.encodeWithSelector(YieldReserve.InvalidDestinationToken.selector));
         yieldReserve.getTokenBForTokenA(USDS, USDCe, 10000);
         yieldReserve.toggleDstTokenPermission(USDCe, true);
 
@@ -288,11 +235,7 @@ contract YieldReserveTest is PreMigrationSetup {
         yieldReserve.toggleSrcTokenPermission(USDS, true);
         yieldReserve.toggleDstTokenPermission(USDCe, true);
 
-        uint256 amount = yieldReserve.getTokenBForTokenA(
-            USDS,
-            USDCe,
-            amountIn * USDsPrecision
-        );
+        uint256 amount = yieldReserve.getTokenBForTokenA(USDS, USDCe, amountIn * USDsPrecision);
 
         assertEq(amount, amountIn * USDCePrecision);
     }
@@ -320,24 +263,9 @@ contract SwapTest is YieldReserveTest {
         yieldReserve.toggleSrcTokenPermission(USDS, true);
         yieldReserve.toggleDstTokenPermission(USDCe, true);
 
-        uint256 toSend = yieldReserve.getTokenBForTokenA(
-            USDS,
-            USDCe,
-            amt * USDsPrecision
-        );
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                Helpers.MinSlippageError.selector,
-                toSend,
-                (amt + 1) * USDCePrecision
-            )
-        );
-        yieldReserve.swap(
-            USDS,
-            USDCe,
-            amt * USDsPrecision,
-            (amt + 1) * USDCePrecision
-        );
+        uint256 toSend = yieldReserve.getTokenBForTokenA(USDS, USDCe, amt * USDsPrecision);
+        vm.expectRevert(abi.encodeWithSelector(Helpers.MinSlippageError.selector, toSend, (amt + 1) * USDCePrecision));
+        yieldReserve.swap(USDS, USDCe, amt * USDsPrecision, (amt + 1) * USDCePrecision);
     }
 
     function test_swap() public useKnownActor(USDS_OWNER) {
@@ -356,24 +284,14 @@ contract SwapTest is YieldReserveTest {
         uint256 amt = 10;
 
         vm.mockCall(
-            VAULT,
-            abi.encodeWithSignature(
-                "mintView(address, uint256)",
-                USDCe,
-                amt * USDCePrecision
-            ),
-            abi.encode(10)
+            VAULT, abi.encodeWithSignature("mintView(address, uint256)", USDCe, amt * USDCePrecision), abi.encode(10)
         );
 
         uint256 timestamp = block.timestamp + 1200;
         vm.mockCall(
             VAULT,
             abi.encodeWithSignature(
-                "mint(address, uint256, uint256, uint256)",
-                USDCe,
-                amt * USDCePrecision,
-                10 * USDsPrecision,
-                timestamp
+                "mint(address, uint256, uint256, uint256)", USDCe, amt * USDCePrecision, 10 * USDsPrecision, timestamp
             ),
             abi.encode()
         );

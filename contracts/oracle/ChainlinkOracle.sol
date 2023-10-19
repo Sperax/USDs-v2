@@ -21,8 +21,7 @@ contract ChainlinkOracle is Ownable {
     }
 
     // Address of Chainlink's sequencer uptime feed
-    address public constant CHAINLINK_SEQ_UPTIME_FEED =
-        0xFdB631F5EE196F0ed6FAa767959853A9F217697D;
+    address public constant CHAINLINK_SEQ_UPTIME_FEED = 0xFdB631F5EE196F0ed6FAa767959853A9F217697D;
 
     // Grace period time in seconds
     uint256 private constant GRACE_PERIOD_TIME = 3600;
@@ -31,11 +30,7 @@ contract ChainlinkOracle is Ownable {
     mapping(address => TokenData) public getTokenData;
 
     // Events
-    event TokenDataChanged(
-        address indexed tokenAddr,
-        address priceFeed,
-        uint256 pricePrecision
-    );
+    event TokenDataChanged(address indexed tokenAddr, address priceFeed, uint256 pricePrecision);
 
     // Custom error messages
     error TokenNotSupported(address token);
@@ -45,7 +40,7 @@ contract ChainlinkOracle is Ownable {
     /// @notice Constructor to set up initial token data during contract deployment
     /// @param _priceFeedData Array of token setup data containing token addresses and price feed configurations
     constructor(SetupTokenData[] memory _priceFeedData) {
-        for (uint256 i; i < _priceFeedData.length; ) {
+        for (uint256 i; i < _priceFeedData.length;) {
             setTokenData(_priceFeedData[i].token, _priceFeedData[i].data);
             unchecked {
                 ++i;
@@ -57,34 +52,23 @@ contract ChainlinkOracle is Ownable {
     /// @param _token Address of the desired token
     /// @param _tokenData Token price feed configuration
     /// @dev Only the contract owner can call this function
-    function setTokenData(
-        address _token,
-        TokenData memory _tokenData
-    ) public onlyOwner {
+    function setTokenData(address _token, TokenData memory _tokenData) public onlyOwner {
         getTokenData[_token] = _tokenData;
-        emit TokenDataChanged(
-            _token,
-            _tokenData.priceFeed,
-            _tokenData.pricePrecision
-        );
+        emit TokenDataChanged(_token, _tokenData.priceFeed, _tokenData.pricePrecision);
     }
 
     /// @notice Gets the price and price precision of a supported token
     /// @param _token Address of the desired token
     /// @dev Ref: https://docs.chain.link/data-feeds/l2-sequencer-feeds
     /// @return (uint256, uint256) The token's price and its price precision
-    function getTokenPrice(
-        address _token
-    ) public view returns (uint256, uint256) {
+    function getTokenPrice(address _token) public view returns (uint256, uint256) {
         TokenData memory tokenInfo = getTokenData[_token];
 
         // Check if the token is supported
         if (tokenInfo.pricePrecision == 0) revert TokenNotSupported(_token);
 
         // Retrieve the latest data from Chainlink's sequencer uptime feed.
-        (, int256 answer, uint256 startedAt, , ) = AggregatorV3Interface(
-            CHAINLINK_SEQ_UPTIME_FEED
-        ).latestRoundData();
+        (, int256 answer, uint256 startedAt,,) = AggregatorV3Interface(CHAINLINK_SEQ_UPTIME_FEED).latestRoundData();
 
         // Answer == 0: Sequencer is up
         // Answer == 1: Sequencer is down
@@ -93,12 +77,12 @@ contract ChainlinkOracle is Ownable {
 
         // Ensure the grace period has passed since the sequencer is back up.
         uint256 timeSinceUp = block.timestamp - startedAt;
-        if (timeSinceUp <= GRACE_PERIOD_TIME)
+        if (timeSinceUp <= GRACE_PERIOD_TIME) {
             revert GracePeriodNotPassed(timeSinceUp);
+        }
 
         // Retrieve the latest price data for the token from its Chainlink price feed.
-        (, int256 price, , , ) = AggregatorV3Interface(tokenInfo.priceFeed)
-            .latestRoundData();
+        (, int256 price,,,) = AggregatorV3Interface(tokenInfo.priceFeed).latestRoundData();
 
         return (uint256(price), tokenInfo.pricePrecision);
     }

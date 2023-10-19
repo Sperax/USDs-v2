@@ -2,9 +2,14 @@
 pragma solidity 0.8.16;
 
 import {SafeMathUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/math/SafeMathUpgradeable.sol";
-import {AddressUpgradeable, OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {
+    AddressUpgradeable, OwnableUpgradeable
+} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
-import {ERC20Upgradeable, ERC20PermitUpgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
+import {
+    ERC20Upgradeable,
+    ERC20PermitUpgradeable
+} from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
 import {StableMath} from "../libraries/StableMath.sol";
 import {Helpers} from "../libraries/Helpers.sol";
 import {IUSDs} from "../interfaces/IUSDs.sol";
@@ -18,12 +23,7 @@ import {IUSDs} from "../interfaces/IUSDs.sol";
 /// @dev support rebase feature
 /// @dev inspired by OUSD: https://github.com/OriginProtocol/origin-dollar/blob/master/contracts/contracts/token/OUSD.sol
 /// @author Sperax Foundation
-contract USDs is
-    ERC20PermitUpgradeable,
-    OwnableUpgradeable,
-    ReentrancyGuardUpgradeable,
-    IUSDs
-{
+contract USDs is ERC20PermitUpgradeable, OwnableUpgradeable, ReentrancyGuardUpgradeable, IUSDs {
     // @todo validate upgrade with Openzeppelin's upgradeValidation lib
     using SafeMathUpgradeable for uint256;
     using StableMath for uint256;
@@ -56,11 +56,7 @@ contract USDs is
     bool public paused;
     // solhint-enable var-name-mixedcase
 
-    event TotalSupplyUpdated(
-        uint256 totalSupply,
-        uint256 rebasingCredits,
-        uint256 rebasingCreditsPerToken
-    );
+    event TotalSupplyUpdated(uint256 totalSupply, uint256 rebasingCredits, uint256 rebasingCreditsPerToken);
     event Paused(bool isPaused);
     event VaultUpdated(address newVault);
 
@@ -88,10 +84,7 @@ contract USDs is
     /// @notice Mints new USDs tokens, increasing totalSupply.
     /// @param _account the account address the newly minted USDs will be attributed to
     /// @param _amount the amount of USDs that will be minted
-    function mint(
-        address _account,
-        uint256 _amount
-    ) external override onlyVault nonReentrant {
+    function mint(address _account, uint256 _amount) external override onlyVault nonReentrant {
         _mint(_account, _amount);
     }
 
@@ -106,8 +99,9 @@ contract USDs is
     ///  to upside and downside.
     /// @param _account desired account
     function rebaseOptIn(address _account) external onlyOwner nonReentrant {
-        if (!_isNonRebasingAccount(_account))
+        if (!_isNonRebasingAccount(_account)) {
             revert IsAlreadyRebasingAccount(_account);
+        }
 
         uint256 bal = _balanceOf(_account);
 
@@ -126,8 +120,9 @@ contract USDs is
     /// @notice Remove a contract address to the non rebasing exception list.
     /// @param _account desired account
     function rebaseOptOut(address _account) external onlyOwner nonReentrant {
-        if (_isNonRebasingAccount(_account))
+        if (_isNonRebasingAccount(_account)) {
             revert IsAlreadyNonRebasingAccount(_account);
+        }
 
         uint256 bal = _balanceOf(_account);
         // Increase non rebasing supply
@@ -146,9 +141,7 @@ contract USDs is
     /// @notice The rebase function. Modify the supply without minting new tokens. This uses a change in
     ///       the exchange rate between "credits" and USDs tokens to change balances.
     /// @param _rebaseAmt amount of USDs to rebase with.
-    function rebase(
-        uint256 _rebaseAmt
-    ) external override onlyVault nonReentrant {
+    function rebase(uint256 _rebaseAmt) external override onlyVault nonReentrant {
         uint256 prevTotalSupply = _totalSupply;
 
         _burn(msg.sender, _rebaseAmt);
@@ -156,36 +149,23 @@ contract USDs is
         if (_totalSupply == 0) revert CannotIncreaseZeroSupply();
 
         // Compute the existing rebasing credits,
-        uint256 rebasingCredits = (_totalSupply - nonRebasingSupply)
-            .mulTruncate(rebasingCreditsPerToken);
+        uint256 rebasingCredits = (_totalSupply - nonRebasingSupply).mulTruncate(rebasingCreditsPerToken);
 
         // special case: if the total supply remains the same
         if (_totalSupply == prevTotalSupply) {
-            emit TotalSupplyUpdated(
-                _totalSupply,
-                rebasingCredits,
-                rebasingCreditsPerToken
-            );
+            emit TotalSupplyUpdated(_totalSupply, rebasingCredits, rebasingCreditsPerToken);
             return;
         }
 
         // check if the new total supply surpasses the MAX
-        _totalSupply = prevTotalSupply > MAX_SUPPLY
-            ? MAX_SUPPLY
-            : prevTotalSupply;
+        _totalSupply = prevTotalSupply > MAX_SUPPLY ? MAX_SUPPLY : prevTotalSupply;
 
         // calculate the new rebase ratio, i.e. credits per token
-        rebasingCreditsPerToken = rebasingCredits.divPrecisely(
-            _totalSupply - nonRebasingSupply
-        );
+        rebasingCreditsPerToken = rebasingCredits.divPrecisely(_totalSupply - nonRebasingSupply);
 
         if (rebasingCreditsPerToken == 0) revert InvalidRebase();
 
-        emit TotalSupplyUpdated(
-            _totalSupply,
-            rebasingCredits,
-            rebasingCreditsPerToken
-        );
+        emit TotalSupplyUpdated(_totalSupply, rebasingCredits, rebasingCreditsPerToken);
     }
 
     /// @notice change the vault address
@@ -207,10 +187,7 @@ contract USDs is
     /// @param _to the address to transfer to.
     /// @param _value the _amount to be transferred.
     /// @return true on success.
-    function transfer(
-        address _to,
-        uint256 _value
-    ) public override returns (bool) {
+    function transfer(address _to, uint256 _value) public override returns (bool) {
         if (_to == address(0)) revert TransferToZeroAddr();
         uint256 bal = balanceOf(msg.sender);
         if (_value > bal) revert TransferGreaterThanBal(_value, bal);
@@ -227,21 +204,14 @@ contract USDs is
     /// @param _to The address you want to transfer to.
     /// @param _value The _amount of tokens to be transferred.
     /// @return true on success.
-    function transferFrom(
-        address _from,
-        address _to,
-        uint256 _value
-    ) public override returns (bool) {
+    function transferFrom(address _from, address _to, uint256 _value) public override returns (bool) {
         if (_to == address(0)) revert TransferToZeroAddr();
         uint256 bal = balanceOf(_from);
         if (_value > bal) revert TransferGreaterThanBal(_value, bal);
 
         // notice: allowance balance check depends on "sub" non-negative check
 
-        _allowances[_from][msg.sender] = _allowances[_from][msg.sender].sub(
-            _value,
-            "Insufficient allowance"
-        );
+        _allowances[_from][msg.sender] = _allowances[_from][msg.sender].sub(_value, "Insufficient allowance");
 
         _executeTransfer(_from, _to, _value);
 
@@ -259,10 +229,7 @@ contract USDs is
     /// @param _spender The address which will spend the funds.
     /// @param _value The _amount of tokens to be spent.
     /// @return true on success.
-    function approve(
-        address _spender,
-        uint256 _value
-    ) public override returns (bool) {
+    function approve(address _spender, uint256 _value) public override returns (bool) {
         _allowances[msg.sender][_spender] = _value;
         emit Approval(msg.sender, _spender, _value);
         return true;
@@ -274,13 +241,8 @@ contract USDs is
     /// @param _spender The address which will spend the funds.
     /// @param _addedValue The _amount of tokens to increase the allowance by.
     /// @return true on success.
-    function increaseAllowance(
-        address _spender,
-        uint256 _addedValue
-    ) public override returns (bool) {
-        _allowances[msg.sender][_spender] =
-            _allowances[msg.sender][_spender] +
-            _addedValue;
+    function increaseAllowance(address _spender, uint256 _addedValue) public override returns (bool) {
+        _allowances[msg.sender][_spender] = _allowances[msg.sender][_spender] + _addedValue;
         emit Approval(msg.sender, _spender, _allowances[msg.sender][_spender]);
         return true;
     }
@@ -289,10 +251,7 @@ contract USDs is
     /// @param _spender The address which will spend the funds.
     /// @param _subtractedValue The _amount of tokens to decrease the allowance by.
     /// @return true on success.
-    function decreaseAllowance(
-        address _spender,
-        uint256 _subtractedValue
-    ) public override returns (bool) {
+    function decreaseAllowance(address _spender, uint256 _subtractedValue) public override returns (bool) {
         uint256 oldValue = _allowances[msg.sender][_spender];
         if (_subtractedValue >= oldValue) {
             _allowances[msg.sender][_spender] = 0;
@@ -305,12 +264,7 @@ contract USDs is
 
     /// @notice check the current total supply of USDs
     /// @return The total supply of USDs.
-    function totalSupply()
-        public
-        view
-        override(ERC20Upgradeable, IUSDs)
-        returns (uint256)
-    {
+    function totalSupply() public view override(ERC20Upgradeable, IUSDs) returns (uint256) {
         return _totalSupply;
     }
 
@@ -318,9 +272,7 @@ contract USDs is
     /// @param _account Address to query the balance of.
     /// @return A uint256 representing the _amount of base units owned by the
     ///          specified address.
-    function balanceOf(
-        address _account
-    ) public view override returns (uint256) {
+    function balanceOf(address _account) public view override returns (uint256) {
         return _balanceOf(_account);
     }
 
@@ -328,9 +280,7 @@ contract USDs is
     /// @param _account The address to query the balance of.
     /// @return (uint256, uint256) Credit balance and credits per token of the
     ///          address
-    function creditsBalanceOf(
-        address _account
-    ) public view returns (uint256, uint256) {
+    function creditsBalanceOf(address _account) public view returns (uint256, uint256) {
         return (_creditBalances[_account], _creditsPerToken(_account));
     }
 
@@ -338,10 +288,7 @@ contract USDs is
     /// @param _owner The address which owns the funds.
     /// @param _spender The address which will spend the funds.
     /// @return The number of tokens still available for the _spender.
-    function allowance(
-        address _owner,
-        address _spender
-    ) public view override returns (uint256) {
+    function allowance(address _owner, address _spender) public view override returns (uint256) {
         return _allowances[_owner][_spender];
     }
 
@@ -404,10 +351,7 @@ contract USDs is
             creditAmount = _amount.mulTruncate(rebasingCreditsPerToken);
         }
 
-        _creditBalances[_account] = _creditBalances[_account].sub(
-            creditAmount,
-            "Insufficient balance"
-        );
+        _creditBalances[_account] = _creditBalances[_account].sub(creditAmount, "Insufficient balance");
 
         _totalSupply = _totalSupply - _amount;
         emit Transfer(_account, address(0), _amount);
@@ -417,21 +361,14 @@ contract USDs is
     /// @param _from The address you want to send tokens from.
     /// @param _to The address you want to transfer to.
     /// @param _value Amount of USDs to transfer
-    function _executeTransfer(
-        address _from,
-        address _to,
-        uint256 _value
-    ) private {
+    function _executeTransfer(address _from, address _to, uint256 _value) private {
         _isNotPaused();
         bool isNonRebasingTo = _isNonRebasingAccount(_to);
         bool isNonRebasingFrom = _isNonRebasingAccount(_from);
         uint256 creditAmount = _value.mulTruncate(rebasingCreditsPerToken);
 
         if (isNonRebasingFrom) {
-            _creditBalances[_from] = _creditBalances[_from].sub(
-                _value,
-                "Transfer amount exceeds balance"
-            );
+            _creditBalances[_from] = _creditBalances[_from].sub(_value, "Transfer amount exceeds balance");
             if (!isNonRebasingTo) {
                 // Transfer to rebasing account from non-rebasing account
                 // Decreasing non-rebasing supply by the amount that was sent
@@ -439,10 +376,7 @@ contract USDs is
             }
         } else {
             // updating credit balance for rebasing account
-            _creditBalances[_from] = _creditBalances[_from].sub(
-                creditAmount,
-                "Transfer amount exceeds balance"
-            );
+            _creditBalances[_from] = _creditBalances[_from].sub(creditAmount, "Transfer amount exceeds balance");
         }
 
         if (isNonRebasingTo) {

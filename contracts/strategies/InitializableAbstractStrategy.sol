@@ -12,11 +12,7 @@ interface IStrategyVault {
     function yieldReceiver() external view returns (address);
 }
 
-abstract contract InitializableAbstractStrategy is
-    Initializable,
-    OwnableUpgradeable,
-    ReentrancyGuardUpgradeable
-{
+abstract contract InitializableAbstractStrategy is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradeable {
     using SafeERC20 for IERC20;
 
     address public vault;
@@ -37,22 +33,10 @@ abstract contract InitializableAbstractStrategy is
     event Deposit(address indexed asset, address pToken, uint256 amount);
     event Withdrawal(address indexed asset, address pToken, uint256 amount);
     event SlippageUpdated(uint16 depositSlippage, uint16 withdrawSlippage);
-    event HarvestIncentiveCollected(
-        address indexed token,
-        address indexed harvestor,
-        uint256 amount
-    );
+    event HarvestIncentiveCollected(address indexed token, address indexed harvestor, uint256 amount);
     event HarvestIncentiveRateUpdated(uint16 newRate);
-    event InterestCollected(
-        address indexed asset,
-        address indexed recipient,
-        uint256 amount
-    );
-    event RewardTokenCollected(
-        address indexed rwdToken,
-        address indexed recipient,
-        uint256 amount
-    );
+    event InterestCollected(address indexed asset, address indexed recipient, uint256 amount);
+    event RewardTokenCollected(address indexed rwdToken, address indexed recipient, uint256 amount);
 
     error CallerNotVault(address caller);
     error CallerNotVaultOrOwner(address caller);
@@ -68,8 +52,9 @@ abstract contract InitializableAbstractStrategy is
     }
 
     modifier onlyVaultOrOwner() {
-        if (!(msg.sender == vault || msg.sender == owner()))
+        if (!(msg.sender == vault || msg.sender == owner())) {
             revert CallerNotVaultOrOwner(msg.sender);
+        }
         _;
     }
 
@@ -104,19 +89,15 @@ abstract contract InitializableAbstractStrategy is
     /// @param _asset Address of the asset
     /// @param _amount Units of asset to withdraw
     /// @return amountReceived The actual amount received
-    function withdraw(
-        address _recipient,
-        address _asset,
-        uint256 _amount
-    ) external virtual returns (uint256 amountReceived);
+    function withdraw(address _recipient, address _asset, uint256 _amount)
+        external
+        virtual
+        returns (uint256 amountReceived);
 
     /// @dev Withdraw an amount of asset from the platform to vault
     /// @param _asset  Address of the asset
     /// @param _amount  Units of asset to withdraw
-    function withdrawToVault(
-        address _asset,
-        uint256 _amount
-    ) external virtual returns (uint256 amount);
+    function withdrawToVault(address _asset, uint256 _amount) external virtual returns (uint256 amount);
 
     /// @notice Withdraw the interest earned of asset from the platform.
     /// @param _asset Address of the asset
@@ -129,51 +110,38 @@ abstract contract InitializableAbstractStrategy is
     ///           excluding the interest
     /// @dev Curve: assuming balanced withdrawal
     /// @param _asset Address of the asset
-    function checkBalance(
-        address _asset
-    ) external view virtual returns (uint256);
+    function checkBalance(address _asset) external view virtual returns (uint256);
 
     /// @notice Get the amount of a specific asset held in the strategy,
     ///         excluding the interest and any locked liquidity that is not
     ///         available for instant withdrawal
     /// @dev Curve: assuming balanced withdrawal
     /// @param _asset Address of the asset
-    function checkAvailableBalance(
-        address _asset
-    ) external view virtual returns (uint256);
+    function checkAvailableBalance(address _asset) external view virtual returns (uint256);
 
     /// @notice AAVE: Get the interest earned on a specific asset
     /// Curve: Get the total interest earned
     /// @dev Curve: to avoid double-counting, _asset has to be of index
     ///           'entryTokenIndex'
     /// @param _asset Address of the asset
-    function checkInterestEarned(
-        address _asset
-    ) external view virtual returns (uint256);
+    function checkInterestEarned(address _asset) external view virtual returns (uint256);
 
     /// @notice Get the amount of claimable reward
     function checkRewardEarned() external view virtual returns (uint256);
 
     /// @notice Get the total LP token balance for a asset.
     /// @param _asset Address of the asset.
-    function checkLPTokenBalance(
-        address _asset
-    ) external view virtual returns (uint256);
+    function checkLPTokenBalance(address _asset) external view virtual returns (uint256);
 
     /// @notice Check if an asset/collateral is supported.
     /// @param _asset Address of the asset
     /// @return bool Whether asset is supported
-    function supportsCollateral(
-        address _asset
-    ) external view virtual returns (bool);
+    function supportsCollateral(address _asset) external view virtual returns (bool);
 
     /// @notice Change to a new depositSlippage & withdrawSlippage
     /// @param _depositSlippage Slippage tolerance for allocation
     /// @param _withdrawSlippage Slippage tolerance for withdrawal
-    function updateSlippage(
-        uint16 _depositSlippage,
-        uint16 _withdrawSlippage
-    ) public onlyOwner {
+    function updateSlippage(uint16 _depositSlippage, uint16 _withdrawSlippage) public onlyOwner {
         Helpers._isLTEMaxPercentage(_depositSlippage);
         Helpers._isLTEMaxPercentage(_withdrawSlippage);
         depositSlippage = _depositSlippage;
@@ -185,11 +153,7 @@ abstract contract InitializableAbstractStrategy is
     /// @param _vault Address of the USDs Vault
     /// @param _depositSlippage Allowed max slippage for Deposit
     /// @param _withdrawSlippage Allowed max slippage for withdraw
-    function _initialize(
-        address _vault,
-        uint16 _depositSlippage,
-        uint16 _withdrawSlippage
-    ) internal {
+    function _initialize(address _vault, uint16 _depositSlippage, uint16 _withdrawSlippage) internal {
         OwnableUpgradeable.__Ownable_init();
         ReentrancyGuardUpgradeable.__ReentrancyGuard_init();
         Helpers._isNonZeroAddr(_vault);
@@ -205,8 +169,9 @@ abstract contract InitializableAbstractStrategy is
     ///  @param _pToken Address for the corresponding platform token
     function _setPTokenAddress(address _asset, address _pToken) internal {
         address currentPToken = assetToPToken[_asset];
-        if (currentPToken != address(0))
+        if (currentPToken != address(0)) {
             revert PTokenAlreadySet(_asset, currentPToken);
+        }
         Helpers._isNonZeroAddr(_asset);
         Helpers._isNonZeroAddr(_pToken);
 
@@ -221,9 +186,7 @@ abstract contract InitializableAbstractStrategy is
     /// @notice Remove a supported asset by passing its index.
     ///      This method can only be called by the system owner
     /// @param _assetIndex Index of the asset to be removed
-    function _removePTokenAddress(
-        uint256 _assetIndex
-    ) internal returns (address asset) {
+    function _removePTokenAddress(uint256 _assetIndex) internal returns (address asset) {
         uint256 numAssets = assetsMapped.length;
         if (_assetIndex >= numAssets) revert InvalidIndex();
         asset = assetsMapped[_assetIndex];
@@ -242,15 +205,12 @@ abstract contract InitializableAbstractStrategy is
     /// @param _harvestor Address of the harvestor
     /// @param _amount to be split and sent
     /// @dev Sends the amount to harvestor as per `harvestIncentiveRate` and sends the rest to yield receiver
-    function _splitAndSendReward(
-        address _token,
-        address _yieldReceiver,
-        address _harvestor,
-        uint256 _amount
-    ) internal returns (uint256) {
+    function _splitAndSendReward(address _token, address _yieldReceiver, address _harvestor, uint256 _amount)
+        internal
+        returns (uint256)
+    {
         if (harvestIncentiveRate != 0) {
-            uint256 incentiveAmt = (_amount * harvestIncentiveRate) /
-                Helpers.MAX_PERCENTAGE;
+            uint256 incentiveAmt = (_amount * harvestIncentiveRate) / Helpers.MAX_PERCENTAGE;
             uint256 harvestedAmt = _amount - incentiveAmt;
             IERC20(_token).safeTransfer(_harvestor, incentiveAmt);
             IERC20(_token).safeTransfer(_yieldReceiver, harvestedAmt);
@@ -264,8 +224,5 @@ abstract contract InitializableAbstractStrategy is
     /// @notice Call the necessary approvals for the underlying strategy
     /// @param _asset Address of the asset
     /// @param _pToken Address of the corresponding receipt token.
-    function _abstractSetPToken(
-        address _asset,
-        address _pToken
-    ) internal virtual;
+    function _abstractSetPToken(address _asset, address _pToken) internal virtual;
 }
