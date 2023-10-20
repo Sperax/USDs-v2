@@ -144,6 +144,7 @@ contract AaveStrategy is InitializableAbstractStrategy {
     }
 
     /// @inheritdoc InitializableAbstractStrategy
+    // TODO can be made external. Same for others.
     function checkAvailableBalance(address _asset) public view override returns (uint256) {
         uint256 availableLiquidity = IERC20(_asset).balanceOf(_getPTokenFor(_asset));
         uint256 allocatedValue = assetInfo[_asset].allocatedAmt;
