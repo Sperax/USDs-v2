@@ -7,6 +7,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import {InitializableAbstractStrategy, Helpers, IStrategyVault} from "../InitializableAbstractStrategy.sol";
 import {IUniswapV3Factory, INonfungiblePositionManager as INFPM} from "./interfaces/UniswapV3.sol";
+import {PositionValue} from "./libraries/PositionValue.sol";
 
 /// @title UniswapV3 strategy for USDs protocol
 /// @notice A yield earning strategy for USDs protocol
@@ -58,12 +59,17 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
 
     /// @notice Sets the addresses of the PToken contracts for the Uniswap pool.
     /// @param _uniswapPoolData The Uniswap pool data including token addresses and fee tier.
-    function setPTokenAddress(UniswapPoolData calldata _uniswapPoolData) external onlyOwner {
+    function setPTokenAddress(UniswapPoolData memory _uniswapPoolData) external onlyOwner {
         if (
             uniV3Factory.getPool(_uniswapPoolData.tokenA, _uniswapPoolData.tokenB, _uniswapPoolData.feeTier)
                 == address(0)
         ) {
             revert InvalidUniswapPoolConfig();
+        }
+
+        // Sort tokens
+        if (_uniswapPoolData.tokenA > _uniswapPoolData.tokenB) {
+            (_uniswapPoolData.tokenA, _uniswapPoolData.tokenB) = (_uniswapPoolData.tokenB, _uniswapPoolData.tokenA);
         }
 
         address nfpmAddress = address(nfpm); // gas optimization
@@ -276,7 +282,19 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
 
     /// @inheritdoc InitializableAbstractStrategy
     function checkInterestEarned(address _asset) external view override returns (uint256) {
-        // TODO fix this
+        UniswapPoolData memory poolData = uniswapPoolData;
+
+        // Get fees for both token0 and token1
+        (uint256 feesToken0, uint256 feesToken1) = PositionValue.fees(nfpm, lpTokenId);
+
+        if (_asset == poolData.tokenA) {
+            return feesToken0;
+        } else if (_asset == poolData.tokenB) {
+            return feesToken1;
+        } else {
+            // Handle the case where _asset is neither token0 nor token1
+            revert CollateralNotSupported(_asset);
+        }
     }
 
     // TODO of no use.
