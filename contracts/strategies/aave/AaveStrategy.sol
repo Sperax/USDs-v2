@@ -14,14 +14,11 @@ contract AaveStrategy is InitializableAbstractStrategy {
 
     struct AssetInfo {
         uint256 allocatedAmt; // Tracks the allocated amount of an asset.
-        uint256 intLiqThreshold; // tracks the interest liq threshold for an asset.
     }
 
     uint16 private constant REFERRAL_CODE = 0;
     IAaveLendingPool public aavePool;
     mapping(address => AssetInfo) public assetInfo;
-
-    event IntLiqThresholdUpdated(address indexed asset, uint256 intLiqThreshold);
 
     /// @notice Initializer for setting up strategy internal state. This overrides the
     /// InitializableAbstractStrategy initializer as AAVE needs several extra
@@ -42,9 +39,8 @@ contract AaveStrategy is InitializableAbstractStrategy {
     ///      This method can only be called by the system owner
     /// @param _asset    Address for the asset
     /// @param _lpToken   Address for the corresponding platform token
-    function setPTokenAddress(address _asset, address _lpToken, uint256 _intLiqThreshold) external onlyOwner {
+    function setPTokenAddress(address _asset, address _lpToken) external onlyOwner {
         _setPTokenAddress(_asset, _lpToken);
-        assetInfo[_asset] = AssetInfo({allocatedAmt: 0, intLiqThreshold: _intLiqThreshold});
     }
 
     /// @notice Remove a supported asset by passing its index.
@@ -56,16 +52,6 @@ contract AaveStrategy is InitializableAbstractStrategy {
             revert CollateralAllocated(asset);
         }
         delete assetInfo[asset];
-    }
-
-    /// @notice Update the interest liquidity threshold for an asset.
-    /// @param _asset Address of the asset
-    /// @param _intLiqThreshold Liquidity threshold for interest
-    function updateIntLiqThreshold(address _asset, uint256 _intLiqThreshold) external onlyOwner {
-        if (!supportsCollateral(_asset)) revert CollateralNotSupported(_asset);
-        assetInfo[_asset].intLiqThreshold = _intLiqThreshold;
-
-        emit IntLiqThresholdUpdated(_asset, _intLiqThreshold);
     }
 
     /// @inheritdoc InitializableAbstractStrategy
@@ -111,7 +97,7 @@ contract AaveStrategy is InitializableAbstractStrategy {
     function collectInterest(address _asset) external override nonReentrant {
         address yieldReceiver = IStrategyVault(vault).yieldReceiver();
         uint256 assetInterest = checkInterestEarned(_asset);
-        if (assetInterest > assetInfo[_asset].intLiqThreshold) {
+        if (assetInterest > 0) {
             uint256 interestCollected = aavePool.withdraw(_asset, assetInterest, address(this));
             uint256 harvestAmt = _splitAndSendReward(_asset, yieldReceiver, msg.sender, interestCollected);
             emit InterestCollected(_asset, yieldReceiver, harvestAmt);
