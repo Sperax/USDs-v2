@@ -192,10 +192,10 @@ contract TestTransfer is USDsTest {
         useKnownActor(USDS_OWNER)
         testTransfer(usds.balanceOf(USER1))
     {
-        usds.rebaseOptOut(USER1);
-        usds.rebaseOptIn(USER1);
-
         changePrank(USER1);
+        usds.rebaseOptOut();
+        usds.rebaseOptIn();
+
         usds.transfer(USER2, usds.balanceOf(USER1));
     }
 
@@ -204,12 +204,13 @@ contract TestTransfer is USDsTest {
         useKnownActor(USDS_OWNER)
         testTransfer(usds.balanceOf(USER1))
     {
-        usds.rebaseOptOut(USER1);
-
-        usds.rebaseOptOut(USER2);
-        usds.rebaseOptIn(USER2);
+        changePrank(USER2);
+        usds.rebaseOptOut();
+        usds.rebaseOptIn();
 
         changePrank(USER1);
+        usds.rebaseOptOut();
+
         usds.transfer(USER2, usds.balanceOf(USER1));
     }
 
@@ -218,12 +219,13 @@ contract TestTransfer is USDsTest {
         useKnownActor(USDS_OWNER)
         testTransfer(usds.balanceOf(USER1))
     {
-        usds.rebaseOptOut(USER1);
-        usds.rebaseOptIn(USER1);
-
-        usds.rebaseOptOut(USER2);
+        changePrank(USER2);
+        usds.rebaseOptOut();
 
         changePrank(USER1);
+        usds.rebaseOptOut();
+        usds.rebaseOptIn();
+
         usds.transfer(USER2, usds.balanceOf(USER1));
     }
 
@@ -304,10 +306,10 @@ contract TestBurn is USDsTest {
     }
 
     function test_burn_opt_in() public useKnownActor(USDS_OWNER) {
-        usds.rebaseOptIn(VAULT);
-        usds.rebaseOptOut(VAULT);
-
         changePrank(VAULT);
+        usds.rebaseOptIn();
+        usds.rebaseOptOut();
+
         usds.mint(VAULT, amount);
 
         uint256 prevSupply = usds.totalSupply();
@@ -321,8 +323,8 @@ contract TestBurn is USDsTest {
     }
 
     function test_credit_amount_changes_case1() public useKnownActor(USDS_OWNER) {
-        usds.rebaseOptIn(VAULT);
         changePrank(VAULT);
+        usds.rebaseOptIn();
         usds.mint(VAULT, amount);
         uint256 creditAmount = amount.mulTruncate(usds.rebasingCreditsPerToken());
 
@@ -335,8 +337,8 @@ contract TestBurn is USDsTest {
     }
 
     function test_burn_case2() public useKnownActor(USDS_OWNER) {
-        usds.rebaseOptIn(VAULT);
         changePrank(VAULT);
+        usds.rebaseOptIn();
 
         usds.transfer(USER1, usds.balanceOf(VAULT));
         usds.mint(VAULT, amount);
@@ -349,8 +351,8 @@ contract TestBurn is USDsTest {
     }
 
     function test_burn_case3() public useKnownActor(USDS_OWNER) {
-        usds.rebaseOptIn(VAULT);
         changePrank(VAULT);
+        usds.rebaseOptIn();
 
         vm.expectRevert("Insufficient balance");
         amount = 1000000000 * USDsPrecision;
@@ -371,26 +373,26 @@ contract TestRebase is USDsTest {
     }
 
     function test_revertIf_IsAlreadyRebasingAccount() public useKnownActor(USDS_OWNER) {
-        usds.rebaseOptIn(USDS_OWNER);
+        usds.rebaseOptIn();
         vm.expectRevert(abi.encodeWithSelector(USDs.IsAlreadyRebasingAccount.selector, USDS_OWNER));
-        usds.rebaseOptIn(USDS_OWNER);
+        usds.rebaseOptIn();
     }
 
     function test_rebaseOptIn() public useKnownActor(USDS_OWNER) {
-        usds.rebaseOptIn(USDS_OWNER);
+        usds.rebaseOptIn();
 
         assertEq(usds.nonRebasingCreditsPerToken(USDS_OWNER), 0);
     }
 
     function test_revertIf_IsAlreadyNonRebasingAccount() public useKnownActor(USDS_OWNER) {
-        // usds.rebaseOptOut(USDS_OWNER);
+        // usds.rebaseOptOut();
         vm.expectRevert(abi.encodeWithSelector(USDs.IsAlreadyNonRebasingAccount.selector, USDS_OWNER));
-        usds.rebaseOptOut(USDS_OWNER);
+        usds.rebaseOptOut();
     }
 
     function test_rebaseOptOut() public useKnownActor(USDS_OWNER) {
-        usds.rebaseOptIn(USDS_OWNER);
-        usds.rebaseOptOut(USDS_OWNER);
+        usds.rebaseOptIn();
+        usds.rebaseOptOut();
 
         assertEq(usds.nonRebasingCreditsPerToken(USDS_OWNER), 1);
     }
@@ -420,9 +422,9 @@ contract TestRebase is USDsTest {
     }
 
     function test_rebase_opt_in() public useKnownActor(USDS_OWNER) {
-        usds.rebaseOptIn(VAULT);
-        uint256 amount = 100000;
         changePrank(VAULT);
+        usds.rebaseOptIn();
+        uint256 amount = 100000;
         usds.mint(VAULT, amount);
         uint256 prevSupply = usds.totalSupply();
         usds.rebase(amount);
@@ -430,10 +432,10 @@ contract TestRebase is USDsTest {
     }
 
     function test_rebase_opt_out() public useKnownActor(USDS_OWNER) {
-        usds.rebaseOptIn(VAULT);
-        usds.rebaseOptOut(VAULT);
-        uint256 amount = 100000;
         changePrank(VAULT);
+        usds.rebaseOptIn();
+        usds.rebaseOptOut();
+        uint256 amount = 100000;
         usds.mint(VAULT, amount);
         uint256 prevSupply = usds.totalSupply();
         usds.rebase(amount);
@@ -471,8 +473,8 @@ contract TestEnsureRebasingMigration is USDsTest {
         _deploy(bytecode, salt);
 
         // Trigger _isNonRebasingAccount by sending amount2 to any non-rebasing account
-        vm.prank(USDS_OWNER);
-        usds.rebaseOptOut(msg.sender);
+        vm.prank(msg.sender);
+        usds.rebaseOptOut();
         uint256 transferAmount = amount / 2;
         vm.prank(predictedAddress);
         usds.transfer(msg.sender, transferAmount);
