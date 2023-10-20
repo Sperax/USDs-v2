@@ -13,7 +13,6 @@ contract CompoundStrategyTest is BaseStrategy, BaseTest {
         string name;
         address asset;
         address pToken;
-        uint256 intLiqThreshold;
     }
 
     AssetData[] public data;
@@ -28,8 +27,6 @@ contract CompoundStrategyTest is BaseStrategy, BaseTest {
     address internal ASSET;
     address internal P_TOKEN;
     address internal constant REWARD_POOL = 0x88730d254A2f7e6AC8388c3198aFd694bA9f7fae;
-
-    event IntLiqThresholdUpdated(address indexed asset, uint256 intLiqThreshold);
 
     function setUp() public virtual override {
         super.setUp();
@@ -63,7 +60,7 @@ contract CompoundStrategyTest is BaseStrategy, BaseTest {
 
     function _setAssetData() internal {
         for (uint8 i = 0; i < data.length; ++i) {
-            strategy.setPTokenAddress(data[i].asset, data[i].pToken, data[i].intLiqThreshold);
+            strategy.setPTokenAddress(data[i].asset, data[i].pToken);
         }
     }
 
@@ -72,16 +69,14 @@ contract CompoundStrategyTest is BaseStrategy, BaseTest {
             AssetData({
                 name: "USDC.e",
                 asset: 0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8,
-                pToken: 0xA5EDBDD9646f8dFF606d7448e414884C7d905dCA,
-                intLiqThreshold: 0
+                pToken: 0xA5EDBDD9646f8dFF606d7448e414884C7d905dCA
             })
         );
         data.push(
             AssetData({
                 name: "USDC",
                 asset: 0xaf88d065e77c8cC2239327C5EDb3A432268e5831,
-                pToken: 0x9c4ec768c28520B50860ea7a15bd7213a9fF58bf,
-                intLiqThreshold: 0
+                pToken: 0x9c4ec768c28520B50860ea7a15bd7213a9fF58bf
             })
         );
     }
@@ -126,13 +121,13 @@ contract SetPTokenTest is CompoundStrategyTest {
 
     function test_RevertWhen_NotOwner() public useActor(0) {
         vm.expectRevert("Ownable: caller is not the owner");
-        strategy.setPTokenAddress(ASSET, P_TOKEN, 0);
+        strategy.setPTokenAddress(ASSET, P_TOKEN);
     }
 
     function test_RevertWhen_InvalidPToken() public useKnownActor(USDS_OWNER) {
         address OTHER_P_TOKEN = 0x9c4ec768c28520B50860ea7a15bd7213a9fF58bf;
         vm.expectRevert(abi.encodeWithSelector(InvalidAssetLpPair.selector, ASSET, OTHER_P_TOKEN));
-        strategy.setPTokenAddress(ASSET, OTHER_P_TOKEN, 0);
+        strategy.setPTokenAddress(ASSET, OTHER_P_TOKEN);
     }
 
     function test_SetPTokenAddress() public useKnownActor(USDS_OWNER) {
@@ -140,47 +135,16 @@ contract SetPTokenTest is CompoundStrategyTest {
 
         vm.expectEmit(true, false, false, false);
         emit PTokenAdded(address(ASSET), address(P_TOKEN));
-        strategy.setPTokenAddress(ASSET, P_TOKEN, 0);
+        strategy.setPTokenAddress(ASSET, P_TOKEN);
 
-        (, uint256 intLiqThreshold) = strategy.assetInfo(ASSET);
-
-        assertEq(intLiqThreshold, 0);
         assertEq(strategy.assetToPToken(ASSET), P_TOKEN);
         assertTrue(strategy.supportsCollateral(ASSET));
     }
 
     function test_RevertWhen_DuplicateAsset() public useKnownActor(USDS_OWNER) {
-        strategy.setPTokenAddress(ASSET, P_TOKEN, 0);
+        strategy.setPTokenAddress(ASSET, P_TOKEN);
         vm.expectRevert(abi.encodeWithSelector(PTokenAlreadySet.selector, ASSET, P_TOKEN));
-        strategy.setPTokenAddress(ASSET, P_TOKEN, 0);
-    }
-}
-
-contract UpdateIntLiqThresholdTest is CompoundStrategyTest {
-    function setUp() public override {
-        super.setUp();
-        vm.startPrank(USDS_OWNER);
-        _initializeStrategy();
-        _setAssetData();
-        vm.stopPrank();
-    }
-
-    function test_RevertWhen_NotOwner() public useActor(0) {
-        vm.expectRevert("Ownable: caller is not the owner");
-        strategy.updateIntLiqThreshold(ASSET, 2);
-    }
-
-    function test_RevertWhen_CollateralNotSupported() public useKnownActor(USDS_OWNER) {
-        vm.expectRevert(abi.encodeWithSelector(CollateralNotSupported.selector, P_TOKEN));
-        strategy.updateIntLiqThreshold(P_TOKEN, 2);
-    }
-
-    function test_UpdateIntLiqThreshold() public useKnownActor(USDS_OWNER) {
-        vm.expectEmit(true, false, false, false);
-        emit IntLiqThresholdUpdated(address(ASSET), uint256(2));
-        strategy.updateIntLiqThreshold(ASSET, 2);
-        (, uint256 intLiqThreshold) = strategy.assetInfo(ASSET);
-        assertEq(intLiqThreshold, 2);
+        strategy.setPTokenAddress(ASSET, P_TOKEN);
     }
 }
 
@@ -217,10 +181,9 @@ contract RemovePTokenTest is CompoundStrategyTest {
         emit PTokenRemoved(ASSET, P_TOKEN);
         strategy.removePToken(0);
 
-        (uint256 allocatedAmt, uint256 intLiqThreshold) = strategy.assetInfo(ASSET);
+        (uint256 allocatedAmt) = strategy.assetInfo(ASSET);
 
         assertEq(allocatedAmt, 0);
-        assertEq(intLiqThreshold, 0);
         assertEq(strategy.assetToPToken(ASSET), address(0));
         assertFalse(strategy.supportsCollateral(ASSET));
     }
@@ -262,7 +225,7 @@ contract CollectInterestTest is CompoundStrategyTest {
         super.setUp();
         vm.startPrank(USDS_OWNER);
         _initializeStrategy();
-        strategy.setPTokenAddress(ASSET, P_TOKEN, 0);
+        strategy.setPTokenAddress(ASSET, P_TOKEN);
 
         _deposit();
         vm.stopPrank();
@@ -301,7 +264,7 @@ contract WithdrawTest is CompoundStrategyTest {
         super.setUp();
         vm.startPrank(USDS_OWNER);
         _initializeStrategy();
-        strategy.setPTokenAddress(ASSET, P_TOKEN, 0);
+        strategy.setPTokenAddress(ASSET, P_TOKEN);
 
         _deposit();
         vm.stopPrank();

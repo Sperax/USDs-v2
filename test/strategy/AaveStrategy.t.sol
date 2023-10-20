@@ -16,7 +16,6 @@ contract AaveStrategyTest is BaseStrategy, BaseTest {
         string name;
         address asset;
         address pToken;
-        uint256 intLiqThreshold;
     }
 
     AssetData[] public data;
@@ -28,8 +27,6 @@ contract AaveStrategyTest is BaseStrategy, BaseTest {
     address internal proxyAddress;
     address internal ASSET;
     address internal P_TOKEN;
-
-    event IntLiqThresholdUpdated(address indexed asset, uint256 intLiqThreshold);
 
     function setUp() public virtual override {
         super.setUp();
@@ -61,7 +58,7 @@ contract AaveStrategyTest is BaseStrategy, BaseTest {
 
     function _setAssetData() internal {
         for (uint8 i = 0; i < data.length; ++i) {
-            strategy.setPTokenAddress(data[i].asset, data[i].pToken, data[i].intLiqThreshold);
+            strategy.setPTokenAddress(data[i].asset, data[i].pToken);
         }
     }
 
@@ -70,16 +67,14 @@ contract AaveStrategyTest is BaseStrategy, BaseTest {
             AssetData({
                 name: "WETH",
                 asset: 0x82aF49447D8a07e3bd95BD0d56f35241523fBab1,
-                pToken: 0xe50fA9b3c56FfB159cB0FCA61F5c9D750e8128c8,
-                intLiqThreshold: 0
+                pToken: 0xe50fA9b3c56FfB159cB0FCA61F5c9D750e8128c8
             })
         );
         data.push(
             AssetData({
                 name: "USDC.e",
                 asset: 0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8,
-                pToken: 0x625E7708f30cA75bfd92586e17077590C60eb4cD,
-                intLiqThreshold: 0
+                pToken: 0x625E7708f30cA75bfd92586e17077590C60eb4cD
             })
         );
 
@@ -87,8 +82,7 @@ contract AaveStrategyTest is BaseStrategy, BaseTest {
             AssetData({
                 name: "DAI",
                 asset: 0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1,
-                pToken: 0x82E64f49Ed5EC1bC6e43DAD4FC8Af9bb3A2312EE,
-                intLiqThreshold: 0
+                pToken: 0x82E64f49Ed5EC1bC6e43DAD4FC8Af9bb3A2312EE
             })
         );
     }
@@ -134,12 +128,12 @@ contract SetPToken is AaveStrategyTest {
 
     function test_RevertWhen_NotOwner() public useActor(0) {
         vm.expectRevert("Ownable: caller is not the owner");
-        strategy.setPTokenAddress(ASSET, P_TOKEN, 0);
+        strategy.setPTokenAddress(ASSET, P_TOKEN);
     }
 
     function test_RevertWhen_InvalidPToken() public useKnownActor(USDS_OWNER) {
         vm.expectRevert(abi.encodeWithSelector(InvalidAssetLpPair.selector, ASSET, data[1].pToken));
-        strategy.setPTokenAddress(ASSET, data[1].pToken, 0);
+        strategy.setPTokenAddress(ASSET, data[1].pToken);
     }
 
     function test_SetPTokenAddress() public useKnownActor(USDS_OWNER) {
@@ -148,51 +142,16 @@ contract SetPToken is AaveStrategyTest {
 
         emit PTokenAdded(address(ASSET), address(P_TOKEN));
 
-        strategy.setPTokenAddress(ASSET, P_TOKEN, 0);
+        strategy.setPTokenAddress(ASSET, P_TOKEN);
 
-        (, uint256 intLiqThreshold) = strategy.assetInfo(ASSET);
-
-        assertEq(intLiqThreshold, 0);
         assertEq(strategy.assetToPToken(ASSET), P_TOKEN);
         assertTrue(strategy.supportsCollateral(ASSET));
     }
 
     function test_RevertWhen_DuplicateAsset() public useKnownActor(USDS_OWNER) {
-        strategy.setPTokenAddress(ASSET, P_TOKEN, 0);
+        strategy.setPTokenAddress(ASSET, P_TOKEN);
         vm.expectRevert(abi.encodeWithSelector(PTokenAlreadySet.selector, ASSET, P_TOKEN));
-        strategy.setPTokenAddress(ASSET, P_TOKEN, 0);
-    }
-}
-
-contract UpdateIntLiqThreshold is AaveStrategyTest {
-    function setUp() public override {
-        super.setUp();
-        vm.startPrank(USDS_OWNER);
-        _initializeStrategy();
-        _setAssetData();
-        vm.stopPrank();
-    }
-
-    function test_RevertWhen_NotOwner() public useActor(0) {
-        vm.expectRevert("Ownable: caller is not the owner");
-
-        strategy.updateIntLiqThreshold(P_TOKEN, 2);
-    }
-
-    function test_RevertWhen_CollateralNotSupported() public useKnownActor(USDS_OWNER) {
-        vm.expectRevert(abi.encodeWithSelector(CollateralNotSupported.selector, P_TOKEN));
-
-        strategy.updateIntLiqThreshold(P_TOKEN, 2);
-    }
-
-    function test_UpdateIntLiqThreshold() public useKnownActor(USDS_OWNER) {
-        vm.expectEmit(true, false, false, false);
-        emit IntLiqThresholdUpdated(address(ASSET), uint256(2));
-
-        strategy.updateIntLiqThreshold(ASSET, 2);
-
-        (, uint256 intLiqThreshold) = strategy.assetInfo(ASSET);
-        assertEq(intLiqThreshold, 2);
+        strategy.setPTokenAddress(ASSET, P_TOKEN);
     }
 }
 
@@ -227,10 +186,9 @@ contract RemovePToken is AaveStrategyTest {
 
         strategy.removePToken(0);
 
-        (uint256 allocatedAmt, uint256 intLiqThreshold) = strategy.assetInfo(ASSET);
+        (uint256 allocatedAmt) = strategy.assetInfo(ASSET);
 
         assertEq(allocatedAmt, 0);
-        assertEq(intLiqThreshold, 0);
         assertEq(strategy.assetToPToken(ASSET), address(0));
         assertFalse(strategy.supportsCollateral(ASSET));
     }
@@ -241,7 +199,7 @@ contract Deposit is AaveStrategyTest {
         super.setUp();
         vm.startPrank(USDS_OWNER);
         _initializeStrategy();
-        strategy.setPTokenAddress(ASSET, P_TOKEN, 0);
+        strategy.setPTokenAddress(ASSET, P_TOKEN);
         vm.stopPrank();
     }
 
@@ -275,7 +233,7 @@ contract CollectInterest is AaveStrategyTest {
         yieldReceiver = actors[0];
         vm.startPrank(USDS_OWNER);
         _initializeStrategy();
-        strategy.setPTokenAddress(ASSET, P_TOKEN, 0);
+        strategy.setPTokenAddress(ASSET, P_TOKEN);
 
         changePrank(VAULT);
         deal(address(ASSET), VAULT, depositAmount);
@@ -320,7 +278,7 @@ contract WithdrawTest is AaveStrategyTest {
         yieldReceiver = actors[0];
         vm.startPrank(USDS_OWNER);
         _initializeStrategy();
-        strategy.setPTokenAddress(ASSET, P_TOKEN, 0);
+        strategy.setPTokenAddress(ASSET, P_TOKEN);
 
         changePrank(VAULT);
         deal(address(ASSET), VAULT, depositAmount);
@@ -379,7 +337,7 @@ contract MiscellaneousTest is AaveStrategyTest {
         super.setUp();
         vm.startPrank(USDS_OWNER);
         _initializeStrategy();
-        strategy.setPTokenAddress(ASSET, P_TOKEN, 0);
+        strategy.setPTokenAddress(ASSET, P_TOKEN);
         vm.stopPrank();
     }
 
@@ -389,7 +347,7 @@ contract MiscellaneousTest is AaveStrategyTest {
     }
 
     function test_CheckBalance() public {
-        (uint256 balance,) = strategy.assetInfo(ASSET);
+        (uint256 balance) = strategy.assetInfo(ASSET);
         uint256 bal = strategy.checkBalance(ASSET);
         assertEq(bal, balance);
     }

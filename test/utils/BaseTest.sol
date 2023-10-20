@@ -64,8 +64,8 @@ abstract contract Setup is Test {
     }
 
     /// @notice Initialize global test configuration.
+    /// @dev Initialize actors for testing.
     function setUp() public virtual {
-        /// @dev Initialize actors for testing.
         string memory mnemonic = vm.envString("TEST_MNEMONIC");
         for (uint32 i = 0; i < NUM_ACTORS; ++i) {
             (address act,) = deriveRememberKey(mnemonic, i);
