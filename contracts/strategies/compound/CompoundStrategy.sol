@@ -15,14 +15,11 @@ contract CompoundStrategy is InitializableAbstractStrategy {
 
     struct AssetInfo {
         uint256 allocatedAmt; // tracks the allocated amount for an asset.
-        uint256 intLiqThreshold; // tracks the interest liq threshold for an asset.
     }
 
     uint256 internal constant FACTOR_SCALE = 1e18;
     IReward public rewardPool;
     mapping(address => AssetInfo) public assetInfo;
-
-    event IntLiqThresholdUpdated(address indexed asset, uint256 intLiqThreshold);
 
     /// Initializer for setting up strategy internal state. This overrides the
     /// InitializableAbstractStrategy initializer as Compound needs several extra
@@ -41,10 +38,8 @@ contract CompoundStrategy is InitializableAbstractStrategy {
     ///      This method can only be called by the system owner
     /// @param _asset    Address for the asset
     /// @param _lpToken   Address for the corresponding platform token
-    /// @param _intLiqThreshold   Integer representing the liquidity threshold
-    function setPTokenAddress(address _asset, address _lpToken, uint256 _intLiqThreshold) external onlyOwner {
+    function setPTokenAddress(address _asset, address _lpToken) external onlyOwner {
         _setPTokenAddress(_asset, _lpToken);
-        assetInfo[_asset] = AssetInfo({allocatedAmt: 0, intLiqThreshold: _intLiqThreshold});
     }
 
     /// @notice Remove a supported asset by passing its index.
@@ -56,16 +51,6 @@ contract CompoundStrategy is InitializableAbstractStrategy {
             revert CollateralAllocated(asset);
         }
         delete assetInfo[asset];
-    }
-
-    /// @notice Update the interest liquidity threshold for an asset.
-    /// @param _asset Address of the asset
-    /// @param _intLiqThreshold Liquidity threshold for interest
-    function updateIntLiqThreshold(address _asset, uint256 _intLiqThreshold) external onlyOwner {
-        if (!supportsCollateral(_asset)) revert CollateralNotSupported(_asset);
-        assetInfo[_asset].intLiqThreshold = _intLiqThreshold;
-
-        emit IntLiqThresholdUpdated(_asset, _intLiqThreshold);
     }
 
     /// @inheritdoc InitializableAbstractStrategy
@@ -114,7 +99,7 @@ contract CompoundStrategy is InitializableAbstractStrategy {
     function collectInterest(address _asset) external override nonReentrant {
         address yieldReceiver = IStrategyVault(vault).yieldReceiver();
         uint256 assetInterest = checkInterestEarned(_asset);
-        if (assetInterest > assetInfo[_asset].intLiqThreshold) {
+        if (assetInterest > 0) {
             IComet(assetToPToken[_asset]).withdraw(_asset, assetInterest);
             uint256 harvestAmt = _splitAndSendReward(_asset, yieldReceiver, msg.sender, assetInterest);
             emit InterestCollected(_asset, yieldReceiver, harvestAmt);
