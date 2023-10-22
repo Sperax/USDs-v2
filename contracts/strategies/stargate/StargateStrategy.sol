@@ -146,7 +146,7 @@ contract StargateStrategy is InitializableAbstractStrategy {
     function collectInterest(address _asset) external override nonReentrant {
         address yieldReceiver = IStrategyVault(vault).yieldReceiver();
         uint256 earnedInterest = checkInterestEarned(_asset);
-        if (earnedInterest > 0) {
+        if (earnedInterest != 0) {
             uint256 interestCollected = _withdraw(true, address(this), _asset, earnedInterest);
             uint256 harvestAmt = _splitAndSendReward(_asset, yieldReceiver, msg.sender, interestCollected);
             emit InterestCollected(_asset, yieldReceiver, harvestAmt);

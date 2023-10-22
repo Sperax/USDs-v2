@@ -13,13 +13,9 @@ import {IComet, IReward} from "./interfaces/ICompoundHelper.sol";
 contract CompoundStrategy is InitializableAbstractStrategy {
     using SafeERC20 for IERC20;
 
-    struct AssetInfo {
-        uint256 allocatedAmt; // tracks the allocated amount for an asset.
-    }
-
     uint256 internal constant FACTOR_SCALE = 1e18;
     IReward public rewardPool;
-    mapping(address => AssetInfo) public assetInfo;
+    mapping(address => uint256) public allocatedAmount; // tracks the allocated amount for an asset.
 
     /// Initializer for setting up strategy internal state. This overrides the
     /// InitializableAbstractStrategy initializer as Compound needs several extra
@@ -47,10 +43,9 @@ contract CompoundStrategy is InitializableAbstractStrategy {
     /// @param _assetIndex Index of the asset to be removed
     function removePToken(uint256 _assetIndex) external onlyOwner {
         address asset = _removePTokenAddress(_assetIndex);
-        if (assetInfo[asset].allocatedAmt != 0) {
+        if (allocatedAmount[asset] != 0) {
             revert CollateralAllocated(asset);
         }
-        delete assetInfo[asset];
     }
 
     /// @inheritdoc InitializableAbstractStrategy
@@ -60,7 +55,7 @@ contract CompoundStrategy is InitializableAbstractStrategy {
 
         // Following line also doubles as a check that we are depositing
         // an asset that we support.
-        assetInfo[_asset].allocatedAmt += _amount;
+        allocatedAmount[_asset] += _amount;
 
         IERC20(_asset).safeTransferFrom(msg.sender, address(this), _amount);
         IERC20(_asset).safeApprove(lpToken, _amount);
@@ -99,7 +94,7 @@ contract CompoundStrategy is InitializableAbstractStrategy {
     function collectInterest(address _asset) external override nonReentrant {
         address yieldReceiver = IStrategyVault(vault).yieldReceiver();
         uint256 assetInterest = checkInterestEarned(_asset);
-        if (assetInterest > 0) {
+        if (assetInterest != 0) {
             IComet(assetToPToken[_asset]).withdraw(_asset, assetInterest);
             uint256 harvestAmt = _splitAndSendReward(_asset, yieldReceiver, msg.sender, assetInterest);
             emit InterestCollected(_asset, yieldReceiver, harvestAmt);
@@ -147,7 +142,7 @@ contract CompoundStrategy is InitializableAbstractStrategy {
     /// @inheritdoc InitializableAbstractStrategy
     function checkInterestEarned(address _asset) public view override returns (uint256) {
         uint256 balance = checkLPTokenBalance(_asset);
-        uint256 allocatedAmt = assetInfo[_asset].allocatedAmt;
+        uint256 allocatedAmt = allocatedAmount[_asset];
         if (balance > allocatedAmt) {
             unchecked {
                 return balance - allocatedAmt;
@@ -160,13 +155,13 @@ contract CompoundStrategy is InitializableAbstractStrategy {
     /// @inheritdoc InitializableAbstractStrategy
     function checkBalance(address _asset) public view override returns (uint256 balance) {
         // Balance is always with token lpToken decimals
-        balance = assetInfo[_asset].allocatedAmt;
+        balance = allocatedAmount[_asset];
     }
 
     /// @inheritdoc InitializableAbstractStrategy
     function checkAvailableBalance(address _asset) public view override returns (uint256) {
         uint256 availableLiquidity = IERC20(_asset).balanceOf(_getPTokenFor(_asset));
-        uint256 allocatedValue = assetInfo[_asset].allocatedAmt;
+        uint256 allocatedValue = allocatedAmount[_asset];
         if (availableLiquidity <= allocatedValue) {
             return availableLiquidity;
         }
@@ -192,7 +187,7 @@ contract CompoundStrategy is InitializableAbstractStrategy {
         Helpers._isNonZeroAddr(_recipient);
         Helpers._isNonZeroAmt(_amount, "Must withdraw something");
         address lpToken = _getPTokenFor(_asset);
-        assetInfo[_asset].allocatedAmt -= _amount;
+        allocatedAmount[_asset] -= _amount;
         IComet(lpToken).withdrawTo(_recipient, _asset, _amount);
         emit Withdrawal(_asset, _amount);
     }

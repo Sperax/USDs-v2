@@ -181,7 +181,7 @@ contract RemovePTokenTest is CompoundStrategyTest {
         emit PTokenRemoved(ASSET, P_TOKEN);
         strategy.removePToken(0);
 
-        (uint256 allocatedAmt) = strategy.assetInfo(ASSET);
+        (uint256 allocatedAmt) = strategy.allocatedAmount(ASSET);
 
         assertEq(allocatedAmt, 0);
         assertEq(strategy.assetToPToken(ASSET), address(0));

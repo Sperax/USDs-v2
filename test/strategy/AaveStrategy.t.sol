@@ -186,7 +186,7 @@ contract RemovePToken is AaveStrategyTest {
 
         strategy.removePToken(0);
 
-        (uint256 allocatedAmt) = strategy.assetInfo(ASSET);
+        (uint256 allocatedAmt) = strategy.allocatedAmount(ASSET);
 
         assertEq(allocatedAmt, 0);
         assertEq(strategy.assetToPToken(ASSET), address(0));
@@ -347,7 +347,7 @@ contract MiscellaneousTest is AaveStrategyTest {
     }
 
     function test_CheckBalance() public {
-        (uint256 balance) = strategy.assetInfo(ASSET);
+        (uint256 balance) = strategy.allocatedAmount(ASSET);
         uint256 bal = strategy.checkBalance(ASSET);
         assertEq(bal, balance);
     }
