@@ -177,15 +177,24 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
 
         UniswapPoolData memory poolData = uniswapPoolData;
 
-        INFPM.DecreaseLiquidityParams memory params = INFPM.DecreaseLiquidityParams({
-            tokenId: lpTokenId,
-            liquidity: uint128(_liquidity),
-            amount0Min: _minBurnAmt[0],
-            amount1Min: _minBurnAmt[1],
-            deadline: block.timestamp
-        });
+        (uint256 amount0, uint256 amount1) = nfpm.decreaseLiquidity(
+            INFPM.DecreaseLiquidityParams({
+                tokenId: lpTokenId,
+                liquidity: uint128(_liquidity),
+                amount0Min: _minBurnAmt[0],
+                amount1Min: _minBurnAmt[1],
+                deadline: block.timestamp
+            })
+        );
 
-        (uint256 amount0, uint256 amount1) = nfpm.decreaseLiquidity(params);
+        nfpm.collect(
+            INFPM.CollectParams({
+                tokenId: lpTokenId,
+                recipient: address(this),
+                amount0Max: uint128(amount0),
+                amount1Max: uint128(amount1)
+            })
+        );
 
         allocatedAmt[poolData.tokenA] -= amount0;
         allocatedAmt[poolData.tokenB] -= amount1;
