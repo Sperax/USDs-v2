@@ -6,7 +6,9 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import {InitializableAbstractStrategy, Helpers, IStrategyVault} from "../InitializableAbstractStrategy.sol";
-import {IUniswapV3Factory, INonfungiblePositionManager as INFPM} from "./interfaces/UniswapV3.sol";
+import {
+    IUniswapV3Factory, INonfungiblePositionManager as INFPM, IUniswapV3TickSpacing
+} from "./interfaces/UniswapV3.sol";
 import {PositionValue} from "./libraries/PositionValue.sol";
 
 /// @title UniswapV3 strategy for USDs protocol
@@ -60,12 +62,12 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
     /// @notice Sets the addresses of the PToken contracts for the Uniswap pool.
     /// @param _uniswapPoolData The Uniswap pool data including token addresses and fee tier.
     function setPTokenAddress(UniswapPoolData memory _uniswapPoolData) external onlyOwner {
-        if (
-            uniV3Factory.getPool(_uniswapPoolData.tokenA, _uniswapPoolData.tokenB, _uniswapPoolData.feeTier)
-                == address(0)
-        ) {
+        address pool = uniV3Factory.getPool(_uniswapPoolData.tokenA, _uniswapPoolData.tokenB, _uniswapPoolData.feeTier);
+        if (pool == address(0)) {
             revert InvalidUniswapPoolConfig();
         }
+
+        _validateTickRange(pool, _uniswapPoolData.tickLower, _uniswapPoolData.tickUpper);
 
         // Sort tokens
         if (_uniswapPoolData.tokenA > _uniswapPoolData.tokenB) {
@@ -351,4 +353,13 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
 
     // TODO of no use.
     function _abstractSetPToken(address _asset, address _lpToken) internal view override {}
+
+    function _validateTickRange(address _pool, int24 _tickLower, int24 _tickUpper) private view {
+        int24 spacing = IUniswapV3TickSpacing(_pool).tickSpacing();
+        require(
+            _tickLower < _tickUpper && _tickLower >= -887272 && _tickLower % spacing == 0 && _tickUpper <= 887272
+                && _tickUpper % spacing == 0,
+            "Invalid tick range"
+        );
+    }
 }
