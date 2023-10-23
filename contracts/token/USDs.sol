@@ -423,7 +423,7 @@ contract USDs is ERC20PermitUpgradeable, OwnableUpgradeable, ReentrancyGuardUpgr
             _ensureNonRebasingMigration(_account);
             return true;
         }
-        return nonRebasingCreditsPerToken[_account] > 0;
+        return nonRebasingCreditsPerToken[_account] != 0;
     }
 
     /// @notice Ensures internal account for rebasing and non-rebasing credits and
