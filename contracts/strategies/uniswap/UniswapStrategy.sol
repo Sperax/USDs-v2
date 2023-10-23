@@ -43,13 +43,13 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
     error NoRewardToken();
     error NotUniv3NFT();
     error NotSelf();
+    error InvalidTickRange();
 
     /// @notice Initializes the strategy with the provided addresses.
     /// @param _vault The address of the USDs Vault contract.
     /// @param _nfpm The address of the NonfungiblePositionManager contract.
     /// @param _uniV3Factory The address of the Uniswap V3 Factory contract.
     function initialize(address _vault, address _nfpm, address _uniV3Factory) external initializer {
-        Helpers._isNonZeroAddr(_vault);
         Helpers._isNonZeroAddr(_nfpm);
         Helpers._isNonZeroAddr(_uniV3Factory);
 
@@ -356,10 +356,14 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
 
     function _validateTickRange(address _pool, int24 _tickLower, int24 _tickUpper) private view {
         int24 spacing = IUniswapV3TickSpacing(_pool).tickSpacing();
-        require(
-            _tickLower < _tickUpper && _tickLower >= -887272 && _tickLower % spacing == 0 && _tickUpper <= 887272
-                && _tickUpper % spacing == 0,
-            "Invalid tick range"
-        );
+
+        if (
+            !(
+                _tickLower < _tickUpper && _tickLower >= -887272 && _tickLower % spacing == 0 && _tickUpper <= 887272
+                    && _tickUpper % spacing == 0
+            )
+        ) {
+            revert InvalidTickRange();
+        }
     }
 }
