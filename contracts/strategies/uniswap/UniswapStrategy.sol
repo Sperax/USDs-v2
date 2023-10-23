@@ -236,11 +236,15 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
 
         UniswapPoolData memory poolData = uniswapPoolData;
 
-        uint256 harvestAmt0 = _splitAndSendReward(poolData.tokenA, yieldReceiver, msg.sender, amount0);
-        uint256 harvestAmt1 = _splitAndSendReward(poolData.tokenB, yieldReceiver, msg.sender, amount1);
+        if (amount0 != 0) {
+            uint256 harvestAmt0 = _splitAndSendReward(poolData.tokenA, yieldReceiver, msg.sender, amount0);
+            emit InterestCollected(poolData.tokenA, yieldReceiver, harvestAmt0);
+        }
 
-        emit InterestCollected(poolData.tokenA, yieldReceiver, harvestAmt0);
-        emit InterestCollected(poolData.tokenB, yieldReceiver, harvestAmt1);
+        if (amount1 != 0) {
+            uint256 harvestAmt1 = _splitAndSendReward(poolData.tokenB, yieldReceiver, msg.sender, amount1);
+            emit InterestCollected(poolData.tokenB, yieldReceiver, harvestAmt1);
+        }
     }
 
     /// @notice Handles incoming ERC721 tokens (Uniswap V3 NFTs).
