@@ -42,3 +42,4 @@ jobs:
           FOUNDRY_PROFILE: ci
           TEST_MNEMONIC: ${{ secrets.TEST_MNEMONIC }}
           ARB_URL: ${{ secrets.ARB_URL }}
+          FORK_BLOCK: ${{secrets.FORK_BLOCK}}
