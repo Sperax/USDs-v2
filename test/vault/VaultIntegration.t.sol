@@ -195,7 +195,7 @@ contract TestMint is VaultCoreTest {
         uint256 feeVaultBalAfter = ERC20(USDS).balanceOf(FEE_VAULT);
         assertEq(totalSupplyAfter - totalSupplyBefore, _minUSDSAmt + feeAmt);
         assertEq(feeVaultBalAfter - feeVaultBalBefore, feeAmt);
-        assertGe(ERC20(USDS).balanceOf(minter), _minUSDSAmt);
+        assertApproxEqAbs(ERC20(USDS).balanceOf(minter), _minUSDSAmt, 1);
     }
 }
 

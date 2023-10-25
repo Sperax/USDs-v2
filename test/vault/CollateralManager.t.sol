@@ -418,9 +418,9 @@ contract CollateralManager_addCollateralStrategy_Test is CollateralManagerTest {
         vm.assume(_downsidePeg <= Helpers.MAX_PERCENTAGE);
         vm.assume(_colComp <= Helpers.MAX_PERCENTAGE);
 
-        collateralSetUp(USDT, _colComp, _baseMintFee, _baseRedeemFee, _downsidePeg);
+        collateralSetUp(FRAX, _colComp, _baseMintFee, _baseRedeemFee, _downsidePeg);
         vm.expectRevert(abi.encodeWithSelector(CollateralManager.CollateralNotSupportedByStrategy.selector));
-        manager.addCollateralStrategy(USDT, STARGATE, _colComp);
+        manager.addCollateralStrategy(FRAX, STARGATE, _colComp);
     }
 
     function test_revertsWhen_addCollateralstrategyAllocationPerExceeded(
@@ -895,6 +895,6 @@ contract CollateralManager_mintRedeemParams_test is CollateralManagerTest {
 
     function test_revertsWhen_getRedeemParams_collateralDoesntExist() external useKnownActor(USDS_OWNER) {
         vm.expectRevert(abi.encodeWithSelector(CollateralManager.CollateralDoesNotExist.selector));
-        manager.getRedeemParams(USDT);
+        manager.getRedeemParams(FRAX);
     }
 }
