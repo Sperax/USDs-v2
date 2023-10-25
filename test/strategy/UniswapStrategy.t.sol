@@ -206,45 +206,68 @@ contract SetPToken is UniswapStrategyTest {
     }
 }
 
-// contract RemovePToken is UniswapStrategyTest {
-//     function setUp() public override {
-//         super.setUp();
-//         vm.startPrank(USDS_OWNER);
-//         _initializeStrategy();
-//         _setAssetData();
-//         vm.stopPrank();
-//     }
+contract RemovePToken is UniswapStrategyTest {
+    function setUp() public override {
+        super.setUp();
+        vm.startPrank(USDS_OWNER);
+        _initializeStrategy();
+        _setAssetData();
+        vm.stopPrank();
+    }
 
-//     function test_RevertWhen_NotOwner() public useActor(0) {
-//         vm.expectRevert("Ownable: caller is not the owner");
-//         strategy.removePToken(0);
-//     }
+    function test_RevertWhen_NotOwner() public useActor(0) {
+        vm.expectRevert("Ownable: caller is not the owner");
+        strategy.removePToken();
+    }
 
-//     function test_RevertWhen_InvalidId() public useKnownActor(USDS_OWNER) {
-//         vm.expectRevert(abi.encodeWithSelector(InvalidIndex.selector));
-//         strategy.removePToken(5);
-//     }
+    // TODO test not needed. Delete this later.
+    // function test_RevertWhen_InvalidId() public useKnownActor(USDS_OWNER) {
+    //     vm.expectRevert(abi.encodeWithSelector(InvalidIndex.selector));
+    //     strategy.removePToken();
+    // }
 
-//     function test_RevertWhen_CollateralAllocated() public useKnownActor(USDS_OWNER) {
-//         _deposit();
-//         vm.expectRevert(abi.encodeWithSelector(CollateralAllocated.selector, ASSET));
-//         strategy.removePToken(0);
-//     }
+    function test_RevertWhen_CollateralAllocated() public useKnownActor(USDS_OWNER) {
+        // deposit only ASSET_2
+        deal(address(ASSET_2), VAULT, depositAmount2);
+        changePrank(VAULT);
+        IERC20(ASSET_2).approve(address(strategy), depositAmount2);
+        strategy.deposit(ASSET_2, depositAmount2);
+        changePrank(USDS_OWNER);
+        vm.expectRevert(abi.encodeWithSelector(CollateralAllocated.selector, ASSET_2));
+        strategy.removePToken();
 
-//     function test_RemovePToken() public useKnownActor(USDS_OWNER) {
-//         vm.expectEmit(true, false, false, false);
-//         emit PTokenRemoved(address(ASSET), address(P_TOKEN));
+        // deposit and allocate
+        _deposit();
+        _allocate();
+        vm.expectRevert(abi.encodeWithSelector(CollateralAllocated.selector, ASSET_1));
+        strategy.removePToken();
+    }
 
-//         strategy.removePToken(0);
+    function test_RemovePToken() public useKnownActor(USDS_OWNER) {
+        vm.expectEmit(true, false, false, false);
+        emit PTokenRemoved(address(ASSET_1), address(P_TOKEN));
+        emit PTokenRemoved(address(ASSET_2), address(P_TOKEN));
 
-//         (uint256 allocatedAmt, uint256 intLiqThreshold) = strategy.assetInfo(ASSET);
+        strategy.removePToken();
 
-//         assertEq(allocatedAmt, 0);
-//         assertEq(intLiqThreshold, 0);
-//         assertEq(strategy.assetToPToken(ASSET), address(0));
-//         assertFalse(strategy.supportsCollateral(ASSET));
-//     }
-// }
+        assertEq(strategy.allocatedAmt(ASSET_1), 0);
+        assertEq(strategy.allocatedAmt(ASSET_2), 0);
+
+        assertEq(strategy.assetToPToken(ASSET_1), address(0));
+        assertEq(strategy.assetToPToken(ASSET_2), address(0));
+
+        assertFalse(strategy.supportsCollateral(ASSET_1));
+        assertFalse(strategy.supportsCollateral(ASSET_2));
+
+        (address tokenA, address tokenB, uint24 feeTier, int24 tickLower, int24 tickUpper) = strategy.uniswapPoolData();
+
+        assertEq(tokenA, address(0));
+        assertEq(tokenB, address(0));
+        assertEq(feeTier, 0);
+        assertEq(tickLower, 0);
+        assertEq(tickUpper, 0);
+    }
+}
 
 contract Deposit is UniswapStrategyTest {
     function setUp() public override {
@@ -266,24 +289,14 @@ contract Deposit is UniswapStrategyTest {
     }
 
     function test_Deposit() public useKnownActor(VAULT) {
-        uint256 initial_bal = strategy.checkBalance(ASSET_1);
+        uint256 initial_bal_1 = IERC20(ASSET_1).balanceOf(address(strategy));
 
         deal(address(ASSET_1), VAULT, depositAmount1);
         IERC20(ASSET_1).approve(address(strategy), depositAmount1);
         strategy.deposit(ASSET_1, 1);
 
-        uint256 new_bal = strategy.checkBalance(ASSET_1);
-        assertEq(initial_bal + 1, new_bal);
-
-        // Similarly for ASSET_2
-        initial_bal = strategy.checkBalance(ASSET_2);
-
-        deal(address(ASSET_2), VAULT, depositAmount2);
-        IERC20(ASSET_2).approve(address(strategy), depositAmount2);
-        strategy.deposit(ASSET_2, 1);
-
-        new_bal = strategy.checkBalance(ASSET_2);
-        assertEq(initial_bal + 1, new_bal);
+        uint256 new_bal_1 = IERC20(ASSET_1).balanceOf(address(strategy));
+        assertEq(initial_bal_1 + 1, new_bal_1);
     }
 }
 
