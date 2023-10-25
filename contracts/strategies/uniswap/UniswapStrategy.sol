@@ -82,26 +82,29 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
     }
 
     /// @notice Removes PToken addresses based on asset indexes.
-    /// @param _assetIndexes An array of asset indexes to remove PToken addresses.
     // TODO Is this function even valid for Uniswap?
-    function removePToken(uint256[2] calldata _assetIndexes) external onlyOwner {
+    function removePToken() external onlyOwner {
+        // Removes both tokens of the pool
         for (uint256 i; i < 2;) {
-            address asset = _removePTokenAddress(_assetIndexes[i]);
-            if (allocatedAmt[asset] != 0) {
+            address asset = _removePTokenAddress(0);
+
+            // This ensures that allocatedAmt + token balance in this contract is 0
+            if (checkBalance(asset) != 0) {
                 revert CollateralAllocated(asset);
             }
-            delete allocatedAmt[asset];
             unchecked {
                 ++i;
             }
         }
+
+        delete uniswapPoolData;
     }
 
     /// @inheritdoc InitializableAbstractStrategy
     /// @dev Deposits a specified amount of an asset into this contract.
     function deposit(address _asset, uint256 _amount) external override nonReentrant {
-        if (!supportsCollateral(_asset)) revert CollateralNotSupported(_asset);
         Helpers._isNonZeroAmt(_amount);
+        if (!supportsCollateral(_asset)) revert CollateralNotSupported(_asset);
 
         IERC20(_asset).safeTransferFrom(msg.sender, address(this), _amount);
 
@@ -275,13 +278,6 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
 
     /// @inheritdoc InitializableAbstractStrategy
     /// @dev The total balance, including allocated and unallocated amounts.
-    function checkBalance(address _asset) external view virtual override returns (uint256 balance) {
-        // Balance is always with token lpToken decimals
-        balance = allocatedAmt[_asset] + IERC20(_asset).balanceOf(address(this));
-    }
-
-    /// @inheritdoc InitializableAbstractStrategy
-    /// @dev The total balance, including allocated and unallocated amounts.
     function checkAvailableBalance(address _asset) external view virtual override returns (uint256) {
         UniswapPoolData memory poolData = uniswapPoolData;
 
@@ -329,6 +325,13 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
     /// @dev No rewards for the Uniswap V3 pool, hence return 0.
     function checkRewardEarned() external pure override returns (uint256) {
         return 0;
+    }
+
+    /// @inheritdoc InitializableAbstractStrategy
+    /// @dev The total balance, including allocated and unallocated amounts.
+    function checkBalance(address _asset) public view virtual override returns (uint256 balance) {
+        // Balance is always with token lpToken decimals
+        balance = allocatedAmt[_asset] + IERC20(_asset).balanceOf(address(this));
     }
 
     /// @inheritdoc InitializableAbstractStrategy
