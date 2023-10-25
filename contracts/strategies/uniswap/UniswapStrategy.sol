@@ -349,7 +349,7 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
         // TODO is this required?
         if (!supportsCollateral(_asset)) revert CollateralNotSupported(_asset);
 
-        IERC20(_asset).safeTransfer(vault, _amount);
+        IERC20(_asset).safeTransfer(_recipient, _amount);
 
         emit Withdrawal(_asset, _amount);
     }
