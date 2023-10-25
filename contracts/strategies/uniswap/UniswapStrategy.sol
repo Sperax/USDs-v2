@@ -216,6 +216,7 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
         nonReentrant
         returns (uint256)
     {
+        Helpers._isNonZeroAddr(_recipient);
         _withdraw(_recipient, _asset, _amount);
         return _amount;
     }
@@ -344,7 +345,6 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
     /// @param _asset The address of the asset to be withdrawn.
     /// @param _amount The amount of the asset to be withdrawn.
     function _withdraw(address _recipient, address _asset, uint256 _amount) internal {
-        Helpers._isNonZeroAddr(_recipient);
         Helpers._isNonZeroAmt(_amount, "Must withdraw something");
         // TODO is this required?
         if (!supportsCollateral(_asset)) revert CollateralNotSupported(_asset);
