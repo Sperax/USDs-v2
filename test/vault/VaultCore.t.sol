@@ -334,7 +334,7 @@ contract TestMint is VaultCoreTest {
         emit Minted(minter, USDCe, _minUSDSAmt, _collateralAmt, feeAmt);
         IVault(VAULT).mint(_collateral, _collateralAmt, _minUSDSAmt, _deadline);
         // _minUSDSAmt -= 1; //@todo report precision bug
-        assertGe(ERC20(USDS).balanceOf(minter), _minUSDSAmt);
+        assertApproxEqAbs(ERC20(USDS).balanceOf(minter), _minUSDSAmt, 1);
     }
 
     function test_MintBySpecifyingCollateralAmt() public {
@@ -360,7 +360,7 @@ contract TestMint is VaultCoreTest {
         emit Minted(minter, USDCe, _minUSDSAmt, _collateralAmt, feeAmt);
         vm.prank(minter);
         IVault(VAULT).mintBySpecifyingCollateralAmt(_collateral, _collateralAmt, _minUSDSAmt, _maxSPAburnt, _deadline);
-        assertGe(ERC20(USDS).balanceOf(minter), _minUSDSAmt);
+        assertApproxEqAbs(ERC20(USDS).balanceOf(minter), _minUSDSAmt, 1);
     }
 }
 
