@@ -18,7 +18,6 @@ contract StargateStrategy is InitializableAbstractStrategy {
 
     struct AssetInfo {
         uint256 allocatedAmt; // tracks the allocated amount for an asset.
-        uint256 intLiqThreshold; // tracks the interest liq threshold for an asset.
         uint256 rewardPID; // maps asset to farm reward pool id
         uint16 pid; // maps asset to pool id
     }
@@ -26,8 +25,6 @@ contract StargateStrategy is InitializableAbstractStrategy {
     address public router;
     address public farm;
     mapping(address => AssetInfo) public assetInfo;
-
-    event IntLiqThresholdUpdated(address indexed asset, uint256 intLiqThreshold);
 
     error IncorrectPoolId(address asset, uint16 pid);
     error IncorrectRewardPoolId(address asset, uint256 rewardPid);
@@ -58,14 +55,7 @@ contract StargateStrategy is InitializableAbstractStrategy {
     /// @param _lpToken   Address for the corresponding platform token
     /// @param _pid   Pool Id for the asset
     /// @param _rewardPid   Farm Pool Id for the asset
-    /// @param _intLiqThreshold   Liquidity threshold for interest
-    function setPTokenAddress(
-        address _asset,
-        address _lpToken,
-        uint16 _pid,
-        uint256 _rewardPid,
-        uint256 _intLiqThreshold
-    ) external onlyOwner {
+    function setPTokenAddress(address _asset, address _lpToken, uint16 _pid, uint256 _rewardPid) external onlyOwner {
         if (IStargatePool(_lpToken).token() != _asset) {
             revert InvalidAssetLpPair(_asset, _lpToken);
         }
@@ -77,8 +67,7 @@ contract StargateStrategy is InitializableAbstractStrategy {
             revert IncorrectRewardPoolId(_asset, _rewardPid);
         }
         _setPTokenAddress(_asset, _lpToken);
-        assetInfo[_asset] =
-            AssetInfo({allocatedAmt: 0, pid: _pid, rewardPID: _rewardPid, intLiqThreshold: _intLiqThreshold});
+        assetInfo[_asset] = AssetInfo({allocatedAmt: 0, pid: _pid, rewardPID: _rewardPid});
     }
 
     /// @dev Remove a supported asset by passing its index.
@@ -90,16 +79,6 @@ contract StargateStrategy is InitializableAbstractStrategy {
             revert CollateralAllocated(asset);
         }
         delete assetInfo[asset];
-    }
-
-    /// @notice Update the interest liquidity threshold for an asset.
-    /// @param _asset Address of the asset
-    /// @param _intLiqThreshold Liquidity threshold for interest
-    function updateIntLiqThreshold(address _asset, uint256 _intLiqThreshold) external onlyOwner {
-        if (!supportsCollateral(_asset)) revert CollateralNotSupported(_asset);
-        assetInfo[_asset].intLiqThreshold = _intLiqThreshold;
-
-        emit IntLiqThresholdUpdated(_asset, _intLiqThreshold);
     }
 
     /// @inheritdoc InitializableAbstractStrategy
@@ -167,7 +146,7 @@ contract StargateStrategy is InitializableAbstractStrategy {
     function collectInterest(address _asset) external override nonReentrant {
         address yieldReceiver = IStrategyVault(vault).yieldReceiver();
         uint256 earnedInterest = checkInterestEarned(_asset);
-        if (earnedInterest > assetInfo[_asset].intLiqThreshold) {
+        if (earnedInterest != 0) {
             uint256 interestCollected = _withdraw(true, address(this), _asset, earnedInterest);
             uint256 harvestAmt = _splitAndSendReward(_asset, yieldReceiver, msg.sender, interestCollected);
             emit InterestCollected(_asset, yieldReceiver, harvestAmt);

@@ -94,48 +94,27 @@ contract USDs is ERC20PermitUpgradeable, OwnableUpgradeable, ReentrancyGuardUpgr
         _burn(msg.sender, _amount);
     }
 
-    /// @notice Add a contract address to the non rebasing exception list. I.e. the
-    ///  address's balance will be part of rebases so the account will be exposed
-    ///  to upside and downside.
-    /// @param _account desired account
-    function rebaseOptIn(address _account) external onlyOwner nonReentrant {
-        if (!_isNonRebasingAccount(_account)) {
-            revert IsAlreadyRebasingAccount(_account);
-        }
-
-        uint256 bal = _balanceOf(_account);
-
-        // Decreasing non rebasing supply
-        nonRebasingSupply = nonRebasingSupply - bal;
-
-        // convert the balance to credits
-        _creditBalances[_account] = bal.mulTruncate(rebasingCreditsPerToken);
-
-        rebaseState[_account] = RebaseOptions.OptIn;
-
-        // Delete any fixed credits per token
-        delete nonRebasingCreditsPerToken[_account];
+    /// @notice Voluntary opt-in for rebase
+    /// @dev Useful for smart-contract wallets
+    function rebaseOptIn() external {
+        _rebaseOptIn(msg.sender);
     }
 
-    /// @notice Remove a contract address to the non rebasing exception list.
-    /// @param _account desired account
-    function rebaseOptOut(address _account) external onlyOwner nonReentrant {
-        if (_isNonRebasingAccount(_account)) {
-            revert IsAlreadyNonRebasingAccount(_account);
-        }
+    /// @notice Voluntary opt-out from rebase
+    function rebaseOptOut() external {
+        _rebaseOptOut(msg.sender);
+    }
 
-        uint256 bal = _balanceOf(_account);
-        // Increase non rebasing supply
-        nonRebasingSupply = nonRebasingSupply + bal;
+    /// @notice Adds `_account` to rebasing account list
+    /// @param _account Address of the desired account
+    function rebaseOptIn(address _account) external onlyOwner {
+        _rebaseOptIn(_account);
+    }
 
-        // adjusting credits
-        _creditBalances[_account] = bal;
-
-        // Set fixed credits per token
-        nonRebasingCreditsPerToken[_account] = 1;
-
-        // Mark explicitly opted out of rebasing
-        rebaseState[_account] = RebaseOptions.OptOut;
+    /// @notice Adds `_account` to non-rebasing account list
+    /// @param _account Address of the desired account
+    function rebaseOptOut(address _account) external onlyOwner {
+        _rebaseOptOut(_account);
     }
 
     /// @notice The rebase function. Modify the supply without minting new tokens. This uses a change in
@@ -393,21 +372,64 @@ contract USDs is ERC20PermitUpgradeable, OwnableUpgradeable, ReentrancyGuardUpgr
         }
     }
 
+    /// @notice Add a contract address to the non rebasing exception list. I.e. the
+    ///  address's balance will be part of rebases so the account will be exposed
+    ///  to upside and downside.
+    function _rebaseOptIn(address _account) private {
+        if (!_isNonRebasingAccount(_account)) {
+            revert IsAlreadyRebasingAccount(_account);
+        }
+
+        uint256 bal = _balanceOf(_account);
+
+        // Decreasing non rebasing supply
+        nonRebasingSupply = nonRebasingSupply - bal;
+
+        // convert the balance to credits
+        _creditBalances[_account] = bal.mulTruncate(rebasingCreditsPerToken);
+
+        rebaseState[_account] = RebaseOptions.OptIn;
+
+        // Delete any fixed credits per token
+        delete nonRebasingCreditsPerToken[_account];
+    }
+
+    /// @notice Remove a contract address to the non rebasing exception list.
+    function _rebaseOptOut(address _account) private {
+        if (_isNonRebasingAccount(_account)) {
+            revert IsAlreadyNonRebasingAccount(_account);
+        }
+
+        uint256 bal = _balanceOf(_account);
+        // Increase non rebasing supply
+        nonRebasingSupply = nonRebasingSupply + bal;
+
+        // adjusting credits
+        _creditBalances[_account] = bal;
+
+        // Set fixed credits per token
+        nonRebasingCreditsPerToken[_account] = 1;
+
+        // Mark explicitly opted out of rebasing
+        rebaseState[_account] = RebaseOptions.OptOut;
+    }
+
     /// @notice Is an account using rebasing accounting or non-rebasing accounting?
     ///       Also, ensure contracts are non-rebasing if they have not opted in.
     /// @param _account Address of the account.
     function _isNonRebasingAccount(address _account) private returns (bool) {
         bool isContract = AddressUpgradeable.isContract(_account);
         if (isContract && rebaseState[_account] == RebaseOptions.NotSet) {
-            _ensureRebasingMigration(_account);
+            _ensureNonRebasingMigration(_account);
+            return true;
         }
-        return nonRebasingCreditsPerToken[_account] > 0;
+        return nonRebasingCreditsPerToken[_account] != 0;
     }
 
     /// @notice Ensures internal account for rebasing and non-rebasing credits and
     ///       supply is updated following deployment of frozen yield change.
     /// @param _account Address of the account.
-    function _ensureRebasingMigration(address _account) private {
+    function _ensureNonRebasingMigration(address _account) private {
         if (nonRebasingCreditsPerToken[_account] == 0) {
             if (_creditBalances[_account] != 0) {
                 // Update non rebasing supply

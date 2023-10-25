@@ -122,7 +122,7 @@ abstract contract PreMigrationSetup is Setup {
         vm.makePersistent(stargateStrategyProxy);
         stargateStrategy = StargateStrategy(stargateStrategyProxy);
         stargateStrategy.initialize(stargateRouter, VAULT, stg, stargateFarm, 20, 20);
-        stargateStrategy.setPTokenAddress(USDCe, 0x892785f33CdeE22A30AEF750F285E18c18040c3e, 1, 0, 0);
+        stargateStrategy.setPTokenAddress(USDCe, 0x892785f33CdeE22A30AEF750F285E18c18040c3e, 1, 0);
 
         address aavePoolProvider = 0xa97684ead0e402dC232d5A977953DF7ECBaB3CDb;
         AaveStrategy aaveStrategyImpl = new AaveStrategy();
@@ -130,7 +130,7 @@ abstract contract PreMigrationSetup is Setup {
         vm.makePersistent(aaveStrategyProxy);
         aaveStrategy = AaveStrategy(aaveStrategyProxy);
         aaveStrategy.initialize(aavePoolProvider, VAULT);
-        aaveStrategy.setPTokenAddress(USDCe, 0x625E7708f30cA75bfd92586e17077590C60eb4cD, 0);
+        aaveStrategy.setPTokenAddress(USDCe, 0x625E7708f30cA75bfd92586e17077590C60eb4cD);
 
         collateralManager.addCollateral(USDCe, _data);
         collateralManager.addCollateral(USDT, _data);
@@ -151,7 +151,7 @@ abstract contract PreMigrationSetup is Setup {
         // vm.makePersistent(aaveStrategyProxy);
         compoundStrategy = CompoundStrategy(compoundStrategyProxy);
         compoundStrategy.initialize(VAULT, compoundRewardPool);
-        compoundStrategy.setPTokenAddress(USDC, 0x9c4ec768c28520B50860ea7a15bd7213a9fF58bf, 0);
+        compoundStrategy.setPTokenAddress(USDC, 0x9c4ec768c28520B50860ea7a15bd7213a9fF58bf);
         collateralManager.addCollateralStrategy(USDC, address(compoundStrategy), 4000);
         vm.stopPrank();
     }
