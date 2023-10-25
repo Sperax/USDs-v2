@@ -1,5 +1,5 @@
 # Testing guidelines with foundry
-### Note: Below guidelines are taken for [official foundry docs](https://book.getfoundry.sh/tutorials/best-practices) and modified as per our needs
+### Note: Below guidelines are taken from [official foundry docs](https://book.getfoundry.sh/tutorials/best-practices) and modified as per our needs
 
 ## General Test Guidance
 1. For testing MyContract.sol, the test file should be MyContract.t.sol. For testing MyScript.s.sol, the test file should be MyScript.t.sol.
@@ -71,3 +71,13 @@ contract MyContractHarness is MyContract {
 Unfortunately there is currently no good way to unit test private methods since they cannot be accessed by any other contracts. Options include:
 * Converting private functions to internal.
 * Copy/pasting the logic into your test contract and writing a script that runs in CI check to ensure both functions are identical.
+
+## Test Setup
+* Foundry test scripts are written to run on `Arbitrum-fork-network`.
+* Update the `.env` file with required parameters from `.env.example`
+* Use below commands to run the test scripts and coverage.
+  ``` bash
+    $ forge test
+    $ forge coverage
+    $ npm run forge-coverage # Gets the code coverage for contracts excluding test files
+  ```
