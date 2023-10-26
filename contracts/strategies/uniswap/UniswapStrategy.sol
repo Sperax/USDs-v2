@@ -121,8 +121,8 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
         UniswapPoolData memory poolData = uniswapPoolData;
 
         // TODO should use safeIncreaseAllowance instead?
-        IERC20(poolData.tokenA).safeApprove(address(nfpm), _amounts[0]);
-        IERC20(poolData.tokenB).safeApprove(address(nfpm), _amounts[1]);
+        IERC20(poolData.tokenA).safeIncreaseAllowance(address(nfpm), _amounts[0]);
+        IERC20(poolData.tokenB).safeIncreaseAllowance(address(nfpm), _amounts[1]);
 
         uint128 liquidity;
         uint256 amount0;
