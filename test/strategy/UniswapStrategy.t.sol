@@ -293,6 +293,10 @@ contract Deposit is UniswapStrategyTest {
 
         deal(address(ASSET_1), VAULT, depositAmount1);
         IERC20(ASSET_1).approve(address(strategy), depositAmount1);
+
+        vm.expectEmit(false, false, false, false);
+        emit Deposit(ASSET_1, depositAmount1);
+
         strategy.deposit(ASSET_1, 1);
 
         uint256 new_bal_1 = IERC20(ASSET_1).balanceOf(address(strategy));
@@ -310,15 +314,27 @@ contract allocate is UniswapStrategyTest {
         vm.stopPrank();
     }
 
-    // TODO add other required tests
+    function test_RevertWhen_ZeroAmounts() public useKnownActor(USDS_OWNER) {
+        uint256[2] memory amounts = [uint256(0), uint256(0)];
+        uint256[2] memory minMintAmount = [uint256(0), uint256(0)];
+        vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAmount.selector));
+        strategy.allocate(amounts, minMintAmount);
+    }
 
-    // TODO fix tests if required
-    function test_Allocate() public useKnownActor(USDS_OWNER) {
+    function test_Allocate_MintNewPositionAndLiquidity() public useKnownActor(USDS_OWNER) {
+        assertEq(strategy.lpTokenId(), 0);
+        assertEq(strategy.allocatedAmt(ASSET_1), 0);
+        assertEq(strategy.allocatedAmt(ASSET_2), 0);
         uint256 initial_bal_1 = IERC20(ASSET_1).balanceOf(address(strategy));
         uint256 initial_bal_2 = IERC20(ASSET_2).balanceOf(address(strategy));
 
         uint256[2] memory amounts = [depositAmount1, depositAmount2];
         uint256[2] memory minMintAmount = [uint256(0), uint256(0)];
+
+        vm.expectEmit(false, false, false, false);
+        // TODO fix matching params?
+        emit MintNewPosition(0); // not checking tokenId
+        emit IncreaseLiquidity(0, 0, 0); // not checking params
         strategy.allocate(amounts, minMintAmount);
 
         uint256 new_bal_1 = IERC20(ASSET_1).balanceOf(address(strategy));
@@ -326,6 +342,30 @@ contract allocate is UniswapStrategyTest {
 
         assertTrue(new_bal_1 < initial_bal_1);
         assertTrue(new_bal_2 < initial_bal_2);
+        assertNotEq(strategy.lpTokenId(), 0);
+        // TODO check exact amounts?
+        assertTrue(strategy.allocatedAmt(ASSET_1) >= minMintAmount[0]);
+        assertTrue(strategy.allocatedAmt(ASSET_2) >= minMintAmount[1]);
+    }
+
+    function test_Allocate_IncreaseLiquidity() public useKnownActor(USDS_OWNER) {
+        _allocate();
+        _deposit();
+        uint256 lpTokenId = strategy.lpTokenId();
+        uint256 oldAllocatedAmt1 = strategy.allocatedAmt(ASSET_1);
+        uint256 oldAllocatedAmt2 = strategy.allocatedAmt(ASSET_2);
+
+        uint256[2] memory amounts = [depositAmount1, depositAmount2];
+        uint256[2] memory minMintAmount = [uint256(0), uint256(0)];
+
+        vm.expectEmit(false, false, false, false);
+        emit IncreaseLiquidity(0, 0, 0); // not checking params
+        strategy.allocate(amounts, minMintAmount);
+
+        assertEq(strategy.lpTokenId(), lpTokenId);
+        // TODO check exact amounts?
+        assertTrue(strategy.allocatedAmt(ASSET_1) >= minMintAmount[0] + oldAllocatedAmt1);
+        assertTrue(strategy.allocatedAmt(ASSET_2) >= minMintAmount[1] + oldAllocatedAmt2);
     }
 }
 
