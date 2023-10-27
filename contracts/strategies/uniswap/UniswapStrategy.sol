@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: MIT
-// TODO should we add a checkUnallocatedBalance?
 pragma solidity 0.8.16;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
@@ -24,12 +23,12 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
         uint24 feeTier; // fee tier
         int24 tickLower; // tick lower
         int24 tickUpper; // tick upper
+        INFPM nfpm; // NonfungiblePositionManager contract
+        IUniswapV3Factory uniV3Factory; // UniswapV3 Factory contract
+        uint256 lpTokenId; // LP token id minted for the uniswapPoolData config
     }
 
-    INFPM public nfpm; // NonfungiblePositionManager contract
-    IUniswapV3Factory public uniV3Factory; // UniswapV3 Factory contract
     UniswapPoolData public uniswapPoolData; // Uniswap pool data
-    uint256 public lpTokenId; // LP token id minted for the uniswapPoolData config
 
     mapping(address => uint256) public allocatedAmt; // Tracks the allocated amount for an asset.
 
@@ -45,24 +44,15 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
     error NotSelf();
     error InvalidTickRange();
 
-    /// @notice Initializes the strategy with the provided addresses.
+    /// @notice Initializes the strategy with the provided addresses and sets the addresses of the PToken contracts for the Uniswap pool.
     /// @param _vault The address of the USDs Vault contract.
-    /// @param _nfpm The address of the NonfungiblePositionManager contract.
-    /// @param _uniV3Factory The address of the Uniswap V3 Factory contract.
-    function initialize(address _vault, address _nfpm, address _uniV3Factory) external initializer {
-        Helpers._isNonZeroAddr(_nfpm);
-        Helpers._isNonZeroAddr(_uniV3Factory);
-
-        nfpm = INFPM(_nfpm);
-        uniV3Factory = IUniswapV3Factory(_uniV3Factory);
-
-        InitializableAbstractStrategy._initialize({_vault: _vault, _depositSlippage: 0, _withdrawSlippage: 0});
-    }
-
-    /// @notice Sets the addresses of the PToken contracts for the Uniswap pool.
     /// @param _uniswapPoolData The Uniswap pool data including token addresses and fee tier.
-    function setPTokenAddress(UniswapPoolData memory _uniswapPoolData) external onlyOwner {
-        address pool = uniV3Factory.getPool(_uniswapPoolData.tokenA, _uniswapPoolData.tokenB, _uniswapPoolData.feeTier);
+    function initialize(address _vault, UniswapPoolData memory _uniswapPoolData) external initializer {
+        Helpers._isNonZeroAddr(address(_uniswapPoolData.nfpm));
+
+        address pool = IUniswapV3Factory(_uniswapPoolData.uniV3Factory).getPool(
+            _uniswapPoolData.tokenA, _uniswapPoolData.tokenB, _uniswapPoolData.feeTier
+        );
         if (pool == address(0)) {
             revert InvalidUniswapPoolConfig();
         }
@@ -74,30 +64,11 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
             (_uniswapPoolData.tokenA, _uniswapPoolData.tokenB) = (_uniswapPoolData.tokenB, _uniswapPoolData.tokenA);
         }
 
-        address nfpmAddress = address(nfpm); // gas optimization
-
         uniswapPoolData = _uniswapPoolData;
-        _setPTokenAddress(_uniswapPoolData.tokenA, nfpmAddress);
-        _setPTokenAddress(_uniswapPoolData.tokenB, nfpmAddress);
-    }
+        _setPTokenAddress(_uniswapPoolData.tokenA, address(_uniswapPoolData.nfpm));
+        _setPTokenAddress(_uniswapPoolData.tokenB, address(_uniswapPoolData.nfpm));
 
-    /// @notice Removes PToken addresses based on asset indexes.
-    // TODO Is this function even valid for Uniswap?
-    function removePToken() external onlyOwner {
-        // Removes both tokens of the pool
-        for (uint256 i; i < 2;) {
-            address asset = _removePTokenAddress(0);
-
-            // This ensures that allocatedAmt + token balance in this contract is 0
-            if (checkBalance(asset) != 0) {
-                revert CollateralAllocated(asset);
-            }
-            unchecked {
-                ++i;
-            }
-        }
-
-        delete uniswapPoolData;
+        InitializableAbstractStrategy._initialize({_vault: _vault, _depositSlippage: 0, _withdrawSlippage: 0});
     }
 
     /// @inheritdoc InitializableAbstractStrategy
@@ -118,22 +89,21 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
         // TODO do we want to check non zero for each amount?
         Helpers._isNonZeroAmt(_amounts[0] + _amounts[1]);
 
-        UniswapPoolData memory poolData = uniswapPoolData;
+        UniswapPoolData storage poolData = uniswapPoolData;
 
-        // TODO should use safeIncreaseAllowance instead?
-        IERC20(poolData.tokenA).safeIncreaseAllowance(address(nfpm), _amounts[0]);
-        IERC20(poolData.tokenB).safeIncreaseAllowance(address(nfpm), _amounts[1]);
+        IERC20(poolData.tokenA).safeIncreaseAllowance(address(poolData.nfpm), _amounts[0]);
+        IERC20(poolData.tokenB).safeIncreaseAllowance(address(poolData.nfpm), _amounts[1]);
 
         uint128 liquidity;
         uint256 amount0;
         uint256 amount1;
 
         // Case 1: first time mint
-        if (lpTokenId == 0) {
+        if (poolData.lpTokenId == 0) {
             uint256 tokenId;
 
             // Creates a new position and adds liquidity
-            (tokenId, liquidity, amount0, amount1) = nfpm.mint(
+            (tokenId, liquidity, amount0, amount1) = poolData.nfpm.mint(
                 INFPM.MintParams({
                     token0: poolData.tokenA,
                     token1: poolData.tokenB,
@@ -149,16 +119,16 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
                 })
             );
 
-            lpTokenId = tokenId;
+            poolData.lpTokenId = tokenId;
 
             emit MintNewPosition(tokenId);
         }
         // Case 2: minting to increase liquidity
         else {
             // Increases liquidity in the current range
-            (liquidity, amount0, amount1) = nfpm.increaseLiquidity(
+            (liquidity, amount0, amount1) = poolData.nfpm.increaseLiquidity(
                 INFPM.IncreaseLiquidityParams({
-                    tokenId: lpTokenId,
+                    tokenId: poolData.lpTokenId,
                     amount0Desired: _amounts[0],
                     amount1Desired: _amounts[1],
                     amount0Min: _minMintAmt[0],
@@ -182,9 +152,9 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
 
         UniswapPoolData memory poolData = uniswapPoolData;
 
-        (uint256 amount0, uint256 amount1) = nfpm.decreaseLiquidity(
+        (uint256 amount0, uint256 amount1) = poolData.nfpm.decreaseLiquidity(
             INFPM.DecreaseLiquidityParams({
-                tokenId: lpTokenId,
+                tokenId: poolData.lpTokenId,
                 liquidity: uint128(_liquidity),
                 amount0Min: _minBurnAmt[0],
                 amount1Min: _minBurnAmt[1],
@@ -192,9 +162,9 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
             })
         );
 
-        nfpm.collect(
+        poolData.nfpm.collect(
             INFPM.CollectParams({
-                tokenId: lpTokenId,
+                tokenId: poolData.lpTokenId,
                 recipient: address(this),
                 amount0Max: uint128(amount0),
                 amount1Max: uint128(amount1)
@@ -238,18 +208,17 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
     /// @dev Collects interest earned from the Uniswap V3 pool and distributes it.
     function collectInterest(address) external override nonReentrant {
         address yieldReceiver = IStrategyVault(vault).yieldReceiver();
+        UniswapPoolData memory poolData = uniswapPoolData;
 
         // set amount0Max and amount1Max to uint256.max to collect all fees
         INFPM.CollectParams memory params = INFPM.CollectParams({
-            tokenId: lpTokenId,
+            tokenId: poolData.lpTokenId,
             recipient: address(this),
             amount0Max: type(uint128).max,
             amount1Max: type(uint128).max
         });
 
-        (uint256 amount0, uint256 amount1) = nfpm.collect(params);
-
-        UniswapPoolData memory poolData = uniswapPoolData;
+        (uint256 amount0, uint256 amount1) = poolData.nfpm.collect(params);
 
         if (amount0 != 0) {
             uint256 harvestAmt0 = _splitAndSendReward(poolData.tokenA, yieldReceiver, msg.sender, amount0);
@@ -267,7 +236,7 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
     /// @return The selector of the `onERC721Received` function.
     function onERC721Received(address operator, address, uint256, bytes calldata) external view returns (bytes4) {
         // TODO check
-        if (msg.sender != address(nfpm)) {
+        if (msg.sender != address(uniswapPoolData.nfpm)) {
             revert NotUniv3NFT();
         }
         if (operator != address(this)) {
@@ -284,7 +253,7 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
 
         uint256 balance = IERC20(_asset).balanceOf(address(this));
         uint256 availableLiquidity =
-            IERC20(_asset).balanceOf(uniV3Factory.getPool(poolData.tokenA, poolData.tokenB, poolData.feeTier));
+            IERC20(_asset).balanceOf(poolData.uniV3Factory.getPool(poolData.tokenA, poolData.tokenB, poolData.feeTier));
         uint256 allocatedValue = allocatedAmt[_asset];
         if (availableLiquidity <= allocatedValue) {
             return availableLiquidity + balance;
@@ -297,7 +266,7 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
         UniswapPoolData memory poolData = uniswapPoolData;
 
         // Get fees for both token0 and token1
-        (uint256 feesToken0, uint256 feesToken1) = PositionValue.fees(nfpm, lpTokenId);
+        (uint256 feesToken0, uint256 feesToken1) = PositionValue.fees(poolData.nfpm, poolData.lpTokenId);
 
         if (_asset == poolData.tokenA) {
             return feesToken0;
@@ -312,7 +281,7 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
     // TODO of no use.
     /// @inheritdoc InitializableAbstractStrategy
     function checkLPTokenBalance(address) external view override returns (uint256 balance) {
-        balance = nfpm.balanceOf(address(this));
+        balance = uniswapPoolData.nfpm.balanceOf(address(this));
     }
 
     /// @inheritdoc InitializableAbstractStrategy
