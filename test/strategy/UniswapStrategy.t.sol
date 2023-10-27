@@ -8,11 +8,17 @@ import {UniswapStrategy} from "../../contracts/strategies/uniswap/UniswapStrateg
 import {INonfungiblePositionManager} from "../../contracts/strategies/uniswap/interfaces/UniswapV3.sol";
 import {InitializableAbstractStrategy, Helpers} from "../../contracts/strategies/InitializableAbstractStrategy.sol";
 import {IERC20, ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {
+    IUniswapV3Factory,
+    INonfungiblePositionManager as INFPM
+} from "../../contracts/strategies/uniswap/interfaces/UniswapV3.sol";
 
 address constant UNISWAP_V3_FACTORY = 0x1F98431c8aD98523631AE4a59f267346ea31F984;
 address constant NONFUNGIBLE_POSITION_MANAGER = 0xC36442b4a4522E871399CD717aBDD847Ab11FE88;
 address constant DUMMY_ADDRESS = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
-uint24 constant fee = 500;
+uint24 constant FEE = 500;
+int24 constant TICK_LOWER = -276330;
+int24 constant TICK_UPPER = -276310;
 
 contract UniswapStrategyTest is BaseStrategy, BaseTest {
     struct AssetData {
@@ -64,7 +70,17 @@ contract UniswapStrategyTest is BaseStrategy, BaseTest {
     }
 
     function _initializeStrategy() internal {
-        strategy.initialize(VAULT, NONFUNGIBLE_POSITION_MANAGER, UNISWAP_V3_FACTORY);
+        UniswapStrategy.UniswapPoolData memory poolData = UniswapStrategy.UniswapPoolData(
+            ASSET_1,
+            ASSET_2,
+            FEE,
+            TICK_LOWER,
+            TICK_UPPER,
+            INFPM(NONFUNGIBLE_POSITION_MANAGER),
+            IUniswapV3Factory(UNISWAP_V3_FACTORY),
+            0
+        );
+        strategy.initialize(VAULT, poolData);
     }
 
     function _deposit() internal {
@@ -86,16 +102,10 @@ contract UniswapStrategyTest is BaseStrategy, BaseTest {
     }
 
     function _redeem() internal {
-        (,,,,,,, uint128 liquidity,,,,) =
-            INonfungiblePositionManager(NONFUNGIBLE_POSITION_MANAGER).positions(strategy.lpTokenId());
+        (,,,,,,, uint256 lpTokenId) = strategy.uniswapPoolData();
+        (,,,,,,, uint128 liquidity,,,,) = INonfungiblePositionManager(NONFUNGIBLE_POSITION_MANAGER).positions(lpTokenId);
         uint256[2] memory minBurnAmount = [uint256(0), uint256(0)];
         strategy.redeem(liquidity, minBurnAmount);
-    }
-
-    function _setAssetData() internal {
-        UniswapStrategy.UniswapPoolData memory poolData =
-            UniswapStrategy.UniswapPoolData(ASSET_1, ASSET_2, fee, -276330, -276310);
-        strategy.setPTokenAddress(poolData);
     }
 
     function _configAsset() internal {
@@ -113,17 +123,57 @@ contract UniswapStrategyTest is BaseStrategy, BaseTest {
 
 contract InitializeTests is UniswapStrategyTest {
     function test_empty_address() public useKnownActor(USDS_OWNER) {
+        UniswapStrategy.UniswapPoolData memory poolData = UniswapStrategy.UniswapPoolData(
+            ASSET_1,
+            ASSET_2,
+            FEE,
+            TICK_LOWER,
+            TICK_UPPER,
+            INFPM(NONFUNGIBLE_POSITION_MANAGER),
+            IUniswapV3Factory(UNISWAP_V3_FACTORY),
+            0
+        );
         vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAddress.selector));
-        strategy.initialize(address(0), NONFUNGIBLE_POSITION_MANAGER, UNISWAP_V3_FACTORY);
+        strategy.initialize(address(0), poolData);
 
-        vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAddress.selector));
-        strategy.initialize(VAULT, address(0), UNISWAP_V3_FACTORY);
-
-        vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAddress.selector));
-        strategy.initialize(VAULT, NONFUNGIBLE_POSITION_MANAGER, address(0));
+        vm.expectRevert();
+        poolData.uniV3Factory = IUniswapV3Factory(address(0));
+        strategy.initialize(VAULT, poolData);
     }
 
-    function test_success() public useKnownActor(USDS_OWNER) {
+    function test_RevertWhen_InvalidUniswapPoolConfig() public useKnownActor(USDS_OWNER) {
+        UniswapStrategy.UniswapPoolData memory poolData = UniswapStrategy.UniswapPoolData(
+            ASSET_1,
+            ASSET_2,
+            1, // invalid fee
+            TICK_LOWER,
+            TICK_UPPER,
+            INFPM(NONFUNGIBLE_POSITION_MANAGER),
+            IUniswapV3Factory(UNISWAP_V3_FACTORY),
+            0
+        );
+
+        vm.expectRevert(abi.encodeWithSelector(InvalidUniswapPoolConfig.selector));
+        strategy.initialize(VAULT, poolData);
+    }
+
+    function test_RevertWhen_InvalidTickRange() public useKnownActor(USDS_OWNER) {
+        UniswapStrategy.UniswapPoolData memory poolData = UniswapStrategy.UniswapPoolData(
+            ASSET_1,
+            ASSET_2,
+            FEE,
+            -887273, // invalid tickLower
+            TICK_UPPER,
+            INFPM(NONFUNGIBLE_POSITION_MANAGER),
+            IUniswapV3Factory(UNISWAP_V3_FACTORY),
+            0
+        );
+
+        vm.expectRevert(abi.encodeWithSelector(InvalidTickRange.selector));
+        strategy.initialize(VAULT, poolData);
+    }
+
+    function test_Initialize() public useKnownActor(USDS_OWNER) {
         assertEq(impl.owner(), address(0));
         assertEq(strategy.owner(), address(0));
 
@@ -132,64 +182,26 @@ contract InitializeTests is UniswapStrategyTest {
         assertEq(impl.owner(), address(0));
         assertEq(strategy.owner(), USDS_OWNER);
         assertEq(strategy.vault(), VAULT);
-        assertEq(address(strategy.nfpm()), NONFUNGIBLE_POSITION_MANAGER);
-        assertEq(address(strategy.uniV3Factory()), UNISWAP_V3_FACTORY);
-    }
-}
-
-contract SetPToken is UniswapStrategyTest {
-    function setUp() public override {
-        super.setUp();
-        vm.startPrank(USDS_OWNER);
-        _initializeStrategy();
-        vm.stopPrank();
-    }
-
-    function test_RevertWhen_NotOwner() public useActor(0) {
-        vm.expectRevert("Ownable: caller is not the owner");
-        _setAssetData();
-    }
-
-    function test_RevertWhen_InvalidUniswapPoolConfig() public useKnownActor(USDS_OWNER) {
-        UniswapStrategy.UniswapPoolData memory poolData = UniswapStrategy.UniswapPoolData(
-            ASSET_1,
-            ASSET_2,
-            1, //invalid fee
-            -276330,
-            -276310
-        );
-
-        vm.expectRevert(abi.encodeWithSelector(InvalidUniswapPoolConfig.selector));
-        strategy.setPTokenAddress(poolData);
-    }
-
-    function test_RevertWhen_InvalidTickRange() public useKnownActor(USDS_OWNER) {
-        UniswapStrategy.UniswapPoolData memory poolData = UniswapStrategy.UniswapPoolData(
-            ASSET_1,
-            ASSET_2,
-            fee,
-            -887273, // invalid tickLower
-            -276310
-        );
-
-        vm.expectRevert(abi.encodeWithSelector(InvalidTickRange.selector));
-        strategy.setPTokenAddress(poolData);
-    }
-
-    function test_SetPTokenAddress() public useKnownActor(USDS_OWNER) {
-        assertEq(strategy.assetToPToken(ASSET_1), address(0));
-        assertEq(strategy.assetToPToken(ASSET_2), address(0));
-
-        vm.expectEmit(true, false, false, false);
-        emit PTokenAdded(address(ASSET_1), address(P_TOKEN));
-        emit PTokenAdded(address(ASSET_2), address(P_TOKEN));
-
-        UniswapStrategy.UniswapPoolData memory poolData =
-            UniswapStrategy.UniswapPoolData(ASSET_1, ASSET_2, fee, -276330, -276310);
-        strategy.setPTokenAddress(poolData);
+        (
+            address tokenA,
+            address tokenB,
+            uint24 feeTier,
+            int24 tickLower,
+            int24 tickUpper,
+            INFPM nfpm,
+            IUniswapV3Factory uniV3Factory,
+            uint256 lpTokenId
+        ) = strategy.uniswapPoolData();
+        assertEq(tokenA, ASSET_1);
+        assertEq(tokenB, ASSET_2);
+        assertEq(feeTier, FEE);
+        assertEq(tickLower, TICK_LOWER);
+        assertEq(tickUpper, TICK_UPPER);
+        assertEq(address(nfpm), NONFUNGIBLE_POSITION_MANAGER);
+        assertEq(address(uniV3Factory), UNISWAP_V3_FACTORY);
+        assertEq(lpTokenId, 0);
 
         uint256 allocatedAmt = strategy.allocatedAmt(ASSET_1);
-
         assertEq(allocatedAmt, 0);
 
         assertEq(strategy.assetToPToken(ASSET_1), P_TOKEN);
@@ -198,75 +210,6 @@ contract SetPToken is UniswapStrategyTest {
         assertTrue(strategy.supportsCollateral(ASSET_1));
         assertTrue(strategy.supportsCollateral(ASSET_2));
     }
-
-    function test_RevertWhen_DuplicateAsset() public useKnownActor(USDS_OWNER) {
-        _setAssetData();
-        vm.expectRevert(abi.encodeWithSelector(PTokenAlreadySet.selector, ASSET_1, P_TOKEN));
-        _setAssetData();
-    }
-}
-
-contract RemovePToken is UniswapStrategyTest {
-    function setUp() public override {
-        super.setUp();
-        vm.startPrank(USDS_OWNER);
-        _initializeStrategy();
-        _setAssetData();
-        vm.stopPrank();
-    }
-
-    function test_RevertWhen_NotOwner() public useActor(0) {
-        vm.expectRevert("Ownable: caller is not the owner");
-        strategy.removePToken();
-    }
-
-    // TODO test not needed. Delete this later.
-    // function test_RevertWhen_InvalidId() public useKnownActor(USDS_OWNER) {
-    //     vm.expectRevert(abi.encodeWithSelector(InvalidIndex.selector));
-    //     strategy.removePToken();
-    // }
-
-    function test_RevertWhen_CollateralAllocated() public useKnownActor(USDS_OWNER) {
-        // deposit only ASSET_2
-        deal(address(ASSET_2), VAULT, depositAmount2);
-        changePrank(VAULT);
-        IERC20(ASSET_2).approve(address(strategy), depositAmount2);
-        strategy.deposit(ASSET_2, depositAmount2);
-        changePrank(USDS_OWNER);
-        vm.expectRevert(abi.encodeWithSelector(CollateralAllocated.selector, ASSET_2));
-        strategy.removePToken();
-
-        // deposit and allocate
-        _deposit();
-        _allocate();
-        vm.expectRevert(abi.encodeWithSelector(CollateralAllocated.selector, ASSET_1));
-        strategy.removePToken();
-    }
-
-    function test_RemovePToken() public useKnownActor(USDS_OWNER) {
-        vm.expectEmit(true, false, false, false);
-        emit PTokenRemoved(address(ASSET_1), address(P_TOKEN));
-        emit PTokenRemoved(address(ASSET_2), address(P_TOKEN));
-
-        strategy.removePToken();
-
-        assertEq(strategy.allocatedAmt(ASSET_1), 0);
-        assertEq(strategy.allocatedAmt(ASSET_2), 0);
-
-        assertEq(strategy.assetToPToken(ASSET_1), address(0));
-        assertEq(strategy.assetToPToken(ASSET_2), address(0));
-
-        assertFalse(strategy.supportsCollateral(ASSET_1));
-        assertFalse(strategy.supportsCollateral(ASSET_2));
-
-        (address tokenA, address tokenB, uint24 feeTier, int24 tickLower, int24 tickUpper) = strategy.uniswapPoolData();
-
-        assertEq(tokenA, address(0));
-        assertEq(tokenB, address(0));
-        assertEq(feeTier, 0);
-        assertEq(tickLower, 0);
-        assertEq(tickUpper, 0);
-    }
 }
 
 contract Deposit is UniswapStrategyTest {
@@ -274,7 +217,6 @@ contract Deposit is UniswapStrategyTest {
         super.setUp();
         vm.startPrank(USDS_OWNER);
         _initializeStrategy();
-        _setAssetData();
         vm.stopPrank();
     }
 
@@ -309,7 +251,6 @@ contract allocate is UniswapStrategyTest {
         super.setUp();
         vm.startPrank(USDS_OWNER);
         _initializeStrategy();
-        _setAssetData();
         _deposit();
         vm.stopPrank();
     }
@@ -322,7 +263,8 @@ contract allocate is UniswapStrategyTest {
     }
 
     function test_Allocate_MintNewPositionAndLiquidity() public useKnownActor(USDS_OWNER) {
-        assertEq(strategy.lpTokenId(), 0);
+        (,,,,,,, uint256 lpTokenId) = strategy.uniswapPoolData();
+        assertEq(lpTokenId, 0);
         assertEq(strategy.allocatedAmt(ASSET_1), 0);
         assertEq(strategy.allocatedAmt(ASSET_2), 0);
         uint256 initial_bal_1 = IERC20(ASSET_1).balanceOf(address(strategy));
@@ -342,7 +284,8 @@ contract allocate is UniswapStrategyTest {
 
         assertTrue(new_bal_1 < initial_bal_1);
         assertTrue(new_bal_2 < initial_bal_2);
-        assertNotEq(strategy.lpTokenId(), 0);
+        (,,,,,,, lpTokenId) = strategy.uniswapPoolData();
+        assertNotEq(lpTokenId, 0);
         // TODO check exact amounts?
         assertTrue(strategy.allocatedAmt(ASSET_1) >= minMintAmount[0]);
         assertTrue(strategy.allocatedAmt(ASSET_2) >= minMintAmount[1]);
@@ -351,7 +294,7 @@ contract allocate is UniswapStrategyTest {
     function test_Allocate_IncreaseLiquidity() public useKnownActor(USDS_OWNER) {
         _allocate();
         _deposit();
-        uint256 lpTokenId = strategy.lpTokenId();
+        (,,,,,,, uint256 lpTokenId) = strategy.uniswapPoolData();
         uint256 oldAllocatedAmt1 = strategy.allocatedAmt(ASSET_1);
         uint256 oldAllocatedAmt2 = strategy.allocatedAmt(ASSET_2);
 
@@ -362,7 +305,8 @@ contract allocate is UniswapStrategyTest {
         emit IncreaseLiquidity(0, 0, 0); // not checking params
         strategy.allocate(amounts, minMintAmount);
 
-        assertEq(strategy.lpTokenId(), lpTokenId);
+        (,,,,,,, uint256 newLpTokenId) = strategy.uniswapPoolData();
+        assertEq(newLpTokenId, lpTokenId);
         // TODO check exact amounts?
         assertTrue(strategy.allocatedAmt(ASSET_1) >= minMintAmount[0] + oldAllocatedAmt1);
         assertTrue(strategy.allocatedAmt(ASSET_2) >= minMintAmount[1] + oldAllocatedAmt2);
@@ -374,7 +318,6 @@ contract redeem is UniswapStrategyTest {
         super.setUp();
         vm.startPrank(USDS_OWNER);
         _initializeStrategy();
-        _setAssetData();
         _deposit();
         _allocate();
         vm.stopPrank();
@@ -387,19 +330,21 @@ contract redeem is UniswapStrategyTest {
         uint256 initial_bal_1 = IERC20(ASSET_1).balanceOf(address(strategy));
         uint256 initial_bal_2 = IERC20(ASSET_2).balanceOf(address(strategy));
 
-        (,,,,,,, uint128 liquidity,,,,) =
-            INonfungiblePositionManager(NONFUNGIBLE_POSITION_MANAGER).positions(strategy.lpTokenId());
+        (,,,,,,, uint256 lpTokenId) = strategy.uniswapPoolData();
+        (,,,,,,, uint128 liquidity,,,,) = INonfungiblePositionManager(NONFUNGIBLE_POSITION_MANAGER).positions(lpTokenId);
         assertTrue(liquidity != 0, "Liquidity is 0");
 
         uint256[2] memory minMintAmount = [uint256(0), uint256(0)];
         strategy.redeem(liquidity, minMintAmount);
-        // strategy.collectInterest(DUMMY_ADDRESS);
 
         uint256 new_bal_1 = IERC20(ASSET_1).balanceOf(address(strategy));
         uint256 new_bal_2 = IERC20(ASSET_2).balanceOf(address(strategy));
         (,,,,,,, uint128 newLiquidity,,,,) =
-            INonfungiblePositionManager(NONFUNGIBLE_POSITION_MANAGER).positions(strategy.lpTokenId());
+            INonfungiblePositionManager(NONFUNGIBLE_POSITION_MANAGER).positions(lpTokenId);
 
+        // TODO check exact amounts?
+        // TODO check allocatedAmt
+        // TODO check event
         assertTrue(new_bal_1 > initial_bal_1, "Balance not increased");
         assertTrue(new_bal_2 > initial_bal_2, "Balance not increased");
         assertEq(newLiquidity, 0, "Liquidity not 0");
@@ -460,7 +405,6 @@ contract WithdrawTest is UniswapStrategyTest {
         super.setUp();
         vm.startPrank(USDS_OWNER);
         _initializeStrategy();
-        _setAssetData();
         _deposit();
         _allocate();
         _redeem();
