@@ -8,6 +8,7 @@ import {InitializableAbstractStrategy, Helpers, IStrategyVault} from "../Initial
 import {
     IUniswapV3Factory, INonfungiblePositionManager as INFPM, IUniswapV3TickSpacing
 } from "./interfaces/UniswapV3.sol";
+import {IUniswapUtils} from "./interfaces/IUniswapUtils.sol";
 import {PositionValue} from "./libraries/PositionValue.sol";
 
 /// @title UniswapV3 strategy for USDs protocol
@@ -25,12 +26,11 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
         int24 tickUpper; // tick upper
         INFPM nfpm; // NonfungiblePositionManager contract
         IUniswapV3Factory uniV3Factory; // UniswapV3 Factory contract
+        IUniswapUtils uniswapUtils; // UniswapHelper contract
         uint256 lpTokenId; // LP token id minted for the uniswapPoolData config
     }
 
     UniswapPoolData public uniswapPoolData; // Uniswap pool data
-
-    mapping(address => uint256) public allocatedAmt; // Tracks the allocated amount for an asset.
 
     // Events
     event MintNewPosition(uint256 tokenId);
@@ -49,6 +49,7 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
     /// @param _uniswapPoolData The Uniswap pool data including token addresses and fee tier.
     function initialize(address _vault, UniswapPoolData memory _uniswapPoolData) external initializer {
         Helpers._isNonZeroAddr(address(_uniswapPoolData.nfpm));
+        Helpers._isNonZeroAddr(address(_uniswapPoolData.uniswapUtils));
 
         address pool = IUniswapV3Factory(_uniswapPoolData.uniV3Factory).getPool(
             _uniswapPoolData.tokenA, _uniswapPoolData.tokenB, _uniswapPoolData.feeTier
@@ -138,9 +139,6 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
             );
         }
 
-        allocatedAmt[poolData.tokenA] += amount0;
-        allocatedAmt[poolData.tokenB] += amount1;
-
         emit IncreaseLiquidity(uint256(liquidity), amount0, amount1);
     }
 
@@ -170,9 +168,6 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
                 amount1Max: uint128(amount1)
             })
         );
-
-        allocatedAmt[poolData.tokenA] -= amount0;
-        allocatedAmt[poolData.tokenB] -= amount1;
 
         emit DecreaseLiquidity(_liquidity, amount0, amount1);
     }
@@ -247,18 +242,9 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
     }
 
     /// @inheritdoc InitializableAbstractStrategy
-    /// @dev The total balance, including allocated and unallocated amounts.
+    /// @dev Calls checkBalance internally as the Uniswap V3 pools does not lock the deposited assets.
     function checkAvailableBalance(address _asset) external view virtual override returns (uint256) {
-        UniswapPoolData memory poolData = uniswapPoolData;
-
-        uint256 balance = IERC20(_asset).balanceOf(address(this));
-        uint256 availableLiquidity =
-            IERC20(_asset).balanceOf(poolData.uniV3Factory.getPool(poolData.tokenA, poolData.tokenB, poolData.feeTier));
-        uint256 allocatedValue = allocatedAmt[_asset];
-        if (availableLiquidity <= allocatedValue) {
-            return availableLiquidity + balance;
-        }
-        return allocatedValue + balance;
+        return checkBalance(_asset);
     }
 
     /// @inheritdoc InitializableAbstractStrategy
@@ -300,8 +286,28 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
     /// @inheritdoc InitializableAbstractStrategy
     /// @dev The total balance, including allocated and unallocated amounts.
     function checkBalance(address _asset) public view virtual override returns (uint256 balance) {
-        // Balance is always with token lpToken decimals
-        balance = allocatedAmt[_asset] + IERC20(_asset).balanceOf(address(this));
+        UniswapPoolData memory poolData = uniswapPoolData;
+        uint256 unallocatedBalance = IERC20(_asset).balanceOf(address(this));
+        uint256 allocatedAmt;
+
+        if (poolData.lpTokenId == 0) {
+            return unallocatedBalance;
+        }
+
+        (,,,,,,, uint128 liquidity,,,,) = INFPM(poolData.nfpm).positions(poolData.lpTokenId);
+
+        if (_asset == poolData.tokenA) {
+            allocatedAmt =
+                poolData.uniswapUtils.getAmount0ForLiquidity(poolData.tickLower, poolData.tickUpper, liquidity);
+        } else if (_asset == poolData.tokenB) {
+            allocatedAmt =
+                poolData.uniswapUtils.getAmount1ForLiquidity(poolData.tickLower, poolData.tickUpper, liquidity);
+        } else {
+            // Handle the case where _asset is neither token0 nor token1
+            revert CollateralNotSupported(_asset);
+        }
+
+        return allocatedAmt + unallocatedBalance;
     }
 
     /// @inheritdoc InitializableAbstractStrategy

@@ -12,6 +12,7 @@ import {
     IUniswapV3Factory,
     INonfungiblePositionManager as INFPM
 } from "../../contracts/strategies/uniswap/interfaces/UniswapV3.sol";
+import {IUniswapUtils} from "../../contracts/strategies/uniswap/interfaces/IUniswapUtils.sol";
 
 address constant UNISWAP_V3_FACTORY = 0x1F98431c8aD98523631AE4a59f267346ea31F984;
 address constant NONFUNGIBLE_POSITION_MANAGER = 0xC36442b4a4522E871399CD717aBDD847Ab11FE88;
@@ -38,6 +39,7 @@ contract UniswapStrategyTest is BaseStrategy, BaseTest {
     address internal ASSET_1;
     address internal ASSET_2;
     address internal constant P_TOKEN = NONFUNGIBLE_POSITION_MANAGER;
+    IUniswapUtils internal UNISWAP_UTILS;
 
     // Events
     event MintNewPosition(uint256 tokenId);
@@ -66,6 +68,9 @@ contract UniswapStrategyTest is BaseStrategy, BaseTest {
         ASSET_2 = data[1].asset;
         depositAmount1 = 1 * 10 ** ERC20(ASSET_1).decimals();
         depositAmount2 = 1 * 10 ** ERC20(ASSET_2).decimals();
+
+        UNISWAP_UTILS = IUniswapUtils(deployCode("UniswapUtils.sol"));
+
         vm.stopPrank();
     }
 
@@ -78,6 +83,7 @@ contract UniswapStrategyTest is BaseStrategy, BaseTest {
             TICK_UPPER,
             INFPM(NONFUNGIBLE_POSITION_MANAGER),
             IUniswapV3Factory(UNISWAP_V3_FACTORY),
+            UNISWAP_UTILS,
             0
         );
         strategy.initialize(VAULT, poolData);
@@ -102,7 +108,7 @@ contract UniswapStrategyTest is BaseStrategy, BaseTest {
     }
 
     function _redeem() internal {
-        (,,,,,,, uint256 lpTokenId) = strategy.uniswapPoolData();
+        (,,,,,,,, uint256 lpTokenId) = strategy.uniswapPoolData();
         (,,,,,,, uint128 liquidity,,,,) = INonfungiblePositionManager(NONFUNGIBLE_POSITION_MANAGER).positions(lpTokenId);
         uint256[2] memory minBurnAmount = [uint256(0), uint256(0)];
         strategy.redeem(liquidity, minBurnAmount);
@@ -131,6 +137,7 @@ contract InitializeTests is UniswapStrategyTest {
             TICK_UPPER,
             INFPM(NONFUNGIBLE_POSITION_MANAGER),
             IUniswapV3Factory(UNISWAP_V3_FACTORY),
+            UNISWAP_UTILS,
             0
         );
         vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAddress.selector));
@@ -138,6 +145,11 @@ contract InitializeTests is UniswapStrategyTest {
 
         vm.expectRevert();
         poolData.uniV3Factory = IUniswapV3Factory(address(0));
+        strategy.initialize(VAULT, poolData);
+
+        vm.expectRevert();
+        poolData.uniV3Factory = IUniswapV3Factory(UNISWAP_V3_FACTORY);
+        poolData.uniswapUtils = IUniswapUtils(address(0));
         strategy.initialize(VAULT, poolData);
     }
 
@@ -150,6 +162,7 @@ contract InitializeTests is UniswapStrategyTest {
             TICK_UPPER,
             INFPM(NONFUNGIBLE_POSITION_MANAGER),
             IUniswapV3Factory(UNISWAP_V3_FACTORY),
+            UNISWAP_UTILS,
             0
         );
 
@@ -166,6 +179,7 @@ contract InitializeTests is UniswapStrategyTest {
             TICK_UPPER,
             INFPM(NONFUNGIBLE_POSITION_MANAGER),
             IUniswapV3Factory(UNISWAP_V3_FACTORY),
+            UNISWAP_UTILS,
             0
         );
 
@@ -190,6 +204,7 @@ contract InitializeTests is UniswapStrategyTest {
             int24 tickUpper,
             INFPM nfpm,
             IUniswapV3Factory uniV3Factory,
+            IUniswapUtils uniswapUtils,
             uint256 lpTokenId
         ) = strategy.uniswapPoolData();
         assertEq(tokenA, ASSET_1);
@@ -199,10 +214,8 @@ contract InitializeTests is UniswapStrategyTest {
         assertEq(tickUpper, TICK_UPPER);
         assertEq(address(nfpm), NONFUNGIBLE_POSITION_MANAGER);
         assertEq(address(uniV3Factory), UNISWAP_V3_FACTORY);
+        assertEq(address(uniswapUtils), address(UNISWAP_UTILS));
         assertEq(lpTokenId, 0);
-
-        uint256 allocatedAmt = strategy.allocatedAmt(ASSET_1);
-        assertEq(allocatedAmt, 0);
 
         assertEq(strategy.assetToPToken(ASSET_1), P_TOKEN);
         assertEq(strategy.assetToPToken(ASSET_2), P_TOKEN);
@@ -212,7 +225,7 @@ contract InitializeTests is UniswapStrategyTest {
     }
 }
 
-contract Deposit is UniswapStrategyTest {
+contract DepositTests is UniswapStrategyTest {
     function setUp() public override {
         super.setUp();
         vm.startPrank(USDS_OWNER);
@@ -231,7 +244,7 @@ contract Deposit is UniswapStrategyTest {
     }
 
     function test_Deposit() public useKnownActor(VAULT) {
-        uint256 initial_bal_1 = IERC20(ASSET_1).balanceOf(address(strategy));
+        uint256 initialBal1 = IERC20(ASSET_1).balanceOf(address(strategy));
 
         deal(address(ASSET_1), VAULT, depositAmount1);
         IERC20(ASSET_1).approve(address(strategy), depositAmount1);
@@ -242,11 +255,11 @@ contract Deposit is UniswapStrategyTest {
         strategy.deposit(ASSET_1, 1);
 
         uint256 new_bal_1 = IERC20(ASSET_1).balanceOf(address(strategy));
-        assertEq(initial_bal_1 + 1, new_bal_1);
+        assertEq(initialBal1 + 1, new_bal_1);
     }
 }
 
-contract allocate is UniswapStrategyTest {
+contract allocateTests is UniswapStrategyTest {
     function setUp() public override {
         super.setUp();
         vm.startPrank(USDS_OWNER);
@@ -263,12 +276,14 @@ contract allocate is UniswapStrategyTest {
     }
 
     function test_Allocate_MintNewPositionAndLiquidity() public useKnownActor(USDS_OWNER) {
-        (,,,,,,, uint256 lpTokenId) = strategy.uniswapPoolData();
+        (,,,,,,,, uint256 lpTokenId) = strategy.uniswapPoolData();
+        uint256 initialBal1 = IERC20(ASSET_1).balanceOf(address(strategy));
+        uint256 initialBal2 = IERC20(ASSET_2).balanceOf(address(strategy));
+        uint256 oldAllocatedAmt1 = strategy.checkBalance(ASSET_1) - initialBal1;
+        uint256 oldAllocatedAmt2 = strategy.checkBalance(ASSET_2) - initialBal2;
         assertEq(lpTokenId, 0);
-        assertEq(strategy.allocatedAmt(ASSET_1), 0);
-        assertEq(strategy.allocatedAmt(ASSET_2), 0);
-        uint256 initial_bal_1 = IERC20(ASSET_1).balanceOf(address(strategy));
-        uint256 initial_bal_2 = IERC20(ASSET_2).balanceOf(address(strategy));
+        assertEq(oldAllocatedAmt1, 0);
+        assertEq(oldAllocatedAmt2, 0);
 
         uint256[2] memory amounts = [depositAmount1, depositAmount2];
         uint256[2] memory minMintAmount = [uint256(0), uint256(0)];
@@ -281,22 +296,25 @@ contract allocate is UniswapStrategyTest {
 
         uint256 new_bal_1 = IERC20(ASSET_1).balanceOf(address(strategy));
         uint256 new_bal_2 = IERC20(ASSET_2).balanceOf(address(strategy));
+        uint256 newAllocatedAmt1 = strategy.checkBalance(ASSET_1) - new_bal_1;
+        uint256 newAllocatedAmt2 = strategy.checkBalance(ASSET_2) - new_bal_2;
 
-        assertTrue(new_bal_1 < initial_bal_1);
-        assertTrue(new_bal_2 < initial_bal_2);
-        (,,,,,,, lpTokenId) = strategy.uniswapPoolData();
+        assertTrue(new_bal_1 < initialBal1);
+        assertTrue(new_bal_2 < initialBal2);
+        (,,,,,,,, lpTokenId) = strategy.uniswapPoolData();
         assertNotEq(lpTokenId, 0);
+
         // TODO check exact amounts?
-        assertTrue(strategy.allocatedAmt(ASSET_1) >= minMintAmount[0]);
-        assertTrue(strategy.allocatedAmt(ASSET_2) >= minMintAmount[1]);
+        assertTrue(newAllocatedAmt1 > 0);
+        assertTrue(newAllocatedAmt2 > 0);
     }
 
     function test_Allocate_IncreaseLiquidity() public useKnownActor(USDS_OWNER) {
         _allocate();
         _deposit();
-        (,,,,,,, uint256 lpTokenId) = strategy.uniswapPoolData();
-        uint256 oldAllocatedAmt1 = strategy.allocatedAmt(ASSET_1);
-        uint256 oldAllocatedAmt2 = strategy.allocatedAmt(ASSET_2);
+        (,,,,,,,, uint256 lpTokenId) = strategy.uniswapPoolData();
+        uint256 oldAllocatedAmt1 = strategy.checkBalance(ASSET_1) - IERC20(ASSET_1).balanceOf(address(strategy));
+        uint256 oldAllocatedAmt2 = strategy.checkBalance(ASSET_2) - IERC20(ASSET_2).balanceOf(address(strategy));
 
         uint256[2] memory amounts = [depositAmount1, depositAmount2];
         uint256[2] memory minMintAmount = [uint256(0), uint256(0)];
@@ -305,15 +323,18 @@ contract allocate is UniswapStrategyTest {
         emit IncreaseLiquidity(0, 0, 0); // not checking params
         strategy.allocate(amounts, minMintAmount);
 
-        (,,,,,,, uint256 newLpTokenId) = strategy.uniswapPoolData();
+        (,,,,,,,, uint256 newLpTokenId) = strategy.uniswapPoolData();
+        uint256 newAllocatedAmt1 = strategy.checkBalance(ASSET_1) - IERC20(ASSET_1).balanceOf(address(strategy));
+        uint256 newAllocatedAmt2 = strategy.checkBalance(ASSET_2) - IERC20(ASSET_2).balanceOf(address(strategy));
+
         assertEq(newLpTokenId, lpTokenId);
         // TODO check exact amounts?
-        assertTrue(strategy.allocatedAmt(ASSET_1) >= minMintAmount[0] + oldAllocatedAmt1);
-        assertTrue(strategy.allocatedAmt(ASSET_2) >= minMintAmount[1] + oldAllocatedAmt2);
+        assertTrue(newAllocatedAmt1 > oldAllocatedAmt1);
+        assertTrue(newAllocatedAmt2 > oldAllocatedAmt2);
     }
 }
 
-contract redeem is UniswapStrategyTest {
+contract redeemTests is UniswapStrategyTest {
     function setUp() public override {
         super.setUp();
         vm.startPrank(USDS_OWNER);
@@ -323,31 +344,68 @@ contract redeem is UniswapStrategyTest {
         vm.stopPrank();
     }
 
-    // TODO add other required tests
+    function test_Redeem_fullLiquidity() public useKnownActor(USDS_OWNER) {
+        uint256 initialBal1 = IERC20(ASSET_1).balanceOf(address(strategy));
+        uint256 initialBal2 = IERC20(ASSET_2).balanceOf(address(strategy));
 
-    // TODO fix tests if required
-    function test_Redeem() public useKnownActor(USDS_OWNER) {
-        uint256 initial_bal_1 = IERC20(ASSET_1).balanceOf(address(strategy));
-        uint256 initial_bal_2 = IERC20(ASSET_2).balanceOf(address(strategy));
+        (,,,,,,,, uint256 lpTokenId) = strategy.uniswapPoolData();
+        (,,,,,,, uint128 oldLiquidity,,,,) =
+            INonfungiblePositionManager(NONFUNGIBLE_POSITION_MANAGER).positions(lpTokenId);
+        assertTrue(oldLiquidity != 0, "Liquidity is 0");
 
-        (,,,,,,, uint256 lpTokenId) = strategy.uniswapPoolData();
-        (,,,,,,, uint128 liquidity,,,,) = INonfungiblePositionManager(NONFUNGIBLE_POSITION_MANAGER).positions(lpTokenId);
-        assertTrue(liquidity != 0, "Liquidity is 0");
+        // TODO fix matching params?
+        vm.expectEmit(false, false, false, false);
+        emit DecreaseLiquidity(0, 0, 0); // not checking tokenId
 
         uint256[2] memory minMintAmount = [uint256(0), uint256(0)];
-        strategy.redeem(liquidity, minMintAmount);
+        strategy.redeem(oldLiquidity, minMintAmount);
 
         uint256 new_bal_1 = IERC20(ASSET_1).balanceOf(address(strategy));
         uint256 new_bal_2 = IERC20(ASSET_2).balanceOf(address(strategy));
+        uint256 newAllocatedAmt1 = strategy.checkBalance(ASSET_1) - new_bal_1;
+        uint256 newAllocatedAmt2 = strategy.checkBalance(ASSET_2) - new_bal_2;
         (,,,,,,, uint128 newLiquidity,,,,) =
             INonfungiblePositionManager(NONFUNGIBLE_POSITION_MANAGER).positions(lpTokenId);
 
         // TODO check exact amounts?
-        // TODO check allocatedAmt
-        // TODO check event
-        assertTrue(new_bal_1 > initial_bal_1, "Balance not increased");
-        assertTrue(new_bal_2 > initial_bal_2, "Balance not increased");
-        assertEq(newLiquidity, 0, "Liquidity not 0");
+        assertTrue(new_bal_1 > initialBal1, "Balance not increased");
+        assertTrue(new_bal_2 > initialBal2, "Balance not increased");
+        assertTrue(newAllocatedAmt1 == 0);
+        assertTrue(newAllocatedAmt2 == 0);
+        assertTrue(oldLiquidity > newLiquidity);
+    }
+
+    function test_Redeem_partialLiquidity() public useKnownActor(USDS_OWNER) {
+        uint256 initialBal1 = IERC20(ASSET_1).balanceOf(address(strategy));
+        uint256 initialBal2 = IERC20(ASSET_2).balanceOf(address(strategy));
+        uint256 oldAllocatedAmt1 = strategy.checkBalance(ASSET_1) - initialBal1;
+        uint256 oldAllocatedAmt2 = strategy.checkBalance(ASSET_2) - initialBal2;
+
+        (,,,,,,,, uint256 lpTokenId) = strategy.uniswapPoolData();
+        (,,,,,,, uint128 oldLiquidity,,,,) =
+            INonfungiblePositionManager(NONFUNGIBLE_POSITION_MANAGER).positions(lpTokenId);
+        assertTrue(oldLiquidity != 0, "Liquidity is 0");
+
+        // TODO fix matching params?
+        vm.expectEmit(false, false, false, false);
+        emit DecreaseLiquidity(0, 0, 0); // not checking tokenId
+
+        uint256[2] memory minMintAmount = [uint256(0), uint256(0)];
+        strategy.redeem(oldLiquidity / 2, minMintAmount);
+
+        uint256 new_bal_1 = IERC20(ASSET_1).balanceOf(address(strategy));
+        uint256 new_bal_2 = IERC20(ASSET_2).balanceOf(address(strategy));
+        uint256 newAllocatedAmt1 = strategy.checkBalance(ASSET_1) - new_bal_1;
+        uint256 newAllocatedAmt2 = strategy.checkBalance(ASSET_2) - new_bal_2;
+        (,,,,,,, uint128 newLiquidity,,,,) =
+            INonfungiblePositionManager(NONFUNGIBLE_POSITION_MANAGER).positions(lpTokenId);
+
+        // TODO check exact amounts?
+        assertTrue(new_bal_1 > initialBal1, "Balance not increased");
+        assertTrue(new_bal_2 > initialBal2, "Balance not increased");
+        assertTrue(newLiquidity < oldLiquidity);
+        assertTrue(newAllocatedAmt1 < oldAllocatedAmt1);
+        assertTrue(newAllocatedAmt2 < oldAllocatedAmt2);
     }
 }
 
@@ -368,8 +426,8 @@ contract redeem is UniswapStrategyTest {
 //         vm.warp(block.timestamp + 10 days);
 //         vm.roll(block.number + 1000);
 
-//         uint256 initial_bal_1 = IERC20(ASSET_1).balanceOf(yieldReceiver);
-//         uint256 initial_bal_2 = IERC20(ASSET_2).balanceOf(yieldReceiver);
+//         uint256 initialBal1 = IERC20(ASSET_1).balanceOf(yieldReceiver);
+//         uint256 initialBal2 = IERC20(ASSET_2).balanceOf(yieldReceiver);
 
 //         vm.mockCall(VAULT, abi.encodeWithSignature("yieldReceiver()"), abi.encode(yieldReceiver));
 
@@ -395,8 +453,8 @@ contract redeem is UniswapStrategyTest {
 
 //         assertEq(newInterestEarned1, 0);
 //         assertEq(newInterestEarned2, 0);
-//         assertEq(current_bal_1, (initial_bal_1 + harvestAmount1));
-//         assertEq(current_bal_2, (initial_bal_2 + interestEarned2));
+//         assertEq(current_bal_1, (initialBal1 + harvestAmount1));
+//         assertEq(current_bal_2, (initialBal2 + interestEarned2));
 //     }
 // }
 
