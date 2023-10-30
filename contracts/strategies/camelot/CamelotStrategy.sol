@@ -15,12 +15,12 @@ contract CamelotStrategy is InitializableAbstractStrategy, INFTHandler {
     using SafeERC20 for IERC20;
 
     struct StrategyData {
-        address tokenA; // 0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9
-        address tokenB; // 0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8
-        address router; // 0xc873fEcbd354f5A56E00E710B90EF4201db2448d
-        address positionHelper; // 0xe458018Ad4283C90fB7F5460e24C4016F81b8175
-        address factory; // 0x6EcCab422D763aC031210895C81787E87B43A652
-        address nftPool; // 0xcC9f28dAD9b85117AB5237df63A5EE6fC50B02B7
+        address tokenA;
+        address tokenB;
+        address router;
+        address positionHelper;
+        address factory;
+        address nftPool;
     }
 
     bytes4 private constant _ERC721_RECEIVED = 0x150b7a02;
@@ -60,8 +60,8 @@ contract CamelotStrategy is InitializableAbstractStrategy, INFTHandler {
         _setPTokenAddress(_strategyData.tokenA, pair);
         _setPTokenAddress(_strategyData.tokenB, pair);
         (, address grail, address xGrail,,,,,) = INFTPool(_strategyData.nftPool).getPoolInfo();
-        rewardTokenAddress[0] = grail;
-        rewardTokenAddress[1] = xGrail;
+        rewardTokenAddress.push(grail);
+        rewardTokenAddress.push(xGrail);
     }
 
     /// @inheritdoc InitializableAbstractStrategy
@@ -75,7 +75,10 @@ contract CamelotStrategy is InitializableAbstractStrategy, INFTHandler {
         emit Deposit(_asset, _amount);
     }
 
-    function allocate(address[] calldata _assets, uint256[2] calldata _amounts) external onlyOwner nonReentrant {
+    /// @notice A function to allocate funds into the strategy
+    /// @param _assets Array of address of assets to be allocated
+    /// @param _amounts Array of amounts of `_assets` to be allocated
+    function allocate(address[2] calldata _assets, uint256[2] calldata _amounts) external onlyOwner nonReentrant {
         StrategyData memory _strategyData = strategyData; // Gas savings
 
         if (_assets[0] != _strategyData.tokenA) revert CollateralNotSupported(_assets[0]);
@@ -159,6 +162,8 @@ contract CamelotStrategy is InitializableAbstractStrategy, INFTHandler {
         return _amount;
     }
 
+    /// @notice A function to redeem collateral from strategy
+    /// @param _liquidityToWithdraw Amount of liquidity (lp token amount) to be withdrawn
     function redeem(uint256 _liquidityToWithdraw) external onlyOwner nonReentrant {
         StrategyData memory _sData = strategyData;
         (uint256 amountAMin, uint256 amountBMin) = _checkAvailableBalance(_liquidityToWithdraw);
@@ -176,27 +181,21 @@ contract CamelotStrategy is InitializableAbstractStrategy, INFTHandler {
         emit DecreaseLiquidity(_liquidityToWithdraw, amountA, amountB);
     }
 
+    /// @notice A function to update the StrategyData struct if there is a change from Camelot's side
+    /// @param _strategyData StrategyData type struct with the updated values
+    function updateStrategyData(StrategyData memory _strategyData) external onlyOwner {
+        strategyData = _strategyData;
+        emit StrategyDataUpdated(_strategyData);
+    }
+
     /// @inheritdoc InitializableAbstractStrategy
     function collectReward() external override {
         address yieldReceiver = IStrategyVault(vault).yieldReceiver();
         INFTPool(strategyData.nftPool).harvestPositionTo(spNFTId, yieldReceiver);
     }
 
-    function onNFTHarvest(
-        address, /*operator*/
-        address to,
-        uint256, /*tokenId*/
-        uint256 grailAmount,
-        uint256 xGrailAmount
-    ) external returns (bool) {
-        // @todo figure out xGrail rewards
-        require(msg.sender == strategyData.nftPool, "Not Allowed");
-        emit RewardTokenCollected(rewardTokenAddress[0], to, grailAmount);
-        emit RewardTokenCollected(rewardTokenAddress[1], to, xGrailAmount);
-        return true;
-    }
-
     // Functions needed by Camelot staking positions NFT manager
+    /// @notice This function is called when NFT is minted to this address
     function onERC721Received(address operator, address, /*from*/ uint256 tokenId, bytes calldata /*data*/ )
         external
         returns (bytes4)
@@ -207,11 +206,48 @@ contract CamelotStrategy is InitializableAbstractStrategy, INFTHandler {
         return _ERC721_RECEIVED;
     }
 
-    function updateStrategyData(StrategyData memory _strategyData) external onlyOwner {
-        strategyData = _strategyData;
-        emit StrategyDataUpdated(_strategyData);
+    /// @notice This function is called when rewards are harvested
+    function onNFTHarvest(
+        address, /*operator*/
+        address to,
+        uint256, /*tokenId*/
+        uint256 grailAmount,
+        uint256 xGrailAmount
+    ) external returns (bool) {
+        // @todo figure out xGrail rewards
+        if (msg.sender != strategyData.nftPool) revert NotCamelotNFTPool();
+        emit RewardTokenCollected(rewardTokenAddress[0], to, grailAmount);
+        emit RewardTokenCollected(rewardTokenAddress[1], to, xGrailAmount);
+        return true;
     }
 
+    /// @notice This function is called when liquidity is added to an existing position
+    function onNFTAddToPosition(address, /*operator*/ uint256, /*tokenId*/ uint256 /*lpAmount*/ )
+        external
+        view
+        returns (bool)
+    {
+        if (msg.sender != strategyData.nftPool) revert NotCamelotNFTPool();
+        return true;
+    }
+
+    /// @notice This function is called when liquidity is withdrawn from an NFT position
+    function onNFTWithdraw(address, /*operator*/ uint256, /*tokenId*/ uint256 /*lpAmount*/ )
+        external
+        view
+        returns (bool)
+    {
+        if (msg.sender != strategyData.nftPool) revert NotCamelotNFTPool();
+        return true;
+    }
+
+    /// @notice This function can be called before allocating funds into the strategy
+    ///         it accepts desired amounts, checks pool condition and returns the amount
+    ///         which will be needed/ accepted by the strategy for a balanced allocation
+    /// @param amountADesired Amount of token A that is desired to be allocated
+    /// @param amountBDesired Amount of token B that is desired to be allocated
+    /// @return amountA Amount A tokens which will be accepted in allocation
+    /// @return amountB Amount B tokens which will be accepted in allocation
     function getDepositAmounts(uint256 amountADesired, uint256 amountBDesired)
         external
         view
@@ -235,50 +271,33 @@ contract CamelotStrategy is InitializableAbstractStrategy, INFTHandler {
     }
 
     /// @inheritdoc InitializableAbstractStrategy
-    function checkRewardEarned() external view override returns (uint256 reward) {
-        reward = INFTPool(strategyData.nftPool).pendingRewards(spNFTId);
+    function checkRewardEarned() external view override returns (uint256 rewards) {
+        rewards = INFTPool(strategyData.nftPool).pendingRewards(spNFTId);
     }
 
+    /// @inheritdoc InitializableAbstractStrategy
     function checkLPTokenBalance(address _asset) external view override returns (uint256 balance) {
         _checkValidAsset(_asset);
         (balance,,,,,,,) = INFTPool(strategyData.nftPool).getStakingPosition(spNFTId);
     }
 
+    /// @inheritdoc InitializableAbstractStrategy
     function checkBalance(address _asset) external view override returns (uint256) {
         return checkAvailableBalance(_asset);
     }
 
-    function checkAvailableLiquidity() external view returns (uint256 liquidity) {
-        (liquidity,,,,,,,) = INFTPool(strategyData.nftPool).getStakingPosition(spNFTId);
-    }
-
-    function onNFTAddToPosition(address, /*operator*/ uint256, /*tokenId*/ uint256 /*lpAmount*/ )
-        external
-        pure
-        returns (bool)
-    {
-        // @todo add checks
-        return true;
-    }
-
-    function onNFTWithdraw(address, /*operator*/ uint256, /*tokenId*/ uint256 /*lpAmount*/ )
-        external
-        pure
-        returns (bool)
-    {
-        // @todo add checks
-        return true;
-    }
-
+    /// @inheritdoc InitializableAbstractStrategy
     function checkInterestEarned(address /*_asset*/ ) external pure override returns (uint256) {
         // @todo implement
         return 0;
     }
 
+    /// @inheritdoc InitializableAbstractStrategy
     function collectInterest(address _asset) external pure override {
         // @todo implement
     }
 
+    /// @inheritdoc InitializableAbstractStrategy
     function checkAvailableBalance(address _asset) public view override returns (uint256 balance) {
         (uint256 liquidity,,,,,,,) = INFTPool(strategyData.nftPool).getStakingPosition(spNFTId);
         (uint256 amountA, uint256 amountB) = _checkAvailableBalance(liquidity);
@@ -291,6 +310,8 @@ contract CamelotStrategy is InitializableAbstractStrategy, INFTHandler {
         return assetToPToken[_asset] != address(0);
     }
 
+    /// @inheritdoc InitializableAbstractStrategy
+    /* solhint-disable no-empty-blocks */
     function _abstractSetPToken(address _asset, address _pToken) internal override {}
 
     /// @dev Internal function to withdraw a specified amount of an asset.
@@ -304,6 +325,10 @@ contract CamelotStrategy is InitializableAbstractStrategy, INFTHandler {
         emit Withdrawal(_asset, _amount);
     }
 
+    /// @notice A function to check available balance of tokens as per liquidity
+    /// @param liquidity Amount of liquidity present/ lp token balance
+    /// @return amountA Amount A tokens available in pool
+    /// @return amountB Amount B tokens available in pool
     function _checkAvailableBalance(uint256 liquidity) private view returns (uint256 amountA, uint256 amountB) {
         StrategyData memory _sData = strategyData;
         address pair = IRouter(_sData.router).getPair(_sData.tokenA, _sData.tokenB);
@@ -314,6 +339,9 @@ contract CamelotStrategy is InitializableAbstractStrategy, INFTHandler {
         amountB = (liquidity * balance1) / _totalSupply;
     }
 
+    /// @notice Checks whether _asset is tokenA or tokenB
+    /// @param _asset Address of asset to be checked
+    /// @dev Reverts if asset is not valid
     function _checkValidAsset(address _asset) private view {
         if (_asset != strategyData.tokenA && _asset != strategyData.tokenB) {
             revert InvalidAsset();
