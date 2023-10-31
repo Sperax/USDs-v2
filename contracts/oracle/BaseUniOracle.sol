@@ -1,12 +1,10 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.6.12;
-pragma experimental ABIEncoderV2;
+pragma solidity 0.8.16;
 
-import {ERC20} from "@openzeppelin/contracts_v3.4.2/token/ERC20/ERC20.sol";
-import {Ownable} from "@openzeppelin/contracts_v3.4.2/access/Ownable.sol";
-import {SafeMath} from "@openzeppelin/contracts_v3.4.2/math/SafeMath.sol";
+import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {IUniswapV3Factory} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Factory.sol";
-import {OracleLibrary} from "@uniswap/v3-periphery/contracts/libraries/OracleLibrary.sol";
+import {IUniswapUtils} from "../strategies/uniswap/interfaces/IUniswapUtils.sol";
 
 interface IMasterPriceOracle {
     /// @notice Validates if price feed exists for a `_token`
@@ -25,9 +23,9 @@ interface IMasterPriceOracle {
 /// @author Sperax Foundation
 /// @notice Has all the base functionalities, variables etc to be implemented by child contracts
 abstract contract BaseUniOracle is Ownable {
-    using SafeMath for uint256;
-
     address public constant UNISWAP_FACTORY = 0x1F98431c8aD98523631AE4a59f267346ea31F984;
+    // TODO RECHECK!!!
+    address public constant uniswapUtils = 0xd2Aa19D3B7f8cdb1ea5B782c5647542055af415e;
 
     address public masterOracle; // Address of the master price oracle
     address public pool; // Address of the uniswap pool for the token and quoteToken
@@ -88,12 +86,12 @@ abstract contract BaseUniOracle is Ownable {
     /// @dev tokenBPerTokenA has the same precision as tokenB
     function _getUniMAPrice(address _tokenA, uint128 _tokenAPrecision) internal view returns (uint256) {
         // get MA tick
-        uint32 oldestObservationSecondsAgo = OracleLibrary.getOldestObservationSecondsAgo(pool);
+        uint32 oldestObservationSecondsAgo = IUniswapUtils(uniswapUtils).getOldestObservationSecondsAgo(pool);
         uint32 period = maPeriod < oldestObservationSecondsAgo ? maPeriod : oldestObservationSecondsAgo;
-        (int24 timeWeightedAverageTick,) = OracleLibrary.consult(pool, period);
+        (int24 timeWeightedAverageTick,) = IUniswapUtils(uniswapUtils).consult(pool, period);
         // get MA price from MA tick
         uint256 tokenBPerTokenA =
-            OracleLibrary.getQuoteAtTick(timeWeightedAverageTick, _tokenAPrecision, _tokenA, quoteToken);
+            IUniswapUtils(uniswapUtils).getQuoteAtTick(timeWeightedAverageTick, _tokenAPrecision, _tokenA, quoteToken);
         return tokenBPerTokenA;
     }
 

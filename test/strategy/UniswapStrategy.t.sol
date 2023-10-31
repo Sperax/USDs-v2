@@ -17,6 +17,7 @@ import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Po
 
 address constant UNISWAP_V3_FACTORY = 0x1F98431c8aD98523631AE4a59f267346ea31F984;
 address constant NONFUNGIBLE_POSITION_MANAGER = 0xC36442b4a4522E871399CD717aBDD847Ab11FE88;
+address constant UNISWAP_UTILS = 0xd2Aa19D3B7f8cdb1ea5B782c5647542055af415e;
 address constant DUMMY_ADDRESS = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
 uint24 constant FEE = 500;
 int24 constant TICK_LOWER = -276330;
@@ -40,7 +41,6 @@ contract UniswapStrategyTest is BaseStrategy, BaseTest {
     address internal ASSET_1;
     address internal ASSET_2;
     address internal constant P_TOKEN = NONFUNGIBLE_POSITION_MANAGER;
-    IUniswapUtils internal UNISWAP_UTILS;
     IUniswapV3Pool POOL;
 
     // Events
@@ -71,7 +71,6 @@ contract UniswapStrategyTest is BaseStrategy, BaseTest {
         depositAmount1 = 1 * 10 ** ERC20(ASSET_1).decimals();
         depositAmount2 = 1 * 10 ** ERC20(ASSET_2).decimals();
 
-        UNISWAP_UTILS = IUniswapUtils(deployCode("UniswapUtils.sol"));
         POOL = IUniswapV3Pool(IUniswapV3Factory(UNISWAP_V3_FACTORY).getPool(ASSET_1, ASSET_2, FEE));
 
         vm.stopPrank();
@@ -87,7 +86,7 @@ contract UniswapStrategyTest is BaseStrategy, BaseTest {
             INFPM(NONFUNGIBLE_POSITION_MANAGER),
             IUniswapV3Factory(UNISWAP_V3_FACTORY),
             POOL,
-            UNISWAP_UTILS,
+            IUniswapUtils(UNISWAP_UTILS),
             0
         );
         strategy.initialize(VAULT, poolData);
@@ -142,7 +141,7 @@ contract InitializeTests is UniswapStrategyTest {
             INFPM(NONFUNGIBLE_POSITION_MANAGER),
             IUniswapV3Factory(UNISWAP_V3_FACTORY),
             POOL,
-            UNISWAP_UTILS,
+            IUniswapUtils(UNISWAP_UTILS),
             0
         );
         vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAddress.selector));
@@ -168,7 +167,7 @@ contract InitializeTests is UniswapStrategyTest {
             INFPM(NONFUNGIBLE_POSITION_MANAGER),
             IUniswapV3Factory(UNISWAP_V3_FACTORY),
             POOL,
-            UNISWAP_UTILS,
+            IUniswapUtils(UNISWAP_UTILS),
             0
         );
 
@@ -186,7 +185,7 @@ contract InitializeTests is UniswapStrategyTest {
             INFPM(NONFUNGIBLE_POSITION_MANAGER),
             IUniswapV3Factory(UNISWAP_V3_FACTORY),
             POOL,
-            UNISWAP_UTILS,
+            IUniswapUtils(UNISWAP_UTILS),
             0
         );
 
@@ -223,7 +222,7 @@ contract InitializeTests is UniswapStrategyTest {
         assertEq(address(nfpm), NONFUNGIBLE_POSITION_MANAGER);
         assertEq(address(uniV3Factory), UNISWAP_V3_FACTORY);
         assertEq(address(pool), address(POOL));
-        assertEq(address(uniswapUtils), address(UNISWAP_UTILS));
+        assertEq(address(uniswapUtils), UNISWAP_UTILS);
         assertEq(lpTokenId, 0);
 
         assertEq(strategy.assetToPToken(ASSET_1), P_TOKEN);

@@ -9,20 +9,7 @@ import {
     IUniswapV3Factory, INonfungiblePositionManager as INFPM, IUniswapV3TickSpacing
 } from "./interfaces/UniswapV3.sol";
 import {IUniswapUtils} from "./interfaces/IUniswapUtils.sol";
-import {PositionValue} from "./libraries/PositionValue.sol";
 import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
-
-struct InitializeUniswapPoolData {
-    address tokenA; // tokenA address
-    address tokenB; // tokenB address
-    uint24 feeTier; // fee tier
-    int24 tickLower; // tick lower
-    int24 tickUpper; // tick upper
-    INFPM nfpm; // NonfungiblePositionManager contract
-    IUniswapV3Factory uniV3Factory; // UniswapV3 Factory contract
-    IUniswapUtils uniswapUtils; // UniswapHelper contract
-    uint256 lpTokenId; // LP token id minted for the uniswapPoolData config
-}
 
 /// @title UniswapV3 strategy for USDs protocol
 /// @notice A yield earning strategy for USDs protocol
@@ -266,7 +253,8 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
         UniswapPoolData memory poolData = uniswapPoolData;
 
         // Get fees for both token0 and token1
-        (uint256 feesToken0, uint256 feesToken1) = PositionValue.fees(poolData.nfpm, poolData.lpTokenId);
+        (uint256 feesToken0, uint256 feesToken1) =
+            poolData.uniswapUtils.fees(address(poolData.nfpm), poolData.lpTokenId);
 
         if (_asset == poolData.tokenA) {
             return feesToken0;

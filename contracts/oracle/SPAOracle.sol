@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.6.12;
+pragma solidity 0.8.16;
 pragma experimental ABIEncoderV2;
 
 import {BaseUniOracle} from "./BaseUniOracle.sol";
@@ -24,9 +24,7 @@ contract SPAOracle is BaseUniOracle {
 
     event DIAParamsUpdated(uint256 weightDIA, uint128 diaMaxTimeThreshold);
 
-    constructor(address _masterOracle, address _quoteToken, uint24 _feeTier, uint32 _maPeriod, uint256 _weightDIA)
-        public
-    {
+    constructor(address _masterOracle, address _quoteToken, uint24 _feeTier, uint32 _maPeriod, uint256 _weightDIA) {
         _isNonZeroAddr(_masterOracle);
         masterOracle = _masterOracle;
         setUniMAPriceData(SPA, _quoteToken, _feeTier, _maPeriod);
@@ -40,15 +38,15 @@ contract SPAOracle is BaseUniOracle {
     function getPrice() external view override returns (uint256, uint256) {
         uint256 weightUNI = MAX_WEIGHT - weightDIA;
         // calculate weighted UNI USDsPerSPA
-        uint256 weightedSPAUniPrice = weightUNI.mul(_getSPAUniPrice());
+        uint256 weightedSPAUniPrice = weightUNI * _getSPAUniPrice();
 
         // calculate weighted DIA USDsPerSPA
         (uint128 spaDiaPrice, uint128 lastUpdated) = IDiaOracle(DIA_ORACLE).getValue("SPA/USD");
 
         require(block.timestamp - lastUpdated <= diaMaxTimeThreshold, "Price too old");
 
-        uint256 weightedSPADiaPrice = weightDIA.mul(spaDiaPrice);
-        uint256 spaPrice = weightedSPAUniPrice.add(weightedSPADiaPrice).div(MAX_WEIGHT);
+        uint256 weightedSPADiaPrice = weightDIA * spaDiaPrice;
+        uint256 spaPrice = (weightedSPAUniPrice + weightedSPADiaPrice) / MAX_WEIGHT;
         return (spaPrice, SPA_PRICE_PRECISION);
     }
 
@@ -72,8 +70,7 @@ contract SPAOracle is BaseUniOracle {
     function _getSPAUniPrice() private view returns (uint256) {
         uint256 quoteTokenAmtPerSPA = _getUniMAPrice(SPA, SPA_PRECISION);
         (uint256 quoteTokenPrice, uint256 quoteTokenPricePrecision) = _getQuoteTokenPrice();
-        return quoteTokenPrice.mul(quoteTokenAmtPerSPA).mul(SPA_PRICE_PRECISION).div(quoteTokenPrecision).div(
-            quoteTokenPricePrecision
-        );
+        return ((quoteTokenPrice * quoteTokenAmtPerSPA * SPA_PRICE_PRECISION) / quoteTokenPrecision)
+            / quoteTokenPricePrecision;
     }
 }
