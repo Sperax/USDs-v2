@@ -1,30 +1,19 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.6.12;
 
+import {IUniswapUtils, IUniswapV3Pool} from "./interfaces/IUniswapUtils.sol";
 import {LiquidityAmounts} from "@uniswap/v3-periphery/contracts/libraries/LiquidityAmounts.sol";
 import {TickMath} from "@uniswap/v3-core/contracts/libraries/TickMath.sol";
-import {IUniswapUtils} from "./interfaces/IUniswapUtils.sol";
 
 contract UniswapUtils is IUniswapUtils {
-    function getAmount0ForLiquidity(int24 tickLower, int24 tickUpper, uint128 liquidity)
+    function getAmountsForLiquidity(uint160 sqrtRatioX96, int24 _tickLower, int24 _tickUpper, uint128 _liquidity)
         external
-        pure
+        view
         override
-        returns (uint256 amount0)
+        returns (uint256 amount0, uint256 amount1)
     {
-        return LiquidityAmounts.getAmount0ForLiquidity(
-            TickMath.getSqrtRatioAtTick(tickLower), TickMath.getSqrtRatioAtTick(tickUpper), liquidity
-        );
-    }
-
-    function getAmount1ForLiquidity(int24 tickLower, int24 tickUpper, uint128 liquidity)
-        external
-        pure
-        override
-        returns (uint256 amount1)
-    {
-        return LiquidityAmounts.getAmount1ForLiquidity(
-            TickMath.getSqrtRatioAtTick(tickLower), TickMath.getSqrtRatioAtTick(tickUpper), liquidity
+        return LiquidityAmounts.getAmountsForLiquidity(
+            sqrtRatioX96, TickMath.getSqrtRatioAtTick(_tickLower), TickMath.getSqrtRatioAtTick(_tickUpper), _liquidity
         );
     }
 }

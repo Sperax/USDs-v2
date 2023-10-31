@@ -1,14 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.6.12 <=0.8.16;
 
-interface IUniswapUtils {
-    function getAmount0ForLiquidity(int24 tickLower, int24 tickUpper, uint128 liquidity)
-        external
-        pure
-        returns (uint256 amount0);
+import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 
-    function getAmount1ForLiquidity(int24 tickLower, int24 tickUpper, uint128 liquidity)
+interface IUniswapUtils {
+    function getAmountsForLiquidity(uint160 sqrtRatioX96, int24 _tickLower, int24 _tickUpper, uint128 _liquidity)
         external
-        pure
-        returns (uint256 amount0);
+        view
+        returns (uint256 amount0, uint256 amount1);
 }

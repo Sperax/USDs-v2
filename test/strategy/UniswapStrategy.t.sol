@@ -13,6 +13,7 @@ import {
     INonfungiblePositionManager as INFPM
 } from "../../contracts/strategies/uniswap/interfaces/UniswapV3.sol";
 import {IUniswapUtils} from "../../contracts/strategies/uniswap/interfaces/IUniswapUtils.sol";
+import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 
 address constant UNISWAP_V3_FACTORY = 0x1F98431c8aD98523631AE4a59f267346ea31F984;
 address constant NONFUNGIBLE_POSITION_MANAGER = 0xC36442b4a4522E871399CD717aBDD847Ab11FE88;
@@ -40,6 +41,7 @@ contract UniswapStrategyTest is BaseStrategy, BaseTest {
     address internal ASSET_2;
     address internal constant P_TOKEN = NONFUNGIBLE_POSITION_MANAGER;
     IUniswapUtils internal UNISWAP_UTILS;
+    IUniswapV3Pool POOL;
 
     // Events
     event MintNewPosition(uint256 tokenId);
@@ -70,6 +72,7 @@ contract UniswapStrategyTest is BaseStrategy, BaseTest {
         depositAmount2 = 1 * 10 ** ERC20(ASSET_2).decimals();
 
         UNISWAP_UTILS = IUniswapUtils(deployCode("UniswapUtils.sol"));
+        POOL = IUniswapV3Pool(IUniswapV3Factory(UNISWAP_V3_FACTORY).getPool(ASSET_1, ASSET_2, FEE));
 
         vm.stopPrank();
     }
@@ -83,6 +86,7 @@ contract UniswapStrategyTest is BaseStrategy, BaseTest {
             TICK_UPPER,
             INFPM(NONFUNGIBLE_POSITION_MANAGER),
             IUniswapV3Factory(UNISWAP_V3_FACTORY),
+            POOL,
             UNISWAP_UTILS,
             0
         );
@@ -108,7 +112,7 @@ contract UniswapStrategyTest is BaseStrategy, BaseTest {
     }
 
     function _redeem() internal {
-        (,,,,,,,, uint256 lpTokenId) = strategy.uniswapPoolData();
+        (,,,,,,,,, uint256 lpTokenId) = strategy.uniswapPoolData();
         (,,,,,,, uint128 liquidity,,,,) = INonfungiblePositionManager(NONFUNGIBLE_POSITION_MANAGER).positions(lpTokenId);
         uint256[2] memory minBurnAmount = [uint256(0), uint256(0)];
         strategy.redeem(liquidity, minBurnAmount);
@@ -137,6 +141,7 @@ contract InitializeTests is UniswapStrategyTest {
             TICK_UPPER,
             INFPM(NONFUNGIBLE_POSITION_MANAGER),
             IUniswapV3Factory(UNISWAP_V3_FACTORY),
+            POOL,
             UNISWAP_UTILS,
             0
         );
@@ -162,6 +167,7 @@ contract InitializeTests is UniswapStrategyTest {
             TICK_UPPER,
             INFPM(NONFUNGIBLE_POSITION_MANAGER),
             IUniswapV3Factory(UNISWAP_V3_FACTORY),
+            POOL,
             UNISWAP_UTILS,
             0
         );
@@ -179,6 +185,7 @@ contract InitializeTests is UniswapStrategyTest {
             TICK_UPPER,
             INFPM(NONFUNGIBLE_POSITION_MANAGER),
             IUniswapV3Factory(UNISWAP_V3_FACTORY),
+            POOL,
             UNISWAP_UTILS,
             0
         );
@@ -204,6 +211,7 @@ contract InitializeTests is UniswapStrategyTest {
             int24 tickUpper,
             INFPM nfpm,
             IUniswapV3Factory uniV3Factory,
+            IUniswapV3Pool pool,
             IUniswapUtils uniswapUtils,
             uint256 lpTokenId
         ) = strategy.uniswapPoolData();
@@ -214,6 +222,7 @@ contract InitializeTests is UniswapStrategyTest {
         assertEq(tickUpper, TICK_UPPER);
         assertEq(address(nfpm), NONFUNGIBLE_POSITION_MANAGER);
         assertEq(address(uniV3Factory), UNISWAP_V3_FACTORY);
+        assertEq(address(pool), address(POOL));
         assertEq(address(uniswapUtils), address(UNISWAP_UTILS));
         assertEq(lpTokenId, 0);
 
@@ -276,7 +285,7 @@ contract allocateTests is UniswapStrategyTest {
     }
 
     function test_Allocate_MintNewPositionAndLiquidity() public useKnownActor(USDS_OWNER) {
-        (,,,,,,,, uint256 lpTokenId) = strategy.uniswapPoolData();
+        (,,,,,,,,, uint256 lpTokenId) = strategy.uniswapPoolData();
         uint256 initialBal1 = IERC20(ASSET_1).balanceOf(address(strategy));
         uint256 initialBal2 = IERC20(ASSET_2).balanceOf(address(strategy));
         uint256 oldAllocatedAmt1 = strategy.checkBalance(ASSET_1) - initialBal1;
@@ -301,18 +310,20 @@ contract allocateTests is UniswapStrategyTest {
 
         assertTrue(new_bal_1 < initialBal1);
         assertTrue(new_bal_2 < initialBal2);
-        (,,,,,,,, lpTokenId) = strategy.uniswapPoolData();
+        (,,,,,,,,, lpTokenId) = strategy.uniswapPoolData();
         assertNotEq(lpTokenId, 0);
 
         // TODO check exact amounts?
         assertTrue(newAllocatedAmt1 > 0);
         assertTrue(newAllocatedAmt2 > 0);
+        assertEq(strategy.checkBalance(ASSET_1), strategy.checkAvailableBalance(ASSET_1));
+        assertEq(strategy.checkBalance(ASSET_2), strategy.checkAvailableBalance(ASSET_2));
     }
 
     function test_Allocate_IncreaseLiquidity() public useKnownActor(USDS_OWNER) {
         _allocate();
         _deposit();
-        (,,,,,,,, uint256 lpTokenId) = strategy.uniswapPoolData();
+        (,,,,,,,,, uint256 lpTokenId) = strategy.uniswapPoolData();
         uint256 oldAllocatedAmt1 = strategy.checkBalance(ASSET_1) - IERC20(ASSET_1).balanceOf(address(strategy));
         uint256 oldAllocatedAmt2 = strategy.checkBalance(ASSET_2) - IERC20(ASSET_2).balanceOf(address(strategy));
 
@@ -323,7 +334,7 @@ contract allocateTests is UniswapStrategyTest {
         emit IncreaseLiquidity(0, 0, 0); // not checking params
         strategy.allocate(amounts, minMintAmount);
 
-        (,,,,,,,, uint256 newLpTokenId) = strategy.uniswapPoolData();
+        (,,,,,,,,, uint256 newLpTokenId) = strategy.uniswapPoolData();
         uint256 newAllocatedAmt1 = strategy.checkBalance(ASSET_1) - IERC20(ASSET_1).balanceOf(address(strategy));
         uint256 newAllocatedAmt2 = strategy.checkBalance(ASSET_2) - IERC20(ASSET_2).balanceOf(address(strategy));
 
@@ -348,7 +359,7 @@ contract redeemTests is UniswapStrategyTest {
         uint256 initialBal1 = IERC20(ASSET_1).balanceOf(address(strategy));
         uint256 initialBal2 = IERC20(ASSET_2).balanceOf(address(strategy));
 
-        (,,,,,,,, uint256 lpTokenId) = strategy.uniswapPoolData();
+        (,,,,,,,,, uint256 lpTokenId) = strategy.uniswapPoolData();
         (,,,,,,, uint128 oldLiquidity,,,,) =
             INonfungiblePositionManager(NONFUNGIBLE_POSITION_MANAGER).positions(lpTokenId);
         assertTrue(oldLiquidity != 0, "Liquidity is 0");
@@ -381,7 +392,7 @@ contract redeemTests is UniswapStrategyTest {
         uint256 oldAllocatedAmt1 = strategy.checkBalance(ASSET_1) - initialBal1;
         uint256 oldAllocatedAmt2 = strategy.checkBalance(ASSET_2) - initialBal2;
 
-        (,,,,,,,, uint256 lpTokenId) = strategy.uniswapPoolData();
+        (,,,,,,,,, uint256 lpTokenId) = strategy.uniswapPoolData();
         (,,,,,,, uint128 oldLiquidity,,,,) =
             INonfungiblePositionManager(NONFUNGIBLE_POSITION_MANAGER).positions(lpTokenId);
         assertTrue(oldLiquidity != 0, "Liquidity is 0");

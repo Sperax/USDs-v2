@@ -10,6 +10,19 @@ import {
 } from "./interfaces/UniswapV3.sol";
 import {IUniswapUtils} from "./interfaces/IUniswapUtils.sol";
 import {PositionValue} from "./libraries/PositionValue.sol";
+import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
+
+struct InitializeUniswapPoolData {
+    address tokenA; // tokenA address
+    address tokenB; // tokenB address
+    uint24 feeTier; // fee tier
+    int24 tickLower; // tick lower
+    int24 tickUpper; // tick upper
+    INFPM nfpm; // NonfungiblePositionManager contract
+    IUniswapV3Factory uniV3Factory; // UniswapV3 Factory contract
+    IUniswapUtils uniswapUtils; // UniswapHelper contract
+    uint256 lpTokenId; // LP token id minted for the uniswapPoolData config
+}
 
 /// @title UniswapV3 strategy for USDs protocol
 /// @notice A yield earning strategy for USDs protocol
@@ -26,6 +39,7 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
         int24 tickUpper; // tick upper
         INFPM nfpm; // NonfungiblePositionManager contract
         IUniswapV3Factory uniV3Factory; // UniswapV3 Factory contract
+        IUniswapV3Pool pool; // UniswapV3 pool address
         IUniswapUtils uniswapUtils; // UniswapHelper contract
         uint256 lpTokenId; // LP token id minted for the uniswapPoolData config
     }
@@ -51,14 +65,14 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
         Helpers._isNonZeroAddr(address(_uniswapPoolData.nfpm));
         Helpers._isNonZeroAddr(address(_uniswapPoolData.uniswapUtils));
 
-        address pool = IUniswapV3Factory(_uniswapPoolData.uniV3Factory).getPool(
+        address derivedPool = IUniswapV3Factory(_uniswapPoolData.uniV3Factory).getPool(
             _uniswapPoolData.tokenA, _uniswapPoolData.tokenB, _uniswapPoolData.feeTier
         );
-        if (pool == address(0)) {
+        if (derivedPool == address(0) || derivedPool != address(_uniswapPoolData.pool)) {
             revert InvalidUniswapPoolConfig();
         }
 
-        _validateTickRange(pool, _uniswapPoolData.tickLower, _uniswapPoolData.tickUpper);
+        _validateTickRange(derivedPool, _uniswapPoolData.tickLower, _uniswapPoolData.tickUpper);
 
         // Sort tokens
         if (_uniswapPoolData.tokenA > _uniswapPoolData.tokenB) {
@@ -267,7 +281,8 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
     // TODO of no use.
     /// @inheritdoc InitializableAbstractStrategy
     function checkLPTokenBalance(address) external view override returns (uint256 balance) {
-        balance = uniswapPoolData.nfpm.balanceOf(address(this));
+        (,,,,,,, uint128 liquidity,,,,) = INFPM(uniswapPoolData.nfpm).positions(uniswapPoolData.lpTokenId);
+        return uint256(liquidity);
     }
 
     /// @inheritdoc InitializableAbstractStrategy
@@ -288,26 +303,25 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
     function checkBalance(address _asset) public view virtual override returns (uint256 balance) {
         UniswapPoolData memory poolData = uniswapPoolData;
         uint256 unallocatedBalance = IERC20(_asset).balanceOf(address(this));
-        uint256 allocatedAmt;
 
         if (poolData.lpTokenId == 0) {
             return unallocatedBalance;
         }
 
         (,,,,,,, uint128 liquidity,,,,) = INFPM(poolData.nfpm).positions(poolData.lpTokenId);
+        (uint160 sqrtPriceX96,,,,,,) = poolData.pool.slot0();
+        (uint256 amount0, uint256 amount1) = poolData.uniswapUtils.getAmountsForLiquidity(
+            sqrtPriceX96, poolData.tickLower, poolData.tickUpper, liquidity
+        );
 
         if (_asset == poolData.tokenA) {
-            allocatedAmt =
-                poolData.uniswapUtils.getAmount0ForLiquidity(poolData.tickLower, poolData.tickUpper, liquidity);
+            return amount0 + unallocatedBalance;
         } else if (_asset == poolData.tokenB) {
-            allocatedAmt =
-                poolData.uniswapUtils.getAmount1ForLiquidity(poolData.tickLower, poolData.tickUpper, liquidity);
+            return amount1 + unallocatedBalance;
         } else {
             // Handle the case where _asset is neither token0 nor token1
             revert CollateralNotSupported(_asset);
         }
-
-        return allocatedAmt + unallocatedBalance;
     }
 
     /// @inheritdoc InitializableAbstractStrategy
