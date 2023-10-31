@@ -249,8 +249,14 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
     }
 
     /// @inheritdoc InitializableAbstractStrategy
-    function checkInterestEarned(address _asset) external view override returns (uint256) {
+    function checkInterestEarned(address _asset) external view override returns (uint256 interest) {
+        if (!supportsCollateral(_asset)) revert CollateralNotSupported(_asset);
+
         UniswapPoolData memory poolData = uniswapPoolData;
+
+        if (poolData.lpTokenId == 0) {
+            return 0;
+        }
 
         // Get fees for both token0 and token1
         (uint256 feesToken0, uint256 feesToken1) =
@@ -260,16 +266,19 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
             return feesToken0;
         } else if (_asset == poolData.tokenB) {
             return feesToken1;
-        } else {
-            // Handle the case where _asset is neither token0 nor token1
-            revert CollateralNotSupported(_asset);
         }
     }
 
     // TODO of no use.
     /// @inheritdoc InitializableAbstractStrategy
     function checkLPTokenBalance(address) external view override returns (uint256 balance) {
-        (,,,,,,, uint128 liquidity,,,,) = INFPM(uniswapPoolData.nfpm).positions(uniswapPoolData.lpTokenId);
+        UniswapPoolData memory poolData = uniswapPoolData;
+
+        if (poolData.lpTokenId == 0) {
+            return 0;
+        }
+
+        (,,,,,,, uint128 liquidity,,,,) = INFPM(poolData.nfpm).positions(poolData.lpTokenId);
         return uint256(liquidity);
     }
 
@@ -289,6 +298,8 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
     /// @inheritdoc InitializableAbstractStrategy
     /// @dev The total balance, including allocated and unallocated amounts.
     function checkBalance(address _asset) public view virtual override returns (uint256 balance) {
+        if (!supportsCollateral(_asset)) revert CollateralNotSupported(_asset);
+
         UniswapPoolData memory poolData = uniswapPoolData;
         uint256 unallocatedBalance = IERC20(_asset).balanceOf(address(this));
 
@@ -306,9 +317,6 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
             return amount0 + unallocatedBalance;
         } else if (_asset == poolData.tokenB) {
             return amount1 + unallocatedBalance;
-        } else {
-            // Handle the case where _asset is neither token0 nor token1
-            revert CollateralNotSupported(_asset);
         }
     }
 
