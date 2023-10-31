@@ -14,10 +14,12 @@ import {
 } from "../../contracts/strategies/uniswap/interfaces/UniswapV3.sol";
 import {IUniswapUtils} from "../../contracts/strategies/uniswap/interfaces/IUniswapUtils.sol";
 import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
+import {ISwapRouter} from "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 
 address constant UNISWAP_V3_FACTORY = 0x1F98431c8aD98523631AE4a59f267346ea31F984;
 address constant NONFUNGIBLE_POSITION_MANAGER = 0xC36442b4a4522E871399CD717aBDD847Ab11FE88;
 address constant UNISWAP_UTILS = 0xd2Aa19D3B7f8cdb1ea5B782c5647542055af415e;
+address constant SWAP_ROUTER = 0xE592427A0AEce92De3Edee1F18E0157C05861564;
 address constant DUMMY_ADDRESS = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
 uint24 constant FEE = 500;
 int24 constant TICK_LOWER = -276330;
@@ -117,6 +119,43 @@ contract UniswapStrategyTest is BaseStrategy, BaseTest {
         strategy.redeem(liquidity, minBurnAmount);
     }
 
+    function _withdraw() internal {
+        changePrank(VAULT);
+        uint256 availableBal1 = IERC20(ASSET_1).balanceOf(address(strategy));
+        strategy.withdraw(VAULT, ASSET_1, availableBal1);
+
+        uint256 availableBal2 = IERC20(ASSET_2).balanceOf(address(strategy));
+        strategy.withdraw(VAULT, ASSET_2, availableBal2);
+        changePrank(USDS_OWNER);
+    }
+
+    function _swap(address inputToken, address outputToken, uint24 poolFee, uint256 amountIn)
+        internal
+        returns (uint256 amountOut)
+    {
+        IERC20(inputToken).approve(address(SWAP_ROUTER), amountIn);
+        ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({
+            tokenIn: inputToken,
+            tokenOut: outputToken,
+            fee: poolFee,
+            recipient: msg.sender,
+            deadline: block.timestamp,
+            amountIn: amountIn,
+            amountOutMinimum: 0,
+            sqrtPriceLimitX96: 0
+        });
+        // Executes the swap.
+        amountOut = ISwapRouter(SWAP_ROUTER).exactInputSingle(params);
+    }
+
+    function _stimulateSwap() internal {
+        deal(address(ASSET_1), address(this), depositAmount1);
+        deal(address(ASSET_2), address(this), depositAmount2);
+
+        _swap(ASSET_1, ASSET_2, FEE, depositAmount1);
+        _swap(ASSET_2, ASSET_1, FEE, depositAmount2);
+    }
+
     function _configAsset() internal {
         data.push(AssetData({name: "DAI", asset: 0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1}));
         data.push(AssetData({name: "USDC.e", asset: 0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8}));
@@ -197,7 +236,19 @@ contract InitializeTests is UniswapStrategyTest {
         assertEq(impl.owner(), address(0));
         assertEq(strategy.owner(), address(0));
 
-        _initializeStrategy();
+        UniswapStrategy.UniswapPoolData memory poolData = UniswapStrategy.UniswapPoolData(
+            ASSET_2, // passing asset2 first to check if the contract swaps it
+            ASSET_1,
+            FEE,
+            TICK_LOWER,
+            TICK_UPPER,
+            INFPM(NONFUNGIBLE_POSITION_MANAGER),
+            IUniswapV3Factory(UNISWAP_V3_FACTORY),
+            POOL,
+            IUniswapUtils(UNISWAP_UTILS),
+            0
+        );
+        strategy.initialize(VAULT, poolData);
 
         assertEq(impl.owner(), address(0));
         assertEq(strategy.owner(), USDS_OWNER);
@@ -230,6 +281,7 @@ contract InitializeTests is UniswapStrategyTest {
 
         assertTrue(strategy.supportsCollateral(ASSET_1));
         assertTrue(strategy.supportsCollateral(ASSET_2));
+        assertFalse(strategy.supportsCollateral(DUMMY_ADDRESS));
     }
 }
 
@@ -420,53 +472,55 @@ contract redeemTests is UniswapStrategyTest {
 }
 
 // TODO failing as interestEarned1 is not increased with time, but is increased with swap. So need to do that.
-// contract CollectInterest is UniswapStrategyTest {
+contract CollectInterest is UniswapStrategyTest {
+    function setUp() public override {
+        super.setUp();
+        vm.startPrank(USDS_OWNER);
+        _initializeStrategy();
+        _deposit();
+        vm.stopPrank();
+    }
 
-//     function setUp() public override {
-//         super.setUp();
-//         vm.startPrank(USDS_OWNER);
-//         _initializeStrategy();
-//         _setAssetData();
-//         _deposit();
-//         _allocate();
-//         vm.stopPrank();
-//     }
+    function test_RevertWhen_InvalidLPToken() public useActor(0) {
+        vm.expectRevert();
+        strategy.collectInterest(DUMMY_ADDRESS);
+    }
 
-//     function test_CollectInterest() public useKnownActor(VAULT) {
-//         vm.warp(block.timestamp + 10 days);
-//         vm.roll(block.number + 1000);
+    // function test_CollectInterest() public useActor(0) {
+    //     vm.warp(block.timestamp + 10 days);
+    //     vm.roll(block.number + 1000);
 
-//         uint256 initialBal1 = IERC20(ASSET_1).balanceOf(yieldReceiver);
-//         uint256 initialBal2 = IERC20(ASSET_2).balanceOf(yieldReceiver);
+    //     uint256 initialBal1 = IERC20(ASSET_1).balanceOf(yieldReceiver);
+    //     uint256 initialBal2 = IERC20(ASSET_2).balanceOf(yieldReceiver);
 
-//         vm.mockCall(VAULT, abi.encodeWithSignature("yieldReceiver()"), abi.encode(yieldReceiver));
+    //     vm.mockCall(VAULT, abi.encodeWithSignature("yieldReceiver()"), abi.encode(yieldReceiver));
 
-//         uint256 interestEarned1 = strategy.checkInterestEarned(ASSET_1);
-//         uint256 interestEarned2 = strategy.checkInterestEarned(ASSET_2);
+    //     uint256 interestEarned1 = strategy.checkInterestEarned(ASSET_1);
+    //     uint256 interestEarned2 = strategy.checkInterestEarned(ASSET_2);
 
-//         assert(interestEarned1 > 0);
-//         assert(interestEarned2 > 0);
+    //     assert(interestEarned1 > 0);
+    //     assert(interestEarned2 > 0);
 
-//         uint256 incentiveAmt1 = (interestEarned1 * 10) / 10000;
-//         uint256 harvestAmount1 = interestEarned1 - incentiveAmt1;
+    //     uint256 incentiveAmt1 = (interestEarned1 * 10) / 10000;
+    //     uint256 harvestAmount1 = interestEarned1 - incentiveAmt1;
 
-//         vm.expectEmit(true, false, false, true);
-//         emit InterestCollected(ASSET_1, yieldReceiver, harvestAmount1);
-//         // TODO add second event?
+    //     vm.expectEmit(true, false, false, true);
+    //     emit InterestCollected(ASSET_1, yieldReceiver, harvestAmount1);
+    //     // TODO add second event?
 
-//         strategy.collectInterest(DUMMY_ADDRESS);
+    //     strategy.collectInterest(DUMMY_ADDRESS);
 
-//         uint256 current_bal_1 = IERC20(ASSET_1).balanceOf(yieldReceiver);
-//         uint256 current_bal_2 = IERC20(ASSET_2).balanceOf(yieldReceiver);
-//         uint256 newInterestEarned1 = strategy.checkInterestEarned(ASSET_1);
-//         uint256 newInterestEarned2 = strategy.checkInterestEarned(ASSET_1);
+    //     uint256 current_bal_1 = IERC20(ASSET_1).balanceOf(yieldReceiver);
+    //     uint256 current_bal_2 = IERC20(ASSET_2).balanceOf(yieldReceiver);
+    //     uint256 newInterestEarned1 = strategy.checkInterestEarned(ASSET_1);
+    //     uint256 newInterestEarned2 = strategy.checkInterestEarned(ASSET_1);
 
-//         assertEq(newInterestEarned1, 0);
-//         assertEq(newInterestEarned2, 0);
-//         assertEq(current_bal_1, (initialBal1 + harvestAmount1));
-//         assertEq(current_bal_2, (initialBal2 + interestEarned2));
-//     }
-// }
+    //     assertEq(newInterestEarned1, 0);
+    //     assertEq(newInterestEarned2, 0);
+    //     assertEq(current_bal_1, (initialBal1 + harvestAmount1));
+    //     assertEq(current_bal_2, (initialBal2 + interestEarned2));
+    // }
+}
 
 contract WithdrawTest is UniswapStrategyTest {
     function setUp() public override {
@@ -479,21 +533,30 @@ contract WithdrawTest is UniswapStrategyTest {
         vm.stopPrank();
     }
 
-    // function test_RevertWhen_Withdraw0() public useKnownActor(USDS_OWNER) {
-    //     AssetData memory assetData = data[0];
-    //     vm.expectRevert(abi.encodeWithSelector(Helpers.CustomError.selector, "Must withdraw something"));
-    //     strategy.withdrawToVault(assetData.asset, 0);
-    // }
+    function test_RevertWhen_Withdraw0() public useKnownActor(USDS_OWNER) {
+        _withdraw();
+        vm.expectRevert(abi.encodeWithSelector(Helpers.CustomError.selector, "Must withdraw something"));
+        strategy.withdrawToVault(ASSET_1, 0);
+    }
 
-    // function test_RevertWhen_InvalidAddress() public useKnownActor(VAULT) {
-    //     vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAddress.selector));
-    //     strategy.withdraw(address(0), ASSET, 1);
-    // }
+    function test_RevertWhen_InvalidAddress() public useKnownActor(VAULT) {
+        vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAddress.selector));
+        strategy.withdraw(address(0), ASSET_1, 1);
+    }
 
-    // function test_RevertWhen_CallerNotVault() public useActor(0) {
-    //     vm.expectRevert(abi.encodeWithSelector(CallerNotVault.selector, actors[0]));
-    //     strategy.withdraw(VAULT, ASSET, 1);
-    // }
+    function test_RevertWhen_CallerNotVault() public useActor(0) {
+        vm.expectRevert(abi.encodeWithSelector(CallerNotVault.selector, actors[0]));
+        strategy.withdraw(VAULT, ASSET_1, 1);
+    }
+
+    function test_RevertWhen_NotSupportedCollateral() public useKnownActor(VAULT) {
+        vm.expectRevert(abi.encodeWithSelector(CollateralNotSupported.selector, DUMMY_ADDRESS));
+        strategy.withdraw(
+            VAULT,
+            DUMMY_ADDRESS, // invalid collateral
+            1
+        );
+    }
 
     function test_Withdraw() public useKnownActor(VAULT) {
         uint256 initialVaultBal = IERC20(ASSET_1).balanceOf(VAULT);
@@ -505,73 +568,111 @@ contract WithdrawTest is UniswapStrategyTest {
         strategy.withdraw(VAULT, ASSET_1, availableBal);
         assertEq(initialVaultBal + availableBal, IERC20(ASSET_1).balanceOf(VAULT));
     }
-
-    // function test_WithdrawToVault() public useKnownActor(USDS_OWNER) {
-    //     uint256 initialVaultBal = IERC20(ASSET).balanceOf(VAULT);
-    //     uint256 amt = 1000;
-
-    //     vm.warp(block.timestamp + 10 days);
-    //     vm.roll(block.number + 1000);
-
-    //     vm.expectEmit(true, false, false, true);
-    //     emit Withdrawal(ASSET, amt);
-
-    //     strategy.withdrawToVault(ASSET, amt);
-    //     assertEq(initialVaultBal + amt, IERC20(ASSET).balanceOf(VAULT));
-    // }
 }
 
-// contract MiscellaneousTest is UniswapStrategyTest {
-//     function setUp() public override {
-//         super.setUp();
-//         vm.startPrank(USDS_OWNER);
-//         _initializeStrategy();
-//         strategy.setPTokenAddress(ASSET, P_TOKEN, 0);
-//         vm.stopPrank();
-//     }
+contract WithdrawToVaultTest is UniswapStrategyTest {
+    function setUp() public override {
+        super.setUp();
+        vm.startPrank(USDS_OWNER);
+        _initializeStrategy();
+        _deposit();
+        _allocate();
+        _redeem();
+        vm.stopPrank();
+    }
 
-//     function test_CheckRewardEarned() public {
-//         uint256 reward = strategy.checkRewardEarned();
-//         assertEq(reward, 0);
-//     }
+    function test_RevertWhen_CallerNotOwner() public useActor(0) {
+        vm.expectRevert(abi.encodeWithSelector(CallerNotVault.selector, actors[0]));
+        strategy.withdraw(VAULT, ASSET_1, 1);
+    }
 
-//     function test_CheckBalance() public {
-//         (uint256 balance,) = strategy.assetInfo(ASSET);
-//         uint256 bal = strategy.checkBalance(ASSET);
-//         assertEq(bal, balance);
-//     }
+    function test_WithdrawToVault() public useKnownActor(USDS_OWNER) {
+        uint256 initialVaultBal = IERC20(ASSET_1).balanceOf(VAULT);
+        uint256 availableBal = IERC20(ASSET_1).balanceOf(address(strategy));
 
-//     function test_CheckAvailableBalance() public {
-//         vm.startPrank(VAULT);
-//         deal(address(ASSET), VAULT, depositAmount);
-//         IERC20(ASSET).approve(address(strategy), depositAmount);
-//         strategy.deposit(ASSET, depositAmount);
-//         vm.stopPrank();
+        vm.expectEmit(true, false, false, true);
+        emit Withdrawal(ASSET_1, availableBal);
 
-//         uint256 bal_after = strategy.checkAvailableBalance(ASSET);
-//         assertEq(bal_after, depositAmount);
-//     }
+        strategy.withdrawToVault(ASSET_1, availableBal);
+        assertEq(initialVaultBal + availableBal, IERC20(ASSET_1).balanceOf(VAULT));
+    }
+}
 
-//     function test_CheckAvailableBalance_InsufficientTokens() public {
-//         vm.startPrank(VAULT);
-//         deal(address(ASSET), VAULT, depositAmount);
-//         IERC20(ASSET).approve(address(strategy), depositAmount);
-//         strategy.deposit(ASSET, depositAmount);
-//         vm.stopPrank();
+// TODO check collectInterest
+// TODO check onERC721Received
+contract CheckBalanceTest is UniswapStrategyTest {
+    function setUp() public override {
+        super.setUp();
+        vm.startPrank(USDS_OWNER);
+        _initializeStrategy();
+        vm.stopPrank();
+    }
 
-//         _mockInsufficientAsset();
+    function test_RevertWhen_CollateralNotSupported() public useActor(0) {
+        vm.expectRevert(abi.encodeWithSelector(CollateralNotSupported.selector, DUMMY_ADDRESS));
+        strategy.checkBalance(DUMMY_ADDRESS);
+    }
 
-//         uint256 bal_after = strategy.checkAvailableBalance(ASSET);
-//         assertEq(bal_after, IERC20(ASSET).balanceOf(strategy.assetToPToken(ASSET)));
-//     }
+    function test_CheckBalance() public useActor(0) {
+        assertEq(strategy.checkBalance(ASSET_1), 0);
 
-//     function test_CollectReward() public {
-//         vm.expectRevert("No reward incentive for AAVE");
-//         strategy.collectReward();
-//     }
+        _deposit();
 
-//     function test_CheckInterestEarned_Empty() public {
-//         uint256 interest = strategy.checkInterestEarned(ASSET);
-//         assertEq(interest, 0);
-//     }
-// }
+        assertEq(strategy.checkBalance(ASSET_1), depositAmount1);
+        assertEq(strategy.checkBalance(ASSET_2), depositAmount2);
+        assertEq(strategy.checkAvailableBalance(ASSET_1), depositAmount1);
+        assertEq(strategy.checkAvailableBalance(ASSET_2), depositAmount2);
+
+        _allocate();
+        // TODO do we need to check math here?
+        _redeem();
+        _withdraw();
+
+        assertEq(strategy.checkBalance(ASSET_1), 0);
+        assertEq(strategy.checkBalance(ASSET_2), 0);
+    }
+}
+
+contract CheckLPTokenBalanceTest is UniswapStrategyTest {
+    function setUp() public override {
+        super.setUp();
+        vm.startPrank(USDS_OWNER);
+        _initializeStrategy();
+        vm.stopPrank();
+    }
+
+    function test_checkLPTokenBalance() public useActor(0) {
+        assertEq(strategy.checkLPTokenBalance(DUMMY_ADDRESS), 0);
+
+        _deposit();
+        assertEq(strategy.checkLPTokenBalance(DUMMY_ADDRESS), 0);
+
+        _allocate();
+        // TODO do we need to check math here?
+        assertTrue(strategy.checkLPTokenBalance(DUMMY_ADDRESS) > 0);
+
+        _redeem();
+        assertEq(strategy.checkLPTokenBalance(DUMMY_ADDRESS), 0);
+
+        _withdraw();
+        assertEq(strategy.checkLPTokenBalance(DUMMY_ADDRESS), 0);
+    }
+}
+
+contract MiscellaneousTest is UniswapStrategyTest {
+    function setUp() public override {
+        super.setUp();
+        vm.startPrank(USDS_OWNER);
+        _initializeStrategy();
+        vm.stopPrank();
+    }
+
+    function test_CheckRewardEarned() public {
+        assertEq(strategy.checkRewardEarned(), 0);
+    }
+
+    function test_RevertWhen_CollectReward() public {
+        vm.expectRevert(abi.encodeWithSelector(NoRewardToken.selector));
+        strategy.collectReward();
+    }
+}

@@ -206,6 +206,8 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
         address yieldReceiver = IStrategyVault(vault).yieldReceiver();
         UniswapPoolData memory poolData = uniswapPoolData;
 
+        // TODO not checking if lpTokenId == 0 and it will anyways revert on collect
+
         // set amount0Max and amount1Max to uint256.max to collect all fees
         INFPM.CollectParams memory params = INFPM.CollectParams({
             tokenId: poolData.lpTokenId,
