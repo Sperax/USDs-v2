@@ -288,13 +288,12 @@ contract CamelotStrategy is InitializableAbstractStrategy, INFTHandler {
 
     /// @inheritdoc InitializableAbstractStrategy
     function checkInterestEarned(address /*_asset*/ ) external pure override returns (uint256) {
-        // @todo implement
         return 0;
     }
 
     /// @inheritdoc InitializableAbstractStrategy
-    function collectInterest(address _asset) external pure override {
-        // @todo implement
+    function collectInterest(address /*_asset*/ ) external pure override {
+        revert Helpers.CustomError("Operation not permitted");
     }
 
     /// @inheritdoc InitializableAbstractStrategy
