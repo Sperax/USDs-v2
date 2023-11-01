@@ -210,14 +210,14 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
         // TODO not checking if lpTokenId == 0 and it will anyways revert on collect
 
         // set amount0Max and amount1Max to uint256.max to collect all fees
-        INFPM.CollectParams memory params = INFPM.CollectParams({
-            tokenId: uniswapPoolData.lpTokenId,
-            recipient: address(this),
-            amount0Max: type(uint128).max,
-            amount1Max: type(uint128).max
-        });
-
-        (uint256 amount0, uint256 amount1) = uniswapPoolData.nfpm.collect(params);
+        (uint256 amount0, uint256 amount1) = uniswapPoolData.nfpm.collect(
+            INFPM.CollectParams({
+                tokenId: uniswapPoolData.lpTokenId,
+                recipient: address(this),
+                amount0Max: type(uint128).max,
+                amount1Max: type(uint128).max
+            })
+        );
 
         if (amount0 != 0) {
             uint256 harvestAmt0 = _splitAndSendReward(tokenA, yieldReceiver, msg.sender, amount0);
