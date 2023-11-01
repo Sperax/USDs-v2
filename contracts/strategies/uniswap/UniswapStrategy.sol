@@ -15,6 +15,7 @@ import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Po
 /// @notice A yield earning strategy for USDs protocol
 /// @author Sperax Foundation
 /// @dev Parts of this code were inspired from https://docs.uniswap.org/contracts/v3/guides/providing-liquidity/the-full-contract.
+/// Important contract addresses- https://docs.uniswap.org/contracts/v3/reference/deployments
 contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
     using SafeERC20 for IERC20;
 
