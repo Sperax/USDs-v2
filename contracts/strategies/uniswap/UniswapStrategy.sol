@@ -50,7 +50,6 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
     /// @param _vault The address of the USDs Vault contract.
     /// @param _uniswapPoolData The Uniswap pool data including token addresses and fee tier.
     function initialize(address _vault, UniswapPoolData memory _uniswapPoolData) external initializer {
-        Helpers._isNonZeroAddr(address(_uniswapPoolData.nfpm));
         Helpers._isNonZeroAddr(address(_uniswapPoolData.uniswapUtils));
 
         address derivedPool = IUniswapV3Factory(_uniswapPoolData.uniV3Factory).getPool(
