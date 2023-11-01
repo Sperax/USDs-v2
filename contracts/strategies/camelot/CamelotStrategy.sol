@@ -48,6 +48,7 @@ contract CamelotStrategy is InitializableAbstractStrategy, INFTHandler {
         uint16 _depositSlippage,
         uint16 _withdrawSlippage
     ) external initializer {
+        _validateStrategyData(_strategyData);
         Helpers._isNonZeroAddr(_strategyData.tokenA);
         Helpers._isNonZeroAddr(_strategyData.tokenB);
         Helpers._isNonZeroAddr(_strategyData.router);
@@ -184,6 +185,7 @@ contract CamelotStrategy is InitializableAbstractStrategy, INFTHandler {
     /// @notice A function to update the StrategyData struct if there is a change from Camelot's side
     /// @param _strategyData StrategyData type struct with the updated values
     function updateStrategyData(StrategyData memory _strategyData) external onlyOwner {
+        _validateStrategyData(_strategyData);
         strategyData = _strategyData;
         emit StrategyDataUpdated(_strategyData);
     }
@@ -345,5 +347,14 @@ contract CamelotStrategy is InitializableAbstractStrategy, INFTHandler {
         if (_asset != strategyData.tokenA && _asset != strategyData.tokenB) {
             revert InvalidAsset();
         }
+    }
+
+    function _validateStrategyData(StrategyData memory _strategyData) private view {
+        Helpers._isNonZeroAddr(_strategyData.tokenA);
+        Helpers._isNonZeroAddr(_strategyData.tokenB);
+        Helpers._isNonZeroAddr(_strategyData.router);
+        Helpers._isNonZeroAddr(_strategyData.positionHelper);
+        Helpers._isNonZeroAddr(_strategyData.factory);
+        Helpers._isNonZeroAddr(_strategyData.nftPool);
     }
 }
