@@ -299,7 +299,7 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
 
     /// @inheritdoc InitializableAbstractStrategy
     /// @dev The total balance, including allocated and unallocated amounts.
-    function checkBalance(address _asset) public view virtual override returns (uint256 balance) {
+    function checkBalance(address _asset) public view override returns (uint256 balance) {
         if (!supportsCollateral(_asset)) revert CollateralNotSupported(_asset);
 
         UniswapPoolData memory poolData = uniswapPoolData;
