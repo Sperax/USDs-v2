@@ -15,8 +15,6 @@ import {
 import {IUniswapUtils} from "../../contracts/strategies/uniswap/interfaces/IUniswapUtils.sol";
 import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import {ISwapRouter} from "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
-// TODO remove later
-import {console} from "forge-std/console.sol";
 
 address constant UNISWAP_V3_FACTORY = 0x1F98431c8aD98523631AE4a59f267346ea31F984;
 address constant NONFUNGIBLE_POSITION_MANAGER = 0xC36442b4a4522E871399CD717aBDD847Ab11FE88;
@@ -72,8 +70,8 @@ contract UniswapStrategyTest is BaseStrategy, BaseTest {
         _configAsset();
         ASSET_1 = data[0].asset;
         ASSET_2 = data[1].asset;
-        depositAmount1 = 1e15 * 10 ** ERC20(ASSET_1).decimals();
-        depositAmount2 = 1e15 * 10 ** ERC20(ASSET_2).decimals();
+        depositAmount1 = 1e6 * 10 ** ERC20(ASSET_1).decimals();
+        depositAmount2 = 1e6 * 10 ** ERC20(ASSET_2).decimals();
 
         POOL = IUniswapV3Pool(IUniswapV3Factory(UNISWAP_V3_FACTORY).getPool(ASSET_1, ASSET_2, FEE));
 
@@ -479,6 +477,7 @@ contract CollectInterestTests is UniswapStrategyTest {
         vm.startPrank(USDS_OWNER);
         _initializeStrategy();
         _deposit();
+        _allocate();
         vm.stopPrank();
     }
 
@@ -487,18 +486,13 @@ contract CollectInterestTests is UniswapStrategyTest {
         strategy.collectInterest(DUMMY_ADDRESS);
     }
 
-    // TODO fix failing test. Interest does not increase from 0.
-    function test_CollectInterest() public useActor(0) {
-        console.log("liquidity", IUniswapV3Pool(POOL).liquidity());
+    function test_CollectInterest() public useActor(1) {
         _stimulateSwap();
-        console.log("liquidity", IUniswapV3Pool(POOL).liquidity());
-
-        // TODO not thing this is required
-        vm.warp(block.timestamp + 10 days);
-        vm.roll(block.number + 1000);
 
         uint256 initialBal1 = IERC20(ASSET_1).balanceOf(yieldReceiver);
         uint256 initialBal2 = IERC20(ASSET_2).balanceOf(yieldReceiver);
+        uint256 initialSenderBal1 = IERC20(ASSET_1).balanceOf(currentActor);
+        uint256 initialSenderBal2 = IERC20(ASSET_2).balanceOf(currentActor);
 
         vm.mockCall(VAULT, abi.encodeWithSignature("yieldReceiver()"), abi.encode(yieldReceiver));
 
@@ -523,6 +517,8 @@ contract CollectInterestTests is UniswapStrategyTest {
         assertEq(strategy.checkInterestEarned(ASSET_1), 0);
         assertEq(IERC20(ASSET_1).balanceOf(yieldReceiver), (initialBal1 + harvestAmount1));
         assertEq(IERC20(ASSET_2).balanceOf(yieldReceiver), (initialBal2 + harvestAmount2));
+        assertEq(IERC20(ASSET_1).balanceOf(currentActor), (initialSenderBal1 + incentiveAmt1));
+        assertEq(IERC20(ASSET_2).balanceOf(currentActor), (initialSenderBal2 + incentiveAmt2));
     }
 }
 
@@ -641,20 +637,27 @@ contract CheckInterestEarnedTests is UniswapStrategyTest {
         strategy.checkInterestEarned(DUMMY_ADDRESS);
     }
 
-    function test_CheckInterestEarned() public useActor(0) {
+    function test_CheckInterestEarned() public useKnownActor(USDS_OWNER) {
         assertEq(strategy.checkInterestEarned(ASSET_1), 0);
         assertEq(strategy.checkInterestEarned(ASSET_2), 0);
 
         _deposit();
         assertEq(strategy.checkInterestEarned(ASSET_1), 0);
+        assertEq(strategy.checkInterestEarned(ASSET_2), 0);
 
         _allocate();
         assertEq(strategy.checkInterestEarned(ASSET_1), 0);
+        assertEq(strategy.checkInterestEarned(ASSET_2), 0);
 
-        // TODO add swaps to test interest earned
-        // _stimulateSwap();
-        // assertTrue(strategy.checkInterestEarned(ASSET_1) > 0);
-        // assertTrue(strategy.checkInterestEarned(ASSET_2) > 0);
+        // TODO check math?
+        _stimulateSwap();
+        assertTrue(strategy.checkInterestEarned(ASSET_1) > 0);
+        assertTrue(strategy.checkInterestEarned(ASSET_2) > 0);
+
+        vm.mockCall(VAULT, abi.encodeWithSignature("yieldReceiver()"), abi.encode(yieldReceiver));
+        strategy.collectInterest(DUMMY_ADDRESS);
+        assertEq(strategy.checkInterestEarned(ASSET_1), 0);
+        assertEq(strategy.checkInterestEarned(ASSET_2), 0);
     }
 }
 
