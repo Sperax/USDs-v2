@@ -489,23 +489,23 @@ contract CollectInterestTests is UniswapStrategyTest {
     function test_CollectInterest() public useActor(1) {
         _stimulateSwap();
 
-        uint256 initialBal1 = IERC20(ASSET_1).balanceOf(yieldReceiver);
-        uint256 initialBal2 = IERC20(ASSET_2).balanceOf(yieldReceiver);
-        uint256 initialSenderBal1 = IERC20(ASSET_1).balanceOf(currentActor);
-        uint256 initialSenderBal2 = IERC20(ASSET_2).balanceOf(currentActor);
+        uint256[2] memory initialBal =
+            [IERC20(ASSET_1).balanceOf(yieldReceiver), IERC20(ASSET_2).balanceOf(yieldReceiver)];
+        uint256[2] memory initialSenderBal =
+            [IERC20(ASSET_1).balanceOf(currentActor), IERC20(ASSET_2).balanceOf(currentActor)];
 
         vm.mockCall(VAULT, abi.encodeWithSignature("yieldReceiver()"), abi.encode(yieldReceiver));
 
-        uint256 interestEarned1 = strategy.checkInterestEarned(ASSET_1);
-        uint256 interestEarned2 = strategy.checkInterestEarned(ASSET_2);
+        uint256[2] memory interestEarned =
+            [strategy.checkInterestEarned(ASSET_1), strategy.checkInterestEarned(ASSET_2)];
 
-        assert(interestEarned1 > 0);
-        assert(interestEarned2 > 0);
+        assert(interestEarned[0] > 0);
+        assert(interestEarned[1] > 0);
 
-        uint256 incentiveAmt1 = (interestEarned1 * 10) / 10000;
-        uint256 harvestAmount1 = interestEarned1 - incentiveAmt1;
-        uint256 incentiveAmt2 = (interestEarned2 * 10) / 10000;
-        uint256 harvestAmount2 = interestEarned2 - incentiveAmt2;
+        uint256 incentiveAmt1 = (interestEarned[0] * 10) / 10000;
+        uint256 harvestAmount1 = interestEarned[0] - incentiveAmt1;
+        uint256 incentiveAmt2 = (interestEarned[1] * 10) / 10000;
+        uint256 harvestAmount2 = interestEarned[1] - incentiveAmt2;
 
         vm.expectEmit(true, false, false, true);
         emit InterestCollected(ASSET_1, yieldReceiver, harvestAmount1);
@@ -515,10 +515,10 @@ contract CollectInterestTests is UniswapStrategyTest {
 
         assertEq(strategy.checkInterestEarned(ASSET_1), 0);
         assertEq(strategy.checkInterestEarned(ASSET_1), 0);
-        assertEq(IERC20(ASSET_1).balanceOf(yieldReceiver), (initialBal1 + harvestAmount1));
-        assertEq(IERC20(ASSET_2).balanceOf(yieldReceiver), (initialBal2 + harvestAmount2));
-        assertEq(IERC20(ASSET_1).balanceOf(currentActor), (initialSenderBal1 + incentiveAmt1));
-        assertEq(IERC20(ASSET_2).balanceOf(currentActor), (initialSenderBal2 + incentiveAmt2));
+        assertEq(IERC20(ASSET_1).balanceOf(yieldReceiver), (initialBal[0] + harvestAmount1));
+        assertEq(IERC20(ASSET_2).balanceOf(yieldReceiver), (initialBal[1] + harvestAmount2));
+        assertEq(IERC20(ASSET_1).balanceOf(currentActor), (initialSenderBal[0] + incentiveAmt1));
+        assertEq(IERC20(ASSET_2).balanceOf(currentActor), (initialSenderBal[1] + incentiveAmt2));
     }
 }
 
