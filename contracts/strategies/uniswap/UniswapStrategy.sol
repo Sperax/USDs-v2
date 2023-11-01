@@ -148,11 +148,12 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
     function redeem(uint256 _liquidity, uint256[2] calldata _minBurnAmt) external onlyOwner nonReentrant {
         Helpers._isNonZeroAmt(_liquidity);
 
-        UniswapPoolData memory poolData = uniswapPoolData;
+        uint256 lpTokenId = uniswapPoolData.lpTokenId;
+        INFPM nfpm = uniswapPoolData.nfpm;
 
-        (uint256 amount0, uint256 amount1) = poolData.nfpm.decreaseLiquidity(
+        (uint256 amount0, uint256 amount1) = nfpm.decreaseLiquidity(
             INFPM.DecreaseLiquidityParams({
-                tokenId: poolData.lpTokenId,
+                tokenId: lpTokenId,
                 liquidity: uint128(_liquidity),
                 amount0Min: _minBurnAmt[0],
                 amount1Min: _minBurnAmt[1],
@@ -160,9 +161,9 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
             })
         );
 
-        poolData.nfpm.collect(
+        nfpm.collect(
             INFPM.CollectParams({
-                tokenId: poolData.lpTokenId,
+                tokenId: lpTokenId,
                 recipient: address(this),
                 amount0Max: uint128(amount0),
                 amount1Max: uint128(amount1)
@@ -203,28 +204,29 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
     /// @dev Collects interest earned from the Uniswap V3 pool and distributes it.
     function collectInterest(address) external override nonReentrant {
         address yieldReceiver = IStrategyVault(vault).yieldReceiver();
-        UniswapPoolData memory poolData = uniswapPoolData;
+        address tokenA = uniswapPoolData.tokenA;
+        address tokenB = uniswapPoolData.tokenB;
 
         // TODO not checking if lpTokenId == 0 and it will anyways revert on collect
 
         // set amount0Max and amount1Max to uint256.max to collect all fees
         INFPM.CollectParams memory params = INFPM.CollectParams({
-            tokenId: poolData.lpTokenId,
+            tokenId: uniswapPoolData.lpTokenId,
             recipient: address(this),
             amount0Max: type(uint128).max,
             amount1Max: type(uint128).max
         });
 
-        (uint256 amount0, uint256 amount1) = poolData.nfpm.collect(params);
+        (uint256 amount0, uint256 amount1) = uniswapPoolData.nfpm.collect(params);
 
         if (amount0 != 0) {
-            uint256 harvestAmt0 = _splitAndSendReward(poolData.tokenA, yieldReceiver, msg.sender, amount0);
-            emit InterestCollected(poolData.tokenA, yieldReceiver, harvestAmt0);
+            uint256 harvestAmt0 = _splitAndSendReward(tokenA, yieldReceiver, msg.sender, amount0);
+            emit InterestCollected(tokenA, yieldReceiver, harvestAmt0);
         }
 
         if (amount1 != 0) {
-            uint256 harvestAmt1 = _splitAndSendReward(poolData.tokenB, yieldReceiver, msg.sender, amount1);
-            emit InterestCollected(poolData.tokenB, yieldReceiver, harvestAmt1);
+            uint256 harvestAmt1 = _splitAndSendReward(tokenB, yieldReceiver, msg.sender, amount1);
+            emit InterestCollected(tokenB, yieldReceiver, harvestAmt1);
         }
     }
 
@@ -253,32 +255,30 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
     function checkInterestEarned(address _asset) external view override returns (uint256 interest) {
         if (!supportsCollateral(_asset)) revert CollateralNotSupported(_asset);
 
-        UniswapPoolData memory poolData = uniswapPoolData;
+        uint256 lpTokenId = uniswapPoolData.lpTokenId;
 
-        if (poolData.lpTokenId == 0) {
+        if (lpTokenId == 0) {
             return 0;
         }
 
         // Get fees for both token0 and token1
         (uint256 feesToken0, uint256 feesToken1) =
-            poolData.uniswapUtils.fees(address(poolData.nfpm), poolData.lpTokenId);
+            uniswapPoolData.uniswapUtils.fees(address(uniswapPoolData.nfpm), lpTokenId);
 
-        if (_asset == poolData.tokenA) {
+        if (_asset == uniswapPoolData.tokenA) {
             return feesToken0;
-        } else if (_asset == poolData.tokenB) {
+        } else if (_asset == uniswapPoolData.tokenB) {
             return feesToken1;
         }
     }
 
     /// @inheritdoc InitializableAbstractStrategy
     function checkLPTokenBalance(address) external view override returns (uint256 balance) {
-        UniswapPoolData memory poolData = uniswapPoolData;
-
-        if (poolData.lpTokenId == 0) {
+        if (uniswapPoolData.lpTokenId == 0) {
             return 0;
         }
 
-        (,,,,,,, uint128 liquidity,,,,) = INFPM(poolData.nfpm).positions(poolData.lpTokenId);
+        (,,,,,,, uint128 liquidity,,,,) = INFPM(uniswapPoolData.nfpm).positions(uniswapPoolData.lpTokenId);
         return uint256(liquidity);
     }
 
@@ -300,22 +300,22 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
     function checkBalance(address _asset) public view override returns (uint256 balance) {
         if (!supportsCollateral(_asset)) revert CollateralNotSupported(_asset);
 
-        UniswapPoolData memory poolData = uniswapPoolData;
+        uint256 lpTokenId = uniswapPoolData.lpTokenId;
         uint256 unallocatedBalance = IERC20(_asset).balanceOf(address(this));
 
-        if (poolData.lpTokenId == 0) {
+        if (lpTokenId == 0) {
             return unallocatedBalance;
         }
 
-        (,,,,,,, uint128 liquidity,,,,) = INFPM(poolData.nfpm).positions(poolData.lpTokenId);
-        (uint160 sqrtPriceX96,,,,,,) = poolData.pool.slot0();
-        (uint256 amount0, uint256 amount1) = poolData.uniswapUtils.getAmountsForLiquidity(
-            sqrtPriceX96, poolData.tickLower, poolData.tickUpper, liquidity
+        (,,,,,,, uint128 liquidity,,,,) = INFPM(uniswapPoolData.nfpm).positions(lpTokenId);
+        (uint160 sqrtPriceX96,,,,,,) = uniswapPoolData.pool.slot0();
+        (uint256 amount0, uint256 amount1) = uniswapPoolData.uniswapUtils.getAmountsForLiquidity(
+            sqrtPriceX96, uniswapPoolData.tickLower, uniswapPoolData.tickUpper, liquidity
         );
 
-        if (_asset == poolData.tokenA) {
+        if (_asset == uniswapPoolData.tokenA) {
             return amount0 + unallocatedBalance;
-        } else if (_asset == poolData.tokenB) {
+        } else if (_asset == uniswapPoolData.tokenB) {
             return amount1 + unallocatedBalance;
         }
     }
