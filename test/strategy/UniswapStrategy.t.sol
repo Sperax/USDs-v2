@@ -24,8 +24,8 @@ address constant UNISWAP_UTILS = 0xd2Aa19D3B7f8cdb1ea5B782c5647542055af415e;
 address constant SWAP_ROUTER = 0xE592427A0AEce92De3Edee1F18E0157C05861564;
 address constant DUMMY_ADDRESS = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
 uint24 constant FEE = 500;
-int24 constant TICK_LOWER = -279890;
-int24 constant TICK_UPPER = -265330;
+int24 constant TICK_LOWER = -887270;
+int24 constant TICK_UPPER = 887270;
 
 contract UniswapStrategyTest is BaseStrategy, BaseTest {
     struct AssetData {
@@ -72,8 +72,8 @@ contract UniswapStrategyTest is BaseStrategy, BaseTest {
         _configAsset();
         ASSET_1 = data[0].asset;
         ASSET_2 = data[1].asset;
-        depositAmount1 = 1 * 10 ** ERC20(ASSET_1).decimals();
-        depositAmount2 = 1 * 10 ** ERC20(ASSET_2).decimals();
+        depositAmount1 = 1e15 * 10 ** ERC20(ASSET_1).decimals();
+        depositAmount2 = 1e15 * 10 ** ERC20(ASSET_2).decimals();
 
         POOL = IUniswapV3Pool(IUniswapV3Factory(UNISWAP_V3_FACTORY).getPool(ASSET_1, ASSET_2, FEE));
 
@@ -473,7 +473,7 @@ contract redeemTests is UniswapStrategyTest {
 }
 
 // TODO failing as interestEarned1 is not increased with time, but is increased with swap. So need to do that.
-contract CollectInterest is UniswapStrategyTest {
+contract CollectInterestTests is UniswapStrategyTest {
     function setUp() public override {
         super.setUp();
         vm.startPrank(USDS_OWNER);
@@ -488,42 +488,45 @@ contract CollectInterest is UniswapStrategyTest {
     }
 
     // TODO fix failing test. Interest does not increase from 0.
-    // function test_CollectInterest() public useActor(0) {
-    //     _stimulateSwap();
-    //     // TODO not thing this is required
-    //     vm.warp(block.timestamp + 10 days);
-    //     vm.roll(block.number + 1000);
+    function test_CollectInterest() public useActor(0) {
+        console.log("liquidity", IUniswapV3Pool(POOL).liquidity());
+        _stimulateSwap();
+        console.log("liquidity", IUniswapV3Pool(POOL).liquidity());
 
-    //     uint256 initialBal1 = IERC20(ASSET_1).balanceOf(yieldReceiver);
-    //     uint256 initialBal2 = IERC20(ASSET_2).balanceOf(yieldReceiver);
+        // TODO not thing this is required
+        vm.warp(block.timestamp + 10 days);
+        vm.roll(block.number + 1000);
 
-    //     vm.mockCall(VAULT, abi.encodeWithSignature("yieldReceiver()"), abi.encode(yieldReceiver));
+        uint256 initialBal1 = IERC20(ASSET_1).balanceOf(yieldReceiver);
+        uint256 initialBal2 = IERC20(ASSET_2).balanceOf(yieldReceiver);
 
-    //     uint256 interestEarned1 = strategy.checkInterestEarned(ASSET_1);
-    //     uint256 interestEarned2 = strategy.checkInterestEarned(ASSET_2);
+        vm.mockCall(VAULT, abi.encodeWithSignature("yieldReceiver()"), abi.encode(yieldReceiver));
 
-    //     assert(interestEarned1 > 0);
-    //     assert(interestEarned2 > 0);
+        uint256 interestEarned1 = strategy.checkInterestEarned(ASSET_1);
+        uint256 interestEarned2 = strategy.checkInterestEarned(ASSET_2);
 
-    //     uint256 incentiveAmt1 = (interestEarned1 * 10) / 10000;
-    //     uint256 harvestAmount1 = interestEarned1 - incentiveAmt1;
-    //     uint256 incentiveAmt2 = (interestEarned2 * 10) / 10000;
-    //     uint256 harvestAmount2 = interestEarned2 - incentiveAmt2;
+        assert(interestEarned1 > 0);
+        assert(interestEarned2 > 0);
 
-    //     vm.expectEmit(true, false, false, true);
-    //     emit InterestCollected(ASSET_1, yieldReceiver, harvestAmount1);
-    //     // TODO add second event?
+        uint256 incentiveAmt1 = (interestEarned1 * 10) / 10000;
+        uint256 harvestAmount1 = interestEarned1 - incentiveAmt1;
+        uint256 incentiveAmt2 = (interestEarned2 * 10) / 10000;
+        uint256 harvestAmount2 = interestEarned2 - incentiveAmt2;
 
-    //     strategy.collectInterest(DUMMY_ADDRESS);
+        vm.expectEmit(true, false, false, true);
+        emit InterestCollected(ASSET_1, yieldReceiver, harvestAmount1);
+        // TODO add second event?
 
-    //     assertEq(strategy.checkInterestEarned(ASSET_1), 0);
-    //     assertEq(strategy.checkInterestEarned(ASSET_1), 0);
-    //     assertEq(IERC20(ASSET_1).balanceOf(yieldReceiver), (initialBal1 + harvestAmount1));
-    //     assertEq(IERC20(ASSET_2).balanceOf(yieldReceiver), (initialBal2 + harvestAmount2));
-    // }
+        strategy.collectInterest(DUMMY_ADDRESS);
+
+        assertEq(strategy.checkInterestEarned(ASSET_1), 0);
+        assertEq(strategy.checkInterestEarned(ASSET_1), 0);
+        assertEq(IERC20(ASSET_1).balanceOf(yieldReceiver), (initialBal1 + harvestAmount1));
+        assertEq(IERC20(ASSET_2).balanceOf(yieldReceiver), (initialBal2 + harvestAmount2));
+    }
 }
 
-contract WithdrawTest is UniswapStrategyTest {
+contract WithdrawTests is UniswapStrategyTest {
     function setUp() public override {
         super.setUp();
         vm.startPrank(USDS_OWNER);
@@ -571,7 +574,7 @@ contract WithdrawTest is UniswapStrategyTest {
     }
 }
 
-contract WithdrawToVaultTest is UniswapStrategyTest {
+contract WithdrawToVaultTests is UniswapStrategyTest {
     function setUp() public override {
         super.setUp();
         vm.startPrank(USDS_OWNER);
@@ -599,7 +602,7 @@ contract WithdrawToVaultTest is UniswapStrategyTest {
     }
 }
 
-contract OnERC721ReceivedTest is UniswapStrategyTest {
+contract OnERC721ReceivedTests is UniswapStrategyTest {
     function setUp() public override {
         super.setUp();
         vm.startPrank(USDS_OWNER);
@@ -625,7 +628,7 @@ contract OnERC721ReceivedTest is UniswapStrategyTest {
     }
 }
 
-contract CheckInterestEarnedTest is UniswapStrategyTest {
+contract CheckInterestEarnedTests is UniswapStrategyTest {
     function setUp() public override {
         super.setUp();
         vm.startPrank(USDS_OWNER);
@@ -655,7 +658,7 @@ contract CheckInterestEarnedTest is UniswapStrategyTest {
     }
 }
 
-contract CheckBalanceTest is UniswapStrategyTest {
+contract CheckBalanceTests is UniswapStrategyTest {
     function setUp() public override {
         super.setUp();
         vm.startPrank(USDS_OWNER);
@@ -688,7 +691,7 @@ contract CheckBalanceTest is UniswapStrategyTest {
     }
 }
 
-contract CheckLPTokenBalanceTest is UniswapStrategyTest {
+contract CheckLPTokenBalanceTests is UniswapStrategyTest {
     function setUp() public override {
         super.setUp();
         vm.startPrank(USDS_OWNER);
@@ -714,7 +717,7 @@ contract CheckLPTokenBalanceTest is UniswapStrategyTest {
     }
 }
 
-contract MiscellaneousTest is UniswapStrategyTest {
+contract MiscellaneousTests is UniswapStrategyTest {
     function setUp() public override {
         super.setUp();
         vm.startPrank(USDS_OWNER);

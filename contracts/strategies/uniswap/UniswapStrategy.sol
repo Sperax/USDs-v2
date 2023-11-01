@@ -88,7 +88,6 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
     /// @param _amounts An array containing the amounts of tokens to be allocated.
     /// @param _minMintAmt An array specifying the minimum minting amounts for each token.
     function allocate(uint256[2] calldata _amounts, uint256[2] calldata _minMintAmt) external onlyOwner nonReentrant {
-        // TODO do we want to check non zero for each amount?
         Helpers._isNonZeroAmt(_amounts[0] + _amounts[1]);
 
         UniswapPoolData storage poolData = uniswapPoolData;
@@ -271,7 +270,6 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
         }
     }
 
-    // TODO of no use.
     /// @inheritdoc InitializableAbstractStrategy
     function checkLPTokenBalance(address) external view override returns (uint256 balance) {
         UniswapPoolData memory poolData = uniswapPoolData;
@@ -341,7 +339,6 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
         emit Withdrawal(_asset, _amount);
     }
 
-    // TODO of no use.
     function _abstractSetPToken(address _asset, address _lpToken) internal view override {}
 
     function _validateTickRange(address _pool, int24 _tickLower, int24 _tickUpper) private view {
