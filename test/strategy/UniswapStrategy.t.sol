@@ -15,6 +15,8 @@ import {
 import {IUniswapUtils} from "../../contracts/strategies/uniswap/interfaces/IUniswapUtils.sol";
 import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import {ISwapRouter} from "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
+// TODO remove later
+import {console} from "forge-std/console.sol";
 
 address constant UNISWAP_V3_FACTORY = 0x1F98431c8aD98523631AE4a59f267346ea31F984;
 address constant NONFUNGIBLE_POSITION_MANAGER = 0xC36442b4a4522E871399CD717aBDD847Ab11FE88;
@@ -22,8 +24,8 @@ address constant UNISWAP_UTILS = 0xd2Aa19D3B7f8cdb1ea5B782c5647542055af415e;
 address constant SWAP_ROUTER = 0xE592427A0AEce92De3Edee1F18E0157C05861564;
 address constant DUMMY_ADDRESS = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
 uint24 constant FEE = 500;
-int24 constant TICK_LOWER = -276330;
-int24 constant TICK_UPPER = -276310;
+int24 constant TICK_LOWER = -279890;
+int24 constant TICK_UPPER = -265330;
 
 contract UniswapStrategyTest is BaseStrategy, BaseTest {
     struct AssetData {
@@ -133,12 +135,14 @@ contract UniswapStrategyTest is BaseStrategy, BaseTest {
         internal
         returns (uint256 amountOut)
     {
+        deal(address(inputToken), currentActor, amountIn);
+
         IERC20(inputToken).approve(address(SWAP_ROUTER), amountIn);
         ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({
             tokenIn: inputToken,
             tokenOut: outputToken,
             fee: poolFee,
-            recipient: msg.sender,
+            recipient: currentActor,
             deadline: block.timestamp,
             amountIn: amountIn,
             amountOutMinimum: 0,
@@ -149,9 +153,6 @@ contract UniswapStrategyTest is BaseStrategy, BaseTest {
     }
 
     function _stimulateSwap() internal {
-        deal(address(ASSET_1), address(this), depositAmount1);
-        deal(address(ASSET_2), address(this), depositAmount2);
-
         _swap(ASSET_1, ASSET_2, FEE, depositAmount1);
         _swap(ASSET_2, ASSET_1, FEE, depositAmount2);
     }
@@ -486,40 +487,39 @@ contract CollectInterest is UniswapStrategyTest {
         strategy.collectInterest(DUMMY_ADDRESS);
     }
 
-    // function test_CollectInterest() public useActor(0) {
-    //     vm.warp(block.timestamp + 10 days);
-    //     vm.roll(block.number + 1000);
+    function test_CollectInterest() public useActor(0) {
+        _stimulateSwap();
+        // TODO not thing this is required
+        vm.warp(block.timestamp + 10 days);
+        vm.roll(block.number + 1000);
 
-    //     uint256 initialBal1 = IERC20(ASSET_1).balanceOf(yieldReceiver);
-    //     uint256 initialBal2 = IERC20(ASSET_2).balanceOf(yieldReceiver);
+        uint256 initialBal1 = IERC20(ASSET_1).balanceOf(yieldReceiver);
+        uint256 initialBal2 = IERC20(ASSET_2).balanceOf(yieldReceiver);
 
-    //     vm.mockCall(VAULT, abi.encodeWithSignature("yieldReceiver()"), abi.encode(yieldReceiver));
+        vm.mockCall(VAULT, abi.encodeWithSignature("yieldReceiver()"), abi.encode(yieldReceiver));
 
-    //     uint256 interestEarned1 = strategy.checkInterestEarned(ASSET_1);
-    //     uint256 interestEarned2 = strategy.checkInterestEarned(ASSET_2);
+        uint256 interestEarned1 = strategy.checkInterestEarned(ASSET_1);
+        uint256 interestEarned2 = strategy.checkInterestEarned(ASSET_2);
 
-    //     assert(interestEarned1 > 0);
-    //     assert(interestEarned2 > 0);
+        assert(interestEarned1 > 0);
+        assert(interestEarned2 > 0);
 
-    //     uint256 incentiveAmt1 = (interestEarned1 * 10) / 10000;
-    //     uint256 harvestAmount1 = interestEarned1 - incentiveAmt1;
+        uint256 incentiveAmt1 = (interestEarned1 * 10) / 10000;
+        uint256 harvestAmount1 = interestEarned1 - incentiveAmt1;
+        uint256 incentiveAmt2 = (interestEarned2 * 10) / 10000;
+        uint256 harvestAmount2 = interestEarned2 - incentiveAmt2;
 
-    //     vm.expectEmit(true, false, false, true);
-    //     emit InterestCollected(ASSET_1, yieldReceiver, harvestAmount1);
-    //     // TODO add second event?
+        vm.expectEmit(true, false, false, true);
+        emit InterestCollected(ASSET_1, yieldReceiver, harvestAmount1);
+        // TODO add second event?
 
-    //     strategy.collectInterest(DUMMY_ADDRESS);
+        strategy.collectInterest(DUMMY_ADDRESS);
 
-    //     uint256 current_bal_1 = IERC20(ASSET_1).balanceOf(yieldReceiver);
-    //     uint256 current_bal_2 = IERC20(ASSET_2).balanceOf(yieldReceiver);
-    //     uint256 newInterestEarned1 = strategy.checkInterestEarned(ASSET_1);
-    //     uint256 newInterestEarned2 = strategy.checkInterestEarned(ASSET_1);
-
-    //     assertEq(newInterestEarned1, 0);
-    //     assertEq(newInterestEarned2, 0);
-    //     assertEq(current_bal_1, (initialBal1 + harvestAmount1));
-    //     assertEq(current_bal_2, (initialBal2 + interestEarned2));
-    // }
+        assertEq(strategy.checkInterestEarned(ASSET_1), 0);
+        assertEq(strategy.checkInterestEarned(ASSET_1), 0);
+        assertEq(IERC20(ASSET_1).balanceOf(yieldReceiver), (initialBal1 + harvestAmount1));
+        assertEq(IERC20(ASSET_2).balanceOf(yieldReceiver), (initialBal2 + harvestAmount2));
+    }
 }
 
 contract WithdrawTest is UniswapStrategyTest {
@@ -598,7 +598,6 @@ contract WithdrawToVaultTest is UniswapStrategyTest {
     }
 }
 
-// TODO check collectInterest
 // TODO check onERC721Received
 contract CheckBalanceTest is UniswapStrategyTest {
     function setUp() public override {
