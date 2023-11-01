@@ -246,7 +246,7 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
 
     /// @inheritdoc InitializableAbstractStrategy
     /// @dev Calls checkBalance internally as the Uniswap V3 pools does not lock the deposited assets.
-    function checkAvailableBalance(address _asset) external view virtual override returns (uint256) {
+    function checkAvailableBalance(address _asset) external view override returns (uint256) {
         return checkBalance(_asset);
     }
 
