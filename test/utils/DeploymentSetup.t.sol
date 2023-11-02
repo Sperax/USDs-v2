@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Unlicensed
 pragma solidity 0.8.16;
 
-import {Setup} from "./BaseTest.sol";
-import {UpgradeUtil} from "./UpgradeUtil.sol";
+import {Setup} from "./BaseTest.t.sol";
+import {UpgradeUtil} from "./UpgradeUtil.t.sol";
 import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 import {ITransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 

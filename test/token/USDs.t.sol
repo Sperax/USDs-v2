@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.16;
 
-import {BaseTest} from "../utils/BaseTest.sol";
-import {UpgradeUtil} from "../utils/UpgradeUtil.sol";
+import {BaseTest} from "../utils/BaseTest.t.sol";
+import {UpgradeUtil} from "../utils/UpgradeUtil.t.sol";
 import {USDs} from "../../contracts/token/USDs.sol";
 import {IERC20, ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";

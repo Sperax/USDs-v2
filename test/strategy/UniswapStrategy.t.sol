@@ -2,8 +2,8 @@
 pragma solidity 0.8.16;
 
 import {BaseStrategy} from "./BaseStrategy.t.sol";
-import {BaseTest} from "../utils/BaseTest.sol";
-import {UpgradeUtil} from "../utils/UpgradeUtil.sol";
+import {BaseTest} from "../utils/BaseTest.t.sol";
+import {UpgradeUtil} from "../utils/UpgradeUtil.t.sol";
 import {UniswapStrategy} from "../../contracts/strategies/uniswap/UniswapStrategy.sol";
 import {INonfungiblePositionManager} from "../../contracts/strategies/uniswap/interfaces/UniswapV3.sol";
 import {InitializableAbstractStrategy, Helpers} from "../../contracts/strategies/InitializableAbstractStrategy.sol";

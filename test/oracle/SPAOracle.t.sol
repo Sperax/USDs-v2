@@ -3,7 +3,7 @@ pragma solidity 0.8.16;
 
 import {SPAOracle} from "../../contracts/oracle/SPAOracle.sol";
 import {IUniswapV3Factory} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Factory.sol";
-import {BaseTest} from "../utils/BaseTest.sol";
+import {BaseTest} from "../utils/BaseTest.t.sol";
 
 interface IChainlinkOracle {
     struct TokenData {

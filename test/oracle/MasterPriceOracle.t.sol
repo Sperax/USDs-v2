@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.16;
 
-import {BaseTest} from "../utils/BaseTest.sol";
+import {BaseTest} from "../utils/BaseTest.t.sol";
 import {MasterPriceOracle} from "../../contracts/oracle/MasterPriceOracle.sol";
 import {ChainlinkOracle} from "../../contracts/oracle/ChainlinkOracle.sol";
 import {VSTOracle} from "../../contracts/oracle/VSTOracle.sol";
