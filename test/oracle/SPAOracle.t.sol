@@ -30,6 +30,9 @@ abstract contract BaseUniOracleTest is BaseTest {
     event UniMAPriceDataChanged(address quoteToken, uint24 feeTier, uint32 maPeriod);
     event MasterOracleUpdated(address newOracle);
 
+    error FeedUnavailable();
+    error InvalidAddress();
+
     function setUp() public virtual override {
         super.setUp();
         setArbitrumFork();
@@ -60,6 +63,8 @@ contract SPAOracleTest is BaseUniOracleTest {
     SPAOracle public spaOracle;
 
     event DIAParamsUpdated(uint256 weightDIA, uint128 maxTime);
+
+    error InvalidWeight();
 
     function setUp() public override {
         super.setUp();
@@ -99,7 +104,7 @@ contract Test_setUniMAPriceData is SPAOracleTest {
     }
 
     function test_revertsWhen_invalidData() public useKnownActor(USDS_OWNER) {
-        vm.expectRevert("Feed unavailable");
+        vm.expectRevert(abi.encodeWithSelector(FeedUnavailable.selector));
         spaOracle.setUniMAPriceData(SPA, FRAX, 3000, 600);
     }
 
@@ -117,7 +122,7 @@ contract Test_updateMasterOracle is SPAOracleTest {
     }
 
     function test_revertsWhen_invalidAddress() public useKnownActor(USDS_OWNER) {
-        vm.expectRevert("Invalid Address");
+        vm.expectRevert(abi.encodeWithSelector(InvalidAddress.selector));
         spaOracle.updateMasterOracle(address(0));
     }
 
@@ -142,7 +147,7 @@ contract Test_UpdateDIAWeight is SPAOracleTest {
 
     function test_revertsWhen_invalidWeight() public useKnownActor(USDS_OWNER) {
         uint256 newWeight = spaOracle.MAX_WEIGHT() + 10;
-        vm.expectRevert("Invalid weight");
+        vm.expectRevert(abi.encodeWithSelector(InvalidWeight.selector));
         spaOracle.updateDIAParams(newWeight, 600);
     }
 

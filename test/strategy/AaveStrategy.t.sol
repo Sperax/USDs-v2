@@ -28,6 +28,8 @@ contract AaveStrategyTest is BaseStrategy, BaseTest {
     address internal ASSET;
     address internal P_TOKEN;
 
+    error NoRewardIncentive();
+
     function setUp() public virtual override {
         super.setUp();
         setArbitrumFork();
@@ -377,7 +379,7 @@ contract MiscellaneousTest is AaveStrategyTest {
     }
 
     function test_CollectReward() public {
-        vm.expectRevert("No reward incentive for AAVE");
+        vm.expectRevert(abi.encodeWithSelector(NoRewardIncentive.selector));
         strategy.collectReward();
     }
 

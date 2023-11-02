@@ -24,6 +24,11 @@ contract SPAOracle is BaseUniOracle {
 
     event DIAParamsUpdated(uint256 weightDIA, uint128 diaMaxTimeThreshold);
 
+    // Custom Errors
+    error PriceTooOld();
+    error InvalidWeight();
+    error InvalidTime();
+
     constructor(address _masterOracle, address _quoteToken, uint24 _feeTier, uint32 _maPeriod, uint256 _weightDIA) {
         _isNonZeroAddr(_masterOracle);
         masterOracle = _masterOracle;
@@ -43,7 +48,9 @@ contract SPAOracle is BaseUniOracle {
         // calculate weighted DIA USDsPerSPA
         (uint128 spaDiaPrice, uint128 lastUpdated) = IDiaOracle(DIA_ORACLE).getValue("SPA/USD");
 
-        require(block.timestamp - lastUpdated <= diaMaxTimeThreshold, "Price too old");
+        if (block.timestamp - lastUpdated > diaMaxTimeThreshold) {
+            revert PriceTooOld();
+        }
 
         uint256 weightedSPADiaPrice = weightDIA * spaDiaPrice;
         uint256 spaPrice = (weightedSPAUniPrice + weightedSPADiaPrice) / MAX_WEIGHT;
@@ -58,8 +65,14 @@ contract SPAOracle is BaseUniOracle {
     /// @param _weightDIA weight for DIA price feed
     /// @param _maxTime max age of price feed from DIA
     function updateDIAParams(uint256 _weightDIA, uint128 _maxTime) public onlyOwner {
-        require(_weightDIA <= MAX_WEIGHT, "Invalid weight");
-        require(_maxTime > 120, "Invalid time"); // 120 is the update frequency
+        if (_weightDIA > MAX_WEIGHT) {
+            revert InvalidWeight();
+        }
+        // 120 is the update frequency
+        if (_maxTime <= 120) {
+            revert InvalidTime();
+        }
+
         weightDIA = _weightDIA;
         diaMaxTimeThreshold = _maxTime;
         emit DIAParamsUpdated(_weightDIA, _maxTime);

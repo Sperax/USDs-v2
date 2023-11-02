@@ -16,6 +16,8 @@ contract AaveStrategy is InitializableAbstractStrategy {
     IAaveLendingPool public aavePool;
     mapping(address => uint256) public allocatedAmount; // Tracks the allocated amount of an asset.
 
+    error NoRewardIncentive();
+
     /// @notice Initializer for setting up strategy internal state. This overrides the
     /// InitializableAbstractStrategy initializer as AAVE needs several extra
     /// addresses for the rewards program.
@@ -101,8 +103,8 @@ contract AaveStrategy is InitializableAbstractStrategy {
 
     /// @inheritdoc InitializableAbstractStrategy
     function collectReward() external pure override {
-        revert("No reward incentive for AAVE");
         // No reward token for Aave
+        revert NoRewardIncentive();
     }
 
     /// @inheritdoc InitializableAbstractStrategy
