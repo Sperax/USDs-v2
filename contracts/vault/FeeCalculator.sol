@@ -3,7 +3,6 @@ pragma solidity 0.8.16;
 
 import {IFeeCalculator} from "./interfaces/IFeeCalculator.sol";
 import {ICollateralManager} from "./interfaces/ICollateralManager.sol";
-import {IOracle} from "../interfaces/IOracle.sol";
 import {Helpers} from "../libraries/Helpers.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
@@ -20,7 +19,7 @@ contract FeeCalculator is IFeeCalculator {
     uint16 private constant PENALTY_MULTIPLIER = 2;
     uint32 private constant CALIBRATION_GAP = 1 days;
 
-    ICollateralManager public immutable collateralManager;
+    ICollateralManager public immutable COLLATERAL_MANAGER;
 
     mapping(address => FeeData) public collateralFee;
 
@@ -30,7 +29,7 @@ contract FeeCalculator is IFeeCalculator {
     error FeeNotCalibrated(address collateral);
 
     constructor(address _collateralManager) {
-        collateralManager = ICollateralManager(_collateralManager);
+        COLLATERAL_MANAGER = ICollateralManager(_collateralManager);
         calibrateFeeForAll();
     }
 
@@ -55,7 +54,7 @@ contract FeeCalculator is IFeeCalculator {
 
     /// @notice Calibrates fee for all the collaterals registered
     function calibrateFeeForAll() public {
-        address[] memory collaterals = collateralManager.getAllCollaterals();
+        address[] memory collaterals = COLLATERAL_MANAGER.getAllCollaterals();
         uint256 collateralsLength = collaterals.length;
         for (uint256 i; i < collateralsLength;) {
             if (block.timestamp > collateralFee[collaterals[i]].nextUpdate) {
@@ -73,7 +72,7 @@ contract FeeCalculator is IFeeCalculator {
         // get current stats
         uint256 tvl = IERC20(Helpers.USDS).totalSupply();
         (uint16 baseMintFee, uint16 baseRedeemFee, uint16 composition, uint256 totalCollateral) =
-            collateralManager.getFeeCalibrationData(_collateral);
+            COLLATERAL_MANAGER.getFeeCalibrationData(_collateral);
 
         // compute segments
         uint256 desiredCollateralAmt = (tvl * composition) / (Helpers.MAX_PERCENTAGE);

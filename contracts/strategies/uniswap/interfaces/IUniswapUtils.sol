@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
+// solhint-disable-next-line compiler-version
 pragma solidity >=0.7.6;
-
-import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 
 interface IUniswapUtils {
     function fees(address positionManager, uint256 tokenId) external view returns (uint256 amount0, uint256 amount1);

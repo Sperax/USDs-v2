@@ -52,7 +52,7 @@ contract UniswapStrategyTest is BaseStrategy, BaseTest {
 
     // Custom errors
     error InvalidUniswapPoolConfig();
-    error NoRewardToken();
+    error NoRewardIncentive();
     error NotUniv3NFT();
     error NotSelf();
     error InvalidTickRange();
@@ -733,7 +733,7 @@ contract MiscellaneousTests is UniswapStrategyTest {
     }
 
     function test_RevertWhen_CollectReward() public {
-        vm.expectRevert(abi.encodeWithSelector(NoRewardToken.selector));
+        vm.expectRevert(abi.encodeWithSelector(NoRewardIncentive.selector));
         strategy.collectReward();
     }
 }

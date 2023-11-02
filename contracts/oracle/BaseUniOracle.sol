@@ -25,7 +25,7 @@ interface IMasterPriceOracle {
 abstract contract BaseUniOracle is Ownable {
     address public constant UNISWAP_FACTORY = 0x1F98431c8aD98523631AE4a59f267346ea31F984;
     // TODO RECHECK!!!
-    address public constant uniswapUtils = 0xd2Aa19D3B7f8cdb1ea5B782c5647542055af415e;
+    address public constant UNISWAP_UTILS = 0xd2Aa19D3B7f8cdb1ea5B782c5647542055af415e;
 
     address public masterOracle; // Address of the master price oracle
     address public pool; // Address of the uniswap pool for the token and quoteToken
@@ -34,8 +34,12 @@ abstract contract BaseUniOracle is Ownable {
     uint128 public quoteTokenPrecision; // QuoteToken price precision
 
     event MasterOracleUpdated(address newOracle);
-
     event UniMAPriceDataChanged(address quoteToken, uint24 feeTier, uint32 maPeriod);
+
+    // Custom Errors
+    error QuoteTokenFeedMissing();
+    error FeedUnavailable();
+    error InvalidAddress();
 
     /// @notice A function to get price
     /// @return (uint256, uint256) Returns price and price precision
@@ -46,7 +50,9 @@ abstract contract BaseUniOracle is Ownable {
     function updateMasterOracle(address _newOracle) public onlyOwner {
         _isNonZeroAddr(_newOracle);
         masterOracle = _newOracle;
-        require(IMasterPriceOracle(_newOracle).priceFeedExists(quoteToken), "Quote token feed missing");
+        if (!IMasterPriceOracle(_newOracle).priceFeedExists(quoteToken)) {
+            revert QuoteTokenFeedMissing();
+        }
         emit MasterOracleUpdated(_newOracle);
     }
 
@@ -60,10 +66,14 @@ abstract contract BaseUniOracle is Ownable {
         onlyOwner
     {
         address uniOraclePool = IUniswapV3Factory(UNISWAP_FACTORY).getPool(_token, _quoteToken, _feeTier);
-        require(uniOraclePool != address(0), "Feed unavailable");
+        if (uniOraclePool == address(0)) {
+            revert FeedUnavailable();
+        }
 
         // Validate if the oracle has a price feed for the _quoteToken
-        require(IMasterPriceOracle(masterOracle).priceFeedExists(_quoteToken), "Quote token feed missing");
+        if (!IMasterPriceOracle(masterOracle).priceFeedExists(_quoteToken)) {
+            revert QuoteTokenFeedMissing();
+        }
 
         pool = uniOraclePool;
         quoteToken = _quoteToken;
@@ -86,16 +96,18 @@ abstract contract BaseUniOracle is Ownable {
     /// @dev tokenBPerTokenA has the same precision as tokenB
     function _getUniMAPrice(address _tokenA, uint128 _tokenAPrecision) internal view returns (uint256) {
         // get MA tick
-        uint32 oldestObservationSecondsAgo = IUniswapUtils(uniswapUtils).getOldestObservationSecondsAgo(pool);
+        uint32 oldestObservationSecondsAgo = IUniswapUtils(UNISWAP_UTILS).getOldestObservationSecondsAgo(pool);
         uint32 period = maPeriod < oldestObservationSecondsAgo ? maPeriod : oldestObservationSecondsAgo;
-        (int24 timeWeightedAverageTick,) = IUniswapUtils(uniswapUtils).consult(pool, period);
+        (int24 timeWeightedAverageTick,) = IUniswapUtils(UNISWAP_UTILS).consult(pool, period);
         // get MA price from MA tick
         uint256 tokenBPerTokenA =
-            IUniswapUtils(uniswapUtils).getQuoteAtTick(timeWeightedAverageTick, _tokenAPrecision, _tokenA, quoteToken);
+            IUniswapUtils(UNISWAP_UTILS).getQuoteAtTick(timeWeightedAverageTick, _tokenAPrecision, _tokenA, quoteToken);
         return tokenBPerTokenA;
     }
 
     function _isNonZeroAddr(address _addr) internal pure {
-        require(_addr != address(0), "Invalid Address");
+        if (_addr == address(0)) {
+            revert InvalidAddress();
+        }
     }
 }

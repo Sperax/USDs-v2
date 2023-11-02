@@ -41,7 +41,7 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
 
     // Custom errors
     error InvalidUniswapPoolConfig();
-    error NoRewardToken();
+    error NoRewardIncentive();
     error NotUniv3NFT();
     error NotSelf();
     error InvalidTickRange();
@@ -286,7 +286,7 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
     /// @dev No rewards for the Uniswap V3 pool, hence revert.
     function collectReward() external pure override {
         // No reward token for Uniswap
-        revert NoRewardToken();
+        revert NoRewardIncentive();
     }
 
     /// @inheritdoc InitializableAbstractStrategy
@@ -339,6 +339,7 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
         emit Withdrawal(_asset, _amount);
     }
 
+    // solhint-disable-next-line no-empty-blocks
     function _abstractSetPToken(address _asset, address _lpToken) internal view override {}
 
     function _validateTickRange(address _pool, int24 _tickLower, int24 _tickUpper) private view {
