@@ -49,7 +49,12 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
     /// @notice Initializes the strategy with the provided addresses and sets the addresses of the PToken contracts for the Uniswap pool.
     /// @param _vault The address of the USDs Vault contract.
     /// @param _uniswapPoolData The Uniswap pool data including token addresses and fee tier.
-    function initialize(address _vault, UniswapPoolData memory _uniswapPoolData) external initializer {
+    function initialize(
+        address _vault,
+        UniswapPoolData memory _uniswapPoolData,
+        uint16 _depositSlippage,
+        uint16 _withdrawSlippage
+    ) external initializer {
         Helpers._isNonZeroAddr(address(_uniswapPoolData.uniswapUtils));
 
         address derivedPool = IUniswapV3Factory(_uniswapPoolData.uniV3Factory).getPool(
@@ -70,7 +75,7 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
         _setPTokenAddress(_uniswapPoolData.tokenA, address(_uniswapPoolData.nfpm));
         _setPTokenAddress(_uniswapPoolData.tokenB, address(_uniswapPoolData.nfpm));
 
-        InitializableAbstractStrategy._initialize({_vault: _vault, _depositSlippage: 0, _withdrawSlippage: 0});
+        InitializableAbstractStrategy._initialize(_vault, _depositSlippage, _withdrawSlippage);
     }
 
     /// @inheritdoc InitializableAbstractStrategy
@@ -86,11 +91,14 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
 
     /// @notice Allocates deposited assets into the Uniswap V3 pool to provide liquidity.
     /// @param _amounts An array containing the amounts of tokens to be allocated.
-    /// @param _minMintAmt An array specifying the minimum minting amounts for each token.
-    function allocate(uint256[2] calldata _amounts, uint256[2] calldata _minMintAmt) external onlyOwner nonReentrant {
+    function allocate(uint256[2] calldata _amounts) external onlyOwner nonReentrant {
         Helpers._isNonZeroAmt(_amounts[0] + _amounts[1]);
 
         UniswapPoolData storage poolData = uniswapPoolData;
+
+        uint256[] memory minAmounts = new uint256[](2);
+        minAmounts[0] = _amounts[0] - (_amounts[0] * depositSlippage / Helpers.MAX_PERCENTAGE);
+        minAmounts[1] = _amounts[1] - (_amounts[1] * depositSlippage / Helpers.MAX_PERCENTAGE);
 
         IERC20(poolData.tokenA).safeIncreaseAllowance(address(poolData.nfpm), _amounts[0]);
         IERC20(poolData.tokenB).safeIncreaseAllowance(address(poolData.nfpm), _amounts[1]);
@@ -113,8 +121,8 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
                     tickUpper: poolData.tickUpper,
                     amount0Desired: _amounts[0],
                     amount1Desired: _amounts[1],
-                    amount0Min: _minMintAmt[0],
-                    amount1Min: _minMintAmt[1],
+                    amount0Min: minAmounts[0],
+                    amount1Min: minAmounts[1],
                     recipient: address(this),
                     deadline: block.timestamp
                 })
@@ -132,12 +140,15 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
                     tokenId: poolData.lpTokenId,
                     amount0Desired: _amounts[0],
                     amount1Desired: _amounts[1],
-                    amount0Min: _minMintAmt[0],
-                    amount1Min: _minMintAmt[1],
+                    amount0Min: minAmounts[0],
+                    amount1Min: minAmounts[1],
                     deadline: block.timestamp
                 })
             );
         }
+
+        if (amount0 < minAmounts[0]) revert Helpers.MinSlippageError(amount0, minAmounts[0]);
+        if (amount1 < minAmounts[1]) revert Helpers.MinSlippageError(amount1, minAmounts[1]);
 
         emit IncreaseLiquidity(uint256(liquidity), amount0, amount1);
     }
