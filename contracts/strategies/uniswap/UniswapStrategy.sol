@@ -49,12 +49,11 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
     /// @notice Initializes the strategy with the provided addresses and sets the addresses of the PToken contracts for the Uniswap pool.
     /// @param _vault The address of the USDs Vault contract.
     /// @param _uniswapPoolData The Uniswap pool data including token addresses and fee tier.
-    function initialize(
-        address _vault,
-        UniswapPoolData memory _uniswapPoolData,
-        uint16 _depositSlippage,
-        uint16 _withdrawSlippage
-    ) external initializer {
+    /// @param _depositSlippage The deposit slippage percentage.
+    function initialize(address _vault, UniswapPoolData memory _uniswapPoolData, uint16 _depositSlippage)
+        external
+        initializer
+    {
         Helpers._isNonZeroAddr(address(_uniswapPoolData.uniswapUtils));
 
         address derivedPool = IUniswapV3Factory(_uniswapPoolData.uniV3Factory).getPool(
@@ -75,7 +74,11 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
         _setPTokenAddress(_uniswapPoolData.tokenA, address(_uniswapPoolData.nfpm));
         _setPTokenAddress(_uniswapPoolData.tokenB, address(_uniswapPoolData.nfpm));
 
-        InitializableAbstractStrategy._initialize(_vault, _depositSlippage, _withdrawSlippage);
+        InitializableAbstractStrategy._initialize({
+            _vault: _vault,
+            _depositSlippage: _depositSlippage,
+            _withdrawSlippage: 0
+        });
     }
 
     /// @inheritdoc InitializableAbstractStrategy
@@ -146,9 +149,6 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
                 })
             );
         }
-
-        if (amount0 < minAmounts[0]) revert Helpers.MinSlippageError(amount0, minAmounts[0]);
-        if (amount1 < minAmounts[1]) revert Helpers.MinSlippageError(amount1, minAmounts[1]);
 
         emit IncreaseLiquidity(uint256(liquidity), amount0, amount1);
     }
@@ -259,7 +259,7 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
     /// @inheritdoc InitializableAbstractStrategy
     /// @dev Calls checkBalance internally as the Uniswap V3 pools does not lock the deposited assets.
     function checkAvailableBalance(address _asset) external view override returns (uint256) {
-        return checkBalance(_asset);
+        return IERC20(_asset).balanceOf(address(this));
     }
 
     /// @inheritdoc InitializableAbstractStrategy

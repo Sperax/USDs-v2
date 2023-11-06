@@ -38,7 +38,6 @@ contract UniswapStrategyTest is BaseStrategy, BaseTest {
     UniswapStrategy internal impl;
     UpgradeUtil internal upgradeUtil;
     uint16 internal constant DEPOSIT_SLIPPAGE = 100;
-    uint16 internal constant WITHDRAWAL_SLIPPAGE = 100;
     uint256 internal depositAmount1;
     uint256 internal depositAmount2;
     address internal proxyAddress;
@@ -94,7 +93,7 @@ contract UniswapStrategyTest is BaseStrategy, BaseTest {
             IUniswapUtils(UNISWAP_UTILS),
             0
         );
-        strategy.initialize(VAULT, poolData, DEPOSIT_SLIPPAGE, WITHDRAWAL_SLIPPAGE);
+        strategy.initialize(VAULT, poolData, DEPOSIT_SLIPPAGE);
     }
 
     function _deposit() internal {
@@ -185,16 +184,16 @@ contract InitializeTests is UniswapStrategyTest {
             0
         );
         vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAddress.selector));
-        strategy.initialize(address(0), poolData, DEPOSIT_SLIPPAGE, WITHDRAWAL_SLIPPAGE);
+        strategy.initialize(address(0), poolData, DEPOSIT_SLIPPAGE);
 
         vm.expectRevert();
         poolData.uniV3Factory = IUniswapV3Factory(address(0));
-        strategy.initialize(VAULT, poolData, DEPOSIT_SLIPPAGE, WITHDRAWAL_SLIPPAGE);
+        strategy.initialize(VAULT, poolData, DEPOSIT_SLIPPAGE);
 
         vm.expectRevert();
         poolData.uniV3Factory = IUniswapV3Factory(UNISWAP_V3_FACTORY);
         poolData.uniswapUtils = IUniswapUtils(address(0));
-        strategy.initialize(VAULT, poolData, DEPOSIT_SLIPPAGE, WITHDRAWAL_SLIPPAGE);
+        strategy.initialize(VAULT, poolData, DEPOSIT_SLIPPAGE);
     }
 
     function test_RevertWhen_InvalidUniswapPoolConfig() public useKnownActor(USDS_OWNER) {
@@ -212,7 +211,7 @@ contract InitializeTests is UniswapStrategyTest {
         );
 
         vm.expectRevert(abi.encodeWithSelector(InvalidUniswapPoolConfig.selector));
-        strategy.initialize(VAULT, poolData, DEPOSIT_SLIPPAGE, WITHDRAWAL_SLIPPAGE);
+        strategy.initialize(VAULT, poolData, DEPOSIT_SLIPPAGE);
     }
 
     function test_RevertWhen_InvalidTickRange() public useKnownActor(USDS_OWNER) {
@@ -230,7 +229,7 @@ contract InitializeTests is UniswapStrategyTest {
         );
 
         vm.expectRevert(abi.encodeWithSelector(InvalidTickRange.selector));
-        strategy.initialize(VAULT, poolData, DEPOSIT_SLIPPAGE, WITHDRAWAL_SLIPPAGE);
+        strategy.initialize(VAULT, poolData, DEPOSIT_SLIPPAGE);
     }
 
     function test_Initialize() public useKnownActor(USDS_OWNER) {
@@ -249,7 +248,7 @@ contract InitializeTests is UniswapStrategyTest {
             IUniswapUtils(UNISWAP_UTILS),
             0
         );
-        strategy.initialize(VAULT, poolData, DEPOSIT_SLIPPAGE, WITHDRAWAL_SLIPPAGE);
+        strategy.initialize(VAULT, poolData, DEPOSIT_SLIPPAGE);
 
         assertEq(impl.owner(), address(0));
         assertEq(strategy.owner(), USDS_OWNER);
@@ -372,11 +371,11 @@ contract AllocateTests is UniswapStrategyTest {
         assertEq(uint256(mintedLiquidity), expectedLiquidity, "Liquidity mismatch");
         uint256 new_bal_1 = IERC20(ASSET_1).balanceOf(address(strategy));
         uint256 new_bal_2 = IERC20(ASSET_2).balanceOf(address(strategy));
-        // assertEq(strategy.checkAvailableBalance(ASSET_1) - new_bal_1, expectedAmountA, "Amount A mismatch");
-        assertApproxEqAbs(strategy.checkAvailableBalance(ASSET_1) - new_bal_1, expectedAmountA, 1);
+        // assertEq(strategy.checkBalance(ASSET_1) - new_bal_1, expectedAmountA, "Amount A mismatch");
+        assertApproxEqAbs(strategy.checkBalance(ASSET_1) - new_bal_1, expectedAmountA, 1);
         // @todo check this precision issue or use assertApproxEqAbs
-        // assertEq(strategy.checkAvailableBalance(ASSET_2) - new_bal_2, expectedAmountB, "Amount B mismatch");
-        assertApproxEqAbs(strategy.checkAvailableBalance(ASSET_2) - new_bal_2, expectedAmountB, 1);
+        // assertEq(strategy.checkBalance(ASSET_2) - new_bal_2, expectedAmountB, "Amount B mismatch");
+        assertApproxEqAbs(strategy.checkBalance(ASSET_2) - new_bal_2, expectedAmountB, 1);
     }
 
     function test_Allocate_IncreaseLiquidity() public useKnownActor(USDS_OWNER) {
