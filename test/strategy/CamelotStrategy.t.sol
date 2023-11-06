@@ -146,24 +146,7 @@ contract AllocateTest is TestInitialization {
         vm.startPrank(randomCaller);
 
         vm.expectRevert("Ownable: caller is not the owner");
-        camelotStrategy.allocate([USDT, USDCe], [uint256(1000), uint256(1000)]);
-
-        vm.stopPrank();
-    }
-
-    function test_Revert_When_Unsupported_Collateral() public {
-        address randomTokenAddress = address(0x2);
-
-        vm.startPrank(USDS_OWNER);
-
-        vm.expectRevert(abi.encodeWithSelector(CollateralNotSupported.selector, randomTokenAddress));
-        camelotStrategy.allocate([randomTokenAddress, randomTokenAddress], [uint256(1000), uint256(1000)]);
-
-        vm.expectRevert(abi.encodeWithSelector(CollateralNotSupported.selector, randomTokenAddress));
-        camelotStrategy.allocate([randomTokenAddress, USDCe], [uint256(1000), uint256(1000)]);
-
-        vm.expectRevert(abi.encodeWithSelector(CollateralNotSupported.selector, randomTokenAddress));
-        camelotStrategy.allocate([USDT, randomTokenAddress], [uint256(1000), uint256(1000)]);
+        camelotStrategy.allocate([uint256(1000), uint256(1000)]);
 
         vm.stopPrank();
     }
@@ -172,13 +155,13 @@ contract AllocateTest is TestInitialization {
         vm.startPrank(USDS_OWNER);
 
         vm.expectRevert(InvalidAmount.selector);
-        camelotStrategy.allocate([USDT, USDCe], [uint256(0), uint256(0)]);
+        camelotStrategy.allocate([uint256(0), uint256(0)]);
 
         vm.expectRevert(InvalidAmount.selector);
-        camelotStrategy.allocate([USDT, USDCe], [uint256(1000), uint256(0)]);
+        camelotStrategy.allocate([uint256(1000), uint256(0)]);
 
         vm.expectRevert(InvalidAmount.selector);
-        camelotStrategy.allocate([USDT, USDCe], [uint256(0), uint256(1000)]);
+        camelotStrategy.allocate([uint256(0), uint256(1000)]);
 
         vm.stopPrank();
     }
@@ -198,7 +181,7 @@ contract AllocateTest is TestInitialization {
         // uint256 minAmountAssetB = amountAssetB - (amountAssetB * camelotStrategy.depositSlippage() / Helpers.MAX_PERCENTAGE);
 
         vm.prank(USDS_OWNER);
-        camelotStrategy.allocate([USDT, USDCe], [uint256(amountAssetA), uint256(amountAssetB)]);
+        camelotStrategy.allocate([uint256(amountAssetA), uint256(amountAssetB)]);
         vm.stopPrank();
     }
 
