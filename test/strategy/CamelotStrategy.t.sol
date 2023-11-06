@@ -196,9 +196,6 @@ contract AllocationTest is TestInitialization {
 
         (amountAssetA, amountAssetB) = camelotStrategy.getDepositAmounts(amountAssetA, amountAssetB);
 
-        emit log_named_uint("amountAActual", amountAssetA);
-        emit log_named_uint("amountBActual", amountAssetB);
-
         uint256 numOfSpNFTsBeforeAllocation = IERC721(_nftPool).balanceOf(address(camelotStrategy));
         uint256 amountAllocatedBeforeAllocation = camelotStrategy.allocatedAmount();
 
@@ -206,27 +203,33 @@ contract AllocationTest is TestInitialization {
         camelotStrategy.allocate([ASSET_A, ASSET_B], [uint256(amountAssetA), uint256(amountAssetB)]);
         vm.stopPrank();
 
+        uint256 spNFTId = camelotStrategy.spNFTId();
+        (uint256 liquidityBalance,,,,,,,) = INFTPool(_nftPool).getStakingPosition(spNFTId);
+
+        emit log_named_uint("liquidityInFirstAllocation", liquidityBalance);
+
         uint256 numOfSpNFTsAfterAllocation = IERC721(_nftPool).balanceOf(address(camelotStrategy));
         uint256 amountAllocatedAfterAllocation = camelotStrategy.allocatedAmount();
 
         assertEq(numOfSpNFTsBeforeAllocation + 1, numOfSpNFTsAfterAllocation);
         assertEq(IERC20(pair).balanceOf(address(camelotStrategy)), 0);
         assert(amountAllocatedAfterAllocation > amountAllocatedBeforeAllocation);
+        assertEq(liquidityBalance, amountAllocatedAfterAllocation);
     }
 
-    function test_Further_Allocations() public {
+    function test_Multiple_Allocations() public {
         _depositAssetsToStrategy(100 * 10 ** ERC20(ASSET_A).decimals(), 100 * 10 ** ERC20(ASSET_B).decimals());
+
+        test_First_Allocation(); // Added this to maintain state for multiple allocations.
 
         (address _tokenA, address _tokenB, address _router,,, address _nftPool) = camelotStrategy.strategyData();
 
         uint256 amountAssetA = 10 * 10 ** ERC20(ASSET_A).decimals();
         uint256 amountAssetB = 10 * 10 ** ERC20(ASSET_B).decimals();
         address pair = IRouter(_router).getPair(_tokenA, _tokenB);
+        uint256 spNFTId = camelotStrategy.spNFTId();
 
         (amountAssetA, amountAssetB) = camelotStrategy.getDepositAmounts(amountAssetA, amountAssetB);
-
-        emit log_named_uint("amountAActual", amountAssetA);
-        emit log_named_uint("amountBActual", amountAssetB);
 
         uint256 amountAllocatedBeforeIncreaseAllocation = camelotStrategy.allocatedAmount();
 
@@ -236,8 +239,14 @@ contract AllocationTest is TestInitialization {
 
         uint256 amountAllocatedAfterIncreaseAllocation = camelotStrategy.allocatedAmount();
 
+        (uint256 liquidityBalance,,,,,,,) = INFTPool(_nftPool).getStakingPosition(spNFTId);
+
+        emit log_named_uint("contractStateOfLiquidity", amountAllocatedAfterIncreaseAllocation);
+        emit log_named_uint("liquidityInSecondAllocation", liquidityBalance);
+
         assert(amountAllocatedAfterIncreaseAllocation > amountAllocatedBeforeIncreaseAllocation);
         assertEq(IERC20(pair).balanceOf(address(camelotStrategy)), 0);
+        assertEq(liquidityBalance, amountAllocatedAfterIncreaseAllocation);
     }
 }
 
