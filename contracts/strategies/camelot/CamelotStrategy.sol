@@ -34,7 +34,6 @@ contract CamelotStrategy is InitializableAbstractStrategy, INFTHandler {
 
     error InvalidAsset();
     error NotCamelotNFTPool();
-    error NotSelf();
     error AddLiquidityFailed();
 
     /// @notice Initializer function of the strategy
@@ -87,9 +86,6 @@ contract CamelotStrategy is InitializableAbstractStrategy, INFTHandler {
         Helpers._isNonZeroAmt(_amounts[0]);
         Helpers._isNonZeroAmt(_amounts[1]);
 
-        IERC20(_assets[0]).safeApprove(_strategyData.router, _amounts[0]);
-        IERC20(_assets[1]).safeApprove(_strategyData.router, _amounts[1]);
-
         uint256[] memory minAmounts = new uint256[](2);
         minAmounts[0] = _amounts[0] - (_amounts[0] * depositSlippage / Helpers.MAX_PERCENTAGE);
         minAmounts[1] = _amounts[1] - (_amounts[1] * depositSlippage / Helpers.MAX_PERCENTAGE);
@@ -99,6 +95,8 @@ contract CamelotStrategy is InitializableAbstractStrategy, INFTHandler {
         uint256 liquidity;
         // If allocation is happening for the first time
         if (spNFTId == 0) {
+            IERC20(_assets[0]).safeApprove(_strategyData.positionHelper, _amounts[0]);
+            IERC20(_assets[1]).safeApprove(_strategyData.positionHelper, _amounts[1]);
             IPositionHelper(_strategyData.positionHelper).addLiquidityAndCreatePosition(
                 _assets[0],
                 _assets[1],
@@ -114,6 +112,8 @@ contract CamelotStrategy is InitializableAbstractStrategy, INFTHandler {
             (liquidity,,,,,,,) = INFTPool(_strategyData.nftPool).getStakingPosition(spNFTId);
             (amountA, amountB) = _checkAvailableBalance(liquidity);
         } else {
+            IERC20(_assets[0]).safeApprove(_strategyData.router, _amounts[0]);
+            IERC20(_assets[1]).safeApprove(_strategyData.router, _amounts[1]);
             address pair = IRouter(_strategyData.router).getPair(_assets[0], _assets[1]);
             (amountA, amountB,) = IRouter(_strategyData.router).addLiquidity(
                 _assets[0],
@@ -198,12 +198,11 @@ contract CamelotStrategy is InitializableAbstractStrategy, INFTHandler {
 
     // Functions needed by Camelot staking positions NFT manager
     /// @notice This function is called when NFT is minted to this address
-    function onERC721Received(address operator, address, /*from*/ uint256 tokenId, bytes calldata /*data*/ )
+    function onERC721Received(address, /*operator*/ address, /*from*/ uint256 tokenId, bytes calldata /*data*/ )
         external
         returns (bytes4)
     {
         if (msg.sender != strategyData.nftPool) revert NotCamelotNFTPool();
-        if (operator != address(this)) revert NotSelf();
         spNFTId = tokenId;
         return _ERC721_RECEIVED;
     }
@@ -349,7 +348,7 @@ contract CamelotStrategy is InitializableAbstractStrategy, INFTHandler {
         }
     }
 
-    function _validateStrategyData(StrategyData memory _strategyData) private view {
+    function _validateStrategyData(StrategyData memory _strategyData) private pure {
         Helpers._isNonZeroAddr(_strategyData.tokenA);
         Helpers._isNonZeroAddr(_strategyData.tokenB);
         Helpers._isNonZeroAddr(_strategyData.router);

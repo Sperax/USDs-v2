@@ -194,7 +194,6 @@ contract AllocateTest is TestInitialization {
 
         emit log_named_uint("amountAActual", amountAssetA);
         emit log_named_uint("amountBActual", amountAssetB);
-
         // uint256 minAmountAssetA = amountAssetA - (amountAssetA * camelotStrategy.depositSlippage() / Helpers.MAX_PERCENTAGE);
         // uint256 minAmountAssetB = amountAssetB - (amountAssetB * camelotStrategy.depositSlippage() / Helpers.MAX_PERCENTAGE);
 
