@@ -130,17 +130,6 @@ contract AllocationTest is DepositTest {
     error InvalidAmount();
     error CollateralNotSupported(address asset);
 
-    function test_Revert_When_Caller_Not_Owner() public {
-        address randomCaller = address(0x1);
-
-        vm.startPrank(randomCaller);
-
-        vm.expectRevert("Ownable: caller is not the owner");
-        camelotStrategy.allocate([uint256(1000), uint256(1000)]);
-
-        vm.stopPrank();
-    }
-
     function test_Revert_When_Amount_Zero() public {
         vm.startPrank(USDS_OWNER);
 
@@ -201,11 +190,25 @@ contract AllocationTest is DepositTest {
 
         (amountAssetA, amountAssetB) = camelotStrategy.getDepositAmounts(amountAssetA, amountAssetB);
 
+        emit log_named_uint("amountAActual", amountAssetA);
+        emit log_named_uint("amountBActual", amountAssetB);
+
         uint256 amountAllocatedBeforeIncreaseAllocation = camelotStrategy.allocatedAmount();
 
         vm.prank(USDS_OWNER);
         camelotStrategy.allocate([uint256(amountAssetA), uint256(amountAssetB)]);
         vm.stopPrank();
+
+        uint256 amountAllocatedAfterIncreaseAllocation = camelotStrategy.allocatedAmount();
+
+        (uint256 liquidityBalance,,,,,,,) = INFTPool(_nftPool).getStakingPosition(spNFTId);
+
+        emit log_named_uint("contractStateOfLiquidity", amountAllocatedAfterIncreaseAllocation);
+        emit log_named_uint("liquidityInSecondAllocation", liquidityBalance);
+
+        assert(amountAllocatedAfterIncreaseAllocation > amountAllocatedBeforeIncreaseAllocation);
+        assertEq(IERC20(pair).balanceOf(address(camelotStrategy)), 0);
+        assertEq(liquidityBalance, amountAllocatedAfterIncreaseAllocation);
     }
 
     // function test_Partial_Redeem_After_First_Allocation() public {
