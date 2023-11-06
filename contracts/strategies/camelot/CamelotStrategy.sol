@@ -76,13 +76,10 @@ contract CamelotStrategy is InitializableAbstractStrategy, INFTHandler {
     }
 
     /// @notice A function to allocate funds into the strategy
-    /// @param _assets Array of address of assets to be allocated
     /// @param _amounts Array of amounts of `_assets` to be allocated
-    function allocate(address[2] calldata _assets, uint256[2] calldata _amounts) external onlyOwner nonReentrant {
+    function allocate(uint256[2] calldata _amounts) external nonReentrant {
         StrategyData memory _strategyData = strategyData; // Gas savings
 
-        if (_assets[0] != _strategyData.tokenA) revert CollateralNotSupported(_assets[0]);
-        if (_assets[1] != _strategyData.tokenB) revert CollateralNotSupported(_assets[1]);
         Helpers._isNonZeroAmt(_amounts[0]);
         Helpers._isNonZeroAmt(_amounts[1]);
 
@@ -95,11 +92,11 @@ contract CamelotStrategy is InitializableAbstractStrategy, INFTHandler {
         uint256 liquidity;
         // If allocation is happening for the first time
         if (spNFTId == 0) {
-            IERC20(_assets[0]).safeApprove(_strategyData.positionHelper, _amounts[0]);
-            IERC20(_assets[1]).safeApprove(_strategyData.positionHelper, _amounts[1]);
+            IERC20(_strategyData.tokenA).safeApprove(_strategyData.positionHelper, _amounts[0]);
+            IERC20(_strategyData.tokenB).safeApprove(_strategyData.positionHelper, _amounts[1]);
             IPositionHelper(_strategyData.positionHelper).addLiquidityAndCreatePosition(
-                _assets[0],
-                _assets[1],
+                _strategyData.tokenA,
+                _strategyData.tokenB,
                 _amounts[0],
                 _amounts[1],
                 minAmounts[0],
@@ -110,14 +107,14 @@ contract CamelotStrategy is InitializableAbstractStrategy, INFTHandler {
                 0 // Lock duration
             );
             (liquidity,,,,,,,) = INFTPool(_strategyData.nftPool).getStakingPosition(spNFTId);
-            (amountA, amountB) = _checkAvailableBalance(liquidity);
+            (amountA, amountB) = _checkBalance(liquidity);
         } else {
-            IERC20(_assets[0]).safeApprove(_strategyData.router, _amounts[0]);
-            IERC20(_assets[1]).safeApprove(_strategyData.router, _amounts[1]);
-            address pair = IRouter(_strategyData.router).getPair(_assets[0], _assets[1]);
+            IERC20(_strategyData.tokenA).safeApprove(_strategyData.router, _amounts[0]);
+            IERC20(_strategyData.tokenB).safeApprove(_strategyData.router, _amounts[1]);
+            address pair = IRouter(_strategyData.router).getPair(_strategyData.tokenA, _strategyData.tokenB);
             (amountA, amountB,) = IRouter(_strategyData.router).addLiquidity(
-                _assets[0],
-                _assets[1],
+                _strategyData.tokenA,
+                _strategyData.tokenB,
                 _amounts[0],
                 _amounts[1],
                 minAmounts[0],
@@ -130,8 +127,6 @@ contract CamelotStrategy is InitializableAbstractStrategy, INFTHandler {
             IERC20(pair).safeApprove(_strategyData.nftPool, liquidity);
             INFTPool(_strategyData.nftPool).addToPosition(spNFTId, liquidity);
         }
-        if (amountA < minAmounts[0]) revert Helpers.MinSlippageError(amountA, minAmounts[0]);
-        if (amountB < minAmounts[1]) revert Helpers.MinSlippageError(amountB, minAmounts[1]);
 
         allocatedAmount += liquidity;
 
@@ -167,16 +162,13 @@ contract CamelotStrategy is InitializableAbstractStrategy, INFTHandler {
     /// @param _liquidityToWithdraw Amount of liquidity (lp token amount) to be withdrawn
     function redeem(uint256 _liquidityToWithdraw) external onlyOwner nonReentrant {
         StrategyData memory _sData = strategyData;
-        (uint256 amountAMin, uint256 amountBMin) = _checkAvailableBalance(_liquidityToWithdraw);
+        (uint256 amountAMin, uint256 amountBMin) = _checkBalance(_liquidityToWithdraw);
         amountAMin = amountAMin = amountAMin * withdrawSlippage / Helpers.MAX_PERCENTAGE;
         amountBMin = amountBMin = amountBMin * withdrawSlippage / Helpers.MAX_PERCENTAGE;
         INFTPool(_sData.nftPool).withdrawFromPosition(spNFTId, _liquidityToWithdraw);
         (uint256 amountA, uint256 amountB) = IRouter(_sData.router).removeLiquidity(
             _sData.tokenA, _sData.tokenB, _liquidityToWithdraw, amountAMin, amountBMin, address(this), block.timestamp
         );
-
-        if (amountA < amountAMin) revert Helpers.MinSlippageError(amountA, amountAMin);
-        if (amountB < amountBMin) revert Helpers.MinSlippageError(amountB, amountBMin);
 
         allocatedAmount -= _liquidityToWithdraw;
         emit DecreaseLiquidity(_liquidityToWithdraw, amountA, amountB);
@@ -283,8 +275,11 @@ contract CamelotStrategy is InitializableAbstractStrategy, INFTHandler {
     }
 
     /// @inheritdoc InitializableAbstractStrategy
-    function checkBalance(address _asset) external view override returns (uint256) {
-        return checkAvailableBalance(_asset);
+    function checkBalance(address _asset) external view override returns (uint256 balance) {
+        (uint256 liquidity,,,,,,,) = INFTPool(strategyData.nftPool).getStakingPosition(spNFTId);
+        (uint256 amountA, uint256 amountB) = _checkBalance(liquidity);
+        if (_asset == strategyData.tokenA) balance = amountA;
+        if (_asset == strategyData.tokenB) balance = amountB;
     }
 
     /// @inheritdoc InitializableAbstractStrategy
@@ -299,10 +294,8 @@ contract CamelotStrategy is InitializableAbstractStrategy, INFTHandler {
 
     /// @inheritdoc InitializableAbstractStrategy
     function checkAvailableBalance(address _asset) public view override returns (uint256 balance) {
-        (uint256 liquidity,,,,,,,) = INFTPool(strategyData.nftPool).getStakingPosition(spNFTId);
-        (uint256 amountA, uint256 amountB) = _checkAvailableBalance(liquidity);
-        if (_asset == strategyData.tokenA) balance = amountA;
-        if (_asset == strategyData.tokenB) balance = amountB;
+        if (!supportsCollateral(_asset)) revert CollateralNotSupported(_asset);
+        balance = IERC20(_asset).balanceOf(address(this));
     }
 
     /// @inheritdoc InitializableAbstractStrategy
@@ -329,7 +322,7 @@ contract CamelotStrategy is InitializableAbstractStrategy, INFTHandler {
     /// @param liquidity Amount of liquidity present/ lp token balance
     /// @return amountA Amount A tokens available in pool
     /// @return amountB Amount B tokens available in pool
-    function _checkAvailableBalance(uint256 liquidity) private view returns (uint256 amountA, uint256 amountB) {
+    function _checkBalance(uint256 liquidity) private view returns (uint256 amountA, uint256 amountB) {
         StrategyData memory _sData = strategyData;
         address pair = IRouter(_sData.router).getPair(_sData.tokenA, _sData.tokenB);
         uint256 balance0 = IERC20(_sData.tokenA).balanceOf(pair);
