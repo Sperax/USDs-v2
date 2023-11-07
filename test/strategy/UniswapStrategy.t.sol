@@ -160,13 +160,6 @@ contract UniswapStrategyTest is BaseStrategy, BaseTest {
         data.push(AssetData({name: "DAI", asset: 0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1}));
         data.push(AssetData({name: "USDC.e", asset: 0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8}));
     }
-
-    function _mockInsufficientAsset() internal {
-        // TODO add ASSET_2?
-        vm.startPrank(strategy.assetToPToken(ASSET_1));
-        IERC20(ASSET_1).transfer(actors[0], IERC20(ASSET_1).balanceOf(strategy.assetToPToken(ASSET_1)));
-        vm.stopPrank();
-    }
 }
 
 contract InitializeTests is UniswapStrategyTest {
