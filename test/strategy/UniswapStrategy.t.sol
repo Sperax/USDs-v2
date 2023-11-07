@@ -503,7 +503,6 @@ contract RedeemTests is UniswapStrategyTest {
     }
 }
 
-// TODO failing as interestEarned1 is not increased with time, but is increased with swap. So need to do that.
 contract CollectInterestTests is UniswapStrategyTest {
     function setUp() public override {
         super.setUp();
@@ -532,18 +531,18 @@ contract CollectInterestTests is UniswapStrategyTest {
         uint256[2] memory interestEarned =
             [strategy.checkInterestEarned(ASSET_1), strategy.checkInterestEarned(ASSET_2)];
 
-        assert(interestEarned[0] > 0);
-        assert(interestEarned[1] > 0);
+        assertTrue(interestEarned[0] > 0, "Insufficient interest 0");
+        assertTrue(interestEarned[1] > 0, "Insufficient interest 1");
 
         uint256 incentiveAmt1 = (interestEarned[0] * 10) / 10000;
         uint256 harvestAmount1 = interestEarned[0] - incentiveAmt1;
         uint256 incentiveAmt2 = (interestEarned[1] * 10) / 10000;
         uint256 harvestAmount2 = interestEarned[1] - incentiveAmt2;
 
-        vm.expectEmit(true, false, false, true);
+        vm.expectEmit(true, true, true, true, address(strategy));
         emit InterestCollected(ASSET_1, yieldReceiver, harvestAmount1);
-        // TODO add second event?
-
+        vm.expectEmit(true, true, true, true, address(strategy));
+        emit InterestCollected(ASSET_2, yieldReceiver, harvestAmount2);
         strategy.collectInterest(DUMMY_ADDRESS);
 
         assertEq(strategy.checkInterestEarned(ASSET_1), 0);
@@ -682,7 +681,6 @@ contract CheckInterestEarnedTests is UniswapStrategyTest {
         assertEq(strategy.checkInterestEarned(ASSET_1), 0);
         assertEq(strategy.checkInterestEarned(ASSET_2), 0);
 
-        // TODO check math?
         _simulateSwap();
         assertTrue(strategy.checkInterestEarned(ASSET_1) > 0);
         assertTrue(strategy.checkInterestEarned(ASSET_2) > 0);
@@ -718,7 +716,6 @@ contract CheckBalanceTests is UniswapStrategyTest {
         assertEq(strategy.checkAvailableBalance(ASSET_2), depositAmount2);
 
         _allocate();
-        // TODO do we need to check math here?
         _redeem();
         _withdraw();
 
@@ -742,7 +739,6 @@ contract CheckLPTokenBalanceTests is UniswapStrategyTest {
         assertEq(strategy.checkLPTokenBalance(DUMMY_ADDRESS), 0);
 
         _allocate();
-        // TODO do we need to check math here?
         assertTrue(strategy.checkLPTokenBalance(DUMMY_ADDRESS) > 0);
 
         _redeem();
