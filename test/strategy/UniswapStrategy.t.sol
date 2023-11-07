@@ -431,8 +431,8 @@ contract RedeemTests is UniswapStrategyTest {
             INonfungiblePositionManager(NONFUNGIBLE_POSITION_MANAGER).positions(lpTokenId);
         assertTrue(oldLiquidity != 0, "Liquidity is 0");
 
-        uint256 availableAmount0 = strategy.checkBalance(ASSET_1);
-        uint256 availableAmount1 = strategy.checkBalance(ASSET_2);
+        uint256 availableAmount0 = strategy.checkBalance(ASSET_1) - initialBal1;
+        uint256 availableAmount1 = strategy.checkBalance(ASSET_2) - initialBal2;
         uint256[2] memory minAmountOut = [uint256(0), uint256(0)];
         vm.recordLogs();
         strategy.redeem(oldLiquidity, minAmountOut);
@@ -454,10 +454,8 @@ contract RedeemTests is UniswapStrategyTest {
         (,,,,,,, uint128 newLiquidity,,,,) =
             INonfungiblePositionManager(NONFUNGIBLE_POSITION_MANAGER).positions(lpTokenId);
         assertEq(newLiquidity, 0, "Pending liquidity");
-        assertEq(IERC20(ASSET_1).balanceOf(address(strategy)) - initialBal1, _amount0, "Asset 1 not received");
-        assertEq(IERC20(ASSET_1).balanceOf(address(strategy)) - initialBal2, _amount1, "Asset 2 not received");
-        assertEq(strategy.checkBalance(ASSET_1), 0, "Pending Asset 1");
-        assertEq(strategy.checkBalance(ASSET_2), 0, "Pending Asset 2");
+        assertEq(strategy.checkAvailableBalance(ASSET_1) - initialBal1, _amount0, "Asset 1 not received");
+        assertEq(strategy.checkAvailableBalance(ASSET_2) - initialBal2, _amount1, "Asset 2 not received");
     }
 
     function test_Redeem_partialLiquidity() public useKnownActor(USDS_OWNER) {
@@ -471,26 +469,37 @@ contract RedeemTests is UniswapStrategyTest {
             INonfungiblePositionManager(NONFUNGIBLE_POSITION_MANAGER).positions(lpTokenId);
         assertTrue(oldLiquidity != 0, "Liquidity is 0");
 
-        // TODO fix matching params?
-        vm.expectEmit(false, false, false, false);
-        emit DecreaseLiquidity(0, 0, 0); // not checking tokenId
-
         uint256[2] memory minMintAmount = [uint256(0), uint256(0)];
+        vm.recordLogs();
         strategy.redeem(oldLiquidity / 2, minMintAmount);
 
-        uint256 new_bal_1 = IERC20(ASSET_1).balanceOf(address(strategy));
-        uint256 new_bal_2 = IERC20(ASSET_2).balanceOf(address(strategy));
-        uint256 newAllocatedAmt1 = strategy.checkBalance(ASSET_1) - new_bal_1;
-        uint256 newAllocatedAmt2 = strategy.checkBalance(ASSET_2) - new_bal_2;
+        uint256 _decreasedLiquidity;
+        uint256 _amount0;
+        uint256 _amount1;
+        VmSafe.Log[] memory logs = vm.getRecordedLogs();
+        for (uint8 j; j < logs.length; ++j) {
+            if (logs[j].topics[0] == keccak256("DecreaseLiquidity(uint256,uint256,uint256)")) {
+                (_decreasedLiquidity, _amount0, _amount1) = abi.decode(logs[j].data, (uint256, uint256, uint256));
+            }
+        }
+
+        assertEq(_decreasedLiquidity, oldLiquidity / 2, "Liquidity mismatch");
+        assertEq(_amount0, oldAllocatedAmt1 / 2, "amount0 mismatch");
+        assertEq(_amount1, oldAllocatedAmt2 / 2, "amount1 mismatch");
+
         (,,,,,,, uint128 newLiquidity,,,,) =
             INonfungiblePositionManager(NONFUNGIBLE_POSITION_MANAGER).positions(lpTokenId);
+        assertEq(newLiquidity, oldLiquidity / 2, "Pending liquidity");
 
-        // TODO check exact amounts?
-        assertTrue(new_bal_1 > initialBal1, "Balance not increased");
-        assertTrue(new_bal_2 > initialBal2, "Balance not increased");
-        assertTrue(newLiquidity < oldLiquidity);
-        assertTrue(newAllocatedAmt1 < oldAllocatedAmt1);
-        assertTrue(newAllocatedAmt2 < oldAllocatedAmt2);
+        assertEq(strategy.checkAvailableBalance(ASSET_1) - initialBal1, _amount0, "Asset 1 not received");
+        assertEq(strategy.checkAvailableBalance(ASSET_2) - initialBal2, _amount1, "Asset 2 not received");
+
+        assertEq(
+            strategy.checkBalance(ASSET_1) - initialBal1 - _amount0, _amount0, "Insufficient asset 1 allocated balance"
+        );
+        assertEq(
+            strategy.checkBalance(ASSET_2) - initialBal2 - _amount1, _amount1, "Insufficient asset 2 allocated balance"
+        );
     }
 }
 
