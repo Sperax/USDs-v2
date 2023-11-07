@@ -155,8 +155,8 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
 
     /// @notice Redeems a specified amount of liquidity from the Uniswap V3 pool.
     /// @param _liquidity The amount of liquidity to redeem.
-    /// @param _minBurnAmt An array specifying the minimum burn amounts for each token.
-    function redeem(uint256 _liquidity, uint256[2] calldata _minBurnAmt) external onlyOwner nonReentrant {
+    /// @param _minAmountOut An array specifying the minimum burn amounts for each token.
+    function redeem(uint256 _liquidity, uint256[2] calldata _minAmountOut) external onlyOwner nonReentrant {
         Helpers._isNonZeroAmt(_liquidity);
 
         uint256 lpTokenId = uniswapPoolData.lpTokenId;
@@ -166,8 +166,8 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
             INFPM.DecreaseLiquidityParams({
                 tokenId: lpTokenId,
                 liquidity: uint128(_liquidity),
-                amount0Min: _minBurnAmt[0],
-                amount1Min: _minBurnAmt[1],
+                amount0Min: _minAmountOut[0],
+                amount1Min: _minAmountOut[1],
                 deadline: block.timestamp
             })
         );
