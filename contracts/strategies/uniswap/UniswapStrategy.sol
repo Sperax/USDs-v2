@@ -155,7 +155,7 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
 
     /// @notice Redeems a specified amount of liquidity from the Uniswap V3 pool.
     /// @param _liquidity The amount of liquidity to redeem.
-    /// @param _minAmountOut An array specifying the minimum burn amounts for each token.
+    /// @param _minAmountOut An array specifying the minimum amounts out for each token.
     function redeem(uint256 _liquidity, uint256[2] calldata _minAmountOut) external onlyOwner nonReentrant {
         Helpers._isNonZeroAmt(_liquidity);
 
@@ -257,7 +257,6 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
     }
 
     /// @inheritdoc InitializableAbstractStrategy
-    /// @dev Calls checkBalance internally as the Uniswap V3 pools does not lock the deposited assets.
     function checkAvailableBalance(address _asset) external view override returns (uint256) {
         return IERC20(_asset).balanceOf(address(this));
     }
