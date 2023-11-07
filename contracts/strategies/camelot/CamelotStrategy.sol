@@ -172,6 +172,8 @@ contract CamelotStrategy is InitializableAbstractStrategy, INFTHandler {
         amountAMin = amountAMin = amountAMin * withdrawSlippage / Helpers.MAX_PERCENTAGE;
         amountBMin = amountBMin = amountBMin * withdrawSlippage / Helpers.MAX_PERCENTAGE;
         INFTPool(_sData.nftPool).withdrawFromPosition(spNFTId, _liquidityToWithdraw);
+        address pair = IRouter(_sData.router).getPair(_sData.tokenA, _sData.tokenB);
+        IERC20(pair).safeApprove(_sData.router, _liquidityToWithdraw);
         (uint256 amountA, uint256 amountB) = IRouter(_sData.router).removeLiquidity(
             _sData.tokenA, _sData.tokenB, _liquidityToWithdraw, amountAMin, amountBMin, address(this), block.timestamp
         );
