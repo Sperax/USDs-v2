@@ -277,11 +277,16 @@ contract CamelotStrategy is InitializableAbstractStrategy, INFTHandler {
     }
 
     /// @inheritdoc InitializableAbstractStrategy
+    /// @dev The total balance, including allocated and unallocated amounts.
     function checkBalance(address _asset) external view override returns (uint256 balance) {
         (uint256 liquidity,,,,,,,) = INFTPool(strategyData.nftPool).getStakingPosition(spNFTId);
         (uint256 amountA, uint256 amountB) = _checkBalance(liquidity);
-        if (_asset == strategyData.tokenA) balance = amountA;
-        if (_asset == strategyData.tokenB) balance = amountB;
+        if (_asset == strategyData.tokenA) {
+            balance = amountA + IERC20(_asset).balanceOf(address(this));
+        }
+        if (_asset == strategyData.tokenB) {
+            balance = amountB + IERC20(_asset).balanceOf(address(this));
+        }
     }
 
     /// @inheritdoc InitializableAbstractStrategy
