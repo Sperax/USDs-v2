@@ -293,21 +293,8 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
     }
 
     /// @inheritdoc InitializableAbstractStrategy
-    /// @dev No rewards for the Uniswap V3 pool, hence revert.
-    function collectReward() external pure override {
-        // No reward token for Uniswap
-        revert NoRewardIncentive();
-    }
-
-    /// @inheritdoc InitializableAbstractStrategy
-    /// @dev No rewards for the Uniswap V3 pool, hence return 0.
-    function checkRewardEarned() external pure override returns (uint256) {
-        return 0;
-    }
-
-    /// @inheritdoc InitializableAbstractStrategy
     /// @dev The total balance, including allocated and unallocated amounts.
-    function checkBalance(address _asset) public view override returns (uint256 balance) {
+    function checkBalance(address _asset) external view override returns (uint256 balance) {
         if (!supportsCollateral(_asset)) revert CollateralNotSupported(_asset);
 
         uint256 lpTokenId = uniswapPoolData.lpTokenId;
@@ -325,6 +312,19 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
         } else if (_asset == uniswapPoolData.tokenB) {
             return amount1 + unallocatedBalance;
         }
+    }
+
+    /// @inheritdoc InitializableAbstractStrategy
+    /// @dev No rewards for the Uniswap V3 pool, hence revert.
+    function collectReward() external pure override {
+        // No reward token for Uniswap
+        revert NoRewardIncentive();
+    }
+
+    /// @inheritdoc InitializableAbstractStrategy
+    /// @dev No rewards for the Uniswap V3 pool, hence return 0.
+    function checkRewardEarned() external pure override returns (uint256) {
+        return 0;
     }
 
     /// @inheritdoc InitializableAbstractStrategy

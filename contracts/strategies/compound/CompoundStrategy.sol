@@ -140,6 +140,27 @@ contract CompoundStrategy is InitializableAbstractStrategy {
     }
 
     /// @inheritdoc InitializableAbstractStrategy
+    function checkBalance(address _asset) external view override returns (uint256 balance) {
+        // Balance is always with token lpToken decimals
+        balance = allocatedAmount[_asset];
+    }
+
+    /// @inheritdoc InitializableAbstractStrategy
+    function checkAvailableBalance(address _asset) external view override returns (uint256) {
+        uint256 availableLiquidity = IERC20(_asset).balanceOf(_getPTokenFor(_asset));
+        uint256 allocatedValue = allocatedAmount[_asset];
+        if (availableLiquidity <= allocatedValue) {
+            return availableLiquidity;
+        }
+        return allocatedValue;
+    }
+
+    /// @inheritdoc InitializableAbstractStrategy
+    function supportsCollateral(address _asset) external view override returns (bool) {
+        return assetToPToken[_asset] != address(0);
+    }
+
+    /// @inheritdoc InitializableAbstractStrategy
     function checkInterestEarned(address _asset) public view override returns (uint256) {
         uint256 balance = checkLPTokenBalance(_asset);
         uint256 allocatedAmt = allocatedAmount[_asset];
@@ -153,30 +174,9 @@ contract CompoundStrategy is InitializableAbstractStrategy {
     }
 
     /// @inheritdoc InitializableAbstractStrategy
-    function checkBalance(address _asset) public view override returns (uint256 balance) {
-        // Balance is always with token lpToken decimals
-        balance = allocatedAmount[_asset];
-    }
-
-    /// @inheritdoc InitializableAbstractStrategy
-    function checkAvailableBalance(address _asset) public view override returns (uint256) {
-        uint256 availableLiquidity = IERC20(_asset).balanceOf(_getPTokenFor(_asset));
-        uint256 allocatedValue = allocatedAmount[_asset];
-        if (availableLiquidity <= allocatedValue) {
-            return availableLiquidity;
-        }
-        return allocatedValue;
-    }
-
-    /// @inheritdoc InitializableAbstractStrategy
     function checkLPTokenBalance(address _asset) public view override returns (uint256 balance) {
         address lpToken = _getPTokenFor(_asset);
         balance = IComet(lpToken).balanceOf(address(this));
-    }
-
-    /// @inheritdoc InitializableAbstractStrategy
-    function supportsCollateral(address _asset) public view override returns (bool) {
-        return assetToPToken[_asset] != address(0);
     }
 
     /// @notice Withdraw asset from Compound v3

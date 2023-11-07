@@ -102,9 +102,30 @@ contract AaveStrategy is InitializableAbstractStrategy {
     }
 
     /// @inheritdoc InitializableAbstractStrategy
+    function checkAvailableBalance(address _asset) external view override returns (uint256) {
+        uint256 availableLiquidity = IERC20(_asset).balanceOf(_getPTokenFor(_asset));
+        uint256 allocatedValue = allocatedAmount[_asset];
+        if (availableLiquidity <= allocatedValue) {
+            return availableLiquidity;
+        }
+        return allocatedValue;
+    }
+
+    /// @inheritdoc InitializableAbstractStrategy
+    function checkBalance(address _asset) external view override returns (uint256 balance) {
+        // Balance is always with token lpToken decimals
+        balance = allocatedAmount[_asset];
+    }
+
+    /// @inheritdoc InitializableAbstractStrategy
     function collectReward() external pure override {
         // No reward token for Aave
         revert NoRewardIncentive();
+    }
+
+    /// @inheritdoc InitializableAbstractStrategy
+    function checkRewardEarned() external pure override returns (uint256) {
+        return 0;
     }
 
     /// @inheritdoc InitializableAbstractStrategy
@@ -121,23 +142,6 @@ contract AaveStrategy is InitializableAbstractStrategy {
     }
 
     /// @inheritdoc InitializableAbstractStrategy
-    function checkBalance(address _asset) public view override returns (uint256 balance) {
-        // Balance is always with token lpToken decimals
-        balance = allocatedAmount[_asset];
-    }
-
-    /// @inheritdoc InitializableAbstractStrategy
-    // TODO can be made external. Same for others.
-    function checkAvailableBalance(address _asset) public view override returns (uint256) {
-        uint256 availableLiquidity = IERC20(_asset).balanceOf(_getPTokenFor(_asset));
-        uint256 allocatedValue = allocatedAmount[_asset];
-        if (availableLiquidity <= allocatedValue) {
-            return availableLiquidity;
-        }
-        return allocatedValue;
-    }
-
-    /// @inheritdoc InitializableAbstractStrategy
     function checkLPTokenBalance(address _asset) public view override returns (uint256 balance) {
         address lpToken = _getPTokenFor(_asset);
         balance = IERC20(lpToken).balanceOf(address(this));
@@ -146,11 +150,6 @@ contract AaveStrategy is InitializableAbstractStrategy {
     /// @inheritdoc InitializableAbstractStrategy
     function supportsCollateral(address _asset) public view override returns (bool) {
         return assetToPToken[_asset] != address(0);
-    }
-
-    /// @inheritdoc InitializableAbstractStrategy
-    function checkRewardEarned() public pure override returns (uint256) {
-        return 0;
     }
 
     /// @notice Withdraw asset from Aave lending Pool
