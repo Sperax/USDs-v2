@@ -177,14 +177,16 @@ contract AllocationTest is DepositTest {
         assertEq(IERC20(pair).balanceOf(address(camelotStrategy)), 0);
         assert(amountAllocatedAfterAllocation > amountAllocatedBeforeAllocation);
         assertEq(liquidityBalance, amountAllocatedAfterAllocation);
+        assertEq(IERC20(_tokenA).balanceOf(address(camelotStrategy)), 0);
+        assertEq(IERC20(_tokenB).balanceOf(address(camelotStrategy)), 0);
     }
 
     function test_Multiple_Allocations() public {
+        test_First_Allocation(); // Added this to maintain state for multiple allocations.
+
         uint256 depositAmountAssetA = 100 * 10 ** ERC20(ASSET_A).decimals();
         uint256 depositAmountAssetB = 100 * 10 ** ERC20(ASSET_B).decimals();
         _depositAssetsToStrategy(depositAmountAssetA, depositAmountAssetB);
-
-        test_First_Allocation(); // Added this to maintain state for multiple allocations.
 
         (address _tokenA, address _tokenB, address _router,,, address _nftPool) = camelotStrategy.strategyData();
 
@@ -215,6 +217,8 @@ contract AllocationTest is DepositTest {
         assert(amountAllocatedAfterIncreaseAllocation > amountAllocatedBeforeIncreaseAllocation);
         assertEq(IERC20(pair).balanceOf(address(camelotStrategy)), 0);
         assertEq(liquidityBalance, amountAllocatedAfterIncreaseAllocation);
+        assertEq(IERC20(_tokenA).balanceOf(address(camelotStrategy)), 0);
+        assertEq(IERC20(_tokenB).balanceOf(address(camelotStrategy)), 0);
     }
 }
 
