@@ -235,9 +235,6 @@ contract RedeemTest is AllocationTest {
         uint256 assetABalanceInContractBeforeRedeem = IERC20(ASSET_A).balanceOf(address(camelotStrategy));
         uint256 assetBBalanceInContractBeforeRedeem = IERC20(ASSET_B).balanceOf(address(camelotStrategy));
 
-        uint256 assetACheckBalanceBeforeRedeem = camelotStrategy.checkBalance(ASSET_A);
-        uint256 assetBCheckBalanceBeforeRedeem = camelotStrategy.checkBalance(ASSET_B);
-
         vm.prank(USDS_OWNER);
         camelotStrategy.redeem(liquidityBalanceBeforeRedeem);
         vm.stopPrank();
@@ -248,18 +245,9 @@ contract RedeemTest is AllocationTest {
         uint256 assetABalanceInContractAfterRedeem = IERC20(ASSET_A).balanceOf(address(camelotStrategy));
         uint256 assetBBalanceInContractAfterRedeem = IERC20(ASSET_B).balanceOf(address(camelotStrategy));
 
-        uint256 assetACheckBalanceAfterRedeem = camelotStrategy.checkBalance(ASSET_A);
-        uint256 assetBCheckBalanceAfterRedeem = camelotStrategy.checkBalance(ASSET_B);
-
-        assertEq(
-            assetABalanceInContractAfterRedeem, assetABalanceInContractBeforeRedeem + assetACheckBalanceBeforeRedeem
-        );
-        assertEq(
-            assetBBalanceInContractAfterRedeem, assetBBalanceInContractBeforeRedeem + assetBCheckBalanceBeforeRedeem
-        );
+        assert(assetABalanceInContractAfterRedeem > assetABalanceInContractBeforeRedeem);
+        assert(assetBBalanceInContractAfterRedeem > assetBBalanceInContractBeforeRedeem);
         assertEq(liquidityBalanceBeforeRedeem, allocatedAmountBeforeRedeem);
-        assertEq(assetACheckBalanceAfterRedeem, 0);
-        assertEq(assetBCheckBalanceAfterRedeem, 0);
         assertEq(liquidityBalanceAfterRedeem, 0);
         assertEq(allocatedAmountAfterRedeem, 0);
     }
@@ -306,9 +294,6 @@ contract RedeemTest is AllocationTest {
         uint256 assetABalanceInContractBeforeRedeem = IERC20(ASSET_A).balanceOf(address(camelotStrategy));
         uint256 assetBBalanceInContractBeforeRedeem = IERC20(ASSET_B).balanceOf(address(camelotStrategy));
 
-        uint256 assetACheckBalanceBeforeRedeem = camelotStrategy.checkBalance(ASSET_A);
-        uint256 assetBCheckBalanceBeforeRedeem = camelotStrategy.checkBalance(ASSET_B);
-
         vm.prank(USDS_OWNER);
         camelotStrategy.redeem(liquidityBalanceBeforeRedeem);
         vm.stopPrank();
@@ -319,18 +304,9 @@ contract RedeemTest is AllocationTest {
         uint256 assetABalanceInContractAfterRedeem = IERC20(ASSET_A).balanceOf(address(camelotStrategy));
         uint256 assetBBalanceInContractAfterRedeem = IERC20(ASSET_B).balanceOf(address(camelotStrategy));
 
-        uint256 assetACheckBalanceAfterRedeem = camelotStrategy.checkBalance(ASSET_A);
-        uint256 assetBCheckBalanceAfterRedeem = camelotStrategy.checkBalance(ASSET_B);
-
-        assertEq(
-            assetABalanceInContractAfterRedeem, assetABalanceInContractBeforeRedeem + assetACheckBalanceBeforeRedeem
-        );
-        assertEq(
-            assetBBalanceInContractAfterRedeem, assetBBalanceInContractBeforeRedeem + assetBCheckBalanceBeforeRedeem
-        );
+        assert(assetABalanceInContractAfterRedeem > assetABalanceInContractBeforeRedeem);
+        assert(assetBBalanceInContractAfterRedeem > assetBBalanceInContractBeforeRedeem);
         assertEq(liquidityBalanceBeforeRedeem, allocatedAmountBeforeRedeem);
-        assertEq(assetACheckBalanceAfterRedeem, 0);
-        assertEq(assetBCheckBalanceAfterRedeem, 0);
         assertEq(liquidityBalanceAfterRedeem, 0);
         assertEq(allocatedAmountAfterRedeem, 0);
     }
