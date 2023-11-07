@@ -131,12 +131,6 @@ contract CamelotStrategy is InitializableAbstractStrategy, INFTHandler {
         allocatedAmount += liquidity;
 
         emit IncreaseLiquidity(liquidity, amountA, amountB);
-
-        // Cleaning up leftover collateral and reusing amountA and amountB
-        amountA = IERC20(_strategyData.tokenA).balanceOf(address(this));
-        amountB = IERC20(_strategyData.tokenB).balanceOf(address(this));
-        if (amountA != 0) IERC20(_strategyData.tokenA).safeTransfer(vault, amountA);
-        if (amountB != 0) IERC20(_strategyData.tokenB).safeTransfer(vault, amountB);
     }
 
     /// @inheritdoc InitializableAbstractStrategy
