@@ -57,13 +57,18 @@ contract CamelotStrategyTestSetup is PreMigrationSetup, BaseStrategy {
         vm.stopPrank();
     }
 
-    function _allocate(uint256 allocateAmountAssetA, uint256 allocateAmountAssetB) internal {
+    function _allocate(uint256 allocateAmountAssetA, uint256 allocateAmountAssetB)
+        internal
+        returns (uint256, uint256)
+    {
         (allocateAmountAssetA, allocateAmountAssetB) =
             camelotStrategy.getDepositAmounts(allocateAmountAssetA, allocateAmountAssetB);
 
         vm.prank(USDS_OWNER);
         camelotStrategy.allocate([uint256(allocateAmountAssetA), uint256(allocateAmountAssetB)]);
         vm.stopPrank();
+
+        return (allocateAmountAssetA, allocateAmountAssetB);
     }
 
     function _redeem(uint256 liquidityToWithdraw) internal {
@@ -196,7 +201,14 @@ contract AllocationTest is CamelotStrategyTestSetup {
         uint256 numOfSpNFTsBeforeAllocation = IERC721(_nftPool).balanceOf(address(camelotStrategy));
         uint256 amountAllocatedBeforeAllocation = camelotStrategy.allocatedAmount();
 
-        _allocate(1000 * 10 ** ERC20(ASSET_A).decimals(), 1000 * 10 ** ERC20(ASSET_B).decimals());
+        uint256 assetABalanceInContractBeforeAllocation = IERC20(ASSET_A).balanceOf(address(camelotStrategy));
+        uint256 assetBBalanceInContractBeforeAllocation = IERC20(ASSET_B).balanceOf(address(camelotStrategy));
+
+        (uint256 allocatedAmountAssetA, uint256 allocatedAmountAssetB) =
+            _allocate(1000 * 10 ** ERC20(ASSET_A).decimals(), 1000 * 10 ** ERC20(ASSET_B).decimals());
+
+        uint256 assetABalanceInContractAfterAllocation = IERC20(ASSET_A).balanceOf(address(camelotStrategy));
+        uint256 assetBBalanceInContractAfterAllocation = IERC20(ASSET_B).balanceOf(address(camelotStrategy));
 
         uint256 spNFTId = camelotStrategy.spNFTId();
         (uint256 liquidityBalance,,,,,,,) = INFTPool(_nftPool).getStakingPosition(spNFTId);
@@ -208,6 +220,13 @@ contract AllocationTest is CamelotStrategyTestSetup {
         assertEq(IERC20(pair).balanceOf(address(camelotStrategy)), 0);
         assert(amountAllocatedAfterAllocation > amountAllocatedBeforeAllocation);
         assertEq(liquidityBalance, amountAllocatedAfterAllocation);
+
+        assertEq(
+            assetABalanceInContractAfterAllocation, assetABalanceInContractBeforeAllocation - allocatedAmountAssetA
+        );
+        assertEq(
+            assetBBalanceInContractAfterAllocation, assetBBalanceInContractBeforeAllocation - allocatedAmountAssetB
+        );
     }
 
     function test_Multiple_Allocations() public {
@@ -215,9 +234,9 @@ contract AllocationTest is CamelotStrategyTestSetup {
 
         _multipleAllocations();
 
-        (address _tokenA, address _tokenB, address _router,,, address _nftPool) = camelotStrategy.strategyData();
+        (,, address _router,,, address _nftPool) = camelotStrategy.strategyData();
 
-        address pair = IRouter(_router).getPair(_tokenA, _tokenB);
+        address pair = IRouter(_router).getPair(ASSET_A, ASSET_B);
         uint256 spNFTId = camelotStrategy.spNFTId();
 
         uint256 amountAllocatedAfterIncreaseAllocation = camelotStrategy.allocatedAmount();
@@ -227,6 +246,32 @@ contract AllocationTest is CamelotStrategyTestSetup {
         assert(amountAllocatedAfterIncreaseAllocation > amountAllocatedBeforeIncreaseAllocation);
         assertEq(IERC20(pair).balanceOf(address(camelotStrategy)), 0);
         assertEq(liquidityBalance, amountAllocatedAfterIncreaseAllocation);
+    }
+
+    function test_Asset_Balance_In_Contract_After_Multiple_Allocations() public {
+        _depositAssetsToStrategy(2000 * 10 ** ERC20(ASSET_A).decimals(), 2000 * 10 ** ERC20(ASSET_B).decimals());
+
+        uint256 assetABalanceInContractBeforeAllocations = IERC20(ASSET_A).balanceOf(address(camelotStrategy));
+        uint256 assetBBalanceInContractBeforeAllocations = IERC20(ASSET_B).balanceOf(address(camelotStrategy));
+
+        (uint256 firstAllocatedAmountAssetA, uint256 firstAllocatedAmountAssetB) =
+            _allocate(1000 * 10 ** ERC20(ASSET_A).decimals(), 1000 * 10 ** ERC20(ASSET_B).decimals());
+
+        (uint256 secondAllocatedAmountAssetA, uint256 secondAllocatedAmountAssetB) =
+            _allocate(100 * 10 ** ERC20(ASSET_A).decimals(), 100 * 10 ** ERC20(ASSET_B).decimals());
+
+        uint256 totalAllocatedAssetA = firstAllocatedAmountAssetA + secondAllocatedAmountAssetA;
+        uint256 totalAllocatedAssetB = firstAllocatedAmountAssetB + secondAllocatedAmountAssetB;
+
+        uint256 assetABalanceInContractAfterAllocations = IERC20(ASSET_A).balanceOf(address(camelotStrategy));
+        uint256 assetBBalanceInContractAfterAllocations = IERC20(ASSET_B).balanceOf(address(camelotStrategy));
+
+        assertEq(
+            assetABalanceInContractAfterAllocations, assetABalanceInContractBeforeAllocations - totalAllocatedAssetA
+        );
+        assertEq(
+            assetBBalanceInContractAfterAllocations, assetBBalanceInContractBeforeAllocations - totalAllocatedAssetB
+        );
     }
 }
 
