@@ -492,7 +492,37 @@ contract WithdrawAssetsToVaultTests is RedeemTest {
     }
 }
 
-contract collectRewardTest is AllocationTest {}
+contract collectRewardTest is AllocationTest {
+    address internal yieldReceiver;
+
+    function setUp() public override {
+        super.setUp();
+        yieldReceiver = actors[0];
+    }
+
+    function test_collectReward() public {
+        (,,,,, address _nftPool) = camelotStrategy.strategyData();
+        (, address grail, address xGrail,,,,,) = INFTPool(_nftPool).getPoolInfo();
+
+        vm.mockCall(VAULT, abi.encodeWithSignature("yieldReceiver()"), abi.encode(yieldReceiver));
+
+        uint256 yieldReceiverGrailAmountBeforeCollection = IERC20(grail).balanceOf(address(yieldReceiver));
+        uint256 yieldReceiverXGrailAmountBeforeCollection = IERC20(xGrail).balanceOf(address(yieldReceiver));
+
+        test_Multiple_Allocations();
+
+        vm.warp(block.timestamp + 10 days);
+        vm.roll(block.number + 1000);
+
+        camelotStrategy.collectReward();
+
+        uint256 yieldReceiverGrailAmountAfterCollection = IERC20(grail).balanceOf(address(yieldReceiver));
+        uint256 yieldReceiverXGrailAmountAfterCollection = IERC20(xGrail).balanceOf(address(yieldReceiver));
+
+        assert(yieldReceiverGrailAmountAfterCollection > yieldReceiverGrailAmountBeforeCollection);
+        assert(yieldReceiverXGrailAmountAfterCollection > yieldReceiverXGrailAmountBeforeCollection);
+    }
+}
 
 contract UpdateStrategyDataTest is CamelotStrategyTestSetup {
     event StrategyDataUpdated(CamelotStrategy.StrategyData);
