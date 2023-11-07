@@ -319,10 +319,7 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
         }
 
         (,,,,,,, uint128 liquidity,,,,) = INFPM(uniswapPoolData.nfpm).positions(lpTokenId);
-        (uint160 sqrtPriceX96,,,,,,) = uniswapPoolData.pool.slot0();
-        (uint256 amount0, uint256 amount1) = uniswapPoolData.uniswapUtils.getAmountsForLiquidity(
-            sqrtPriceX96, uniswapPoolData.tickLower, uniswapPoolData.tickUpper, liquidity
-        );
+        (uint256 amount0, uint256 amount1) = getAmountsForLiquidity(liquidity);
 
         if (_asset == uniswapPoolData.tokenA) {
             return amount0 + unallocatedBalance;
@@ -334,6 +331,22 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
     /// @inheritdoc InitializableAbstractStrategy
     function supportsCollateral(address _asset) public view override returns (bool) {
         return assetToPToken[_asset] != address(0);
+    }
+
+    /**
+     * @notice Calculates the amounts of token0 and token1 that will be received for a given liquidity amount.
+     * @param _liquidity The amount of liquidity to be removed.
+     * @return amount0 The amount of token0 that will be received.
+     * @return amount1 The amount of token1 that will be received.
+     * @dev This function reverts if the pool is not initialized.
+     */
+    function getAmountsForLiquidity(uint128 _liquidity) public view returns (uint256, uint256) {
+        (uint160 sqrtPriceX96,,,,,,) = uniswapPoolData.pool.slot0();
+        (uint256 amount0, uint256 amount1) = uniswapPoolData.uniswapUtils.getAmountsForLiquidity(
+            sqrtPriceX96, uniswapPoolData.tickLower, uniswapPoolData.tickUpper, _liquidity
+        );
+
+        return (amount0, amount1);
     }
 
     /// @dev Internal function to withdraw a specified amount of an asset.
