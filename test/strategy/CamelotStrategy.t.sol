@@ -111,8 +111,8 @@ contract DepositTest is TestInitialization {
     }
 
     function test_Deposit_Assets_To_Strategy() public {
-        uint256 depositAmountAssetA = 1 * 1000 ** ERC20(ASSET_A).decimals();
-        uint256 depositAmountAssetB = 1 * 1000 ** ERC20(ASSET_B).decimals();
+        uint256 depositAmountAssetA = 1000 * 10 ** ERC20(ASSET_A).decimals();
+        uint256 depositAmountAssetB = 1000 * 10 ** ERC20(ASSET_B).decimals();
 
         uint256 currentAmountAssetA = IERC20(ASSET_A).balanceOf(address(camelotStrategy));
         uint256 currentAmountAssetB = IERC20(ASSET_B).balanceOf(address(camelotStrategy));
@@ -146,22 +146,25 @@ contract AllocationTest is DepositTest {
     }
 
     function test_First_Allocation() public {
-        _depositAssetsToStrategy(1000 * 10 ** ERC20(ASSET_A).decimals(), 1000 * 10 ** ERC20(ASSET_B).decimals());
+        uint256 depositAmountAssetA = 1000 * 10 ** ERC20(ASSET_A).decimals();
+        uint256 depositAmountAssetB = 1000 * 10 ** ERC20(ASSET_B).decimals();
+        _depositAssetsToStrategy(depositAmountAssetA, depositAmountAssetB);
 
         (address _tokenA, address _tokenB, address _router,,, address _nftPool) = camelotStrategy.strategyData();
 
-        uint256 amountAssetA = 1000 * 10 ** ERC20(ASSET_A).decimals();
-        uint256 amountAssetB = 1000 * 10 ** ERC20(ASSET_B).decimals();
+        uint256 amountAllocationAssetA = 1000 * 10 ** ERC20(ASSET_A).decimals();
+        uint256 amountAllocationAssetB = 1000 * 10 ** ERC20(ASSET_B).decimals();
 
         address pair = IRouter(_router).getPair(_tokenA, _tokenB);
 
-        (amountAssetA, amountAssetB) = camelotStrategy.getDepositAmounts(amountAssetA, amountAssetB);
+        (amountAllocationAssetA, amountAllocationAssetB) =
+            camelotStrategy.getDepositAmounts(amountAllocationAssetA, amountAllocationAssetB);
 
         uint256 numOfSpNFTsBeforeAllocation = IERC721(_nftPool).balanceOf(address(camelotStrategy));
         uint256 amountAllocatedBeforeAllocation = camelotStrategy.allocatedAmount();
 
         vm.prank(USDS_OWNER);
-        camelotStrategy.allocate([uint256(amountAssetA), uint256(amountAssetB)]);
+        camelotStrategy.allocate([uint256(amountAllocationAssetA), uint256(amountAllocationAssetB)]);
         vm.stopPrank();
 
         uint256 spNFTId = camelotStrategy.spNFTId();
@@ -177,26 +180,29 @@ contract AllocationTest is DepositTest {
     }
 
     function test_Multiple_Allocations() public {
-        _depositAssetsToStrategy(100 * 10 ** ERC20(ASSET_A).decimals(), 100 * 10 ** ERC20(ASSET_B).decimals());
+        uint256 depositAmountAssetA = 100 * 10 ** ERC20(ASSET_A).decimals();
+        uint256 depositAmountAssetB = 100 * 10 ** ERC20(ASSET_B).decimals();
+        _depositAssetsToStrategy(depositAmountAssetA, depositAmountAssetB);
 
         test_First_Allocation(); // Added this to maintain state for multiple allocations.
 
         (address _tokenA, address _tokenB, address _router,,, address _nftPool) = camelotStrategy.strategyData();
 
-        uint256 amountAssetA = 10 * 10 ** ERC20(ASSET_A).decimals();
-        uint256 amountAssetB = 10 * 10 ** ERC20(ASSET_B).decimals();
+        uint256 amountAllocationAssetA = 10 * 10 ** ERC20(ASSET_A).decimals();
+        uint256 amountAllocationAssetB = 10 * 10 ** ERC20(ASSET_B).decimals();
         address pair = IRouter(_router).getPair(_tokenA, _tokenB);
         uint256 spNFTId = camelotStrategy.spNFTId();
 
-        (amountAssetA, amountAssetB) = camelotStrategy.getDepositAmounts(amountAssetA, amountAssetB);
+        (amountAllocationAssetA, amountAllocationAssetB) =
+            camelotStrategy.getDepositAmounts(amountAllocationAssetA, amountAllocationAssetB);
 
-        emit log_named_uint("amountAActual", amountAssetA);
-        emit log_named_uint("amountBActual", amountAssetB);
+        emit log_named_uint("amountAActual", amountAllocationAssetA);
+        emit log_named_uint("amountBActual", amountAllocationAssetB);
 
         uint256 amountAllocatedBeforeIncreaseAllocation = camelotStrategy.allocatedAmount();
 
         vm.prank(USDS_OWNER);
-        camelotStrategy.allocate([uint256(amountAssetA), uint256(amountAssetB)]);
+        camelotStrategy.allocate([uint256(amountAllocationAssetA), uint256(amountAllocationAssetB)]);
         vm.stopPrank();
 
         uint256 amountAllocatedAfterIncreaseAllocation = camelotStrategy.allocatedAmount();
@@ -210,6 +216,28 @@ contract AllocationTest is DepositTest {
         assertEq(IERC20(pair).balanceOf(address(camelotStrategy)), 0);
         assertEq(liquidityBalance, amountAllocatedAfterIncreaseAllocation);
     }
+}
+
+contract RedeemTest is AllocationTest {
+    // Redeem fails. Need to check
+    function test_Full_Redeem_After_Multiple_Allocations() public {
+        test_Multiple_Allocations();
+
+        (,,,,, address _nftPool) = camelotStrategy.strategyData();
+        uint256 spNFTId = camelotStrategy.spNFTId();
+
+        (uint256 liquidityBalanceBeforeRedeem,,,,,,,) = INFTPool(_nftPool).getStakingPosition(spNFTId);
+        // uint allocatedAmountBeforeRedeem = camelotStrategy.allocatedAmount();
+        uint256 partialRedeemAmount = liquidityBalanceBeforeRedeem - 10000;
+
+        vm.prank(USDS_OWNER);
+        camelotStrategy.redeem(partialRedeemAmount);
+        vm.stopPrank();
+    }
+
+    // function test_Full_Redeem_After_Multiple_Allocations() public {
+    //     test_Multiple_Allocations();
+    // }
 
     // function test_Partial_Redeem_After_First_Allocation() public {
     //     test_First_Allocation();
@@ -218,18 +246,80 @@ contract AllocationTest is DepositTest {
     // function test_Full_Redeem_After_First_Allocation() public {
     //     test_First_Allocation();
     // }
-
-    // function test_Partial_Redeem_After_Multiple_Allocations() public {
-    //     test_Multiple_Allocations();
-    // }
-
-    // function test_Full_Redeem_After_Multiple_Allocations() public {}
 }
 
-contract WithdrawAssetsToVaultTests is DepositTest {
-// withdraw assets after just deposit
+contract WithdrawAssetsToVaultTests is AllocationTest {
+    function test_Withdraw_Assets_To_Vault_After_Deposit_Caller_UsdsOwner() public {
+        uint256 depositAmountAssetA = 1000 * 10 ** ERC20(ASSET_A).decimals();
+        uint256 depositAmountAssetB = 1000 * 10 ** ERC20(ASSET_B).decimals();
+        _depositAssetsToStrategy(depositAmountAssetA, depositAmountAssetB);
 
-// withdraw assets after allocation and redeem
+        uint256 withdrawAmountAssetA = 100 * 10 ** ERC20(ASSET_A).decimals();
+        uint256 withdrawAmountAssetB = 100 * 10 ** ERC20(ASSET_B).decimals();
+
+        uint256 assetABalanceInVaultBeforeWithdraw = IERC20(ASSET_A).balanceOf(VAULT);
+        uint256 assetABalanceInStrategyBeforeWithdraw = IERC20(ASSET_A).balanceOf(address(camelotStrategy));
+
+        vm.prank(USDS_OWNER);
+        camelotStrategy.withdrawToVault(ASSET_A, withdrawAmountAssetA);
+        vm.stopPrank();
+
+        uint256 assetABalanceInVaultAfterWithdraw = IERC20(ASSET_A).balanceOf(VAULT);
+        uint256 assetABalanceInStrategyAfterWithdraw = IERC20(ASSET_A).balanceOf(address(camelotStrategy));
+
+        assertEq(assetABalanceInVaultAfterWithdraw, assetABalanceInVaultBeforeWithdraw + withdrawAmountAssetA);
+        assertEq(assetABalanceInStrategyAfterWithdraw, assetABalanceInStrategyBeforeWithdraw - withdrawAmountAssetA);
+
+        uint256 assetBBalanceInVaultBeforeWithdraw = IERC20(ASSET_A).balanceOf(VAULT);
+        uint256 assetBBalanceInStrategyBeforeWithdraw = IERC20(ASSET_A).balanceOf(address(camelotStrategy));
+
+        vm.prank(USDS_OWNER);
+        camelotStrategy.withdrawToVault(ASSET_A, withdrawAmountAssetB);
+        vm.stopPrank();
+
+        uint256 assetBBalanceInVaultAfterWithdraw = IERC20(ASSET_A).balanceOf(VAULT);
+        uint256 assetBBalanceInStrategyAfterWithdraw = IERC20(ASSET_A).balanceOf(address(camelotStrategy));
+
+        assertEq(assetBBalanceInVaultAfterWithdraw, assetBBalanceInVaultBeforeWithdraw + withdrawAmountAssetB);
+        assertEq(assetBBalanceInStrategyAfterWithdraw, assetBBalanceInStrategyBeforeWithdraw - withdrawAmountAssetB);
+    }
+
+    function test_Withdraw_Assets_To_Vault_After_Deposit_Caller_Vault() public {
+        uint256 depositAmountAssetA = 1000 * 10 ** ERC20(ASSET_A).decimals();
+        uint256 depositAmountAssetB = 1000 * 10 ** ERC20(ASSET_B).decimals();
+        _depositAssetsToStrategy(depositAmountAssetA, depositAmountAssetB);
+
+        uint256 withdrawAmountAssetA = 100 * 10 ** ERC20(ASSET_A).decimals();
+        uint256 withdrawAmountAssetB = 100 * 10 ** ERC20(ASSET_B).decimals();
+
+        uint256 assetABalanceInVaultBeforeWithdraw = IERC20(ASSET_A).balanceOf(VAULT);
+        uint256 assetABalanceInStrategyBeforeWithdraw = IERC20(ASSET_A).balanceOf(address(camelotStrategy));
+
+        vm.prank(VAULT);
+        camelotStrategy.withdraw(VAULT, ASSET_A, withdrawAmountAssetA);
+        vm.stopPrank();
+
+        uint256 assetABalanceInVaultAfterWithdraw = IERC20(ASSET_A).balanceOf(VAULT);
+        uint256 assetABalanceInStrategyAfterWithdraw = IERC20(ASSET_A).balanceOf(address(camelotStrategy));
+
+        assertEq(assetABalanceInVaultAfterWithdraw, assetABalanceInVaultBeforeWithdraw + withdrawAmountAssetA);
+        assertEq(assetABalanceInStrategyAfterWithdraw, assetABalanceInStrategyBeforeWithdraw - withdrawAmountAssetA);
+
+        uint256 assetBBalanceInVaultBeforeWithdraw = IERC20(ASSET_A).balanceOf(VAULT);
+        uint256 assetBBalanceInStrategyBeforeWithdraw = IERC20(ASSET_A).balanceOf(address(camelotStrategy));
+
+        vm.prank(VAULT);
+        camelotStrategy.withdraw(VAULT, ASSET_A, withdrawAmountAssetB);
+        vm.stopPrank();
+
+        uint256 assetBBalanceInVaultAfterWithdraw = IERC20(ASSET_A).balanceOf(VAULT);
+        uint256 assetBBalanceInStrategyAfterWithdraw = IERC20(ASSET_A).balanceOf(address(camelotStrategy));
+
+        assertEq(assetBBalanceInVaultAfterWithdraw, assetBBalanceInVaultBeforeWithdraw + withdrawAmountAssetB);
+        assertEq(assetBBalanceInStrategyAfterWithdraw, assetBBalanceInStrategyBeforeWithdraw - withdrawAmountAssetB);
+    }
+
+    // withdraw assets after allocation and redeem
 }
 
 contract collectRewardTest is AllocationTest {}
