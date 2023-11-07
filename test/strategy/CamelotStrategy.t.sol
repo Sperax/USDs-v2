@@ -2,13 +2,14 @@
 pragma solidity 0.8.16;
 
 import {PreMigrationSetup} from "../utils/DeploymentSetup.sol";
+import {BaseStrategy} from "./BaseStrategy.t.sol";
 import {CamelotStrategy} from "../../contracts/strategies/camelot/CamelotStrategy.sol";
 import {IRouter, INFTPool} from "../../contracts/strategies/camelot/interfaces/ICamelot.sol";
 import {InitializableAbstractStrategy, Helpers} from "../../contracts/strategies/InitializableAbstractStrategy.sol";
 import {IERC20, ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
-contract CamelotStrategyTestSetup is PreMigrationSetup {
+contract CamelotStrategyTestSetup is PreMigrationSetup, BaseStrategy {
     CamelotStrategy internal camelotStrategy;
     address internal ASSET_A = USDT;
     address internal ASSET_B = USDCe;
@@ -91,7 +92,7 @@ contract TestInitialization is CamelotStrategyTestSetup {
     }
 }
 
-contract DepositTest is TestInitialization {
+contract DepositTest is CamelotStrategyTestSetup {
     function _depositAssetsToStrategy(uint256 amountA, uint256 amountB) internal {
         uint256 depositAmountAssetA = amountA;
         uint256 depositAmountAssetB = amountB;
@@ -104,7 +105,14 @@ contract DepositTest is TestInitialization {
         IERC20(ASSET_A).approve(address(camelotStrategy), depositAmountAssetA);
         IERC20(ASSET_B).approve(address(camelotStrategy), depositAmountAssetB);
 
+        vm.expectEmit(true, false, false, true, address(camelotStrategy));
+        emit Deposit(ASSET_A, depositAmountAssetA);
+
         camelotStrategy.deposit(ASSET_A, depositAmountAssetA);
+
+        vm.expectEmit(true, false, false, true, address(camelotStrategy));
+        emit Deposit(ASSET_B, depositAmountAssetB);
+
         camelotStrategy.deposit(ASSET_B, depositAmountAssetB);
 
         vm.stopPrank();
@@ -128,7 +136,6 @@ contract AllocationTest is DepositTest {
     event IncreaseLiquidity(uint256 liquidity, uint256 amountA, uint256 amountB);
 
     error InvalidAmount();
-    error CollateralNotSupported(address asset);
 
     function test_Revert_When_Amount_Zero() public {
         vm.startPrank(USDS_OWNER);
@@ -177,8 +184,6 @@ contract AllocationTest is DepositTest {
         assertEq(IERC20(pair).balanceOf(address(camelotStrategy)), 0);
         assert(amountAllocatedAfterAllocation > amountAllocatedBeforeAllocation);
         assertEq(liquidityBalance, amountAllocatedAfterAllocation);
-        assertEq(IERC20(_tokenA).balanceOf(address(camelotStrategy)), 0);
-        assertEq(IERC20(_tokenB).balanceOf(address(camelotStrategy)), 0);
     }
 
     function test_Multiple_Allocations() public {
@@ -198,9 +203,6 @@ contract AllocationTest is DepositTest {
         (amountAllocationAssetA, amountAllocationAssetB) =
             camelotStrategy.getDepositAmounts(amountAllocationAssetA, amountAllocationAssetB);
 
-        emit log_named_uint("amountAActual", amountAllocationAssetA);
-        emit log_named_uint("amountBActual", amountAllocationAssetB);
-
         uint256 amountAllocatedBeforeIncreaseAllocation = camelotStrategy.allocatedAmount();
 
         vm.prank(USDS_OWNER);
@@ -211,19 +213,16 @@ contract AllocationTest is DepositTest {
 
         (uint256 liquidityBalance,,,,,,,) = INFTPool(_nftPool).getStakingPosition(spNFTId);
 
-        emit log_named_uint("contractStateOfLiquidity", amountAllocatedAfterIncreaseAllocation);
-        emit log_named_uint("liquidityInSecondAllocation", liquidityBalance);
-
         assert(amountAllocatedAfterIncreaseAllocation > amountAllocatedBeforeIncreaseAllocation);
         assertEq(IERC20(pair).balanceOf(address(camelotStrategy)), 0);
         assertEq(liquidityBalance, amountAllocatedAfterIncreaseAllocation);
-        assertEq(IERC20(_tokenA).balanceOf(address(camelotStrategy)), 0);
-        assertEq(IERC20(_tokenB).balanceOf(address(camelotStrategy)), 0);
     }
 }
 
 contract RedeemTest is AllocationTest {
-    // Redeem fails. Need to check
+    // Need to write one more test case to check the amount of assets returned on full redeem to make sure we are getting back enough/correct amount back.
+    // Need to test the above by rolling and warping a few blocks and timestamp using simulation.
+
     function test_Full_Redeem_After_Multiple_Allocations() public {
         test_Multiple_Allocations();
 
@@ -231,32 +230,227 @@ contract RedeemTest is AllocationTest {
         uint256 spNFTId = camelotStrategy.spNFTId();
 
         (uint256 liquidityBalanceBeforeRedeem,,,,,,,) = INFTPool(_nftPool).getStakingPosition(spNFTId);
-        // uint allocatedAmountBeforeRedeem = camelotStrategy.allocatedAmount();
-        uint256 partialRedeemAmount = liquidityBalanceBeforeRedeem - 10000;
+        uint256 allocatedAmountBeforeRedeem = camelotStrategy.allocatedAmount();
+
+        uint256 assetABalanceInContractBeforeRedeem = IERC20(ASSET_A).balanceOf(address(camelotStrategy));
+        uint256 assetBBalanceInContractBeforeRedeem = IERC20(ASSET_B).balanceOf(address(camelotStrategy));
+
+        uint256 assetACheckBalanceBeforeRedeem = camelotStrategy.checkBalance(ASSET_A);
+        uint256 assetBCheckBalanceBeforeRedeem = camelotStrategy.checkBalance(ASSET_B);
+
+        vm.prank(USDS_OWNER);
+        camelotStrategy.redeem(liquidityBalanceBeforeRedeem);
+        vm.stopPrank();
+
+        (uint256 liquidityBalanceAfterRedeem,,,,,,,) = INFTPool(_nftPool).getStakingPosition(spNFTId);
+        uint256 allocatedAmountAfterRedeem = camelotStrategy.allocatedAmount();
+
+        uint256 assetABalanceInContractAfterRedeem = IERC20(ASSET_A).balanceOf(address(camelotStrategy));
+        uint256 assetBBalanceInContractAfterRedeem = IERC20(ASSET_B).balanceOf(address(camelotStrategy));
+
+        uint256 assetACheckBalanceAfterRedeem = camelotStrategy.checkBalance(ASSET_A);
+        uint256 assetBCheckBalanceAfterRedeem = camelotStrategy.checkBalance(ASSET_B);
+
+        assertEq(
+            assetABalanceInContractAfterRedeem, assetABalanceInContractBeforeRedeem + assetACheckBalanceBeforeRedeem
+        );
+        assertEq(
+            assetBBalanceInContractAfterRedeem, assetBBalanceInContractBeforeRedeem + assetBCheckBalanceBeforeRedeem
+        );
+        assertEq(liquidityBalanceBeforeRedeem, allocatedAmountBeforeRedeem);
+        assertEq(assetACheckBalanceAfterRedeem, 0);
+        assertEq(assetBCheckBalanceAfterRedeem, 0);
+        assertEq(liquidityBalanceAfterRedeem, 0);
+        assertEq(allocatedAmountAfterRedeem, 0);
+    }
+
+    function test_Partial_Redeem_After_Multiple_Allocations() public {
+        test_Multiple_Allocations();
+
+        (,,,,, address _nftPool) = camelotStrategy.strategyData();
+        uint256 spNFTId = camelotStrategy.spNFTId();
+
+        (uint256 liquidityBalanceBeforeRedeem,,,,,,,) = INFTPool(_nftPool).getStakingPosition(spNFTId);
+        uint256 allocatedAmountBeforeRedeem = camelotStrategy.allocatedAmount();
+        uint256 partialRedeemAmount = liquidityBalanceBeforeRedeem - 1000;
+
+        uint256 assetABalanceInContractBeforeRedeem = IERC20(ASSET_A).balanceOf(address(camelotStrategy));
+        uint256 assetBBalanceInContractBeforeRedeem = IERC20(ASSET_B).balanceOf(address(camelotStrategy));
 
         vm.prank(USDS_OWNER);
         camelotStrategy.redeem(partialRedeemAmount);
         vm.stopPrank();
+
+        (uint256 liquidityBalanceAfterRedeem,,,,,,,) = INFTPool(_nftPool).getStakingPosition(spNFTId);
+        uint256 allocatedAmountAfterRedeem = camelotStrategy.allocatedAmount();
+
+        uint256 assetABalanceInContractAfterRedeem = IERC20(ASSET_A).balanceOf(address(camelotStrategy));
+        uint256 assetBBalanceInContractAfterRedeem = IERC20(ASSET_B).balanceOf(address(camelotStrategy));
+
+        assert(assetABalanceInContractAfterRedeem > assetABalanceInContractBeforeRedeem);
+        assert(assetBBalanceInContractAfterRedeem > assetBBalanceInContractBeforeRedeem);
+        assertEq(liquidityBalanceBeforeRedeem, allocatedAmountBeforeRedeem);
+        assertEq(liquidityBalanceAfterRedeem, 1000);
+        assertEq(allocatedAmountAfterRedeem, 1000);
     }
 
-    // function test_Full_Redeem_After_Multiple_Allocations() public {
-    //     test_Multiple_Allocations();
-    // }
+    function test_Full_Redeem_After_First_Allocation() public {
+        test_First_Allocation();
 
-    // function test_Partial_Redeem_After_First_Allocation() public {
-    //     test_First_Allocation();
-    // }
+        (,,,,, address _nftPool) = camelotStrategy.strategyData();
+        uint256 spNFTId = camelotStrategy.spNFTId();
 
-    // function test_Full_Redeem_After_First_Allocation() public {
-    //     test_First_Allocation();
-    // }
+        (uint256 liquidityBalanceBeforeRedeem,,,,,,,) = INFTPool(_nftPool).getStakingPosition(spNFTId);
+        uint256 allocatedAmountBeforeRedeem = camelotStrategy.allocatedAmount();
+
+        uint256 assetABalanceInContractBeforeRedeem = IERC20(ASSET_A).balanceOf(address(camelotStrategy));
+        uint256 assetBBalanceInContractBeforeRedeem = IERC20(ASSET_B).balanceOf(address(camelotStrategy));
+
+        uint256 assetACheckBalanceBeforeRedeem = camelotStrategy.checkBalance(ASSET_A);
+        uint256 assetBCheckBalanceBeforeRedeem = camelotStrategy.checkBalance(ASSET_B);
+
+        vm.prank(USDS_OWNER);
+        camelotStrategy.redeem(liquidityBalanceBeforeRedeem);
+        vm.stopPrank();
+
+        (uint256 liquidityBalanceAfterRedeem,,,,,,,) = INFTPool(_nftPool).getStakingPosition(spNFTId);
+        uint256 allocatedAmountAfterRedeem = camelotStrategy.allocatedAmount();
+
+        uint256 assetABalanceInContractAfterRedeem = IERC20(ASSET_A).balanceOf(address(camelotStrategy));
+        uint256 assetBBalanceInContractAfterRedeem = IERC20(ASSET_B).balanceOf(address(camelotStrategy));
+
+        uint256 assetACheckBalanceAfterRedeem = camelotStrategy.checkBalance(ASSET_A);
+        uint256 assetBCheckBalanceAfterRedeem = camelotStrategy.checkBalance(ASSET_B);
+
+        assertEq(
+            assetABalanceInContractAfterRedeem, assetABalanceInContractBeforeRedeem + assetACheckBalanceBeforeRedeem
+        );
+        assertEq(
+            assetBBalanceInContractAfterRedeem, assetBBalanceInContractBeforeRedeem + assetBCheckBalanceBeforeRedeem
+        );
+        assertEq(liquidityBalanceBeforeRedeem, allocatedAmountBeforeRedeem);
+        assertEq(assetACheckBalanceAfterRedeem, 0);
+        assertEq(assetBCheckBalanceAfterRedeem, 0);
+        assertEq(liquidityBalanceAfterRedeem, 0);
+        assertEq(allocatedAmountAfterRedeem, 0);
+    }
+
+    function test_Partial_Redeem_After_First_Allocation() public {
+        test_First_Allocation();
+
+        (,,,,, address _nftPool) = camelotStrategy.strategyData();
+        uint256 spNFTId = camelotStrategy.spNFTId();
+
+        (uint256 liquidityBalanceBeforeRedeem,,,,,,,) = INFTPool(_nftPool).getStakingPosition(spNFTId);
+        uint256 allocatedAmountBeforeRedeem = camelotStrategy.allocatedAmount();
+        uint256 partialRedeemAmount = liquidityBalanceBeforeRedeem - 1000;
+
+        uint256 assetABalanceInContractBeforeRedeem = IERC20(ASSET_A).balanceOf(address(camelotStrategy));
+        uint256 assetBBalanceInContractBeforeRedeem = IERC20(ASSET_B).balanceOf(address(camelotStrategy));
+
+        vm.prank(USDS_OWNER);
+        camelotStrategy.redeem(partialRedeemAmount);
+        vm.stopPrank();
+
+        (uint256 liquidityBalanceAfterRedeem,,,,,,,) = INFTPool(_nftPool).getStakingPosition(spNFTId);
+        uint256 allocatedAmountAfterRedeem = camelotStrategy.allocatedAmount();
+
+        uint256 assetABalanceInContractAfterRedeem = IERC20(ASSET_A).balanceOf(address(camelotStrategy));
+        uint256 assetBBalanceInContractAfterRedeem = IERC20(ASSET_B).balanceOf(address(camelotStrategy));
+
+        assert(assetABalanceInContractAfterRedeem > assetABalanceInContractBeforeRedeem);
+        assert(assetBBalanceInContractAfterRedeem > assetBBalanceInContractBeforeRedeem);
+        assertEq(liquidityBalanceBeforeRedeem, allocatedAmountBeforeRedeem);
+        assertEq(liquidityBalanceAfterRedeem, 1000);
+        assertEq(allocatedAmountAfterRedeem, 1000);
+    }
 }
 
-contract WithdrawAssetsToVaultTests is AllocationTest {
+contract WithdrawAssetsToVaultTests is RedeemTest {
     function test_Withdraw_Assets_To_Vault_After_Deposit_Caller_UsdsOwner() public {
         uint256 depositAmountAssetA = 1000 * 10 ** ERC20(ASSET_A).decimals();
         uint256 depositAmountAssetB = 1000 * 10 ** ERC20(ASSET_B).decimals();
         _depositAssetsToStrategy(depositAmountAssetA, depositAmountAssetB);
+
+        uint256 withdrawAmountAssetA = 100 * 10 ** ERC20(ASSET_A).decimals();
+        uint256 withdrawAmountAssetB = 100 * 10 ** ERC20(ASSET_B).decimals();
+
+        uint256 assetABalanceInVaultBeforeWithdraw = IERC20(ASSET_A).balanceOf(VAULT);
+        uint256 assetABalanceInStrategyBeforeWithdraw = IERC20(ASSET_A).balanceOf(address(camelotStrategy));
+
+        vm.expectEmit(true, false, false, true, address(camelotStrategy));
+        emit Withdrawal(ASSET_A, withdrawAmountAssetA);
+
+        vm.prank(USDS_OWNER);
+        camelotStrategy.withdrawToVault(ASSET_A, withdrawAmountAssetA);
+        vm.stopPrank();
+
+        uint256 assetABalanceInVaultAfterWithdraw = IERC20(ASSET_A).balanceOf(VAULT);
+        uint256 assetABalanceInStrategyAfterWithdraw = IERC20(ASSET_A).balanceOf(address(camelotStrategy));
+
+        assertEq(assetABalanceInVaultAfterWithdraw, assetABalanceInVaultBeforeWithdraw + withdrawAmountAssetA);
+        assertEq(assetABalanceInStrategyAfterWithdraw, assetABalanceInStrategyBeforeWithdraw - withdrawAmountAssetA);
+
+        uint256 assetBBalanceInVaultBeforeWithdraw = IERC20(ASSET_B).balanceOf(VAULT);
+        uint256 assetBBalanceInStrategyBeforeWithdraw = IERC20(ASSET_B).balanceOf(address(camelotStrategy));
+
+        vm.expectEmit(true, false, false, true, address(camelotStrategy));
+        emit Withdrawal(ASSET_B, withdrawAmountAssetB);
+
+        vm.prank(USDS_OWNER);
+        camelotStrategy.withdrawToVault(ASSET_B, withdrawAmountAssetB);
+        vm.stopPrank();
+
+        uint256 assetBBalanceInVaultAfterWithdraw = IERC20(ASSET_B).balanceOf(VAULT);
+        uint256 assetBBalanceInStrategyAfterWithdraw = IERC20(ASSET_B).balanceOf(address(camelotStrategy));
+
+        assertEq(assetBBalanceInVaultAfterWithdraw, assetBBalanceInVaultBeforeWithdraw + withdrawAmountAssetB);
+        assertEq(assetBBalanceInStrategyAfterWithdraw, assetBBalanceInStrategyBeforeWithdraw - withdrawAmountAssetB);
+    }
+
+    function test_Withdraw_Assets_To_Vault_After_Deposit_Caller_Vault() public {
+        uint256 depositAmountAssetA = 1000 * 10 ** ERC20(ASSET_A).decimals();
+        uint256 depositAmountAssetB = 1000 * 10 ** ERC20(ASSET_B).decimals();
+        _depositAssetsToStrategy(depositAmountAssetA, depositAmountAssetB);
+
+        uint256 withdrawAmountAssetA = 100 * 10 ** ERC20(ASSET_A).decimals();
+        uint256 withdrawAmountAssetB = 100 * 10 ** ERC20(ASSET_B).decimals();
+
+        uint256 assetABalanceInVaultBeforeWithdraw = IERC20(ASSET_A).balanceOf(VAULT);
+        uint256 assetABalanceInStrategyBeforeWithdraw = IERC20(ASSET_A).balanceOf(address(camelotStrategy));
+
+        vm.expectEmit(true, false, false, true, address(camelotStrategy));
+        emit Withdrawal(ASSET_A, withdrawAmountAssetA);
+
+        vm.prank(VAULT);
+        camelotStrategy.withdraw(VAULT, ASSET_A, withdrawAmountAssetA);
+        vm.stopPrank();
+
+        uint256 assetABalanceInVaultAfterWithdraw = IERC20(ASSET_A).balanceOf(VAULT);
+        uint256 assetABalanceInStrategyAfterWithdraw = IERC20(ASSET_A).balanceOf(address(camelotStrategy));
+
+        assertEq(assetABalanceInVaultAfterWithdraw, assetABalanceInVaultBeforeWithdraw + withdrawAmountAssetA);
+        assertEq(assetABalanceInStrategyAfterWithdraw, assetABalanceInStrategyBeforeWithdraw - withdrawAmountAssetA);
+
+        uint256 assetBBalanceInVaultBeforeWithdraw = IERC20(ASSET_B).balanceOf(VAULT);
+        uint256 assetBBalanceInStrategyBeforeWithdraw = IERC20(ASSET_B).balanceOf(address(camelotStrategy));
+
+        vm.expectEmit(true, false, false, true, address(camelotStrategy));
+        emit Withdrawal(ASSET_B, withdrawAmountAssetB);
+
+        vm.prank(VAULT);
+        camelotStrategy.withdraw(VAULT, ASSET_B, withdrawAmountAssetB);
+        vm.stopPrank();
+
+        uint256 assetBBalanceInVaultAfterWithdraw = IERC20(ASSET_B).balanceOf(VAULT);
+        uint256 assetBBalanceInStrategyAfterWithdraw = IERC20(ASSET_B).balanceOf(address(camelotStrategy));
+
+        assertEq(assetBBalanceInVaultAfterWithdraw, assetBBalanceInVaultBeforeWithdraw + withdrawAmountAssetB);
+        assertEq(assetBBalanceInStrategyAfterWithdraw, assetBBalanceInStrategyBeforeWithdraw - withdrawAmountAssetB);
+    }
+
+    function test_Withdraw_Assets_To_Vault_After_Redeem_Caller_UsdsOwner() public {
+        test_Full_Redeem_After_Multiple_Allocations();
 
         uint256 withdrawAmountAssetA = 100 * 10 ** ERC20(ASSET_A).decimals();
         uint256 withdrawAmountAssetB = 100 * 10 ** ERC20(ASSET_B).decimals();
@@ -274,24 +468,22 @@ contract WithdrawAssetsToVaultTests is AllocationTest {
         assertEq(assetABalanceInVaultAfterWithdraw, assetABalanceInVaultBeforeWithdraw + withdrawAmountAssetA);
         assertEq(assetABalanceInStrategyAfterWithdraw, assetABalanceInStrategyBeforeWithdraw - withdrawAmountAssetA);
 
-        uint256 assetBBalanceInVaultBeforeWithdraw = IERC20(ASSET_A).balanceOf(VAULT);
-        uint256 assetBBalanceInStrategyBeforeWithdraw = IERC20(ASSET_A).balanceOf(address(camelotStrategy));
+        uint256 assetBBalanceInVaultBeforeWithdraw = IERC20(ASSET_B).balanceOf(VAULT);
+        uint256 assetBBalanceInStrategyBeforeWithdraw = IERC20(ASSET_B).balanceOf(address(camelotStrategy));
 
         vm.prank(USDS_OWNER);
-        camelotStrategy.withdrawToVault(ASSET_A, withdrawAmountAssetB);
+        camelotStrategy.withdrawToVault(ASSET_B, withdrawAmountAssetB);
         vm.stopPrank();
 
-        uint256 assetBBalanceInVaultAfterWithdraw = IERC20(ASSET_A).balanceOf(VAULT);
-        uint256 assetBBalanceInStrategyAfterWithdraw = IERC20(ASSET_A).balanceOf(address(camelotStrategy));
+        uint256 assetBBalanceInVaultAfterWithdraw = IERC20(ASSET_B).balanceOf(VAULT);
+        uint256 assetBBalanceInStrategyAfterWithdraw = IERC20(ASSET_B).balanceOf(address(camelotStrategy));
 
         assertEq(assetBBalanceInVaultAfterWithdraw, assetBBalanceInVaultBeforeWithdraw + withdrawAmountAssetB);
         assertEq(assetBBalanceInStrategyAfterWithdraw, assetBBalanceInStrategyBeforeWithdraw - withdrawAmountAssetB);
     }
 
-    function test_Withdraw_Assets_To_Vault_After_Deposit_Caller_Vault() public {
-        uint256 depositAmountAssetA = 1000 * 10 ** ERC20(ASSET_A).decimals();
-        uint256 depositAmountAssetB = 1000 * 10 ** ERC20(ASSET_B).decimals();
-        _depositAssetsToStrategy(depositAmountAssetA, depositAmountAssetB);
+    function test_Withdraw_Assets_To_Vault_After_Redeem_Caller_Vault() public {
+        test_Full_Redeem_After_Multiple_Allocations();
 
         uint256 withdrawAmountAssetA = 100 * 10 ** ERC20(ASSET_A).decimals();
         uint256 withdrawAmountAssetB = 100 * 10 ** ERC20(ASSET_B).decimals();
@@ -309,32 +501,32 @@ contract WithdrawAssetsToVaultTests is AllocationTest {
         assertEq(assetABalanceInVaultAfterWithdraw, assetABalanceInVaultBeforeWithdraw + withdrawAmountAssetA);
         assertEq(assetABalanceInStrategyAfterWithdraw, assetABalanceInStrategyBeforeWithdraw - withdrawAmountAssetA);
 
-        uint256 assetBBalanceInVaultBeforeWithdraw = IERC20(ASSET_A).balanceOf(VAULT);
-        uint256 assetBBalanceInStrategyBeforeWithdraw = IERC20(ASSET_A).balanceOf(address(camelotStrategy));
+        uint256 assetBBalanceInVaultBeforeWithdraw = IERC20(ASSET_B).balanceOf(VAULT);
+        uint256 assetBBalanceInStrategyBeforeWithdraw = IERC20(ASSET_B).balanceOf(address(camelotStrategy));
 
         vm.prank(VAULT);
-        camelotStrategy.withdraw(VAULT, ASSET_A, withdrawAmountAssetB);
+        camelotStrategy.withdraw(VAULT, ASSET_B, withdrawAmountAssetB);
         vm.stopPrank();
 
-        uint256 assetBBalanceInVaultAfterWithdraw = IERC20(ASSET_A).balanceOf(VAULT);
-        uint256 assetBBalanceInStrategyAfterWithdraw = IERC20(ASSET_A).balanceOf(address(camelotStrategy));
+        uint256 assetBBalanceInVaultAfterWithdraw = IERC20(ASSET_B).balanceOf(VAULT);
+        uint256 assetBBalanceInStrategyAfterWithdraw = IERC20(ASSET_B).balanceOf(address(camelotStrategy));
 
         assertEq(assetBBalanceInVaultAfterWithdraw, assetBBalanceInVaultBeforeWithdraw + withdrawAmountAssetB);
         assertEq(assetBBalanceInStrategyAfterWithdraw, assetBBalanceInStrategyBeforeWithdraw - withdrawAmountAssetB);
     }
-
-    // withdraw assets after allocation and redeem
 }
 
 contract collectRewardTest is AllocationTest {}
 
-contract UpdateStrategyDataTest is TestInitialization {
+contract UpdateStrategyDataTest is CamelotStrategyTestSetup {
     event StrategyDataUpdated(CamelotStrategy.StrategyData);
 
     function test_Update_Strategy_Data() public {
+        address newAssetA = address(0x1);
+        address newAssetB = address(0x2);
         CamelotStrategy.StrategyData memory _newStrategyData = CamelotStrategy.StrategyData({
-            tokenA: ASSET_A,
-            tokenB: ASSET_B,
+            tokenA: newAssetA,
+            tokenB: newAssetB,
             router: 0xc873fEcbd354f5A56E00E710B90EF4201db2448d,
             positionHelper: 0xe458018Ad4283C90fB7F5460e24C4016F81b8175,
             factory: 0x6EcCab422D763aC031210895C81787E87B43A652,
