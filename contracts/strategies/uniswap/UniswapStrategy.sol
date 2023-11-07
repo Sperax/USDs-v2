@@ -94,7 +94,7 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
 
     /// @notice Allocates deposited assets into the Uniswap V3 pool to provide liquidity.
     /// @param _amounts An array containing the amounts of tokens to be allocated.
-    function allocate(uint256[2] calldata _amounts) external onlyOwner nonReentrant {
+    function allocate(uint256[2] calldata _amounts) external nonReentrant {
         Helpers._isNonZeroAmt(_amounts[0] + _amounts[1]);
 
         UniswapPoolData storage poolData = uniswapPoolData;

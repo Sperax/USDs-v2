@@ -334,7 +334,7 @@ contract AllocateTests is UniswapStrategyTest {
         strategy.allocate(amounts);
     }
 
-    function test_Allocate_MintNewPositionAndLiquidity() public useKnownActor(USDS_OWNER) {
+    function test_Allocate_MintNewPositionAndLiquidity() public useKnownActor(VAULT) {
         (,,,,,,,,, uint256 lpTokenId) = strategy.uniswapPoolData();
         uint256 initialBal1 = IERC20(ASSET_1).balanceOf(address(strategy));
         uint256 initialBal2 = IERC20(ASSET_2).balanceOf(address(strategy));
