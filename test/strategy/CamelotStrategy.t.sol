@@ -9,7 +9,7 @@ import {InitializableAbstractStrategy, Helpers} from "../../contracts/strategies
 import {IERC20, ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
-contract CamelotStrategyTestSetup is PreMigrationSetup {
+contract CamelotStrategyTestSetup is PreMigrationSetup, BaseStrategy {
     CamelotStrategy internal camelotStrategy;
     address internal ASSET_A = USDT;
     address internal ASSET_B = USDCe;
@@ -33,7 +33,7 @@ contract CamelotStrategyTestSetup is PreMigrationSetup {
     }
 }
 
-contract TestInitialization is CamelotStrategyTestSetup, BaseStrategy {
+contract TestInitialization is CamelotStrategyTestSetup {
     CamelotStrategy private camelotStrategy2;
     CamelotStrategy private camelotStrategyImpl2;
 
@@ -92,7 +92,7 @@ contract TestInitialization is CamelotStrategyTestSetup, BaseStrategy {
     }
 }
 
-contract DepositTest is TestInitialization {
+contract DepositTest is CamelotStrategyTestSetup {
     function _depositAssetsToStrategy(uint256 amountA, uint256 amountB) internal {
         uint256 depositAmountAssetA = amountA;
         uint256 depositAmountAssetB = amountB;
@@ -518,7 +518,7 @@ contract WithdrawAssetsToVaultTests is RedeemTest {
 
 contract collectRewardTest is AllocationTest {}
 
-contract UpdateStrategyDataTest is TestInitialization {
+contract UpdateStrategyDataTest is CamelotStrategyTestSetup {
     event StrategyDataUpdated(CamelotStrategy.StrategyData);
 
     function test_Update_Strategy_Data() public {
