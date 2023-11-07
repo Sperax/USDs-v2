@@ -371,10 +371,7 @@ contract AllocateTests is UniswapStrategyTest {
         assertEq(uint256(mintedLiquidity), expectedLiquidity, "Liquidity mismatch");
         uint256 new_bal_1 = IERC20(ASSET_1).balanceOf(address(strategy));
         uint256 new_bal_2 = IERC20(ASSET_2).balanceOf(address(strategy));
-        // assertEq(strategy.checkBalance(ASSET_1) - new_bal_1, expectedAmountA, "Amount A mismatch");
         assertApproxEqAbs(strategy.checkBalance(ASSET_1) - new_bal_1, expectedAmountA, 1);
-        // @todo check this precision issue or use assertApproxEqAbs
-        // assertEq(strategy.checkBalance(ASSET_2) - new_bal_2, expectedAmountB, "Amount B mismatch");
         assertApproxEqAbs(strategy.checkBalance(ASSET_2) - new_bal_2, expectedAmountB, 1);
     }
 
