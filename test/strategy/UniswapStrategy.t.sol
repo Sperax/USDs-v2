@@ -426,7 +426,8 @@ contract RedeemTests is UniswapStrategyTest {
 
         uint256 availableAmount0 = strategy.checkBalance(ASSET_1) - initialBal1;
         uint256 availableAmount1 = strategy.checkBalance(ASSET_2) - initialBal2;
-        uint256[2] memory minAmountOut = [uint256(0), uint256(0)];
+        uint256[2] memory minAmountOut;
+        (minAmountOut[0], minAmountOut[1]) = strategy.getAmountsForLiquidity(oldLiquidity);
         vm.recordLogs();
         strategy.redeem(oldLiquidity, minAmountOut);
 
@@ -439,6 +440,9 @@ contract RedeemTests is UniswapStrategyTest {
                 (_decreasedLiquidity, _amount0, _amount1) = abi.decode(logs[j].data, (uint256, uint256, uint256));
             }
         }
+
+        assertTrue(_amount0 >= minAmountOut[0], "Slippage error for asset 1");
+        assertTrue(_amount1 >= minAmountOut[1], "Slippage error for asset 2");
 
         assertEq(_decreasedLiquidity, oldLiquidity, "Liquidity mismatch");
         assertEq(_amount0, availableAmount0, "amount0 mismatch");
@@ -462,9 +466,11 @@ contract RedeemTests is UniswapStrategyTest {
             INonfungiblePositionManager(NONFUNGIBLE_POSITION_MANAGER).positions(lpTokenId);
         assertTrue(oldLiquidity != 0, "Liquidity is 0");
 
-        uint256[2] memory minMintAmount = [uint256(0), uint256(0)];
+        uint256[2] memory minAmountOut;
+        (minAmountOut[0], minAmountOut[1]) = strategy.getAmountsForLiquidity(oldLiquidity / 2);
+
         vm.recordLogs();
-        strategy.redeem(oldLiquidity / 2, minMintAmount);
+        strategy.redeem(oldLiquidity / 2, minAmountOut);
 
         uint256 _decreasedLiquidity;
         uint256 _amount0;
@@ -475,6 +481,9 @@ contract RedeemTests is UniswapStrategyTest {
                 (_decreasedLiquidity, _amount0, _amount1) = abi.decode(logs[j].data, (uint256, uint256, uint256));
             }
         }
+
+        assertTrue(_amount0 >= minAmountOut[0], "Slippage error for asset 1");
+        assertTrue(_amount1 >= minAmountOut[1], "Slippage error for asset 2");
 
         assertEq(_decreasedLiquidity, oldLiquidity / 2, "Liquidity mismatch");
         assertEq(_amount0, oldAllocatedAmt1 / 2, "amount0 mismatch");
