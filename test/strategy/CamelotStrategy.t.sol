@@ -837,4 +837,70 @@ contract MiscellaneousTests is CamelotStrategyTestSetup {
         assertEq(rewardsAfter, rewardsAfterContractState);
         assert(rewardsAfterContractState > rewardsBeforeContractState);
     }
+
+    function test_UpdateVaultCore() public useKnownActor(USDS_OWNER) {
+        address newVault = address(1);
+        vm.expectEmit(true, true, false, true);
+        emit VaultUpdated(newVault);
+        camelotStrategy.updateVault(newVault);
+        address vault = camelotStrategy.vault();
+        assertEq(vault, newVault);
+    }
+
+    function test_Revert_UpdateVaultCore_When_NotOwner() public {
+        address newVault = address(1);
+        address randomCaller = address(0x1);
+        vm.expectRevert("Ownable: caller is not the owner");
+        vm.startPrank(randomCaller);
+        camelotStrategy.updateVault(newVault);
+        vm.stopPrank();
+    }
+
+    function test_UpdateHarvestIncentiveRate() public useKnownActor(USDS_OWNER) {
+        uint16 newRate = 100;
+
+        vm.expectEmit(true, false, false, true);
+        emit HarvestIncentiveRateUpdated(newRate);
+        camelotStrategy.updateHarvestIncentiveRate(newRate);
+
+        uint256 harvestIncentive = camelotStrategy.harvestIncentiveRate();
+
+        assertEq(harvestIncentive, newRate);
+
+        newRate = 10001;
+        vm.expectRevert(abi.encodeWithSelector(Helpers.GTMaxPercentage.selector, newRate));
+        camelotStrategy.updateHarvestIncentiveRate(newRate);
+        harvestIncentive = camelotStrategy.harvestIncentiveRate();
+    }
+
+    function test_Revert_UpdateHarvestIncentiveRate_When_NotOwner() public {
+        uint16 newRate = 100;
+        address randomCaller = address(0x1);
+        vm.expectRevert("Ownable: caller is not the owner");
+        vm.startPrank(randomCaller);
+        camelotStrategy.updateHarvestIncentiveRate(newRate);
+        vm.stopPrank();
+    }
+
+    function test_UpdateSlippage() public useKnownActor(USDS_OWNER) {
+        uint16 updatedDepositSlippage = 100;
+        uint16 updatedWithdrawSlippage = 200;
+        vm.expectEmit(true, false, false, true);
+        emit SlippageUpdated(updatedDepositSlippage, updatedWithdrawSlippage);
+        camelotStrategy.updateSlippage(updatedDepositSlippage, updatedWithdrawSlippage);
+        assertEq(camelotStrategy.depositSlippage(), updatedDepositSlippage);
+        assertEq(camelotStrategy.withdrawSlippage(), updatedWithdrawSlippage);
+    }
+
+    function test_Revert_UpdateSlippage_When_NotOwner() public {
+        uint16 updatedDepositSlippage = 100;
+        uint16 updatedWithdrawSlippage = 200;
+        vm.expectRevert("Ownable: caller is not the owner");
+        camelotStrategy.updateSlippage(updatedDepositSlippage, updatedWithdrawSlippage);
+    }
+
+    function test_RevertWhen_slippageExceedsMax() public useKnownActor(USDS_OWNER) {
+        vm.expectRevert(abi.encodeWithSelector(Helpers.GTMaxPercentage.selector, 10001));
+        camelotStrategy.updateSlippage(10001, 10001);
+    }
 }
