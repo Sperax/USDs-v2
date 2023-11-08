@@ -59,7 +59,7 @@ interface INFTPool {
 
     function withdrawFromPosition(uint256 tokenId, uint256 amountToWithdraw) external;
 
-    function harvestPositionTo(uint256 tokenId, address to) external;
+    function harvestPosition(uint256 tokenId) external;
 
     function pendingRewards(uint256 tokenId) external view returns (uint256);
 
@@ -98,4 +98,33 @@ interface INFTHandler is IERC721Receiver {
         returns (bool);
     function onNFTAddToPosition(address operator, uint256 tokenId, uint256 lpAmount) external returns (bool);
     function onNFTWithdraw(address operator, uint256 tokenId, uint256 lpAmount) external returns (bool);
+}
+
+interface IXGrailToken {
+    function redeem(uint256 xGrailAmount, uint256 duration) external;
+
+    function finalizeRedeem(uint256 redeemIndex) external;
+
+    function minRedeemDuration() external view returns (uint256);
+
+    function getUserRedeemsLength(address userAddress) external view returns (uint256);
+
+    function getUserRedeem(address userAddress, uint256 redeemIndex)
+        external
+        view
+        returns (
+            uint256 grailAmount,
+            uint256 xGrailAmount,
+            uint256 endTime,
+            address dividendsContract,
+            uint256 dividendsAllocation
+        );
+}
+
+interface IDividendV2 {
+    function harvestAllDividends() external;
+
+    function distributedTokensLength() external view returns (uint256);
+
+    function distributedToken(uint256 index) external view returns (address);
 }

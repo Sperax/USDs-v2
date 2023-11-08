@@ -31,10 +31,15 @@ contract CamelotStrategy is InitializableAbstractStrategy, INFTHandler {
     event StrategyDataUpdated(StrategyData);
     event IncreaseLiquidity(uint256 liquidity, uint256 amountA, uint256 amountB);
     event DecreaseLiquidity(uint256 liquidity, uint256 amountA, uint256 amountB);
+    // This event is emitted when xGrail.redeem is called
+    // It is emitted while creation of redemption request and not actual redemption
+    // The actual redemption emits RewardTokenCollected event
+    event XGrailRedeemed(uint256 xGrailAmount);
 
     error InvalidAsset();
     error NotCamelotNFTPool();
     error AddLiquidityFailed();
+    error InvalidRedeemIndex();
 
     /// @notice Initializer function of the strategy
     /// @param _strategyData variable of type StrategyData
@@ -187,7 +192,48 @@ contract CamelotStrategy is InitializableAbstractStrategy, INFTHandler {
     /// @inheritdoc InitializableAbstractStrategy
     function collectReward() external override {
         address yieldReceiver = IStrategyVault(vault).yieldReceiver();
-        INFTPool(strategyData.nftPool).harvestPositionTo(spNFTId, yieldReceiver);
+        INFTPool(strategyData.nftPool).harvestPosition(spNFTId);
+
+        // Handling grail rewards
+        _handleGrailRewards(yieldReceiver);
+
+        // Handling xGrail
+        address xGrail = rewardTokenAddress[1];
+        // reusing variable rewardBalance
+        uint256 xGrailBalance = IERC20(xGrail).balanceOf(address(this));
+        if (xGrailBalance != 0) {
+            IXGrailToken(xGrail).redeem(xGrailBalance, 15 days);
+            emit XGrailRedeemed(xGrailBalance);
+        }
+    }
+
+    /// @notice A function to collect vested grail and dividends
+    /// @param redeemIndex Valid redeem index of a redeem request created in xGrail contract via `collectReward` function.
+    /// @dev Collects dividends first and then finalizes redeem.
+    function collectVestedGrailAndDividends(uint256 redeemIndex) external {
+        address xGrail = rewardTokenAddress[1];
+        if (redeemIndex >= IXGrailToken(xGrail).getUserRedeemsLength(address(this))) {
+            revert InvalidRedeemIndex();
+        }
+        (,,, address dividendsContract,) = IXGrailToken(xGrail).getUserRedeem(address(this), redeemIndex);
+        IDividendV2(dividendsContract).harvestAllDividends();
+        uint256 dividendTokensLength = IDividendV2(dividendsContract).distributedTokensLength();
+        address yieldReceiver = IStrategyVault(vault).yieldReceiver();
+        address _token;
+        uint256 _balance;
+        uint256 _harvestAmt;
+        for (uint8 i; i < dividendTokensLength;) {
+            _token = IDividendV2(dividendsContract).distributedToken(i);
+            if (_token != xGrail) {
+                _balance = IERC20(_token).balanceOf(address(this));
+                if (_balance != 0) {
+                    _harvestAmt = _splitAndSendReward(_token, yieldReceiver, msg.sender, _balance);
+                    emit RewardTokenCollected(_token, yieldReceiver, _harvestAmt);
+                }
+            }
+        }
+        IXGrailToken(xGrail).finalizeRedeem(redeemIndex);
+        _handleGrailRewards(yieldReceiver);
     }
 
     // Functions needed by Camelot staking positions NFT manager
@@ -204,15 +250,13 @@ contract CamelotStrategy is InitializableAbstractStrategy, INFTHandler {
     /// @notice This function is called when rewards are harvested
     function onNFTHarvest(
         address, /*operator*/
-        address to,
+        address, /*to*/
         uint256, /*tokenId*/
-        uint256 grailAmount,
-        uint256 xGrailAmount
-    ) external returns (bool) {
+        uint256, /*grailAmount*/
+        uint256 /*xGrailAmount*/
+    ) external view returns (bool) {
         // @todo figure out xGrail rewards
         if (msg.sender != strategyData.nftPool) revert NotCamelotNFTPool();
-        emit RewardTokenCollected(rewardTokenAddress[0], to, grailAmount);
-        emit RewardTokenCollected(rewardTokenAddress[1], to, xGrailAmount);
         return true;
     }
 
@@ -323,6 +367,16 @@ contract CamelotStrategy is InitializableAbstractStrategy, INFTHandler {
         IERC20(_asset).safeTransfer(_recipient, _amount);
 
         emit Withdrawal(_asset, _amount);
+    }
+
+    /// @notice A private function to handle grail rewards
+    function _handleGrailRewards(address yieldReceiver) private {
+        address grail = rewardTokenAddress[0];
+        uint256 rewardBalance = IERC20(grail).balanceOf(address(this));
+        if (rewardBalance != 0) {
+            uint256 harvestAmt = _splitAndSendReward(grail, yieldReceiver, msg.sender, rewardBalance);
+            emit RewardTokenCollected(grail, yieldReceiver, harvestAmt);
+        }
     }
 
     /// @notice A function to check available balance of tokens as per liquidity
