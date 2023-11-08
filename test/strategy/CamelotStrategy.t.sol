@@ -433,6 +433,34 @@ contract RedeemTest is CamelotStrategyTestSetup {
         assertEq(liquidityBalanceAfterRedeem, 1000);
         assertEq(allocatedAmountAfterRedeem, 1000);
     }
+
+    function test_Redeem_Emit_Test() public {
+        _multipleAllocations();
+
+        (,,,,, address _nftPool) = camelotStrategy.strategyData();
+        uint256 spNFTId = camelotStrategy.spNFTId();
+
+        (uint256 liquidityBalanceBeforeRedeem,,,,,,,) = INFTPool(_nftPool).getStakingPosition(spNFTId);
+        uint256 partialRedeemAmount = liquidityBalanceBeforeRedeem - 1000;
+
+        vm.recordLogs();
+
+        _redeem(partialRedeemAmount);
+
+        VmSafe.Log[] memory logs = vm.getRecordedLogs();
+
+        uint256 expectedLiquidityToWithdraw;
+        // uint256 expectedAmountA;
+        // uint256 expectedAmountB;
+
+        for (uint8 j = 0; j < logs.length; ++j) {
+            if (logs[j].topics[0] == keccak256("DecreaseLiquidity(uint256,uint256,uint256)")) {
+                (expectedLiquidityToWithdraw,,) = abi.decode(logs[j].data, (uint256, uint256, uint256));
+            }
+        }
+
+        assertEq(expectedLiquidityToWithdraw, partialRedeemAmount);
+    }
 }
 
 contract WithdrawAssetsToVaultTests is CamelotStrategyTestSetup {
