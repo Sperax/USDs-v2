@@ -9,6 +9,7 @@ import {InitializableAbstractStrategy, Helpers} from "../../contracts/strategies
 import {IERC20, ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {IVault} from "../../contracts/interfaces/IVault.sol";
+import {VmSafe} from "forge-std/Vm.sol";
 
 contract CamelotStrategyTestSetup is PreMigrationSetup, BaseStrategy {
     CamelotStrategy internal camelotStrategy;
@@ -192,12 +193,12 @@ contract AllocationTest is CamelotStrategyTestSetup {
         vm.stopPrank();
     }
 
-    function test_First_Allocation() public {
+    function test_Allocate_MintNewPositionAndAddLiquidity() public {
         _depositAssetsToStrategy(1000 * 10 ** ERC20(ASSET_A).decimals(), 1000 * 10 ** ERC20(ASSET_B).decimals());
 
-        (address _tokenA, address _tokenB, address _router,,, address _nftPool) = camelotStrategy.strategyData();
+        (,, address _router,,, address _nftPool) = camelotStrategy.strategyData();
 
-        address pair = IRouter(_router).getPair(_tokenA, _tokenB);
+        address pair = IRouter(_router).getPair(ASSET_A, ASSET_B);
 
         uint256 numOfSpNFTsBeforeAllocation = IERC721(_nftPool).balanceOf(address(camelotStrategy));
         uint256 amountAllocatedBeforeAllocation = camelotStrategy.allocatedAmount();
@@ -230,7 +231,50 @@ contract AllocationTest is CamelotStrategyTestSetup {
         );
     }
 
-    function test_Multiple_Allocations() public {
+    // wrote this as a separate test as i got stack too deep error in test_Allocate_MintNewPositionAndAddLiquidity function.
+    // Also --via-ir taking lot of time to run. So separated the test
+    function test_Allocate_MintNewPositionAndAddLiquidity_Emit_And_Slippage_Test() public {
+        _depositAssetsToStrategy(1000 * 10 ** ERC20(ASSET_A).decimals(), 1000 * 10 ** ERC20(ASSET_B).decimals());
+
+        (,,,,, address _nftPool) = camelotStrategy.strategyData();
+
+        vm.recordLogs();
+
+        (uint256 allocatedAmountAssetA, uint256 allocatedAmountAssetB) =
+            _allocate(1000 * 10 ** ERC20(ASSET_A).decimals(), 1000 * 10 ** ERC20(ASSET_B).decimals());
+
+        uint256 minAmountsAssetA =
+            allocatedAmountAssetA - (allocatedAmountAssetA * camelotStrategy.depositSlippage() / Helpers.MAX_PERCENTAGE);
+        uint256 minAmountsAssetB =
+            allocatedAmountAssetB - (allocatedAmountAssetB * camelotStrategy.depositSlippage() / Helpers.MAX_PERCENTAGE);
+
+        VmSafe.Log[] memory logs = vm.getRecordedLogs();
+
+        // uint256 expectedTokenId;
+        uint256 expectedLiquidity;
+        uint256 expectedAmountA;
+        uint256 expectedAmountB;
+
+        for (uint8 j = 0; j < logs.length; ++j) {
+            if (logs[j].topics[0] == keccak256("IncreaseLiquidity(uint256,uint256,uint256)")) {
+                (expectedLiquidity, expectedAmountA, expectedAmountB) =
+                    abi.decode(logs[j].data, (uint256, uint256, uint256));
+            }
+        }
+
+        uint256 spNFTId = camelotStrategy.spNFTId();
+        (uint256 liquidityBalance,,,,,,,) = INFTPool(_nftPool).getStakingPosition(spNFTId);
+
+        // assertEq(expectedTokenId, spNFTId);
+        assertEq(expectedLiquidity, liquidityBalance);
+        assertApproxEqAbs(expectedAmountA, allocatedAmountAssetA, 1);
+        assertApproxEqAbs(expectedAmountB, allocatedAmountAssetB, 1);
+
+        assert(expectedAmountA >= minAmountsAssetA);
+        assert(expectedAmountB >= minAmountsAssetB);
+    }
+
+    function test_Allocate_IncreaseLiquidity() public {
         uint256 amountAllocatedBeforeIncreaseAllocation = camelotStrategy.allocatedAmount();
 
         _multipleAllocations();
@@ -280,7 +324,7 @@ contract RedeemTest is CamelotStrategyTestSetup {
     // Need to write one more test case to check the amount of assets returned on full redeem to make sure we are getting back enough/correct amount back.
     // Need to test the above by rolling and warping a few blocks and timestamp using simulation.
 
-    function test_Full_Redeem_After_Multiple_Allocations() public {
+    function test_Full_Redeem_After_Allocate_IncreaseLiquidity() public {
         _multipleAllocations();
 
         (,,,,, address _nftPool) = camelotStrategy.strategyData();
@@ -307,7 +351,7 @@ contract RedeemTest is CamelotStrategyTestSetup {
         assertEq(allocatedAmountAfterRedeem, 0);
     }
 
-    function test_Partial_Redeem_After_Multiple_Allocations() public {
+    function test_Partial_Redeem_After_Allocate_IncreaseLiquidity() public {
         _multipleAllocations();
 
         (,,,,, address _nftPool) = camelotStrategy.strategyData();
@@ -335,7 +379,7 @@ contract RedeemTest is CamelotStrategyTestSetup {
         assertEq(allocatedAmountAfterRedeem, 1000);
     }
 
-    function test_Full_Redeem_After_First_Allocation() public {
+    function test_Full_Redeem_After_Allocate_MintNewPositionAndAddLiquidity() public {
         _singleAllocation();
 
         (,,,,, address _nftPool) = camelotStrategy.strategyData();
@@ -362,7 +406,7 @@ contract RedeemTest is CamelotStrategyTestSetup {
         assertEq(allocatedAmountAfterRedeem, 0);
     }
 
-    function test_Partial_Redeem_After_First_Allocation() public {
+    function test_Partial_Redeem_After_Allocate_MintNewPositionAndAddLiquidity() public {
         _singleAllocation();
 
         (,,,,, address _nftPool) = camelotStrategy.strategyData();
@@ -388,6 +432,34 @@ contract RedeemTest is CamelotStrategyTestSetup {
         assertEq(liquidityBalanceBeforeRedeem, allocatedAmountBeforeRedeem);
         assertEq(liquidityBalanceAfterRedeem, 1000);
         assertEq(allocatedAmountAfterRedeem, 1000);
+    }
+
+    function test_Redeem_Emit_Test() public {
+        _multipleAllocations();
+
+        (,,,,, address _nftPool) = camelotStrategy.strategyData();
+        uint256 spNFTId = camelotStrategy.spNFTId();
+
+        (uint256 liquidityBalanceBeforeRedeem,,,,,,,) = INFTPool(_nftPool).getStakingPosition(spNFTId);
+        uint256 partialRedeemAmount = liquidityBalanceBeforeRedeem - 1000;
+
+        vm.recordLogs();
+
+        _redeem(partialRedeemAmount);
+
+        VmSafe.Log[] memory logs = vm.getRecordedLogs();
+
+        uint256 expectedLiquidityToWithdraw;
+        // uint256 expectedAmountA;
+        // uint256 expectedAmountB;
+
+        for (uint8 j = 0; j < logs.length; ++j) {
+            if (logs[j].topics[0] == keccak256("DecreaseLiquidity(uint256,uint256,uint256)")) {
+                (expectedLiquidityToWithdraw,,) = abi.decode(logs[j].data, (uint256, uint256, uint256));
+            }
+        }
+
+        assertEq(expectedLiquidityToWithdraw, partialRedeemAmount);
     }
 }
 
@@ -664,12 +736,32 @@ contract MiscellaneousTests is CamelotStrategyTestSetup {
         vm.stopPrank();
     }
 
+    function test_onERC721Received() public {
+        bytes4 _ERC721_RECEIVED = 0x150b7a02;
+        uint256 randomTokenId = 152;
+        (,,,,, address _nftPool) = camelotStrategy.strategyData();
+        vm.startPrank(_nftPool);
+        bytes4 result = camelotStrategy.onERC721Received(address(0x1), address(0x2), randomTokenId, "");
+        uint256 spNFTId = camelotStrategy.spNFTId();
+        vm.stopPrank();
+        assertEq(result, _ERC721_RECEIVED);
+        assertEq(spNFTId, randomTokenId);
+    }
+
     function test_RevertWhen_Random_onNFTHarvest_Caller() public {
         address randomCaller = address(0x1);
         vm.expectRevert(abi.encodeWithSelector(NotCamelotNFTPool.selector));
         vm.startPrank(randomCaller);
         camelotStrategy.onNFTHarvest(address(0x1), address(0x2), 1, 1, 1);
         vm.stopPrank();
+    }
+
+    function test_onNFTHarvest() public {
+        (,,,,, address _nftPool) = camelotStrategy.strategyData();
+        vm.startPrank(_nftPool);
+        bool result = camelotStrategy.onNFTHarvest(address(0x1), address(0x2), 1, 1, 1);
+        vm.stopPrank();
+        assertEq(result, true);
     }
 
     function test_RevertWhen_Random_onNFTAddToPosition_Caller() public {
@@ -680,12 +772,28 @@ contract MiscellaneousTests is CamelotStrategyTestSetup {
         vm.stopPrank();
     }
 
+    function test_onNFTAddToPosition() public {
+        (,,,,, address _nftPool) = camelotStrategy.strategyData();
+        vm.startPrank(_nftPool);
+        bool result = camelotStrategy.onNFTAddToPosition(address(0x1), 1, 1);
+        vm.stopPrank();
+        assertEq(result, true);
+    }
+
     function test_RevertWhen_Random_onNFTWithdraw_Caller() public {
         address randomCaller = address(0x1);
         vm.expectRevert(abi.encodeWithSelector(NotCamelotNFTPool.selector));
         vm.startPrank(randomCaller);
         camelotStrategy.onNFTWithdraw(address(0x1), 1, 1);
         vm.stopPrank();
+    }
+
+    function test_onNFTWithdraw() public {
+        (,,,,, address _nftPool) = camelotStrategy.strategyData();
+        vm.startPrank(_nftPool);
+        bool result = camelotStrategy.onNFTWithdraw(address(0x1), 1, 1);
+        vm.stopPrank();
+        assertEq(result, true);
     }
 
     function test_checkLPTokenBalance() public {
@@ -728,5 +836,71 @@ contract MiscellaneousTests is CamelotStrategyTestSetup {
         assertEq(rewardsBefore, rewardsBeforeContractState);
         assertEq(rewardsAfter, rewardsAfterContractState);
         assert(rewardsAfterContractState > rewardsBeforeContractState);
+    }
+
+    function test_UpdateVaultCore() public useKnownActor(USDS_OWNER) {
+        address newVault = address(1);
+        vm.expectEmit(true, true, false, true);
+        emit VaultUpdated(newVault);
+        camelotStrategy.updateVault(newVault);
+        address vault = camelotStrategy.vault();
+        assertEq(vault, newVault);
+    }
+
+    function test_Revert_UpdateVaultCore_When_NotOwner() public {
+        address newVault = address(1);
+        address randomCaller = address(0x1);
+        vm.expectRevert("Ownable: caller is not the owner");
+        vm.startPrank(randomCaller);
+        camelotStrategy.updateVault(newVault);
+        vm.stopPrank();
+    }
+
+    function test_UpdateHarvestIncentiveRate() public useKnownActor(USDS_OWNER) {
+        uint16 newRate = 100;
+
+        vm.expectEmit(true, false, false, true);
+        emit HarvestIncentiveRateUpdated(newRate);
+        camelotStrategy.updateHarvestIncentiveRate(newRate);
+
+        uint256 harvestIncentive = camelotStrategy.harvestIncentiveRate();
+
+        assertEq(harvestIncentive, newRate);
+
+        newRate = 10001;
+        vm.expectRevert(abi.encodeWithSelector(Helpers.GTMaxPercentage.selector, newRate));
+        camelotStrategy.updateHarvestIncentiveRate(newRate);
+        harvestIncentive = camelotStrategy.harvestIncentiveRate();
+    }
+
+    function test_Revert_UpdateHarvestIncentiveRate_When_NotOwner() public {
+        uint16 newRate = 100;
+        address randomCaller = address(0x1);
+        vm.expectRevert("Ownable: caller is not the owner");
+        vm.startPrank(randomCaller);
+        camelotStrategy.updateHarvestIncentiveRate(newRate);
+        vm.stopPrank();
+    }
+
+    function test_UpdateSlippage() public useKnownActor(USDS_OWNER) {
+        uint16 updatedDepositSlippage = 100;
+        uint16 updatedWithdrawSlippage = 200;
+        vm.expectEmit(true, false, false, true);
+        emit SlippageUpdated(updatedDepositSlippage, updatedWithdrawSlippage);
+        camelotStrategy.updateSlippage(updatedDepositSlippage, updatedWithdrawSlippage);
+        assertEq(camelotStrategy.depositSlippage(), updatedDepositSlippage);
+        assertEq(camelotStrategy.withdrawSlippage(), updatedWithdrawSlippage);
+    }
+
+    function test_Revert_UpdateSlippage_When_NotOwner() public {
+        uint16 updatedDepositSlippage = 100;
+        uint16 updatedWithdrawSlippage = 200;
+        vm.expectRevert("Ownable: caller is not the owner");
+        camelotStrategy.updateSlippage(updatedDepositSlippage, updatedWithdrawSlippage);
+    }
+
+    function test_RevertWhen_slippageExceedsMax() public useKnownActor(USDS_OWNER) {
+        vm.expectRevert(abi.encodeWithSelector(Helpers.GTMaxPercentage.selector, 10001));
+        camelotStrategy.updateSlippage(10001, 10001);
     }
 }
