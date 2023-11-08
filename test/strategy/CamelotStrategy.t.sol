@@ -171,6 +171,12 @@ contract DepositTest is CamelotStrategyTestSetup {
                 == currentAmountAssetB + 1000 * 10 ** ERC20(ASSET_B).decimals()
         );
     }
+
+    function test_Revert_When_Wrong_Asset_Deposit_To_Strategy() public {
+        address randomToken = address(0x1);
+        vm.expectRevert(abi.encodeWithSelector(CollateralNotSupported.selector, randomToken));
+        camelotStrategy.deposit(randomToken, 1000);
+    }
 }
 
 contract AllocationTest is CamelotStrategyTestSetup {
@@ -206,13 +212,16 @@ contract AllocationTest is CamelotStrategyTestSetup {
         uint256 assetABalanceInContractBeforeAllocation = IERC20(ASSET_A).balanceOf(address(camelotStrategy));
         uint256 assetBBalanceInContractBeforeAllocation = IERC20(ASSET_B).balanceOf(address(camelotStrategy));
 
+        uint256 spNFTId = camelotStrategy.spNFTId();
+        assertEq(spNFTId, 0); // before first allocation spNFTId should be 0
+
         (uint256 allocatedAmountAssetA, uint256 allocatedAmountAssetB) =
             _allocate(1000 * 10 ** ERC20(ASSET_A).decimals(), 1000 * 10 ** ERC20(ASSET_B).decimals());
 
         uint256 assetABalanceInContractAfterAllocation = IERC20(ASSET_A).balanceOf(address(camelotStrategy));
         uint256 assetBBalanceInContractAfterAllocation = IERC20(ASSET_B).balanceOf(address(camelotStrategy));
 
-        uint256 spNFTId = camelotStrategy.spNFTId();
+        spNFTId = camelotStrategy.spNFTId();
         (uint256 liquidityBalance,,,,,,,) = INFTPool(_nftPool).getStakingPosition(spNFTId);
 
         uint256 numOfSpNFTsAfterAllocation = IERC721(_nftPool).balanceOf(address(camelotStrategy));
@@ -697,6 +706,23 @@ contract UpdateStrategyDataTest is CamelotStrategyTestSetup {
 
         assertEq(keccak256(actualData), keccak256(expectedData));
     }
+
+    function test_Revert_When_Invalid_Update_Strategy_Data() public {
+        CamelotStrategy.StrategyData memory _newStrategyData = CamelotStrategy.StrategyData({
+            tokenA: address(0),
+            tokenB: ASSET_B,
+            router: 0xc873fEcbd354f5A56E00E710B90EF4201db2448d,
+            positionHelper: 0xe458018Ad4283C90fB7F5460e24C4016F81b8175,
+            factory: 0x6EcCab422D763aC031210895C81787E87B43A652,
+            nftPool: 0xcC9f28dAD9b85117AB5237df63A5EE6fC50B02B7
+        });
+
+        vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAddress.selector));
+
+        vm.startPrank(USDS_OWNER);
+        camelotStrategy.updateStrategyData(_newStrategyData);
+        vm.stopPrank();
+    }
 }
 
 contract MiscellaneousTests is CamelotStrategyTestSetup {
@@ -902,5 +928,60 @@ contract MiscellaneousTests is CamelotStrategyTestSetup {
     function test_RevertWhen_slippageExceedsMax() public useKnownActor(USDS_OWNER) {
         vm.expectRevert(abi.encodeWithSelector(Helpers.GTMaxPercentage.selector, 10001));
         camelotStrategy.updateSlippage(10001, 10001);
+    }
+
+    function test_assetToPToken() public {
+        (address _tokenA, address _tokenB, address _router,,,) = camelotStrategy.strategyData();
+        address pair = IRouter(_router).getPair(_tokenA, _tokenB);
+        address assetToPTokenOfTokenA = camelotStrategy.assetToPToken(_tokenA);
+        address assetToPTokenOfTokenB = camelotStrategy.assetToPToken(_tokenB);
+
+        assertEq(assetToPTokenOfTokenA, pair);
+        assertEq(assetToPTokenOfTokenB, pair);
+    }
+
+    function test_checkAvailableBalance() public {
+        uint256 availableBalanceInContractAssetA = IERC20(ASSET_A).balanceOf(address(camelotStrategy));
+        uint256 availableBalanceInContractAssetB = IERC20(ASSET_B).balanceOf(address(camelotStrategy));
+        camelotStrategy.checkAvailableBalance(ASSET_A);
+        camelotStrategy.checkAvailableBalance(ASSET_B);
+
+        assertEq(availableBalanceInContractAssetA, availableBalanceInContractAssetA);
+        assertEq(availableBalanceInContractAssetB, availableBalanceInContractAssetB);
+
+        address randomAsset = address(0x1);
+        vm.expectRevert(abi.encodeWithSelector(CollateralNotSupported.selector, randomAsset));
+        camelotStrategy.checkAvailableBalance(randomAsset);
+    }
+
+    //  The total balance, including allocated and unallocated amounts.
+    function test_checkBalance() public {
+        _depositAssetsToStrategy(2000 * 10 ** ERC20(ASSET_A).decimals(), 2000 * 10 ** ERC20(ASSET_B).decimals());
+
+        uint256 availableBalanceInContractAssetABeforeAllocations = IERC20(ASSET_A).balanceOf(address(camelotStrategy));
+        uint256 availableBalanceInContractAssetBBeforeAllocations = IERC20(ASSET_B).balanceOf(address(camelotStrategy));
+
+        (uint256 firstAllocationAssetA, uint256 firstAllocationAssetB) =
+            _allocate(100 * 10 ** ERC20(ASSET_A).decimals(), 100 * 10 ** ERC20(ASSET_B).decimals());
+        (uint256 secondAllocationAssetA, uint256 secondAllocationAssetB) =
+            _allocate(10 * 10 ** ERC20(ASSET_A).decimals(), 10 * 10 ** ERC20(ASSET_B).decimals());
+
+        uint256 availableBalanceInContractAssetAAfterAllocations = IERC20(ASSET_A).balanceOf(address(camelotStrategy));
+        uint256 availableBalanceInContractAssetBAfterAllocations = IERC20(ASSET_B).balanceOf(address(camelotStrategy));
+
+        camelotStrategy.checkBalance(ASSET_A);
+        camelotStrategy.checkBalance(ASSET_B);
+
+        // Need to simulate some swaps here in camelot. This will increase the value of liquidity and hence assets.
+
+        assert(
+            firstAllocationAssetA + secondAllocationAssetA + availableBalanceInContractAssetAAfterAllocations
+                >= availableBalanceInContractAssetABeforeAllocations
+        );
+
+        assert(
+            firstAllocationAssetB + secondAllocationAssetB + availableBalanceInContractAssetBAfterAllocations
+                >= availableBalanceInContractAssetBBeforeAllocations
+        );
     }
 }
