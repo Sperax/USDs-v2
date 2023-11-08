@@ -233,7 +233,7 @@ contract AllocationTest is CamelotStrategyTestSetup {
 
     // wrote this as a separate test as i got stack too deep error in test_Allocate_MintNewPositionAndAddLiquidity function.
     // Also --via-ir taking lot of time to run. So separated the test
-    function test_Allocate_MintNewPositionAndAddLiquidity_Emit_Test() public {
+    function test_Allocate_MintNewPositionAndAddLiquidity_Emit_And_Slippage_Test() public {
         _depositAssetsToStrategy(1000 * 10 ** ERC20(ASSET_A).decimals(), 1000 * 10 ** ERC20(ASSET_B).decimals());
 
         (,,,,, address _nftPool) = camelotStrategy.strategyData();
@@ -242,6 +242,11 @@ contract AllocationTest is CamelotStrategyTestSetup {
 
         (uint256 allocatedAmountAssetA, uint256 allocatedAmountAssetB) =
             _allocate(1000 * 10 ** ERC20(ASSET_A).decimals(), 1000 * 10 ** ERC20(ASSET_B).decimals());
+
+        uint256 minAmountsAssetA =
+            allocatedAmountAssetA - (allocatedAmountAssetA * camelotStrategy.depositSlippage() / Helpers.MAX_PERCENTAGE);
+        uint256 minAmountsAssetB =
+            allocatedAmountAssetB - (allocatedAmountAssetB * camelotStrategy.depositSlippage() / Helpers.MAX_PERCENTAGE);
 
         VmSafe.Log[] memory logs = vm.getRecordedLogs();
 
@@ -264,6 +269,9 @@ contract AllocationTest is CamelotStrategyTestSetup {
         assertEq(expectedLiquidity, liquidityBalance);
         assertApproxEqAbs(expectedAmountA, allocatedAmountAssetA, 1);
         assertApproxEqAbs(expectedAmountB, allocatedAmountAssetB, 1);
+
+        assert(expectedAmountA >= minAmountsAssetA);
+        assert(expectedAmountB >= minAmountsAssetB);
     }
 
     function test_Allocate_IncreaseLiquidity() public {
