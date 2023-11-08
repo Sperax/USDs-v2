@@ -8,6 +8,7 @@ import {IRouter, INFTPool} from "../../contracts/strategies/camelot/interfaces/I
 import {InitializableAbstractStrategy, Helpers} from "../../contracts/strategies/InitializableAbstractStrategy.sol";
 import {IERC20, ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import {IVault} from "../../contracts/interfaces/IVault.sol";
 
 contract CamelotStrategyTestSetup is PreMigrationSetup, BaseStrategy {
     CamelotStrategy internal camelotStrategy;
@@ -564,7 +565,7 @@ contract collectRewardTest is CamelotStrategyTestSetup {
         (,,,,, address _nftPool) = camelotStrategy.strategyData();
         (, address grail, address xGrail,,,,,) = INFTPool(_nftPool).getPoolInfo();
 
-        vm.mockCall(VAULT, abi.encodeWithSignature("yieldReceiver()"), abi.encode(yieldReceiver));
+        yieldReceiver = IVault(VAULT).yieldReceiver();
 
         uint256 yieldReceiverGrailAmountBeforeCollection = IERC20(grail).balanceOf(address(yieldReceiver));
         uint256 yieldReceiverXGrailAmountBeforeCollection = IERC20(xGrail).balanceOf(address(yieldReceiver));

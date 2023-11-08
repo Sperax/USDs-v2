@@ -84,12 +84,14 @@ abstract contract PreMigrationSetup is Setup {
         FEE_VAULT = 0xFbc0d3cA777722d234FE01dba94DeDeDb277AFe3;
         DRIPPER = address(new Dripper(VAULT, 7 days));
         REBASE_MANAGER = address(new RebaseManager(VAULT, DRIPPER, 1 days, 1000, 800));
+        YIELD_RESERVE = address(new YieldReserve(BUYBACK, VAULT, ORACLE, DRIPPER));
 
         vault.updateCollateralManager(COLLATERAL_MANAGER);
         vault.updateFeeCalculator(FEE_CALCULATOR);
         vault.updateOracle(ORACLE);
         vault.updateRebaseManager(REBASE_MANAGER);
         vault.updateFeeVault(FEE_VAULT);
+        vault.updateYieldReceiver(YIELD_RESERVE);
 
         vstOracle = new VSTOracle();
         masterOracle = MasterPriceOracle(ORACLE);
