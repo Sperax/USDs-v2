@@ -700,12 +700,32 @@ contract MiscellaneousTests is CamelotStrategyTestSetup {
         vm.stopPrank();
     }
 
+    function test_onERC721Received() public {
+        bytes4 _ERC721_RECEIVED = 0x150b7a02;
+        uint256 randomTokenId = 152;
+        (,,,,, address _nftPool) = camelotStrategy.strategyData();
+        vm.startPrank(_nftPool);
+        bytes4 result = camelotStrategy.onERC721Received(address(0x1), address(0x2), randomTokenId, "");
+        uint256 spNFTId = camelotStrategy.spNFTId();
+        vm.stopPrank();
+        assertEq(result, _ERC721_RECEIVED);
+        assertEq(spNFTId, randomTokenId);
+    }
+
     function test_RevertWhen_Random_onNFTHarvest_Caller() public {
         address randomCaller = address(0x1);
         vm.expectRevert(abi.encodeWithSelector(NotCamelotNFTPool.selector));
         vm.startPrank(randomCaller);
         camelotStrategy.onNFTHarvest(address(0x1), address(0x2), 1, 1, 1);
         vm.stopPrank();
+    }
+
+    function test_onNFTHarvest() public {
+        (,,,,, address _nftPool) = camelotStrategy.strategyData();
+        vm.startPrank(_nftPool);
+        bool result = camelotStrategy.onNFTHarvest(address(0x1), address(0x2), 1, 1, 1);
+        vm.stopPrank();
+        assertEq(result, true);
     }
 
     function test_RevertWhen_Random_onNFTAddToPosition_Caller() public {
@@ -716,12 +736,28 @@ contract MiscellaneousTests is CamelotStrategyTestSetup {
         vm.stopPrank();
     }
 
+    function test_onNFTAddToPosition() public {
+        (,,,,, address _nftPool) = camelotStrategy.strategyData();
+        vm.startPrank(_nftPool);
+        bool result = camelotStrategy.onNFTAddToPosition(address(0x1), 1, 1);
+        vm.stopPrank();
+        assertEq(result, true);
+    }
+
     function test_RevertWhen_Random_onNFTWithdraw_Caller() public {
         address randomCaller = address(0x1);
         vm.expectRevert(abi.encodeWithSelector(NotCamelotNFTPool.selector));
         vm.startPrank(randomCaller);
         camelotStrategy.onNFTWithdraw(address(0x1), 1, 1);
         vm.stopPrank();
+    }
+
+    function test_onNFTWithdraw() public {
+        (,,,,, address _nftPool) = camelotStrategy.strategyData();
+        vm.startPrank(_nftPool);
+        bool result = camelotStrategy.onNFTWithdraw(address(0x1), 1, 1);
+        vm.stopPrank();
+        assertEq(result, true);
     }
 
     function test_checkLPTokenBalance() public {
