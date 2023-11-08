@@ -9,6 +9,7 @@ import {InitializableAbstractStrategy, Helpers} from "../../contracts/strategies
 import {IERC20, ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {IVault} from "../../contracts/interfaces/IVault.sol";
+import {VmSafe} from "forge-std/Vm.sol";
 
 contract CamelotStrategyTestSetup is PreMigrationSetup, BaseStrategy {
     CamelotStrategy internal camelotStrategy;
@@ -192,12 +193,12 @@ contract AllocationTest is CamelotStrategyTestSetup {
         vm.stopPrank();
     }
 
-    function test_First_Allocation() public {
+    function test_Allocate_MintNewPositionAndAddLiquidity() public {
         _depositAssetsToStrategy(1000 * 10 ** ERC20(ASSET_A).decimals(), 1000 * 10 ** ERC20(ASSET_B).decimals());
 
-        (address _tokenA, address _tokenB, address _router,,, address _nftPool) = camelotStrategy.strategyData();
+        (,, address _router,,, address _nftPool) = camelotStrategy.strategyData();
 
-        address pair = IRouter(_router).getPair(_tokenA, _tokenB);
+        address pair = IRouter(_router).getPair(ASSET_A, ASSET_B);
 
         uint256 numOfSpNFTsBeforeAllocation = IERC721(_nftPool).balanceOf(address(camelotStrategy));
         uint256 amountAllocatedBeforeAllocation = camelotStrategy.allocatedAmount();
@@ -230,7 +231,42 @@ contract AllocationTest is CamelotStrategyTestSetup {
         );
     }
 
-    function test_Multiple_Allocations() public {
+    // wrote this as a separate test as i got stack too deep error in test_Allocate_MintNewPositionAndAddLiquidity function.
+    // Also --via-ir taking lot of time to run. So separated the test
+    function test_Allocate_MintNewPositionAndAddLiquidity_Emit_Test() public {
+        _depositAssetsToStrategy(1000 * 10 ** ERC20(ASSET_A).decimals(), 1000 * 10 ** ERC20(ASSET_B).decimals());
+
+        (,,,,, address _nftPool) = camelotStrategy.strategyData();
+
+        vm.recordLogs();
+
+        (uint256 allocatedAmountAssetA, uint256 allocatedAmountAssetB) =
+            _allocate(1000 * 10 ** ERC20(ASSET_A).decimals(), 1000 * 10 ** ERC20(ASSET_B).decimals());
+
+        VmSafe.Log[] memory logs = vm.getRecordedLogs();
+
+        // uint256 expectedTokenId;
+        uint256 expectedLiquidity;
+        uint256 expectedAmountA;
+        uint256 expectedAmountB;
+
+        for (uint8 j = 0; j < logs.length; ++j) {
+            if (logs[j].topics[0] == keccak256("IncreaseLiquidity(uint256,uint256,uint256)")) {
+                (expectedLiquidity, expectedAmountA, expectedAmountB) =
+                    abi.decode(logs[j].data, (uint256, uint256, uint256));
+            }
+        }
+
+        uint256 spNFTId = camelotStrategy.spNFTId();
+        (uint256 liquidityBalance,,,,,,,) = INFTPool(_nftPool).getStakingPosition(spNFTId);
+
+        // assertEq(expectedTokenId, spNFTId);
+        assertEq(expectedLiquidity, liquidityBalance);
+        assertApproxEqAbs(expectedAmountA, allocatedAmountAssetA, 1);
+        assertApproxEqAbs(expectedAmountB, allocatedAmountAssetB, 1);
+    }
+
+    function test_Allocate_IncreaseLiquidity() public {
         uint256 amountAllocatedBeforeIncreaseAllocation = camelotStrategy.allocatedAmount();
 
         _multipleAllocations();
@@ -280,7 +316,7 @@ contract RedeemTest is CamelotStrategyTestSetup {
     // Need to write one more test case to check the amount of assets returned on full redeem to make sure we are getting back enough/correct amount back.
     // Need to test the above by rolling and warping a few blocks and timestamp using simulation.
 
-    function test_Full_Redeem_After_Multiple_Allocations() public {
+    function test_Full_Redeem_After_Allocate_IncreaseLiquidity() public {
         _multipleAllocations();
 
         (,,,,, address _nftPool) = camelotStrategy.strategyData();
@@ -307,7 +343,7 @@ contract RedeemTest is CamelotStrategyTestSetup {
         assertEq(allocatedAmountAfterRedeem, 0);
     }
 
-    function test_Partial_Redeem_After_Multiple_Allocations() public {
+    function test_Partial_Redeem_After_Allocate_IncreaseLiquidity() public {
         _multipleAllocations();
 
         (,,,,, address _nftPool) = camelotStrategy.strategyData();
@@ -335,7 +371,7 @@ contract RedeemTest is CamelotStrategyTestSetup {
         assertEq(allocatedAmountAfterRedeem, 1000);
     }
 
-    function test_Full_Redeem_After_First_Allocation() public {
+    function test_Full_Redeem_After_Allocate_MintNewPositionAndAddLiquidity() public {
         _singleAllocation();
 
         (,,,,, address _nftPool) = camelotStrategy.strategyData();
@@ -362,7 +398,7 @@ contract RedeemTest is CamelotStrategyTestSetup {
         assertEq(allocatedAmountAfterRedeem, 0);
     }
 
-    function test_Partial_Redeem_After_First_Allocation() public {
+    function test_Partial_Redeem_After_Allocate_MintNewPositionAndAddLiquidity() public {
         _singleAllocation();
 
         (,,,,, address _nftPool) = camelotStrategy.strategyData();
