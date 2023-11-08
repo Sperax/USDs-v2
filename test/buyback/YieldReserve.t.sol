@@ -14,6 +14,7 @@ contract YieldReserveTest is PreMigrationSetup {
     uint256 USDCePrecision;
     uint256 SPAPrecision;
     uint256 USDsPrecision;
+    uint256 internal constant PRICE_PRECISION = 1e8;
 
     function setUp() public virtual override {
         super.setUp();
@@ -36,6 +37,11 @@ contract YieldReserveTest is PreMigrationSetup {
         vm.mockCall(ORACLE, abi.encodeWithSignature("getPrice(address)", token), abi.encode([price, precision]));
     }
 
+    function getTokenData(address token) public view returns (YieldReserve.TokenData memory) {
+        (bool srcAllowed, bool dstAllowed, uint160 conversionFactor) = yieldReserve.tokenData(token);
+        return YieldReserve.TokenData(srcAllowed, dstAllowed, conversionFactor);
+    }
+
     function test_toggleSrcTokenPermission_auth_error() public useActor(0) {
         vm.expectRevert("Ownable: caller is not the owner");
         yieldReserve.toggleSrcTokenPermission(SPA, true);
@@ -45,10 +51,10 @@ contract YieldReserveTest is PreMigrationSetup {
         mockPrice(SPA, 10, SPAPrecision);
 
         yieldReserve.toggleSrcTokenPermission(SPA, true);
+        YieldReserve.TokenData memory tokenData = getTokenData(SPA);
+        assertTrue(tokenData.srcAllowed);
 
-        assertEq(yieldReserve.isAllowedSrc(SPA), true);
-
-        assertEq(IOracle(ORACLE).priceFeedExists(SPA), true);
+        assertTrue(IOracle(ORACLE).priceFeedExists(SPA));
 
         vm.expectRevert(abi.encodeWithSelector(YieldReserve.AlreadyInDesiredState.selector));
         yieldReserve.toggleSrcTokenPermission(SPA, true);
@@ -56,7 +62,8 @@ contract YieldReserveTest is PreMigrationSetup {
         // toggle to false case
         yieldReserve.toggleSrcTokenPermission(SPA, false);
 
-        assertEq(yieldReserve.isAllowedSrc(SPA), false);
+        tokenData = getTokenData(SPA);
+        assertFalse(tokenData.srcAllowed);
 
         vm.expectRevert(abi.encodeWithSelector(YieldReserve.AlreadyInDesiredState.selector));
         yieldReserve.toggleSrcTokenPermission(SPA, false);
@@ -78,9 +85,10 @@ contract YieldReserveTest is PreMigrationSetup {
 
         yieldReserve.toggleDstTokenPermission(SPA, true);
 
-        assertEq(yieldReserve.isAllowedDst(SPA), true);
+        YieldReserve.TokenData memory tokenData = getTokenData(SPA);
+        assertTrue(tokenData.dstAllowed);
 
-        assertEq(IOracle(ORACLE).priceFeedExists(SPA), true);
+        assertTrue(IOracle(ORACLE).priceFeedExists(SPA));
 
         vm.expectRevert(abi.encodeWithSelector(YieldReserve.AlreadyInDesiredState.selector));
         yieldReserve.toggleDstTokenPermission(SPA, true);
@@ -88,7 +96,8 @@ contract YieldReserveTest is PreMigrationSetup {
         // toggle to false case
         yieldReserve.toggleDstTokenPermission(SPA, false);
 
-        assertEq(yieldReserve.isAllowedSrc(SPA), false);
+        tokenData = getTokenData(SPA);
+        assertFalse(tokenData.dstAllowed);
 
         vm.expectRevert(abi.encodeWithSelector(YieldReserve.AlreadyInDesiredState.selector));
         yieldReserve.toggleSrcTokenPermission(SPA, false);
@@ -212,8 +221,8 @@ contract YieldReserveTest is PreMigrationSetup {
     }
 
     function test_getTokenBForTokenA_inputs() public useKnownActor(USDS_OWNER) {
-        mockPrice(USDCe, 10, USDCePrecision);
-        mockPrice(USDS, 10, USDsPrecision);
+        mockPrice(USDCe, 10e8, PRICE_PRECISION);
+        mockPrice(USDS, 10e8, PRICE_PRECISION);
 
         vm.expectRevert(abi.encodeWithSelector(YieldReserve.InvalidSourceToken.selector));
         yieldReserve.getTokenBForTokenA(USDS, USDCe, 10000);
@@ -229,8 +238,8 @@ contract YieldReserveTest is PreMigrationSetup {
 
     function test_getTokenBForTokenA() public useKnownActor(USDS_OWNER) {
         uint256 amountIn = 100;
-        mockPrice(USDCe, 1, USDCePrecision);
-        mockPrice(USDS, 1, USDsPrecision);
+        mockPrice(USDCe, 1e8, PRICE_PRECISION);
+        mockPrice(USDS, 1e8, PRICE_PRECISION);
 
         yieldReserve.toggleSrcTokenPermission(USDS, true);
         yieldReserve.toggleDstTokenPermission(USDCe, true);
@@ -248,8 +257,8 @@ contract SwapTest is YieldReserveTest {
         deal(address(USDCe), USDS_OWNER, 1 ether);
         deal(address(USDCe), address(yieldReserve), 1 ether);
 
-        mockPrice(USDCe, 1e8, USDCePrecision);
-        mockPrice(USDS, 1e8, USDsPrecision);
+        mockPrice(USDCe, 1e8, PRICE_PRECISION);
+        mockPrice(USDS, 1e8, PRICE_PRECISION);
 
         mintUSDs(1e7);
 
