@@ -2,8 +2,8 @@
 pragma solidity 0.8.16;
 
 import {BaseStrategy} from "./BaseStrategy.t.sol";
-import {BaseTest} from "../utils/BaseTest.sol";
-import {UpgradeUtil} from "../utils/UpgradeUtil.sol";
+import {BaseTest} from "../utils/BaseTest.t.sol";
+import {UpgradeUtil} from "../utils/UpgradeUtil.t.sol";
 import {AaveStrategy} from "../../contracts/strategies/aave/AaveStrategy.sol";
 import {InitializableAbstractStrategy, Helpers} from "../../contracts/strategies/InitializableAbstractStrategy.sol";
 import {IERC20, ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";

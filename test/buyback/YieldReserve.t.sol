@@ -6,7 +6,7 @@ import {IVault} from "../../contracts/interfaces/IVault.sol";
 import {IOracle} from "../../contracts/interfaces/IOracle.sol";
 import {VaultCore} from "../../contracts/vault/VaultCore.sol";
 import {IERC20, ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import {PreMigrationSetup} from "../utils/DeploymentSetup.sol";
+import {PreMigrationSetup} from "../utils/DeploymentSetup.t.sol";
 
 contract YieldReserveTest is PreMigrationSetup {
     YieldReserve internal yieldReserve;

@@ -6,7 +6,6 @@ import {Test} from "forge-std/Test.sol";
 abstract contract Setup is Test {
     // Define global constants | Test config
     // @dev Make it 0 to test on latest
-    uint256 public constant FORK_BLOCK = 135087311;
     uint256 public constant NUM_ACTORS = 5;
 
     // Define Collateral constants here
@@ -75,6 +74,7 @@ abstract contract Setup is Test {
 
     /// @notice
     function setArbitrumFork() public {
+        uint256 FORK_BLOCK = vm.envUint("FORK_BLOCK");
         string memory arbRpcUrl = vm.envString("ARB_URL");
         arbFork = vm.createFork(arbRpcUrl);
         vm.selectFork(arbFork);
