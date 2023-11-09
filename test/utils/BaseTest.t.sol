@@ -5,7 +5,6 @@ import {Test} from "forge-std/Test.sol";
 
 abstract contract Setup is Test {
     // Define global constants | Test config
-    // @dev Make it 0 to test on latest
     uint256 public constant NUM_ACTORS = 5;
 
     // Define Collateral constants here
