@@ -779,10 +779,6 @@ contract collectRewardTest is CamelotStrategyTestSetup {
         vm.warp(block.timestamp + 10 days);
         vm.roll(block.number + 1000);
 
-        uint256 rewardEarned = camelotStrategy.checkRewardEarned();
-
-        emit log_named_uint("rewardEarned", rewardEarned);
-
         vm.startPrank(harvestor);
         camelotStrategy.collectReward();
         vm.stopPrank();
@@ -801,7 +797,8 @@ contract collectRewardTest is CamelotStrategyTestSetup {
 
         assertTrue(yieldReceiverGrailAmountAfterCollection > yieldReceiverGrailAmountBeforeCollection);
         assertTrue(harvestorGrailAmountAfterCollection > harvestorGrailAmountBeforeCollection);
-        assertEq(yieldReceiverGrailAmountCollected, harvestorGrailAmountCollected - harvestIncentive);
+        assertEq(yieldReceiverGrailAmountCollected, totalGrailAmountCollected - harvestorGrailAmountCollected);
+        assertEq(harvestIncentive, harvestorGrailAmountAfterCollection - harvestorGrailAmountBeforeCollection);
     }
 
     function test_checkRewardEarned() public {
