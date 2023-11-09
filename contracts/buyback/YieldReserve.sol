@@ -92,17 +92,17 @@ contract YieldReserve is ReentrancyGuard, Ownable {
     /// @param _token Address of the token
     /// @param _isAllowed If True, allow it to be used as src token / input token else don't allow
     function toggleSrcTokenPermission(address _token, bool _isAllowed) external onlyOwner {
-        TokenData memory data = tokenData[_token];
+        TokenData storage data = tokenData[_token];
         if (data.srcAllowed == _isAllowed) revert AlreadyInDesiredState();
         if (_isAllowed) {
             if (!IOracle(oracle).priceFeedExists(_token)) {
                 revert TokenPriceFeedMissing();
             }
             if (data.conversionFactor == 0) {
-                tokenData[_token].conversionFactor = uint160(10 ** (18 - ERC20(_token).decimals()));
+                data.conversionFactor = uint160(10 ** (18 - ERC20(_token).decimals()));
             }
         }
-        tokenData[_token].srcAllowed = _isAllowed;
+        data.srcAllowed = _isAllowed;
         emit SrcTokenPermissionUpdated(_token, _isAllowed);
     }
 
@@ -110,17 +110,17 @@ contract YieldReserve is ReentrancyGuard, Ownable {
     /// @param _token Address of the token
     /// @param _isAllowed If True, allow it to be used as src token / input token else don't allow
     function toggleDstTokenPermission(address _token, bool _isAllowed) external onlyOwner {
-        TokenData memory data = tokenData[_token];
+        TokenData storage data = tokenData[_token];
         if (data.dstAllowed == _isAllowed) revert AlreadyInDesiredState();
         if (_isAllowed) {
             if (!IOracle(oracle).priceFeedExists(_token)) {
                 revert TokenPriceFeedMissing();
             }
             if (data.conversionFactor == 0) {
-                tokenData[_token].conversionFactor = uint160(10 ** (18 - ERC20(_token).decimals()));
+                data.conversionFactor = uint160(10 ** (18 - ERC20(_token).decimals()));
             }
         }
-        tokenData[_token].dstAllowed = _isAllowed;
+        data.dstAllowed = _isAllowed;
         emit DstTokenPermissionUpdated(_token, _isAllowed);
     }
 
@@ -221,18 +221,16 @@ contract YieldReserve is ReentrancyGuard, Ownable {
         view
         returns (uint256)
     {
-        TokenData memory srcToken = tokenData[_srcToken];
-        TokenData memory dstToken = tokenData[_dstToken];
-        if (!srcToken.srcAllowed) revert InvalidSourceToken();
-        if (!dstToken.dstAllowed) revert InvalidDestinationToken();
+        if (!tokenData[_srcToken].srcAllowed) revert InvalidSourceToken();
+        if (!tokenData[_dstToken].dstAllowed) revert InvalidDestinationToken();
         Helpers._isNonZeroAmt(_amountIn);
         // Getting prices from Oracle
         IOracle.PriceData memory tokenAPriceData = IOracle(oracle).getPrice(_srcToken);
         IOracle.PriceData memory tokenBPriceData = IOracle(oracle).getPrice(_dstToken);
         // Calculating the value
         return (
-            (_amountIn * srcToken.conversionFactor * tokenAPriceData.price * tokenBPriceData.precision)
-                / (tokenBPriceData.price * tokenAPriceData.precision * dstToken.conversionFactor)
+            (_amountIn * tokenData[_srcToken].conversionFactor * tokenAPriceData.price * tokenBPriceData.precision)
+                / (tokenBPriceData.price * tokenAPriceData.precision * tokenData[_dstToken].conversionFactor)
         );
     }
 
