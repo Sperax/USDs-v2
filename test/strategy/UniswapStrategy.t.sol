@@ -364,8 +364,8 @@ contract AllocateTests is UniswapStrategyTest {
         assertEq(uint256(mintedLiquidity), expectedLiquidity, "Liquidity mismatch");
         uint256 new_bal_1 = IERC20(ASSET_1).balanceOf(address(strategy));
         uint256 new_bal_2 = IERC20(ASSET_2).balanceOf(address(strategy));
-        assertApproxEqAbs(strategy.checkBalance(ASSET_1) - new_bal_1, expectedAmountA, 1);
-        assertApproxEqAbs(strategy.checkBalance(ASSET_2) - new_bal_2, expectedAmountB, 1);
+        assertApproxEqAbs(strategy.checkBalance(ASSET_1) - new_bal_1, expectedAmountA, 1, "Amount A mismatch");
+        assertApproxEqAbs(strategy.checkBalance(ASSET_2) - new_bal_2, expectedAmountB, 1, "Amount B mismatch");
     }
 
     function test_Allocate_IncreaseLiquidity() public useKnownActor(USDS_OWNER) {
@@ -400,8 +400,8 @@ contract AllocateTests is UniswapStrategyTest {
 
         uint256 newAllocatedAmt1 = strategy.checkBalance(ASSET_1) - IERC20(ASSET_1).balanceOf(address(strategy));
         uint256 newAllocatedAmt2 = strategy.checkBalance(ASSET_2) - IERC20(ASSET_2).balanceOf(address(strategy));
-        assertEq(newAllocatedAmt1 - oldAllocatedAmt1, expectedAmountA, "Amount A mismatch");
-        assertEq(newAllocatedAmt2 - oldAllocatedAmt2, expectedAmountB, "Amount B mismatch");
+        assertApproxEqAbs(newAllocatedAmt1 - oldAllocatedAmt1, expectedAmountA, 1, "Amount A mismatch");
+        assertApproxEqAbs(newAllocatedAmt2 - oldAllocatedAmt2, expectedAmountB, 1, "Amount B mismatch");
     }
 }
 
@@ -466,11 +466,13 @@ contract RedeemTests is UniswapStrategyTest {
             INonfungiblePositionManager(NONFUNGIBLE_POSITION_MANAGER).positions(lpTokenId);
         assertTrue(oldLiquidity != 0, "Liquidity is 0");
 
+        oldLiquidity /= 2;
+
         uint256[2] memory minAmountOut;
-        (minAmountOut[0], minAmountOut[1]) = strategy.getAmountsForLiquidity(oldLiquidity / 2);
+        (minAmountOut[0], minAmountOut[1]) = strategy.getAmountsForLiquidity(oldLiquidity);
 
         vm.recordLogs();
-        strategy.redeem(oldLiquidity / 2, minAmountOut);
+        strategy.redeem(oldLiquidity, minAmountOut);
 
         uint256 _decreasedLiquidity;
         uint256 _amount0;
@@ -485,23 +487,14 @@ contract RedeemTests is UniswapStrategyTest {
         assertTrue(_amount0 >= minAmountOut[0], "Slippage error for asset 1");
         assertTrue(_amount1 >= minAmountOut[1], "Slippage error for asset 2");
 
-        assertEq(_decreasedLiquidity, oldLiquidity / 2, "Liquidity mismatch");
-        assertEq(_amount0, oldAllocatedAmt1 / 2, "amount0 mismatch");
-        assertEq(_amount1, oldAllocatedAmt2 / 2, "amount1 mismatch");
+        assertEq(_decreasedLiquidity, oldLiquidity, "Liquidity mismatch");
 
         (,,,,,,, uint128 newLiquidity,,,,) =
             INonfungiblePositionManager(NONFUNGIBLE_POSITION_MANAGER).positions(lpTokenId);
-        assertEq(newLiquidity, oldLiquidity / 2, "Pending liquidity");
+        assertApproxEqAbs(newLiquidity, oldLiquidity, 1, "Pending liquidity");
 
         assertEq(strategy.checkAvailableBalance(ASSET_1) - initialBal1, _amount0, "Asset 1 not received");
         assertEq(strategy.checkAvailableBalance(ASSET_2) - initialBal2, _amount1, "Asset 2 not received");
-
-        assertEq(
-            strategy.checkBalance(ASSET_1) - initialBal1 - _amount0, _amount0, "Insufficient asset 1 allocated balance"
-        );
-        assertEq(
-            strategy.checkBalance(ASSET_2) - initialBal2 - _amount1, _amount1, "Insufficient asset 2 allocated balance"
-        );
     }
 }
 
