@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.16;
 
-import {PreMigrationSetup} from "../utils/DeploymentSetup.sol";
+import {PreMigrationSetup} from "../utils/DeploymentSetup.t.sol";
 import {BaseStrategy} from "./BaseStrategy.t.sol";
 import {CamelotStrategy} from "../../contracts/strategies/camelot/CamelotStrategy.sol";
 import {IRouter, INFTPool, IPair} from "../../contracts/strategies/camelot/interfaces/ICamelot.sol";

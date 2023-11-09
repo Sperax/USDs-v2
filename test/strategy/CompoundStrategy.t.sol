@@ -3,8 +3,8 @@ pragma solidity 0.8.16;
 
 import {console} from "forge-std/console.sol";
 import {BaseStrategy} from "./BaseStrategy.t.sol";
-import {BaseTest} from "../utils/BaseTest.sol";
-import {UpgradeUtil} from "../utils/UpgradeUtil.sol";
+import {BaseTest} from "../utils/BaseTest.t.sol";
+import {UpgradeUtil} from "../utils/UpgradeUtil.t.sol";
 import {Helpers, CompoundStrategy, IComet, IReward} from "../../contracts/strategies/compound/CompoundStrategy.sol";
 import {IERC20, ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 

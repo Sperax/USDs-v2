@@ -1,6 +1,6 @@
 pragma solidity 0.8.16;
 
-import {PreMigrationSetup} from ".././utils/DeploymentSetup.sol";
+import {PreMigrationSetup} from ".././utils/DeploymentSetup.t.sol";
 import {Dripper} from "../../contracts/rebase/Dripper.sol";
 import {RebaseManager, Helpers} from "../../contracts/rebase/RebaseManager.sol";
 import {IERC20, ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
