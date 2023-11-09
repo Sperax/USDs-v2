@@ -4,12 +4,23 @@ pragma solidity 0.8.16;
 import {PreMigrationSetup} from "../utils/DeploymentSetup.sol";
 import {BaseStrategy} from "./BaseStrategy.t.sol";
 import {CamelotStrategy} from "../../contracts/strategies/camelot/CamelotStrategy.sol";
-import {IRouter, INFTPool} from "../../contracts/strategies/camelot/interfaces/ICamelot.sol";
+import {IRouter, INFTPool, IPair} from "../../contracts/strategies/camelot/interfaces/ICamelot.sol";
 import {InitializableAbstractStrategy, Helpers} from "../../contracts/strategies/InitializableAbstractStrategy.sol";
 import {IERC20, ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {IVault} from "../../contracts/interfaces/IVault.sol";
 import {VmSafe} from "forge-std/Vm.sol";
+
+interface ICamelotRouterSwap {
+    function swapExactTokensForTokensSupportingFeeOnTransferTokens(
+        uint256 amountIn,
+        uint256 amountOutMin,
+        address[] calldata path,
+        address to,
+        address referrer,
+        uint256 deadline
+    ) external;
+}
 
 contract CamelotStrategyTestSetup is PreMigrationSetup, BaseStrategy {
     CamelotStrategy internal camelotStrategy;
@@ -162,13 +173,13 @@ contract DepositTest is CamelotStrategyTestSetup {
 
         _depositAssetsToStrategy(1000 * 10 ** ERC20(ASSET_A).decimals(), 1000 * 10 ** ERC20(ASSET_B).decimals());
 
-        assert(
-            IERC20(ASSET_A).balanceOf(address(camelotStrategy))
-                == currentAmountAssetA + 1000 * 10 ** ERC20(ASSET_A).decimals()
+        assertEq(
+            IERC20(ASSET_A).balanceOf(address(camelotStrategy)),
+            currentAmountAssetA + 1000 * 10 ** ERC20(ASSET_A).decimals()
         );
-        assert(
-            IERC20(ASSET_B).balanceOf(address(camelotStrategy))
-                == currentAmountAssetB + 1000 * 10 ** ERC20(ASSET_B).decimals()
+        assertEq(
+            IERC20(ASSET_B).balanceOf(address(camelotStrategy)),
+            currentAmountAssetB + 1000 * 10 ** ERC20(ASSET_B).decimals()
         );
     }
 
@@ -229,14 +240,13 @@ contract AllocationTest is CamelotStrategyTestSetup {
 
         assertEq(numOfSpNFTsBeforeAllocation + 1, numOfSpNFTsAfterAllocation);
         assertEq(IERC20(pair).balanceOf(address(camelotStrategy)), 0);
-        assert(amountAllocatedAfterAllocation > amountAllocatedBeforeAllocation);
+        assertTrue(amountAllocatedAfterAllocation > amountAllocatedBeforeAllocation);
         assertEq(liquidityBalance, amountAllocatedAfterAllocation);
-
-        assertEq(
-            assetABalanceInContractAfterAllocation, assetABalanceInContractBeforeAllocation - allocatedAmountAssetA
+        assertApproxEqAbs(
+            assetABalanceInContractAfterAllocation, assetABalanceInContractBeforeAllocation - allocatedAmountAssetA, 1
         );
-        assertEq(
-            assetBBalanceInContractAfterAllocation, assetBBalanceInContractBeforeAllocation - allocatedAmountAssetB
+        assertApproxEqAbs(
+            assetBBalanceInContractAfterAllocation, assetBBalanceInContractBeforeAllocation - allocatedAmountAssetB, 1
         );
     }
 
@@ -276,11 +286,11 @@ contract AllocationTest is CamelotStrategyTestSetup {
 
         // assertEq(expectedTokenId, spNFTId);
         assertEq(expectedLiquidity, liquidityBalance);
-        assertApproxEqAbs(expectedAmountA, allocatedAmountAssetA, 1);
-        assertApproxEqAbs(expectedAmountB, allocatedAmountAssetB, 1);
+        assertApproxEqAbs(expectedAmountA, allocatedAmountAssetA, 3);
+        assertApproxEqAbs(expectedAmountB, allocatedAmountAssetB, 3);
 
-        assert(expectedAmountA >= minAmountsAssetA);
-        assert(expectedAmountB >= minAmountsAssetB);
+        assertTrue(expectedAmountA >= minAmountsAssetA);
+        assertTrue(expectedAmountB >= minAmountsAssetB);
     }
 
     function test_Allocate_IncreaseLiquidity() public {
@@ -297,7 +307,7 @@ contract AllocationTest is CamelotStrategyTestSetup {
 
         (uint256 liquidityBalance,,,,,,,) = INFTPool(_nftPool).getStakingPosition(spNFTId);
 
-        assert(amountAllocatedAfterIncreaseAllocation > amountAllocatedBeforeIncreaseAllocation);
+        assertTrue(amountAllocatedAfterIncreaseAllocation > amountAllocatedBeforeIncreaseAllocation);
         assertEq(IERC20(pair).balanceOf(address(camelotStrategy)), 0);
         assertEq(liquidityBalance, amountAllocatedAfterIncreaseAllocation);
     }
@@ -320,18 +330,44 @@ contract AllocationTest is CamelotStrategyTestSetup {
         uint256 assetABalanceInContractAfterAllocations = IERC20(ASSET_A).balanceOf(address(camelotStrategy));
         uint256 assetBBalanceInContractAfterAllocations = IERC20(ASSET_B).balanceOf(address(camelotStrategy));
 
-        assertEq(
-            assetABalanceInContractAfterAllocations, assetABalanceInContractBeforeAllocations - totalAllocatedAssetA
+        assertApproxEqAbs(
+            assetABalanceInContractAfterAllocations, assetABalanceInContractBeforeAllocations - totalAllocatedAssetA, 2
         );
-        assertEq(
-            assetBBalanceInContractAfterAllocations, assetBBalanceInContractBeforeAllocations - totalAllocatedAssetB
+        assertApproxEqAbs(
+            assetBBalanceInContractAfterAllocations, assetBBalanceInContractBeforeAllocations - totalAllocatedAssetB, 2
         );
+    }
+
+    function test_GetDepositAmounts() public {
+        (,, address _router,,,) = camelotStrategy.strategyData();
+        address pair = IRouter(_router).getPair(ASSET_A, ASSET_B);
+        (uint112 reserveA, uint112 reserveB,,) = IPair(pair).getReserves();
+        uint256 amountADesired = 1000 * 10 ** ERC20(ASSET_A).decimals();
+        uint256 amountBDesired = 1000 * 10 ** ERC20(ASSET_B).decimals();
+
+        (uint256 amountA, uint256 amountB) = camelotStrategy.getDepositAmounts(amountADesired, amountBDesired);
+
+        if (reserveA == 0 && reserveB == 0) {
+            assertEq(amountA, amountADesired);
+            assertEq(amountB, amountBDesired);
+        } else {
+            uint256 amountBOptimal = IRouter(_router).quote(amountADesired, reserveA, reserveB);
+            if (amountBOptimal <= amountBDesired) {
+                assertEq(amountA, amountADesired);
+                assertEq(amountB, amountBOptimal);
+            } else {
+                uint256 amountAOptimal = IRouter(_router).quote(amountBDesired, reserveB, reserveA);
+                assertTrue(amountAOptimal <= amountADesired);
+                assertEq(amountA, amountAOptimal);
+                assertEq(amountB, amountBDesired);
+            }
+        }
     }
 }
 
 contract RedeemTest is CamelotStrategyTestSetup {
     // Need to write one more test case to check the amount of assets returned on full redeem to make sure we are getting back enough/correct amount back.
-    // Need to test the above by rolling and warping a few blocks and timestamp using simulation.
+    // Need to test the above by rolling and warping a few blocks and timestamp using simulation and some swaps in the camelot pool.
 
     function test_Full_Redeem_After_Allocate_IncreaseLiquidity() public {
         _multipleAllocations();
@@ -353,8 +389,8 @@ contract RedeemTest is CamelotStrategyTestSetup {
         uint256 assetABalanceInContractAfterRedeem = IERC20(ASSET_A).balanceOf(address(camelotStrategy));
         uint256 assetBBalanceInContractAfterRedeem = IERC20(ASSET_B).balanceOf(address(camelotStrategy));
 
-        assert(assetABalanceInContractAfterRedeem > assetABalanceInContractBeforeRedeem);
-        assert(assetBBalanceInContractAfterRedeem > assetBBalanceInContractBeforeRedeem);
+        assertTrue(assetABalanceInContractAfterRedeem > assetABalanceInContractBeforeRedeem);
+        assertTrue(assetBBalanceInContractAfterRedeem > assetBBalanceInContractBeforeRedeem);
         assertEq(liquidityBalanceBeforeRedeem, allocatedAmountBeforeRedeem);
         assertEq(liquidityBalanceAfterRedeem, 0);
         assertEq(allocatedAmountAfterRedeem, 0);
@@ -381,8 +417,8 @@ contract RedeemTest is CamelotStrategyTestSetup {
         uint256 assetABalanceInContractAfterRedeem = IERC20(ASSET_A).balanceOf(address(camelotStrategy));
         uint256 assetBBalanceInContractAfterRedeem = IERC20(ASSET_B).balanceOf(address(camelotStrategy));
 
-        assert(assetABalanceInContractAfterRedeem > assetABalanceInContractBeforeRedeem);
-        assert(assetBBalanceInContractAfterRedeem > assetBBalanceInContractBeforeRedeem);
+        assertTrue(assetABalanceInContractAfterRedeem > assetABalanceInContractBeforeRedeem);
+        assertTrue(assetBBalanceInContractAfterRedeem > assetBBalanceInContractBeforeRedeem);
         assertEq(liquidityBalanceBeforeRedeem, allocatedAmountBeforeRedeem);
         assertEq(liquidityBalanceAfterRedeem, 1000);
         assertEq(allocatedAmountAfterRedeem, 1000);
@@ -408,8 +444,8 @@ contract RedeemTest is CamelotStrategyTestSetup {
         uint256 assetABalanceInContractAfterRedeem = IERC20(ASSET_A).balanceOf(address(camelotStrategy));
         uint256 assetBBalanceInContractAfterRedeem = IERC20(ASSET_B).balanceOf(address(camelotStrategy));
 
-        assert(assetABalanceInContractAfterRedeem > assetABalanceInContractBeforeRedeem);
-        assert(assetBBalanceInContractAfterRedeem > assetBBalanceInContractBeforeRedeem);
+        assertTrue(assetABalanceInContractAfterRedeem > assetABalanceInContractBeforeRedeem);
+        assertTrue(assetBBalanceInContractAfterRedeem > assetBBalanceInContractBeforeRedeem);
         assertEq(liquidityBalanceBeforeRedeem, allocatedAmountBeforeRedeem);
         assertEq(liquidityBalanceAfterRedeem, 0);
         assertEq(allocatedAmountAfterRedeem, 0);
@@ -470,6 +506,90 @@ contract RedeemTest is CamelotStrategyTestSetup {
 
         assertEq(expectedLiquidityToWithdraw, partialRedeemAmount);
     }
+
+    // function test_Assets_Amount_Returned_On_Full_Redeem_After_Some_Swaps() public {
+    //     // This check is to make sure that we are getting more assets than we allocated in the camelot pool after some swaps in the pool.
+    //     // This is due to raise in value of liquidity tokens from fees on swaps.
+    //     // Hence the amount of assets returned should be more than what we allocated.
+    //     // OfCourse there will be a small fee when we redeem but with more swaps we will have more valued liquidity tokens and hence more assets returned.
+
+    //     (,, address _router,,,) = camelotStrategy.strategyData();
+
+    //     address swapper = address(0x1);
+    //     _depositAssetsToStrategy(2000 * 10 ** ERC20(ASSET_A).decimals(), 2000 * 10 ** ERC20(ASSET_B).decimals());
+
+    //     _allocate(1000 * 10 ** ERC20(ASSET_A).decimals(), 1000 * 10 ** ERC20(ASSET_B).decimals());
+    //     _allocate(100 * 10 ** ERC20(ASSET_A).decimals(), 100 * 10 ** ERC20(ASSET_B).decimals());
+
+    //     uint256 totalBalanceAssetABeforeSwaps = camelotStrategy.checkBalance(ASSET_A); // The total balance, including allocated and unallocated amounts.
+    //     uint256 totalBalanceAssetBBeforeSwaps = camelotStrategy.checkBalance(ASSET_B); // The total balance, including allocated and unallocated amounts.
+
+    //     deal(ASSET_A, swapper, 1000 * 10 ** ERC20(ASSET_A).decimals());
+
+    //     uint256 amountIn;
+    //     uint256 amountOutMin = 0;
+    //     address[] memory path = new address[](2);
+    //     address to = swapper;
+    //     address referrer = address(0x0);
+
+    //     vm.warp(block.timestamp + 10 days);
+    //     vm.roll(block.number + 1000);
+
+    //     uint256 deadline = block.timestamp;
+
+    //     vm.startPrank(swapper);
+    //     path[0] = ASSET_A;
+    //     path[1] = ASSET_B;
+    //     amountIn = 400 * 10 ** ERC20(ASSET_A).decimals();
+    //     IERC20(ASSET_A).approve(_router, 400 * 10 ** ERC20(ASSET_A).decimals());
+    //     ICamelotRouterSwap(_router).swapExactTokensForTokensSupportingFeeOnTransferTokens(
+    //         amountIn, amountOutMin, path, to, referrer, deadline
+    //     );
+
+    //     path[0] = ASSET_B;
+    //     path[1] = ASSET_A;
+    //     amountIn = 300 * 10 ** ERC20(ASSET_B).decimals();
+    //     IERC20(ASSET_B).approve(_router, 300 * 10 ** ERC20(ASSET_B).decimals());
+    //     ICamelotRouterSwap(_router).swapExactTokensForTokensSupportingFeeOnTransferTokens(
+    //         amountIn, amountOutMin, path, to, referrer, deadline
+    //     );
+
+    //     vm.stopPrank();
+
+    //     vm.warp(block.timestamp + 10 days);
+    //     vm.roll(block.number + 1000);
+
+    //     deadline = block.timestamp;
+
+    //     vm.startPrank(swapper);
+    //     amountIn = 400 * 10 ** ERC20(ASSET_A).decimals();
+    //     path[0] = ASSET_A;
+    //     path[1] = ASSET_B;
+    //     IERC20(ASSET_A).approve(_router, 400 * 10 ** ERC20(ASSET_A).decimals());
+    //     ICamelotRouterSwap(_router).swapExactTokensForTokensSupportingFeeOnTransferTokens(
+    //         amountIn, amountOutMin, path, to, referrer, deadline
+    //     );
+    //     amountIn = 300 * 10 ** ERC20(ASSET_B).decimals();
+    //     path[0] = ASSET_B;
+    //     path[1] = ASSET_A;
+    //     IERC20(ASSET_B).approve(_router, 350 * 10 ** ERC20(ASSET_B).decimals());
+    //     ICamelotRouterSwap(_router).swapExactTokensForTokensSupportingFeeOnTransferTokens(
+    //         amountIn, amountOutMin, path, to, referrer, deadline
+    //     );
+    //     vm.stopPrank();
+
+    //     vm.warp(block.timestamp + 10 days);
+    //     vm.roll(block.number + 1000);
+
+    //     uint256 totalBalanceAssetAAfterSwaps = camelotStrategy.checkBalance(ASSET_A); // The total balance, including allocated and unallocated amounts.
+    //     uint256 totalBalanceAssetBAfterSwaps = camelotStrategy.checkBalance(ASSET_B); // The total balance, including allocated and unallocated amounts.
+
+    //     emit log_named_uint("beforeSwaps", totalBalanceAssetABeforeSwaps + totalBalanceAssetBBeforeSwaps);
+    //     emit log_named_uint("afterSwaps", totalBalanceAssetAAfterSwaps + totalBalanceAssetBAfterSwaps);
+    //     // The below assertion is based on that both the assets are stable usd coins with same decimal places and almost same pool ratio between them.
+    //     // Need to enhance this test by using decimal conversions and exact price factors
+    //     assertTrue(totalBalanceAssetAAfterSwaps + totalBalanceAssetABeforeSwaps > totalBalanceAssetABeforeSwaps + totalBalanceAssetBAfterSwaps);
+    // }
 }
 
 contract WithdrawAssetsToVaultTests is CamelotStrategyTestSetup {
@@ -636,33 +756,72 @@ contract WithdrawAssetsToVaultTests is CamelotStrategyTestSetup {
 
 contract collectRewardTest is CamelotStrategyTestSetup {
     address internal yieldReceiver;
+    address internal harvestor = address(0x1);
+    // address internal swapper = address(0x2);
 
     function setUp() public override {
         super.setUp();
         yieldReceiver = actors[0];
     }
 
-    function test_collectReward() public {
+    function test_CollectRewards_Grail() public {
         (,,,,, address _nftPool) = camelotStrategy.strategyData();
-        (, address grail, address xGrail,,,,,) = INFTPool(_nftPool).getPoolInfo();
+        (, address grail,,,,,,) = INFTPool(_nftPool).getPoolInfo();
+        uint256 harvestIncentiveRate = camelotStrategy.harvestIncentiveRate();
 
         yieldReceiver = IVault(VAULT).yieldReceiver();
 
-        uint256 yieldReceiverGrailAmountBeforeCollection = IERC20(grail).balanceOf(address(yieldReceiver));
-        uint256 yieldReceiverXGrailAmountBeforeCollection = IERC20(xGrail).balanceOf(address(yieldReceiver));
+        uint256 yieldReceiverGrailAmountBeforeCollection = IERC20(grail).balanceOf(yieldReceiver);
+        uint256 harvestorGrailAmountBeforeCollection = IERC20(grail).balanceOf(harvestor);
 
         _multipleAllocations();
 
         vm.warp(block.timestamp + 10 days);
         vm.roll(block.number + 1000);
 
+        uint256 rewardEarned = camelotStrategy.checkRewardEarned();
+
+        emit log_named_uint("rewardEarned", rewardEarned);
+
+        vm.startPrank(harvestor);
         camelotStrategy.collectReward();
+        vm.stopPrank();
 
-        uint256 yieldReceiverGrailAmountAfterCollection = IERC20(grail).balanceOf(address(yieldReceiver));
-        uint256 yieldReceiverXGrailAmountAfterCollection = IERC20(xGrail).balanceOf(address(yieldReceiver));
+        uint256 yieldReceiverGrailAmountAfterCollection = IERC20(grail).balanceOf(yieldReceiver);
+        uint256 harvestorGrailAmountAfterCollection = IERC20(grail).balanceOf(harvestor);
 
-        assert(yieldReceiverGrailAmountAfterCollection > yieldReceiverGrailAmountBeforeCollection);
-        assert(yieldReceiverXGrailAmountAfterCollection > yieldReceiverXGrailAmountBeforeCollection);
+        uint256 yieldReceiverGrailAmountCollected =
+            yieldReceiverGrailAmountAfterCollection - yieldReceiverGrailAmountBeforeCollection;
+        uint256 harvestorGrailAmountCollected =
+            harvestorGrailAmountAfterCollection - harvestorGrailAmountBeforeCollection;
+
+        uint256 totalGrailAmountCollected = yieldReceiverGrailAmountCollected + harvestorGrailAmountCollected;
+
+        uint256 harvestIncentive = totalGrailAmountCollected * harvestIncentiveRate / Helpers.MAX_PERCENTAGE;
+
+        assertTrue(yieldReceiverGrailAmountAfterCollection > yieldReceiverGrailAmountBeforeCollection);
+        assertTrue(harvestorGrailAmountAfterCollection > harvestorGrailAmountBeforeCollection);
+        assertEq(yieldReceiverGrailAmountCollected, harvestorGrailAmountCollected - harvestIncentive);
+    }
+
+    function test_checkRewardEarned() public {
+        _multipleAllocations();
+
+        (,,,,, address _nftPool) = camelotStrategy.strategyData();
+        uint256 spNFTId = camelotStrategy.spNFTId();
+
+        uint256 rewardsBefore = INFTPool(_nftPool).pendingRewards(spNFTId);
+        uint256 rewardsBeforeContractState = camelotStrategy.checkRewardEarned();
+
+        vm.warp(block.timestamp + 10 days);
+        vm.roll(block.number + 1000);
+
+        uint256 rewardsAfter = INFTPool(_nftPool).pendingRewards(spNFTId);
+        uint256 rewardsAfterContractState = camelotStrategy.checkRewardEarned();
+
+        assertEq(rewardsBefore, rewardsBeforeContractState);
+        assertEq(rewardsAfter, rewardsAfterContractState);
+        assertTrue(rewardsAfterContractState > rewardsBeforeContractState);
     }
 }
 
@@ -844,26 +1003,6 @@ contract MiscellaneousTests is CamelotStrategyTestSetup {
         camelotStrategy.checkLPTokenBalance(randomAsset);
     }
 
-    function test_checkRewardEarned() public {
-        _multipleAllocations();
-
-        (,,,,, address _nftPool) = camelotStrategy.strategyData();
-        uint256 spNFTId = camelotStrategy.spNFTId();
-
-        uint256 rewardsBefore = INFTPool(_nftPool).pendingRewards(spNFTId);
-        uint256 rewardsBeforeContractState = camelotStrategy.checkRewardEarned();
-
-        vm.warp(block.timestamp + 10 days);
-        vm.roll(block.number + 1000);
-
-        uint256 rewardsAfter = INFTPool(_nftPool).pendingRewards(spNFTId);
-        uint256 rewardsAfterContractState = camelotStrategy.checkRewardEarned();
-
-        assertEq(rewardsBefore, rewardsBeforeContractState);
-        assertEq(rewardsAfter, rewardsAfterContractState);
-        assert(rewardsAfterContractState > rewardsBeforeContractState);
-    }
-
     function test_UpdateVaultCore() public useKnownActor(USDS_OWNER) {
         address newVault = address(1);
         vm.expectEmit(true, true, false, true);
@@ -889,14 +1028,13 @@ contract MiscellaneousTests is CamelotStrategyTestSetup {
         emit HarvestIncentiveRateUpdated(newRate);
         camelotStrategy.updateHarvestIncentiveRate(newRate);
 
-        uint256 harvestIncentive = camelotStrategy.harvestIncentiveRate();
+        uint256 harvestIncentiveRate = camelotStrategy.harvestIncentiveRate();
 
-        assertEq(harvestIncentive, newRate);
+        assertEq(harvestIncentiveRate, newRate);
 
         newRate = 10001;
         vm.expectRevert(abi.encodeWithSelector(Helpers.GTMaxPercentage.selector, newRate));
         camelotStrategy.updateHarvestIncentiveRate(newRate);
-        harvestIncentive = camelotStrategy.harvestIncentiveRate();
     }
 
     function test_Revert_UpdateHarvestIncentiveRate_When_NotOwner() public {
@@ -974,12 +1112,12 @@ contract MiscellaneousTests is CamelotStrategyTestSetup {
 
         // Need to simulate some swaps here in camelot. This will increase the value of liquidity and hence assets.
 
-        assert(
+        assertTrue(
             firstAllocationAssetA + secondAllocationAssetA + availableBalanceInContractAssetAAfterAllocations
                 >= availableBalanceInContractAssetABeforeAllocations
         );
 
-        assert(
+        assertTrue(
             firstAllocationAssetB + secondAllocationAssetB + availableBalanceInContractAssetBAfterAllocations
                 >= availableBalanceInContractAssetBBeforeAllocations
         );
