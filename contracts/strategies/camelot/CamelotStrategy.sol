@@ -199,7 +199,6 @@ contract CamelotStrategy is InitializableAbstractStrategy, INFTHandler {
 
         // Handling xGrail
         address xGrail = rewardTokenAddress[1];
-        // reusing variable rewardBalance
         uint256 xGrailBalance = IERC20(xGrail).balanceOf(address(this));
         if (xGrailBalance != 0) {
             IXGrailToken(xGrail).redeem(xGrailBalance, 15 days);
@@ -230,6 +229,9 @@ contract CamelotStrategy is InitializableAbstractStrategy, INFTHandler {
                     _harvestAmt = _splitAndSendReward(_token, yieldReceiver, msg.sender, _balance);
                     emit RewardTokenCollected(_token, yieldReceiver, _harvestAmt);
                 }
+            }
+            unchecked {
+                ++i;
             }
         }
         IXGrailToken(xGrail).finalizeRedeem(redeemIndex);
