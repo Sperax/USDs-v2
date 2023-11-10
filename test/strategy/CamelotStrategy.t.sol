@@ -4,7 +4,13 @@ pragma solidity 0.8.16;
 import {PreMigrationSetup} from "../utils/DeploymentSetup.t.sol";
 import {BaseStrategy} from "./BaseStrategy.t.sol";
 import {CamelotStrategy} from "../../contracts/strategies/camelot/CamelotStrategy.sol";
-import {IRouter, INFTPool, IPair} from "../../contracts/strategies/camelot/interfaces/ICamelot.sol";
+import {
+    IRouter,
+    INFTPool,
+    IPair,
+    IXGrailToken,
+    IDividendV2
+} from "../../contracts/strategies/camelot/interfaces/ICamelot.sol";
 import {InitializableAbstractStrategy, Helpers} from "../../contracts/strategies/InitializableAbstractStrategy.sol";
 import {IERC20, ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
@@ -759,9 +765,31 @@ contract collectRewardTest is CamelotStrategyTestSetup {
     address internal harvestor = address(0x1);
     // address internal swapper = address(0x2);
 
+    error InvalidRedeemIndex();
+
     function setUp() public override {
         super.setUp();
         yieldReceiver = actors[0];
+    }
+
+    function test_checkRewardEarned() public {
+        _multipleAllocations();
+
+        (,,,,, address _nftPool) = camelotStrategy.strategyData();
+        uint256 spNFTId = camelotStrategy.spNFTId();
+
+        uint256 rewardsBefore = INFTPool(_nftPool).pendingRewards(spNFTId);
+        uint256 rewardsBeforeContractState = camelotStrategy.checkRewardEarned();
+
+        vm.warp(block.timestamp + 10 days);
+        vm.roll(block.number + 1000);
+
+        uint256 rewardsAfter = INFTPool(_nftPool).pendingRewards(spNFTId);
+        uint256 rewardsAfterContractState = camelotStrategy.checkRewardEarned();
+
+        assertEq(rewardsBefore, rewardsBeforeContractState);
+        assertEq(rewardsAfter, rewardsAfterContractState);
+        assertTrue(rewardsAfterContractState > rewardsBeforeContractState);
     }
 
     function test_CollectRewards_Grail() public {
@@ -801,24 +829,156 @@ contract collectRewardTest is CamelotStrategyTestSetup {
         assertEq(harvestIncentive, harvestorGrailAmountAfterCollection - harvestorGrailAmountBeforeCollection);
     }
 
-    function test_checkRewardEarned() public {
-        _multipleAllocations();
+    function test_CollectRewards_XGrail() public {}
+
+    function test_Revert_collectVestedGrailAndDividends_With_Invalid_Redeem_Index() public {
+        // Without calling collectReward we don't get a valid redeem index.
+        vm.expectRevert(abi.encodeWithSelector(InvalidRedeemIndex.selector));
+        camelotStrategy.collectVestedGrailAndDividends(1);
+    }
+
+    // Had to separate grail and other dividend token test cases for collectVestedGrailAndDividends due to stack too deep error.
+    // The below two functions test grail and other dividend tokens for collectVestedGrailAndDividends.
+
+    function test_collectVestedGrailAndDividends_For_Tokens_Other_Than_Grail() public {
+        // todo
+        // In this test function need to write test to check RewardTokenCollected events for each dividend token.
 
         (,,,,, address _nftPool) = camelotStrategy.strategyData();
-        uint256 spNFTId = camelotStrategy.spNFTId();
+        (,, address xGrail,,,,,) = INFTPool(_nftPool).getPoolInfo();
+        uint256 harvestIncentiveRate = camelotStrategy.harvestIncentiveRate();
 
-        uint256 rewardsBefore = INFTPool(_nftPool).pendingRewards(spNFTId);
-        uint256 rewardsBeforeContractState = camelotStrategy.checkRewardEarned();
+        _multipleAllocations();
 
         vm.warp(block.timestamp + 10 days);
         vm.roll(block.number + 1000);
 
-        uint256 rewardsAfter = INFTPool(_nftPool).pendingRewards(spNFTId);
-        uint256 rewardsAfterContractState = camelotStrategy.checkRewardEarned();
+        vm.startPrank(harvestor);
+        camelotStrategy.collectReward();
+        vm.stopPrank();
 
-        assertEq(rewardsBefore, rewardsBeforeContractState);
-        assertEq(rewardsAfter, rewardsAfterContractState);
-        assertTrue(rewardsAfterContractState > rewardsBeforeContractState);
+        vm.warp(block.timestamp + 16 days); // to make sure we cross the vesting time of 15 days.
+        vm.roll(block.number + 1000);
+
+        uint256 userRedeemsLength = IXGrailToken(xGrail).getUserRedeemsLength(address(camelotStrategy));
+        emit log_named_uint("userRedeemsLength", userRedeemsLength);
+
+        (,,, address dividendsContract,) =
+            IXGrailToken(xGrail).getUserRedeem(address(camelotStrategy), userRedeemsLength - 1);
+        uint256 dividendTokensLength = IDividendV2(dividendsContract).distributedTokensLength();
+        address[] memory _dividendTokensForARedeemIndex = new address[](dividendTokensLength);
+        uint256[] memory yieldReceiverTokenAmountBeforeCollection = new uint256[](dividendTokensLength);
+        uint256[] memory harvestorTokenAmountBeforeCollection = new uint256[](dividendTokensLength);
+        uint256[] memory yieldReceiverTokenAmountAfterCollection = new uint256[](dividendTokensLength);
+        uint256[] memory harvestorTokenAmountAfterCollection = new uint256[](dividendTokensLength);
+        uint256[] memory harvestorTokenAmountCollected = new uint[](dividendTokensLength);
+        uint256[] memory yieldReceiverTokenAmountCollected = new uint[](dividendTokensLength);
+        uint256[] memory harvestIncentive = new uint[](dividendTokensLength);
+
+        for (uint8 j; j < dividendTokensLength; ++j) {
+            _dividendTokensForARedeemIndex[j] = IDividendV2(dividendsContract).distributedToken(j);
+
+            yieldReceiverTokenAmountBeforeCollection[j] =
+                IERC20(_dividendTokensForARedeemIndex[j]).balanceOf(yieldReceiver);
+
+            harvestorTokenAmountBeforeCollection[j] = IERC20(_dividendTokensForARedeemIndex[j]).balanceOf(harvestor);
+        }
+
+        vm.startPrank(harvestor);
+        camelotStrategy.collectVestedGrailAndDividends(userRedeemsLength - 1);
+        vm.stopPrank();
+
+        for (uint8 j; j < dividendTokensLength; ++j) {
+            if (_dividendTokensForARedeemIndex[j] != xGrail) {
+                yieldReceiverTokenAmountAfterCollection[j] =
+                    IERC20(_dividendTokensForARedeemIndex[j]).balanceOf(yieldReceiver);
+
+                harvestorTokenAmountAfterCollection[j] = IERC20(_dividendTokensForARedeemIndex[j]).balanceOf(harvestor);
+
+                harvestorTokenAmountCollected[j] =
+                    harvestorTokenAmountAfterCollection[j] - harvestorTokenAmountBeforeCollection[j];
+
+                yieldReceiverTokenAmountCollected[j] =
+                    yieldReceiverTokenAmountAfterCollection[j] - yieldReceiverTokenAmountBeforeCollection[j];
+
+                harvestIncentive[j] = harvestorTokenAmountCollected[j] * harvestIncentiveRate / Helpers.MAX_PERCENTAGE;
+
+                emit log_named_uint(
+                    "yieldReceiverTokenAmountBeforeCollection", yieldReceiverTokenAmountBeforeCollection[j]
+                );
+                emit log_named_uint("harvestorTokenAmountBeforeCollection", harvestorTokenAmountBeforeCollection[j]);
+                emit log_named_uint(
+                    "yieldReceiverTokenAmountAfterCollection", yieldReceiverTokenAmountAfterCollection[j]
+                );
+                emit log_named_uint("harvestorTokenAmountAfterCollection", harvestorTokenAmountAfterCollection[j]);
+                emit log_named_uint("yieldReceiverTokenAmountCollected", yieldReceiverTokenAmountCollected[j]);
+                emit log_named_uint("harvestorTokenAmountCollected", harvestorTokenAmountCollected[j]);
+                emit log_named_uint("harvestIncentive", harvestIncentive[j]);
+                emit log_named_uint(
+                    "test1", yieldReceiverTokenAmountAfterCollection[j] - yieldReceiverTokenAmountBeforeCollection[j]
+                );
+                emit log_named_uint(
+                    "test2", harvestorTokenAmountAfterCollection[j] - harvestorTokenAmountBeforeCollection[j]
+                );
+
+                assertTrue(yieldReceiverTokenAmountAfterCollection[j] > yieldReceiverTokenAmountBeforeCollection[j]);
+                assertTrue(harvestorTokenAmountAfterCollection[j] > harvestorTokenAmountBeforeCollection[j]);
+                assertEq(
+                    yieldReceiverTokenAmountCollected[j],
+                    yieldReceiverTokenAmountAfterCollection[j] - yieldReceiverTokenAmountBeforeCollection[j]
+                );
+                assertEq(
+                    harvestIncentive[j],
+                    harvestorTokenAmountAfterCollection[j] - harvestorTokenAmountBeforeCollection[j]
+                );
+            }
+        }
+    }
+
+    // Separated this test case from the above one due to stack too deep error.
+    function test_collectVestedGrailAndDividends_For_Grail() public {
+        (,,,,, address _nftPool) = camelotStrategy.strategyData();
+        (, address grail, address xGrail,,,,,) = INFTPool(_nftPool).getPoolInfo();
+        uint256 harvestIncentiveRate = camelotStrategy.harvestIncentiveRate();
+
+        _multipleAllocations();
+
+        vm.warp(block.timestamp + 10 days);
+        vm.roll(block.number + 1000);
+
+        vm.startPrank(harvestor);
+        camelotStrategy.collectReward();
+        vm.stopPrank();
+
+        vm.warp(block.timestamp + 16 days); // to make sure we cross the vesting time of 15 days.
+        vm.roll(block.number + 1000);
+
+        uint256 userRedeemsLength = IXGrailToken(xGrail).getUserRedeemsLength(address(camelotStrategy));
+        emit log_named_uint("userRedeemsLength", userRedeemsLength);
+
+        uint256 yieldReceiverGrailAmountBeforeCollection = IERC20(grail).balanceOf(yieldReceiver);
+        uint256 harvestorGrailAmountBeforeCollection = IERC20(grail).balanceOf(harvestor);
+
+        vm.startPrank(harvestor);
+        camelotStrategy.collectVestedGrailAndDividends(userRedeemsLength - 1);
+        vm.stopPrank();
+
+        uint256 yieldReceiverGrailAmountAfterCollection = IERC20(grail).balanceOf(yieldReceiver);
+        uint256 harvestorGrailAmountAfterCollection = IERC20(grail).balanceOf(harvestor);
+
+        uint256 yieldReceiverGrailAmountCollected =
+            yieldReceiverGrailAmountAfterCollection - yieldReceiverGrailAmountBeforeCollection;
+        uint256 harvestorGrailAmountCollected =
+            harvestorGrailAmountAfterCollection - harvestorGrailAmountBeforeCollection;
+
+        uint256 totalGrailAmountCollected = yieldReceiverGrailAmountCollected + harvestorGrailAmountCollected;
+
+        uint256 grailHarvestIncentive = totalGrailAmountCollected * harvestIncentiveRate / Helpers.MAX_PERCENTAGE;
+
+        assertTrue(yieldReceiverGrailAmountAfterCollection > yieldReceiverGrailAmountBeforeCollection);
+        assertTrue(harvestorGrailAmountAfterCollection > harvestorGrailAmountBeforeCollection);
+        assertEq(yieldReceiverGrailAmountCollected, totalGrailAmountCollected - harvestorGrailAmountCollected);
+        assertEq(grailHarvestIncentive, harvestorGrailAmountAfterCollection - harvestorGrailAmountBeforeCollection);
     }
 }
 
