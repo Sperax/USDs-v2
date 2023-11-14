@@ -111,6 +111,66 @@ contract CamelotStrategyTestSetup is PreMigrationSetup, BaseStrategy {
 
         _allocate(100 * 10 ** ERC20(ASSET_A).decimals(), 100 * 10 ** ERC20(ASSET_B).decimals());
     }
+
+    function _multipleSwaps() internal {
+        (,, address _router,,,) = camelotStrategy.strategyData();
+
+        address swapper = address(0x1);
+
+        deal(ASSET_A, swapper, 1000 * 10 ** ERC20(ASSET_A).decimals());
+
+        uint256 amountIn;
+        uint256 amountOutMin = 0;
+        address[] memory path = new address[](2);
+        address to = swapper;
+        address referrer = address(0x0);
+
+        vm.warp(block.timestamp + 10 days);
+        vm.roll(block.number + 1000);
+
+        uint256 deadline = block.timestamp;
+
+        vm.startPrank(swapper);
+        path[0] = ASSET_A;
+        path[1] = ASSET_B;
+        amountIn = 400 * 10 ** ERC20(ASSET_A).decimals();
+        IERC20(ASSET_A).approve(_router, 400 * 10 ** ERC20(ASSET_A).decimals());
+        ICamelotRouterSwap(_router).swapExactTokensForTokensSupportingFeeOnTransferTokens(
+            amountIn, amountOutMin, path, to, referrer, deadline
+        );
+
+        path[0] = ASSET_B;
+        path[1] = ASSET_A;
+        amountIn = 300 * 10 ** ERC20(ASSET_B).decimals();
+        IERC20(ASSET_B).approve(_router, 300 * 10 ** ERC20(ASSET_B).decimals());
+        ICamelotRouterSwap(_router).swapExactTokensForTokensSupportingFeeOnTransferTokens(
+            amountIn, amountOutMin, path, to, referrer, deadline
+        );
+
+        vm.stopPrank();
+
+        vm.warp(block.timestamp + 10 days);
+        vm.roll(block.number + 1000);
+
+        deadline = block.timestamp;
+
+        vm.startPrank(swapper);
+        amountIn = 400 * 10 ** ERC20(ASSET_A).decimals();
+        path[0] = ASSET_A;
+        path[1] = ASSET_B;
+        IERC20(ASSET_A).approve(_router, 400 * 10 ** ERC20(ASSET_A).decimals());
+        ICamelotRouterSwap(_router).swapExactTokensForTokensSupportingFeeOnTransferTokens(
+            amountIn, amountOutMin, path, to, referrer, deadline
+        );
+        amountIn = 300 * 10 ** ERC20(ASSET_B).decimals();
+        path[0] = ASSET_B;
+        path[1] = ASSET_A;
+        IERC20(ASSET_B).approve(_router, 350 * 10 ** ERC20(ASSET_B).decimals());
+        ICamelotRouterSwap(_router).swapExactTokensForTokensSupportingFeeOnTransferTokens(
+            amountIn, amountOutMin, path, to, referrer, deadline
+        );
+        vm.stopPrank();
+    }
 }
 
 contract TestInitialization is CamelotStrategyTestSetup {
@@ -847,6 +907,7 @@ contract collectRewardTest is CamelotStrategyTestSetup {
         (,,,,, address _nftPool) = camelotStrategy.strategyData();
         (,, address xGrail,,,,,) = INFTPool(_nftPool).getPoolInfo();
         uint256 harvestIncentiveRate = camelotStrategy.harvestIncentiveRate();
+        yieldReceiver = IVault(VAULT).yieldReceiver();
 
         _multipleAllocations();
 
@@ -856,6 +917,8 @@ contract collectRewardTest is CamelotStrategyTestSetup {
         vm.startPrank(harvestor);
         camelotStrategy.collectReward();
         vm.stopPrank();
+
+        _multipleSwaps();
 
         vm.warp(block.timestamp + 16 days); // to make sure we cross the vesting time of 15 days.
         vm.roll(block.number + 1000);
@@ -940,6 +1003,7 @@ contract collectRewardTest is CamelotStrategyTestSetup {
         (,,,,, address _nftPool) = camelotStrategy.strategyData();
         (, address grail, address xGrail,,,,,) = INFTPool(_nftPool).getPoolInfo();
         uint256 harvestIncentiveRate = camelotStrategy.harvestIncentiveRate();
+        yieldReceiver = IVault(VAULT).yieldReceiver();
 
         _multipleAllocations();
 
@@ -949,6 +1013,8 @@ contract collectRewardTest is CamelotStrategyTestSetup {
         vm.startPrank(harvestor);
         camelotStrategy.collectReward();
         vm.stopPrank();
+
+        _multipleSwaps();
 
         vm.warp(block.timestamp + 16 days); // to make sure we cross the vesting time of 15 days.
         vm.roll(block.number + 1000);
