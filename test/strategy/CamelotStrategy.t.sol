@@ -115,7 +115,7 @@ contract CamelotStrategyTestSetup is PreMigrationSetup, BaseStrategy {
     function _multipleSwaps() internal {
         (,, address _router,,,) = camelotStrategy.strategyData();
 
-        address swapper = address(0x1);
+        address swapper = address(0x2);
 
         deal(ASSET_A, swapper, 1000 * 10 ** ERC20(ASSET_A).decimals());
 
@@ -147,14 +147,11 @@ contract CamelotStrategyTestSetup is PreMigrationSetup, BaseStrategy {
             amountIn, amountOutMin, path, to, referrer, deadline
         );
 
-        vm.stopPrank();
-
         vm.warp(block.timestamp + 10 days);
         vm.roll(block.number + 1000);
 
         deadline = block.timestamp;
 
-        vm.startPrank(swapper);
         amountIn = 400 * 10 ** ERC20(ASSET_A).decimals();
         path[0] = ASSET_A;
         path[1] = ASSET_B;
