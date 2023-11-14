@@ -820,7 +820,6 @@ contract WithdrawAssetsToVaultTests is CamelotStrategyTestSetup {
 contract collectRewardTest is CamelotStrategyTestSetup {
     address internal yieldReceiver;
     address internal harvestor = address(0x1);
-    // address internal swapper = address(0x2);
 
     error InvalidRedeemIndex();
 
@@ -931,9 +930,9 @@ contract collectRewardTest is CamelotStrategyTestSetup {
         uint256[] memory harvestorTokenAmountBeforeCollection = new uint256[](dividendTokensLength);
         uint256[] memory yieldReceiverTokenAmountAfterCollection = new uint256[](dividendTokensLength);
         uint256[] memory harvestorTokenAmountAfterCollection = new uint256[](dividendTokensLength);
-        uint256[] memory harvestorTokenAmountCollected = new uint[](dividendTokensLength);
-        uint256[] memory yieldReceiverTokenAmountCollected = new uint[](dividendTokensLength);
-        uint256[] memory harvestIncentive = new uint[](dividendTokensLength);
+        uint256[] memory harvestorTokenAmountCollected = new uint256[](dividendTokensLength);
+        uint256[] memory yieldReceiverTokenAmountCollected = new uint256[](dividendTokensLength);
+        uint256[] memory harvestIncentive = new uint256[](dividendTokensLength);
 
         for (uint8 j; j < dividendTokensLength; ++j) {
             _dividendTokensForARedeemIndex[j] = IDividendV2(dividendsContract).distributedToken(j);
