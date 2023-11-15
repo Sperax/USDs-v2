@@ -88,7 +88,7 @@ contract YieldReserve is ReentrancyGuard, Ownable {
 
     // ADMIN FUNCTIONS
 
-    /// @notice A function to allow or disallow a `_token`
+    /// @notice A function to allow or disallow a `_token` as source token
     /// @param _token Address of the token
     /// @param _isAllowed If True, allow it to be used as src token / input token else don't allow
     function toggleSrcTokenPermission(address _token, bool _isAllowed) external onlyOwner {
@@ -106,7 +106,7 @@ contract YieldReserve is ReentrancyGuard, Ownable {
         emit SrcTokenPermissionUpdated(_token, _isAllowed);
     }
 
-    /// @notice A function to allow or disallow a `_token`
+    /// @notice A function to allow or disallow a `_token` as output/destination token.
     /// @param _token Address of the token
     /// @param _isAllowed If True, allow it to be used as src token / input token else don't allow
     function toggleDstTokenPermission(address _token, bool _isAllowed) external onlyOwner {

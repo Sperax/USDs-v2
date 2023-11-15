@@ -14,12 +14,14 @@ contract YieldReserveTest is PreMigrationSetup {
     uint256 USDCePrecision;
     uint256 SPAPrecision;
     uint256 USDsPrecision;
+    uint256 DAIPrecision;
     uint256 internal constant PRICE_PRECISION = 1e8;
 
     function setUp() public virtual override {
         super.setUp();
         USDsPrecision = 10 ** ERC20(USDS).decimals();
         USDCePrecision = 10 ** ERC20(USDCe).decimals();
+        DAIPrecision = 10 ** ERC20(DAI).decimals();
         SPAPrecision = 10 ** ERC20(SPA).decimals();
 
         vm.startPrank(USDS_OWNER);
@@ -248,6 +250,19 @@ contract YieldReserveTest is PreMigrationSetup {
 
         assertEq(amount, amountIn * USDCePrecision);
     }
+
+    function test_getTokenBForTokenA_SamePrecision() public useKnownActor(USDS_OWNER) {
+        uint256 amountIn = 100;
+        mockPrice(DAI, 1e8, PRICE_PRECISION);
+        mockPrice(USDS, 1e8, PRICE_PRECISION);
+
+        yieldReserve.toggleSrcTokenPermission(USDS, true);
+        yieldReserve.toggleDstTokenPermission(DAI, true);
+
+        uint256 amount = yieldReserve.getTokenBForTokenA(USDS, DAI, amountIn * USDsPrecision);
+
+        assertEq(amount, amountIn * DAIPrecision);
+    }
 }
 
 contract SwapTest is YieldReserveTest {
@@ -255,10 +270,12 @@ contract SwapTest is YieldReserveTest {
         super.setUp();
         vm.startPrank(USDS_OWNER);
         deal(address(USDCe), USDS_OWNER, 1 ether);
-        deal(address(USDCe), address(yieldReserve), 1 ether);
+        deal(address(USDCe), address(yieldReserve), 100 ether);
+        deal(address(DAI), address(yieldReserve), 100 ether);
 
         mockPrice(USDCe, 1e8, PRICE_PRECISION);
         mockPrice(USDS, 1e8, PRICE_PRECISION);
+        mockPrice(DAI, 1e8, PRICE_PRECISION);
 
         mintUSDs(1e7);
 
@@ -285,6 +302,16 @@ contract SwapTest is YieldReserveTest {
         yieldReserve.toggleDstTokenPermission(USDCe, true);
 
         yieldReserve.swap(USDS, USDCe, amt * USDsPrecision, 0);
+    }
+
+    function test_swap_samePrecision() public useKnownActor(USDS_OWNER) {
+        uint256 amt = 10;
+        IERC20(USDS).approve(address(yieldReserve), amt * USDsPrecision);
+
+        yieldReserve.toggleSrcTokenPermission(USDS, true);
+        yieldReserve.toggleDstTokenPermission(DAI, true);
+
+        yieldReserve.swap(USDS, DAI, amt * USDsPrecision, 0);
     }
 
     function test_swap_non_USDS() public useKnownActor(USDS_OWNER) {
