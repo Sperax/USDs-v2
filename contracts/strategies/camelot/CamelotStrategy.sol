@@ -133,7 +133,7 @@ contract CamelotStrategy is InitializableAbstractStrategy, INFTHandler {
             INFTPool(_strategyData.nftPool).addToPosition(spNFTId, liquidity);
         }
 
-        allocatedAmount += liquidity;
+        allocatedAmount = allocatedAmount + liquidity;
 
         emit IncreaseLiquidity(liquidity, amountA, amountB);
     }
