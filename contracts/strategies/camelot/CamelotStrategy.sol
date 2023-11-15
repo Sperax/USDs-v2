@@ -177,7 +177,7 @@ contract CamelotStrategy is InitializableAbstractStrategy, INFTHandler {
             _sData.tokenA, _sData.tokenB, _liquidityToWithdraw, amountAMin, amountBMin, address(this), block.timestamp
         );
 
-        allocatedAmount -= _liquidityToWithdraw;
+        allocatedAmount =  allocatedAmount - _liquidityToWithdraw;
         emit DecreaseLiquidity(_liquidityToWithdraw, amountA, amountB);
     }
 
