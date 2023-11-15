@@ -409,17 +409,18 @@ contract AllocationTest is CamelotStrategyTestSetup {
         uint256 amountBDesired = 1000 * 10 ** ERC20(ASSET_B).decimals();
 
         (uint256 amountA, uint256 amountB) = camelotStrategy.getDepositAmounts(amountADesired, amountBDesired);
-
+        uint256 amountAOptimal;
+        uint256 amountBOptimal;
         if (reserveA == 0 && reserveB == 0) {
             assertEq(amountA, amountADesired);
             assertEq(amountB, amountBDesired);
         } else {
-            uint256 amountBOptimal = IRouter(_router).quote(amountADesired, reserveA, reserveB);
+            amountBOptimal = IRouter(_router).quote(amountADesired, reserveA, reserveB);
             if (amountBOptimal <= amountBDesired) {
                 assertEq(amountA, amountADesired);
                 assertEq(amountB, amountBOptimal);
             } else {
-                uint256 amountAOptimal = IRouter(_router).quote(amountBDesired, reserveB, reserveA);
+                amountAOptimal = IRouter(_router).quote(amountBDesired, reserveB, reserveA);
                 assertTrue(amountAOptimal <= amountADesired);
                 assertEq(amountA, amountAOptimal);
                 assertEq(amountB, amountBDesired);
@@ -435,6 +436,41 @@ contract AllocationTest is CamelotStrategyTestSetup {
 
         assertEq(amountA, amountADesired);
         assertEq(amountB, amountBDesired);
+
+        uint256 tempReserveA = 1000 * 10 ** ERC20(ASSET_A).decimals();
+        uint256 tempReserveB = 2000 * 10 ** ERC20(ASSET_B).decimals();
+        vm.mockCall(pair, abi.encodeWithSignature("getReserves()"), abi.encode(tempReserveA, tempReserveB, 0, 0));
+
+        (amountA, amountB) = camelotStrategy.getDepositAmounts(amountADesired, amountBDesired);
+
+        amountBOptimal = IRouter(_router).quote(amountADesired, tempReserveA, tempReserveB);
+        if (amountBOptimal <= amountBDesired) {
+            assertEq(amountA, amountADesired);
+            assertEq(amountB, amountBOptimal);
+        } else {
+            amountAOptimal = IRouter(_router).quote(amountBDesired, tempReserveB, tempReserveA);
+            assertTrue(amountAOptimal <= amountADesired);
+            assertEq(amountA, amountAOptimal);
+            assertEq(amountB, amountBDesired);
+        }
+
+        tempReserveA = 2000 * 10 ** ERC20(ASSET_A).decimals();
+        tempReserveB = 1000 * 10 ** ERC20(ASSET_B).decimals();
+
+        vm.mockCall(pair, abi.encodeWithSignature("getReserves()"), abi.encode(tempReserveA, tempReserveB, 0, 0));
+
+        (amountA, amountB) = camelotStrategy.getDepositAmounts(amountADesired, amountBDesired);
+
+        amountBOptimal = IRouter(_router).quote(amountADesired, tempReserveA, tempReserveB);
+        if (amountBOptimal <= amountBDesired) {
+            assertEq(amountA, amountADesired);
+            assertEq(amountB, amountBOptimal);
+        } else {
+            amountAOptimal = IRouter(_router).quote(amountBDesired, tempReserveB, tempReserveA);
+            assertTrue(amountAOptimal <= amountADesired);
+            assertEq(amountA, amountAOptimal);
+            assertEq(amountB, amountBDesired);
+        }
     }
 }
 
