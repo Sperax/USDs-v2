@@ -1091,6 +1091,99 @@ contract collectRewardTest is CamelotStrategyTestSetup {
         assertEq(yieldReceiverGrailAmountCollected, totalGrailAmountCollected - harvestorGrailAmountCollected);
         assertEq(grailHarvestIncentive, harvestorGrailAmountAfterCollection - harvestorGrailAmountBeforeCollection);
     }
+
+    function test_collectVestedGrailAndDividends_Emit() public {
+        (,,,,, address _nftPool) = camelotStrategy.strategyData();
+        (,, address xGrail,,,,,) = INFTPool(_nftPool).getPoolInfo();
+        yieldReceiver = IVault(VAULT).yieldReceiver();
+
+        _multipleAllocations();
+
+        vm.warp(block.timestamp + 10 days);
+        vm.roll(block.number + 1000);
+
+        vm.startPrank(harvestor);
+        camelotStrategy.collectReward();
+        vm.stopPrank();
+
+        _multipleSwaps();
+
+        vm.warp(block.timestamp + 16 days); // to make sure we cross the vesting time of 15 days.
+        vm.roll(block.number + 1000);
+
+        uint256 userRedeemsLength = IXGrailToken(xGrail).getUserRedeemsLength(address(camelotStrategy));
+        emit log_named_uint("userRedeemsLength", userRedeemsLength);
+
+        (,,, address dividendsContract,) =
+            IXGrailToken(xGrail).getUserRedeem(address(camelotStrategy), userRedeemsLength - 1);
+        uint256 dividendTokensLength = IDividendV2(dividendsContract).distributedTokensLength();
+        address[] memory _dividendTokensForARedeemIndex = new address[](dividendTokensLength);
+        // uint256[] memory yieldReceiverTokenAmountBeforeCollection = new uint256[](dividendTokensLength);
+        // uint256[] memory harvestorTokenAmountBeforeCollection = new uint256[](dividendTokensLength);
+        // uint256[] memory yieldReceiverTokenAmountAfterCollection = new uint256[](dividendTokensLength);
+        // uint256[] memory harvestorTokenAmountAfterCollection = new uint256[](dividendTokensLength);
+        // uint256[] memory harvestorTokenAmountCollected = new uint256[](dividendTokensLength);
+        // uint256[] memory yieldReceiverTokenAmountCollected = new uint256[](dividendTokensLength);
+        // uint256[] memory harvestIncentive = new uint256[](dividendTokensLength);
+
+        for (uint8 j; j < dividendTokensLength; ++j) {
+            _dividendTokensForARedeemIndex[j] = IDividendV2(dividendsContract).distributedToken(j);
+
+            // since dividend tokens collected shows zero for some reason, dealing some tokens to make sure we can test the RewardTokenCollected event.
+            if (_dividendTokensForARedeemIndex[j] != xGrail) {
+                deal(
+                    _dividendTokensForARedeemIndex[j],
+                    address(camelotStrategy),
+                    1000 * 10 ** ERC20(_dividendTokensForARedeemIndex[j]).decimals()
+                );
+            }
+
+            // yieldReceiverTokenAmountBeforeCollection[j] =
+            //     IERC20(_dividendTokensForARedeemIndex[j]).balanceOf(yieldReceiver);
+
+            // harvestorTokenAmountBeforeCollection[j] = IERC20(_dividendTokensForARedeemIndex[j]).balanceOf(harvestor);
+        }
+
+        vm.recordLogs();
+
+        vm.startPrank(harvestor);
+        camelotStrategy.collectVestedGrailAndDividends(userRedeemsLength - 1);
+        vm.stopPrank();
+
+        VmSafe.Log[] memory logs = vm.getRecordedLogs();
+
+        address[] memory expectedToken = new address[](dividendTokensLength);
+        address[] memory expectedYieldReceiver = new address[](dividendTokensLength);
+        // uint256[] memory expectedAmount = new uint256[](dividendTokensLength);
+
+        // variable k is used to make sure the data is in correct indexes.
+        uint256 k;
+        for (uint8 j = 0; j < logs.length; ++j) {
+            if (logs[j].topics[0] == keccak256("RewardTokenCollected(address,address,uint256)")) {
+                (expectedToken[k], expectedYieldReceiver[k], /* expectedAmount[k] */ ) =
+                    abi.decode(logs[j].data, (address, address, uint256));
+            }
+            ++k;
+        }
+
+        for (uint8 j; j < dividendTokensLength; ++j) {
+            if (_dividendTokensForARedeemIndex[j] != xGrail) {
+                // yieldReceiverTokenAmountAfterCollection[j] =
+                //     IERC20(_dividendTokensForARedeemIndex[j]).balanceOf(yieldReceiver);
+
+                // harvestorTokenAmountAfterCollection[j] = IERC20(_dividendTokensForARedeemIndex[j]).balanceOf(harvestor);
+
+                // harvestorTokenAmountCollected[j] =
+                //     harvestorTokenAmountAfterCollection[j] - harvestorTokenAmountBeforeCollection[j];
+
+                // yieldReceiverTokenAmountCollected[j] =
+                //     yieldReceiverTokenAmountAfterCollection[j] - yieldReceiverTokenAmountBeforeCollection[j];
+
+                assertEq(expectedToken[j], _dividendTokensForARedeemIndex[j]);
+                assertEq(expectedYieldReceiver[j], yieldReceiver);
+            }
+        }
+    }
 }
 
 contract UpdateStrategyDataTest is CamelotStrategyTestSetup {
