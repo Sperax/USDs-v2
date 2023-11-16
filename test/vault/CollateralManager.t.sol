@@ -2,6 +2,7 @@
 pragma solidity 0.8.16;
 
 import {PreMigrationSetup} from "../utils/DeploymentSetup.t.sol";
+import {StargateStrategy} from "../../contracts/strategies/stargate/StargateStrategy.sol";
 import {CollateralManager, Helpers} from "../../contracts/vault/CollateralManager.sol";
 import {ICollateralManager} from "../../contracts/vault/interfaces/ICollateralManager.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
@@ -419,6 +420,8 @@ contract CollateralManager_addCollateralStrategy_Test is CollateralManagerTest {
         vm.assume(_colComp <= Helpers.MAX_PERCENTAGE);
 
         collateralSetUp(USDT, _colComp, _baseMintFee, _baseRedeemFee, _downsidePeg);
+        StargateStrategy stargateStrategy = StargateStrategy(STARGATE);
+        stargateStrategy.removePToken(1);
         vm.expectRevert(abi.encodeWithSelector(CollateralManager.CollateralNotSupportedByStrategy.selector));
         manager.addCollateralStrategy(USDT, STARGATE, _colComp);
     }
