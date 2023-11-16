@@ -1144,45 +1144,22 @@ contract collectRewardTest is CamelotStrategyTestSetup {
             // harvestorTokenAmountBeforeCollection[j] = IERC20(_dividendTokensForARedeemIndex[j]).balanceOf(harvestor);
         }
 
-        vm.recordLogs();
-
+        for (uint8 j; j < dividendTokensLength; ++j) {
+            uint256 incentive;
+            uint256 amount;
+            if (_dividendTokensForARedeemIndex[j] != xGrail) {
+                amount = 1000 * 10 ** ERC20(_dividendTokensForARedeemIndex[j]).decimals();
+                incentive = amount * 10 / 10000;
+                amount -= incentive;
+                vm.expectEmit(true, true, true, true, address(camelotStrategy));
+                emit HarvestIncentiveCollected(_dividendTokensForARedeemIndex[j], harvestor, incentive);
+                vm.expectEmit(true, true, true, true, address(camelotStrategy));
+                emit RewardTokenCollected(_dividendTokensForARedeemIndex[j], yieldReceiver, amount);
+            }
+        }
         vm.startPrank(harvestor);
         camelotStrategy.collectVestedGrailAndDividends(userRedeemsLength - 1);
         vm.stopPrank();
-
-        VmSafe.Log[] memory logs = vm.getRecordedLogs();
-
-        address[] memory expectedToken = new address[](dividendTokensLength);
-        address[] memory expectedYieldReceiver = new address[](dividendTokensLength);
-        // uint256[] memory expectedAmount = new uint256[](dividendTokensLength);
-
-        // variable k is used to make sure the data is in correct indexes.
-        uint256 k;
-        for (uint8 j = 0; j < logs.length; ++j) {
-            if (logs[j].topics[0] == keccak256("RewardTokenCollected(address,address,uint256)")) {
-                (expectedToken[k], expectedYieldReceiver[k], /* expectedAmount[k] */ ) =
-                    abi.decode(logs[j].data, (address, address, uint256));
-            }
-            ++k;
-        }
-
-        for (uint8 j; j < dividendTokensLength; ++j) {
-            if (_dividendTokensForARedeemIndex[j] != xGrail) {
-                // yieldReceiverTokenAmountAfterCollection[j] =
-                //     IERC20(_dividendTokensForARedeemIndex[j]).balanceOf(yieldReceiver);
-
-                // harvestorTokenAmountAfterCollection[j] = IERC20(_dividendTokensForARedeemIndex[j]).balanceOf(harvestor);
-
-                // harvestorTokenAmountCollected[j] =
-                //     harvestorTokenAmountAfterCollection[j] - harvestorTokenAmountBeforeCollection[j];
-
-                // yieldReceiverTokenAmountCollected[j] =
-                //     yieldReceiverTokenAmountAfterCollection[j] - yieldReceiverTokenAmountBeforeCollection[j];
-
-                assertEq(expectedToken[j], _dividendTokensForARedeemIndex[j]);
-                assertEq(expectedYieldReceiver[j], yieldReceiver);
-            }
-        }
     }
 }
 
