@@ -7,8 +7,9 @@ import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Recei
 import {InitializableAbstractStrategy, Helpers, IStrategyVault} from "../InitializableAbstractStrategy.sol";
 import {
     IUniswapV3Factory, INonfungiblePositionManager as INFPM, IUniswapV3TickSpacing
-} from "./interfaces/UniswapV3.sol";
+} from "./interfaces/IUniswapV3.sol";
 import {IUniswapUtils} from "./interfaces/IUniswapUtils.sol";
+import {INonfungiblePositionManagerUtils as INFPMUtils} from "./interfaces/INonfungiblePositionManagerUtils.sol";
 import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 
 /// @title UniswapV3 strategy for USDs protocol
@@ -28,7 +29,8 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
         INFPM nfpm; // NonfungiblePositionManager contract
         IUniswapV3Factory uniV3Factory; // UniswapV3 Factory contract
         IUniswapV3Pool pool; // UniswapV3 pool address
-        IUniswapUtils uniswapUtils; // UniswapHelper contract
+        IUniswapUtils uniswapUtils; // UniswapUtils (Uniswap helper) contract
+        INFPMUtils nfpmUtils; // Uniswap INonfungiblePositionManagerUtils (NonfungiblePositionManager helper) contract
         uint256 lpTokenId; // LP token id minted for the uniswapPoolData config
     }
 
@@ -55,6 +57,7 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
         initializer
     {
         Helpers._isNonZeroAddr(address(_uniswapPoolData.uniswapUtils));
+        Helpers._isNonZeroAddr(address(_uniswapPoolData.nfpmUtils));
 
         address derivedPool = IUniswapV3Factory(_uniswapPoolData.uniV3Factory).getPool(
             _uniswapPoolData.tokenA, _uniswapPoolData.tokenB, _uniswapPoolData.feeTier
@@ -288,8 +291,9 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
             return 0;
         }
 
-        (,,,,,,, uint128 liquidity,,,,) = INFPM(uniswapPoolData.nfpm).positions(uniswapPoolData.lpTokenId);
-        return uint256(liquidity);
+        return uint256(
+            uniswapPoolData.nfpmUtils.positions(address(uniswapPoolData.nfpm), uniswapPoolData.lpTokenId).liquidity
+        );
     }
 
     /// @inheritdoc InitializableAbstractStrategy
@@ -304,8 +308,9 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
             return unallocatedBalance;
         }
 
-        (,,,,,,, uint128 liquidity,,,,) = INFPM(uniswapPoolData.nfpm).positions(lpTokenId);
-        (uint256 amount0, uint256 amount1) = getAmountsForLiquidity(liquidity);
+        (uint256 amount0, uint256 amount1) = getAmountsForLiquidity(
+            uniswapPoolData.nfpmUtils.positions(address(uniswapPoolData.nfpm), uniswapPoolData.lpTokenId).liquidity
+        );
 
         if (_asset == uniswapPoolData.tokenA) {
             return amount0 + unallocatedBalance;
