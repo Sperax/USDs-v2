@@ -332,7 +332,7 @@ contract AllocationTest is CamelotStrategyTestSetup {
 
         VmSafe.Log[] memory logs = vm.getRecordedLogs();
 
-        // uint256 expectedTokenId;
+        uint256 expectedTokenId;
         uint256 expectedLiquidity;
         uint256 expectedAmountA;
         uint256 expectedAmountB;
@@ -342,12 +342,15 @@ contract AllocationTest is CamelotStrategyTestSetup {
                 (expectedLiquidity, expectedAmountA, expectedAmountB) =
                     abi.decode(logs[j].data, (uint256, uint256, uint256));
             }
+            if (logs[j].topics[0] == keccak256("PositionMinted(uint256)")) {
+                (expectedTokenId) = abi.decode(logs[j].data, (uint256));
+            }
         }
 
         uint256 spNFTId = camelotStrategy.spNFTId();
         (uint256 liquidityBalance,,,,,,,) = INFTPool(_nftPool).getStakingPosition(spNFTId);
 
-        // assertEq(expectedTokenId, spNFTId);
+        assertEq(expectedTokenId, spNFTId);
         assertEq(expectedLiquidity, liquidityBalance);
         assertApproxEqAbs(expectedAmountA, allocatedAmountAssetA, 3);
         assertApproxEqAbs(expectedAmountB, allocatedAmountAssetB, 3);
