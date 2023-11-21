@@ -35,6 +35,7 @@ contract CamelotStrategy is InitializableAbstractStrategy, INFTHandler {
     // It is emitted while creation of redemption request and not actual redemption
     // The actual redemption emits RewardTokenCollected event
     event XGrailRedeemed(uint256 xGrailAmount);
+    event PositionMinted(uint256 tokenId);
 
     error InvalidAsset();
     error NotCamelotNFTPool();
@@ -170,6 +171,7 @@ contract CamelotStrategy is InitializableAbstractStrategy, INFTHandler {
         (uint256 amountAMin, uint256 amountBMin) = _checkBalance(_liquidityToWithdraw);
         amountAMin = amountAMin = amountAMin * withdrawSlippage / Helpers.MAX_PERCENTAGE;
         amountBMin = amountBMin = amountBMin * withdrawSlippage / Helpers.MAX_PERCENTAGE;
+        allocatedAmount = allocatedAmount - _liquidityToWithdraw;
         INFTPool(_sData.nftPool).withdrawFromPosition(spNFTId, _liquidityToWithdraw);
         address pair = IRouter(_sData.router).getPair(_sData.tokenA, _sData.tokenB);
         IERC20(pair).safeApprove(_sData.router, _liquidityToWithdraw);
@@ -177,7 +179,6 @@ contract CamelotStrategy is InitializableAbstractStrategy, INFTHandler {
             _sData.tokenA, _sData.tokenB, _liquidityToWithdraw, amountAMin, amountBMin, address(this), block.timestamp
         );
 
-        allocatedAmount = allocatedAmount - _liquidityToWithdraw;
         emit DecreaseLiquidity(_liquidityToWithdraw, amountA, amountB);
     }
 
@@ -246,6 +247,7 @@ contract CamelotStrategy is InitializableAbstractStrategy, INFTHandler {
     {
         if (msg.sender != strategyData.nftPool) revert NotCamelotNFTPool();
         spNFTId = tokenId;
+        emit PositionMinted(tokenId);
         return _ERC721_RECEIVED;
     }
 
