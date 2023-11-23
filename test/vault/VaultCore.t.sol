@@ -797,3 +797,25 @@ contract TestRedeem is VaultCoreTest {
         assertEq(balAfterUSDCeRedeemer - balBeforeUSDCeRedeemer, _calculatedCollateralAmt);
     }
 }
+
+// Additional test to check if 2-step transfer ownership works
+contract TestTransferOwnership is VaultCoreTest {
+    event OwnershipTransferStarted(address indexed previousOwner, address indexed newOwner);
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+
+    function test_TwoStepTransferOwnership() public useKnownActor(USDS_OWNER) {
+        address newOwner = actors[1];
+        vm.expectEmit(true, true, true, true, VAULT);
+        emit OwnershipTransferStarted(USDS_OWNER, newOwner);
+        VaultCore(VAULT).transferOwnership(newOwner);
+        assertEq(USDS_OWNER, VaultCore(VAULT).owner());
+        assertEq(newOwner, VaultCore(VAULT).pendingOwner());
+
+        vm.expectEmit(true, true, true, true, VAULT);
+        emit OwnershipTransferred(USDS_OWNER, newOwner);
+        changePrank(newOwner);
+        VaultCore(VAULT).acceptOwnership();
+        assertEq(newOwner, VaultCore(VAULT).owner());
+        assertEq(address(0), VaultCore(VAULT).pendingOwner());
+    }
+}
