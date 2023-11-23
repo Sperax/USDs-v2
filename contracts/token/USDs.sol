@@ -81,6 +81,16 @@ contract USDs is ERC20PermitUpgradeable, OwnableUpgradeable, ReentrancyGuardUpgr
         _disableInitializers();
     }
 
+    function initialize(string memory _nameArg, string memory _symbolArg, address _vaultAddress) external initializer {
+        __ERC20_init(_nameArg, _symbolArg);
+        __ERC20Permit_init(_nameArg);
+        __Ownable_init();
+        __ReentrancyGuard_init();
+
+        rebasingCreditsPerToken = 1e18;
+        vault = _vaultAddress;
+    }
+
     /// @notice Mints new USDs tokens, increasing totalSupply.
     /// @param _account the account address the newly minted USDs will be attributed to
     /// @param _amount the amount of USDs that will be minted
