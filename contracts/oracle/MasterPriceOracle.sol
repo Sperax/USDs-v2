@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.16;
 
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import {IOracle} from "../interfaces/IOracle.sol";
 
 /// @title Master Price Oracle for USDs protocol
 /// @author Sperax Foundation
 /// @notice Communicates with different price feeds to get the price
-contract MasterPriceOracle is Ownable, IOracle {
+contract MasterPriceOracle is Ownable2Step, IOracle {
     // Handles price feed data for a give token.
     mapping(address => PriceFeedData) public tokenPriceFeed;
 

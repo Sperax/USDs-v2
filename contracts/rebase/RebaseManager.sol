@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.16;
 
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import {IUSDs} from "../interfaces/IUSDs.sol";
@@ -13,7 +13,7 @@ import {IRebaseManager} from "../interfaces/IRebaseManager.sol";
 /// @author Sperax Foundation
 /// @notice Contract handles the configuration for rebase of USDs token
 ///         Which enables rebase only when the pre-requisites are fulfilled
-contract RebaseManager is IRebaseManager, Ownable {
+contract RebaseManager is IRebaseManager, Ownable2Step {
     using SafeMath for uint256;
 
     uint256 private constant ONE_YEAR = 365 days;

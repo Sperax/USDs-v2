@@ -3,7 +3,7 @@ pragma solidity 0.8.16;
 
 import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import {IVault} from "../interfaces/IVault.sol";
 import {IOracle} from "../interfaces/IOracle.sol";
 import {Helpers} from "../libraries/Helpers.sol";
@@ -12,7 +12,7 @@ import {Helpers} from "../libraries/Helpers.sol";
 /// @notice The contract allows users to swap the supported stable coins against yield earned by USDs protocol
 ///         It sends USDs to dripper for rebase, and to Buyback Contract for buyback.
 /// @author Sperax Foundation
-contract YieldReserve is ReentrancyGuard, Ownable {
+contract YieldReserve is ReentrancyGuard, Ownable2Step {
     using SafeERC20 for IERC20;
 
     address public vault;

@@ -2,7 +2,7 @@
 pragma solidity 0.8.16;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import {ICollateralManager} from "./interfaces/ICollateralManager.sol";
 import {IStrategy} from "./interfaces/IStrategy.sol";
 import {Helpers} from "../libraries/Helpers.sol";
@@ -15,7 +15,7 @@ interface IERC20Custom is IERC20 {
 /// @author Sperax Foundation
 /// @notice Manages addition and removal of collateral, configures
 ///     collateral strategies and percentage of allocation
-contract CollateralManager is ICollateralManager, Ownable {
+contract CollateralManager is ICollateralManager, Ownable2Step {
     struct CollateralData {
         bool mintAllowed;
         bool redeemAllowed;
