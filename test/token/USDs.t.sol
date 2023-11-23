@@ -86,6 +86,13 @@ contract USDsTest is BaseTest {
     }
 }
 
+contract TestInitialize is USDsTest {
+    function test_revertWhen_AlreadyInitialized() public useKnownActor(USDS_OWNER) {
+        vm.expectRevert("Initializable: contract is already initialized");
+        usds.initialize("A", "A", address(0));
+    }
+}
+
 contract TestTransferFrom is USDsTest {
     uint256 amount;
 
