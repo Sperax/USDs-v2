@@ -1,7 +1,10 @@
 //SPDX-License-Identifier: MIT
 pragma solidity 0.8.16;
 
-import {OwnableUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {
+    Ownable2StepUpgradeable,
+    Initializable
+} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import {
     SafeERC20Upgradeable,
@@ -19,7 +22,7 @@ import {Helpers} from "../libraries/Helpers.sol";
 /// @author Sperax Foundation
 /// @notice Lets users mint/redeem USDs for/with allowed collaterals
 /// @notice Allocates collateral in strategies by consulting Collateral Manager contract
-contract VaultCore is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradeable {
+contract VaultCore is Initializable, Ownable2StepUpgradeable, ReentrancyGuardUpgradeable {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
     address public feeVault; // SPABuyback contract
@@ -55,7 +58,7 @@ contract VaultCore is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradea
     }
 
     function initialize() external initializer {
-        __Ownable_init();
+        __Ownable2Step_init();
         __ReentrancyGuard_init();
     }
 

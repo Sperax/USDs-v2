@@ -4,7 +4,7 @@ pragma solidity 0.8.16;
 import {SafeERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import {ERC20BurnableUpgradeable} from
     "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20BurnableUpgradeable.sol";
-import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {Ownable2StepUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {IOracle} from "../interfaces/IOracle.sol";
@@ -14,7 +14,7 @@ import {Helpers} from "../libraries/Helpers.sol";
 /// @notice Users can give their SPA and get USDs in return.
 /// @notice The SPA in the contract is distributed as rewards based on the rewardPercentage and the rest is burned.
 /// @author Sperax Foundation
-contract SPABuyback is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradeable {
+contract SPABuyback is Initializable, Ownable2StepUpgradeable, ReentrancyGuardUpgradeable {
     using SafeERC20Upgradeable for ERC20BurnableUpgradeable;
 
     address public veSpaRewarder;
@@ -49,8 +49,8 @@ contract SPABuyback is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
     function initialize(address _veSpaRewarder, uint256 _rewardPercentage) external initializer {
         Helpers._isNonZeroAddr(_veSpaRewarder);
         _isValidRewardPercentage(_rewardPercentage);
-        OwnableUpgradeable.__Ownable_init();
-        ReentrancyGuardUpgradeable.__ReentrancyGuard_init();
+        __Ownable2Step_init();
+        __ReentrancyGuard_init();
         veSpaRewarder = _veSpaRewarder;
         rewardPercentage = _rewardPercentage;
     }

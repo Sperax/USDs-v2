@@ -2,7 +2,7 @@
 pragma solidity 0.8.16;
 
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {Ownable2StepUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -12,7 +12,11 @@ interface IStrategyVault {
     function yieldReceiver() external view returns (address);
 }
 
-abstract contract InitializableAbstractStrategy is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradeable {
+abstract contract InitializableAbstractStrategy is
+    Initializable,
+    Ownable2StepUpgradeable,
+    ReentrancyGuardUpgradeable
+{
     using SafeERC20 for IERC20;
 
     address public vault;
@@ -154,8 +158,8 @@ abstract contract InitializableAbstractStrategy is Initializable, OwnableUpgrade
     /// @param _depositSlippage Allowed max slippage for Deposit
     /// @param _withdrawSlippage Allowed max slippage for withdraw
     function _initialize(address _vault, uint16 _depositSlippage, uint16 _withdrawSlippage) internal {
-        OwnableUpgradeable.__Ownable_init();
-        ReentrancyGuardUpgradeable.__ReentrancyGuard_init();
+        __Ownable2Step_init();
+        __ReentrancyGuard_init();
         Helpers._isNonZeroAddr(_vault);
         updateSlippage(_depositSlippage, _withdrawSlippage);
         vault = _vault;
