@@ -10,6 +10,7 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 contract ChainlinkOracle is Ownable {
     struct TokenData {
         address priceFeed;
+        uint96 configurableTime;
         uint256 pricePrecision;
     }
 
@@ -23,11 +24,16 @@ contract ChainlinkOracle is Ownable {
 
     mapping(address => TokenData) public getTokenData;
 
-    event TokenDataChanged(address indexed tokenAddr, address priceFeed, uint256 pricePrecision);
+    event TokenDataChanged(
+        address indexed tokenAddr, address priceFeed, uint256 pricePrecision, uint96 configurableTime
+    );
 
     error TokenNotSupported(address token);
     error ChainlinkSequencerDown();
     error GracePeriodNotPassed(uint256 timeSinceUp);
+    error RoundNotComplete();
+    error StalePrice();
+    error InvalidPrice();
 
     constructor(SetupTokenData[] memory _priceFeedData) {
         for (uint256 i; i < _priceFeedData.length;) {
@@ -43,7 +49,7 @@ contract ChainlinkOracle is Ownable {
     /// @param _tokenData Token price feed configuration
     function setTokenData(address _token, TokenData memory _tokenData) public onlyOwner {
         getTokenData[_token] = _tokenData;
-        emit TokenDataChanged(_token, _tokenData.priceFeed, _tokenData.pricePrecision);
+        emit TokenDataChanged(_token, _tokenData.priceFeed, _tokenData.pricePrecision, _tokenData.configurableTime);
     }
 
     /// @notice Gets the token price and price precision
@@ -66,7 +72,10 @@ contract ChainlinkOracle is Ownable {
             revert GracePeriodNotPassed(timeSinceUp);
         }
 
-        (, int256 price,,,) = AggregatorV3Interface(tokenInfo.priceFeed).latestRoundData();
+        (, int256 price,, uint256 updatedAt,) = AggregatorV3Interface(tokenInfo.priceFeed).latestRoundData();
+        if (updatedAt == 0) revert RoundNotComplete();
+        if (block.timestamp - updatedAt > tokenInfo.configurableTime) revert StalePrice();
+        if (price < 0) revert InvalidPrice();
 
         return (uint256(price), tokenInfo.pricePrecision);
     }
