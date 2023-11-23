@@ -29,6 +29,8 @@ contract DripperTest is BaseTest {
         setArbitrumFork();
         dripper = new Dripper(VAULT, (86400 * 7));
         dripper.transferOwnership(USDS_OWNER);
+        changePrank(USDS_OWNER);
+        dripper.acceptOwnership();
     }
 }
 

@@ -23,6 +23,8 @@ contract CollateralManagerTest is PreMigrationSetup {
         setArbitrumFork();
         manager = new CollateralManager(VAULT);
         manager.transferOwnership(USDS_OWNER);
+        changePrank(USDS_OWNER);
+        manager.acceptOwnership();
     }
 
     function collateralSetUp(
