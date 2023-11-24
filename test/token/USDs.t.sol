@@ -3,7 +3,7 @@ pragma solidity 0.8.19;
 
 import {BaseTest} from "../utils/BaseTest.sol";
 import {UpgradeUtil} from "../utils/UpgradeUtil.sol";
-import {USDs} from "../../contracts/token/USDs.sol";
+import {USDs, Helpers} from "../../contracts/token/USDs.sol";
 import {IERC20, ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 import {ITransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
@@ -67,6 +67,7 @@ contract USDsTest is BaseTest {
         setArbitrumFork();
         USER1 = actors[0];
         USER2 = actors[1];
+        upgradeUtil = new UpgradeUtil();
 
         USDsPrecision = 10 ** ERC20(USDS).decimals();
 
@@ -87,6 +88,30 @@ contract USDsTest is BaseTest {
 }
 
 contract TestInitialize is USDsTest {
+    USDs internal newUsds;
+
+    error InvalidAddress();
+
+    function setUp() public override {
+        super.setUp();
+
+        USDs usdsImpl = new USDs();
+        newUsds = USDs(upgradeUtil.deployErc1967Proxy(address(usdsImpl)));
+    }
+
+    function test_Initialize() public useKnownActor(USER1) {
+        vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAddress.selector));
+        newUsds.initialize("A", "B", address(0));
+
+        newUsds.initialize("A", "B", VAULT);
+
+        assertEq("A", newUsds.name());
+        assertEq("B", newUsds.symbol());
+        assertEq(VAULT, newUsds.vault());
+        assertEq(1e27, newUsds.rebasingCreditsPerToken());
+        assertEq(USER1, newUsds.owner());
+    }
+
     function test_revertWhen_AlreadyInitialized() public useKnownActor(USDS_OWNER) {
         vm.expectRevert("Initializable: contract is already initialized");
         usds.initialize("A", "A", address(0));
