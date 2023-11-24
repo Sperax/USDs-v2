@@ -1,4 +1,4 @@
-pragma solidity 0.8.16;
+pragma solidity 0.8.19;
 
 /// @dev Oracle contract for fetching a certain token price
 /// Centralization issue still exists when adopting this contract for global uses

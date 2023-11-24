@@ -1,4 +1,4 @@
-pragma solidity 0.8.16;
+pragma solidity 0.8.19;
 
 import {PreMigrationSetup} from ".././utils/DeploymentSetup.sol";
 import {Dripper} from "../../contracts/rebase/Dripper.sol";
