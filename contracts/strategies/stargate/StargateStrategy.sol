@@ -141,7 +141,7 @@ contract StargateStrategy is InitializableAbstractStrategy {
         ILPStaking(farm).emergencyWithdraw(asset.rewardPID);
         uint256 amtRecv = IStargateRouter(router).instantRedeemLocal(asset.pid, lpTokenAmt, vault)
             * IStargatePool(assetToPToken[_asset]).convertRate();
-        asset.allocatedAmt -= amtRecv;
+        assetInfo[_asset].allocatedAmt -= amtRecv;
         emit Withdrawal(_asset, amtRecv);
     }
 
