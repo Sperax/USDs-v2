@@ -15,9 +15,7 @@ contract ChainlinkOracleTest is BaseTest {
         super.setUp();
         setArbitrumFork();
         vm.prank(USDS_OWNER);
-        chainlinkOracle = new ChainlinkOracle(
-            new ChainlinkOracle.SetupTokenData[](0)
-        );
+        chainlinkOracle = new ChainlinkOracle(new ChainlinkOracle.SetupTokenData[](0));
     }
 
     function _getTokenData() internal pure returns (ChainlinkOracle.SetupTokenData[] memory) {

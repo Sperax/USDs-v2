@@ -75,9 +75,7 @@ abstract contract PreMigrationSetup is Setup {
         CollateralManager collateralManager = new CollateralManager(VAULT);
 
         ORACLE = address(new MasterPriceOracle());
-        FeeCalculator feeCalculator = new FeeCalculator(
-            address(collateralManager)
-        );
+        FeeCalculator feeCalculator = new FeeCalculator(address(collateralManager));
         FEE_CALCULATOR = address(feeCalculator);
 
         COLLATERAL_MANAGER = address(collateralManager);
