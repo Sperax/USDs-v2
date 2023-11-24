@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.16;
+pragma solidity 0.8.19;
 
 import {BaseStrategy} from "./BaseStrategy.t.sol";
 import {BaseTest} from "../utils/BaseTest.sol";
@@ -27,6 +27,8 @@ contract AaveStrategyTest is BaseStrategy, BaseTest {
     address internal proxyAddress;
     address internal ASSET;
     address internal P_TOKEN;
+
+    error NoRewardIncentive();
 
     function setUp() public virtual override {
         super.setUp();
@@ -377,7 +379,7 @@ contract MiscellaneousTest is AaveStrategyTest {
     }
 
     function test_CollectReward() public {
-        vm.expectRevert("No reward incentive for AAVE");
+        vm.expectRevert(abi.encodeWithSelector(NoRewardIncentive.selector));
         strategy.collectReward();
     }
 
