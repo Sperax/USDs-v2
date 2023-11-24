@@ -82,7 +82,7 @@ contract StargateStrategy is InitializableAbstractStrategy {
     }
 
     /// @inheritdoc InitializableAbstractStrategy
-    function deposit(address _asset, uint256 _amount) external override nonReentrant {
+    function deposit(address _asset, uint256 _amount) external override onlyVault nonReentrant {
         Helpers._isNonZeroAmt(_amount);
         if (!supportsCollateral(_asset)) revert CollateralNotSupported(_asset);
         address lpToken = assetToPToken[_asset];

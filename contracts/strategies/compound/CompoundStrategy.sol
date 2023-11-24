@@ -49,7 +49,7 @@ contract CompoundStrategy is InitializableAbstractStrategy {
     }
 
     /// @inheritdoc InitializableAbstractStrategy
-    function deposit(address _asset, uint256 _amount) external override nonReentrant {
+    function deposit(address _asset, uint256 _amount) external override onlyVault nonReentrant {
         Helpers._isNonZeroAmt(_amount);
         address lpToken = _getPTokenFor(_asset);
 
