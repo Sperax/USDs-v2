@@ -178,7 +178,7 @@ contract CollateralManager_AddCollateral_Test is CollateralManagerTest {
         uint16 _downsidePeg,
         uint16 _colComp
     ) external useKnownActor(USDS_OWNER) {
-        address[5] memory collaterals = [USDCe, USDT, VST, FRAX, DAI];
+        address[4] memory collaterals = [USDCe, USDT, FRAX, DAI];
         vm.assume(_baseMintFee <= Helpers.MAX_PERCENTAGE);
         vm.assume(_baseRedeemFee <= Helpers.MAX_PERCENTAGE);
         vm.assume(_downsidePeg <= Helpers.MAX_PERCENTAGE);
@@ -283,7 +283,7 @@ contract CollateralManager_updateCollateral_Test is CollateralManagerTest {
         uint16 _colComp,
         uint16 _colComp2
     ) external useKnownActor(USDS_OWNER) {
-        address[5] memory collaterals = [USDCe, USDT, VST, FRAX, DAI];
+        address[4] memory collaterals = [USDCe, USDT, FRAX, DAI];
         vm.assume(_baseMintFee <= Helpers.MAX_PERCENTAGE);
         vm.assume(_baseRedeemFee <= Helpers.MAX_PERCENTAGE);
         vm.assume(_downsidePeg <= Helpers.MAX_PERCENTAGE);
@@ -330,7 +330,7 @@ contract CollateralManager_removeCollateral_Test is CollateralManagerTest {
         external
         useKnownActor(USDS_OWNER)
     {
-        address[5] memory collaterals = [USDCe, USDT, VST, FRAX, DAI];
+        address[4] memory collaterals = [USDCe, USDT, FRAX, DAI];
         vm.assume(_baseMintFee <= Helpers.MAX_PERCENTAGE);
         vm.assume(_baseRedeemFee <= Helpers.MAX_PERCENTAGE);
         vm.assume(_downsidePeg <= Helpers.MAX_PERCENTAGE);
@@ -698,7 +698,7 @@ contract CollateralManager_removeCollateralStrategy_Test is CollateralManagerTes
         collateralSetUp(USDCe, _colComp, _baseMintFee, _baseRedeemFee, _downsidePeg);
         manager.addCollateralStrategy(USDCe, STARGATE, 2000);
         vm.expectRevert(abi.encodeWithSelector(CollateralManager.CollateralStrategyNotMapped.selector));
-        manager.updateCollateralDefaultStrategy(VST, STARGATE);
+        manager.updateCollateralDefaultStrategy(FRAX, STARGATE);
     }
 }
 
@@ -769,7 +769,7 @@ contract CollateralManager_validateAllocation_test is CollateralManagerTest {
         vm.assume(_baseRedeemFee <= Helpers.MAX_PERCENTAGE);
         vm.assume(_downsidePeg <= Helpers.MAX_PERCENTAGE);
         vm.assume(_collateralComposition <= Helpers.MAX_PERCENTAGE);
-        address[5] memory collaterals = [USDCe, USDT, VST, FRAX, DAI];
+        address[4] memory collaterals = [USDCe, USDT, FRAX, DAI];
 
         ICollateralManager.CollateralBaseData memory _data = ICollateralManager.CollateralBaseData({
             mintAllowed: true,

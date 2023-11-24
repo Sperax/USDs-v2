@@ -92,7 +92,7 @@ contract RecoverTokens is DripperTest {
     }
 
     function test_RecoverTokens(uint128 amount) external useKnownActor(USDS_OWNER) {
-        address[5] memory assets = [USDCe, USDT, VST, FRAX, DAI];
+        address[4] memory assets = [USDCe, USDT, FRAX, DAI];
         vm.assume(amount != 0);
         for (uint8 i = 0; i < assets.length; i++) {
             deal(address(assets[i]), address(dripper), amount, true);

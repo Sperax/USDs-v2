@@ -21,7 +21,6 @@ import {ChainlinkOracle} from "../../contracts/oracle/ChainlinkOracle.sol";
 import {StargateStrategy} from "../../contracts/strategies/stargate/StargateStrategy.sol";
 import {AaveStrategy} from "../../contracts/strategies/aave/AaveStrategy.sol";
 import {CompoundStrategy} from "../../contracts/strategies/compound/CompoundStrategy.sol";
-import {VSTOracle} from "../../contracts/oracle/VSTOracle.sol";
 
 interface ICustomOracle {
     function updateDIAParams(uint256 _weightDIA, uint128 _maxTime) external;
@@ -39,7 +38,6 @@ abstract contract PreMigrationSetup is Setup {
     UpgradeUtil internal upgradeUtil;
     MasterPriceOracle internal masterOracle;
     ChainlinkOracle chainlinkOracle;
-    VSTOracle vstOracle;
     address internal spaOracle;
     address internal usdsOracle;
     StargateStrategy internal stargateStrategy;
@@ -75,9 +73,7 @@ abstract contract PreMigrationSetup is Setup {
         CollateralManager collateralManager = new CollateralManager(VAULT);
 
         ORACLE = address(new MasterPriceOracle());
-        FeeCalculator feeCalculator = new FeeCalculator(
-            address(collateralManager)
-        );
+        FeeCalculator feeCalculator = new FeeCalculator(address(collateralManager));
         FEE_CALCULATOR = address(feeCalculator);
 
         COLLATERAL_MANAGER = address(collateralManager);
@@ -91,7 +87,6 @@ abstract contract PreMigrationSetup is Setup {
         vault.updateRebaseManager(REBASE_MANAGER);
         vault.updateFeeVault(FEE_VAULT);
 
-        vstOracle = new VSTOracle();
         masterOracle = MasterPriceOracle(ORACLE);
         // A pre-requisite for initializing SPA and USDs oracles
         deployAndConfigureChainlink();
@@ -135,7 +130,6 @@ abstract contract PreMigrationSetup is Setup {
         collateralManager.addCollateral(USDCe, _data);
         collateralManager.addCollateral(USDT, _data);
         collateralManager.addCollateral(FRAX, _data);
-        collateralManager.addCollateral(VST, _data);
         collateralManager.addCollateral(USDC, _data);
         collateralManager.addCollateralStrategy(USDCe, address(stargateStrategy), 3000);
         collateralManager.addCollateralStrategy(USDCe, address(aaveStrategy), 4000);
@@ -171,16 +165,15 @@ abstract contract PreMigrationSetup is Setup {
     }
 
     function updatePriceFeeds() private {
-        PriceFeedData[] memory feedData = new PriceFeedData[](5);
+        PriceFeedData[] memory feedData = new PriceFeedData[](4);
         feedData[0] = PriceFeedData(
             FRAX, address(chainlinkOracle), abi.encodeWithSelector(ChainlinkOracle.getTokenPrice.selector, FRAX)
         );
         feedData[1] = PriceFeedData(
             DAI, address(chainlinkOracle), abi.encodeWithSelector(ChainlinkOracle.getTokenPrice.selector, DAI)
         );
-        feedData[2] = PriceFeedData(VST, address(vstOracle), abi.encodeWithSelector(VSTOracle.getPrice.selector));
-        feedData[3] = PriceFeedData(SPA, spaOracle, abi.encodeWithSelector(ICustomOracle.getPrice.selector));
-        feedData[4] = PriceFeedData(USDS, usdsOracle, abi.encodeWithSelector(ICustomOracle.getPrice.selector));
+        feedData[2] = PriceFeedData(SPA, spaOracle, abi.encodeWithSelector(ICustomOracle.getPrice.selector));
+        feedData[3] = PriceFeedData(USDS, usdsOracle, abi.encodeWithSelector(ICustomOracle.getPrice.selector));
         // feedData[0] = PriceFeedData(USDCe, address(chainlinkOracle), abi.encodeWithSelector(ChainlinkOracle.getTokenPrice.selector, USDCe));
         for (uint8 i = 0; i < feedData.length; ++i) {
             masterOracle.updateTokenPriceFeed(feedData[i].token, feedData[i].source, feedData[i].msgData);
