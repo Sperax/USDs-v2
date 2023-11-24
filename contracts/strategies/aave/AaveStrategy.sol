@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.16;
+pragma solidity 0.8.19;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -15,6 +15,8 @@ contract AaveStrategy is InitializableAbstractStrategy {
     uint16 private constant REFERRAL_CODE = 0;
     IAaveLendingPool public aavePool;
     mapping(address => uint256) public allocatedAmount; // Tracks the allocated amount of an asset.
+
+    error NoRewardIncentive();
 
     /// @notice Initializer for setting up strategy internal state. This overrides the
     /// InitializableAbstractStrategy initializer as AAVE needs several extra
@@ -101,8 +103,8 @@ contract AaveStrategy is InitializableAbstractStrategy {
 
     /// @inheritdoc InitializableAbstractStrategy
     function collectReward() external pure override {
-        revert("No reward incentive for AAVE");
         // No reward token for Aave
+        revert NoRewardIncentive();
     }
 
     /// @inheritdoc InitializableAbstractStrategy

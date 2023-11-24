@@ -1,4 +1,4 @@
-pragma solidity 0.8.16;
+pragma solidity 0.8.19;
 
 import {ChainlinkOracle, AggregatorV3Interface} from "../../contracts/oracle/ChainlinkOracle.sol";
 

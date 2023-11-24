@@ -1,8 +1,5 @@
 //SPDX-License-Identifier: MIT
-pragma solidity 0.8.16;
-
-import {ICollateralManager} from "./ICollateralManager.sol";
-import {IOracle} from "../../interfaces/IOracle.sol";
+pragma solidity 0.8.19;
 
 interface IFeeCalculator {
     /// @notice Calculates fee to be collected for minting

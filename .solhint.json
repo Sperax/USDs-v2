@@ -2,14 +2,15 @@
   "extends": "solhint:recommended",
 
   "rules": {
-    "compiler-version": "off",
+    "compiler-version": ["error", "0.8.19"],
     "ordering": "error",
     "avoid-throw": "off",
     "avoid-suicide": "error",
     "avoid-sha3": "warn",
     "not-rely-on-time": "off",
-    "no-console": "warn",
+    "no-console": "error",
     "func-named-parameters": ["warn", 4],
-    "func-visibility": ["warn", { "ignoreConstructors": true }]
+    "func-visibility": ["error", { "ignoreConstructors": true }],
+    "one-contract-per-file": "off"
   }
 }
