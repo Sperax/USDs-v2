@@ -82,12 +82,13 @@ contract USDs is ERC20PermitUpgradeable, OwnableUpgradeable, ReentrancyGuardUpgr
     }
 
     function initialize(string memory _nameArg, string memory _symbolArg, address _vaultAddress) external initializer {
+        Helpers._isNonZeroAddr(_vaultAddress);
         __ERC20_init(_nameArg, _symbolArg);
         __ERC20Permit_init(_nameArg);
         __Ownable_init();
         __ReentrancyGuard_init();
 
-        rebasingCreditsPerToken = 1e18;
+        rebasingCreditsPerToken = 1e27;
         vault = _vaultAddress;
     }
 
