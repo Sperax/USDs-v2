@@ -87,7 +87,7 @@ contract StargateStrategy is InitializableAbstractStrategy {
         if (!supportsCollateral(_asset)) revert CollateralNotSupported(_asset);
         address lpToken = assetToPToken[_asset];
         IERC20(_asset).safeTransferFrom(msg.sender, address(this), _amount);
-        IERC20(_asset).safeApprove(router, _amount);
+        IERC20(_asset).safeIncreaseAllowance(router, _amount);
 
         // Add liquidity in the stargate pool.
         IStargateRouter(router).addLiquidity(assetInfo[_asset].pid, _amount, address(this));
@@ -103,7 +103,7 @@ contract StargateStrategy is InitializableAbstractStrategy {
         // Update the allocated amount in the strategy
         assetInfo[_asset].allocatedAmt += depositAmt;
 
-        IERC20(lpToken).safeApprove(farm, lpTokenBal);
+        IERC20(lpToken).safeIncreaseAllowance(farm, lpTokenBal);
         ILPStaking(farm).deposit(assetInfo[_asset].rewardPID, lpTokenBal);
         emit Deposit(_asset, depositAmt);
     }
