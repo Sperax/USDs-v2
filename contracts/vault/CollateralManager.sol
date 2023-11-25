@@ -283,6 +283,10 @@ contract CollateralManager is ICollateralManager, Ownable {
             revert CollateralAllocationPaused();
         }
 
+        if (!collateralStrategyInfo[_collateral][_strategy].exists) {
+            revert CollateralStrategyNotMapped();
+        }
+
         uint256 maxCollateralUsage = (
             collateralStrategyInfo[_collateral][_strategy].allocationCap
                 * (getCollateralInVault(_collateral) + getCollateralInStrategies(_collateral))

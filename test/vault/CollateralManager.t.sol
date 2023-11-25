@@ -703,7 +703,7 @@ contract CollateralManager_removeCollateralStrategy_Test is CollateralManagerTes
 }
 
 contract CollateralManager_validateAllocation_test is CollateralManagerTest {
-    function test_revertsWhen_validateAllocationNotAllowed(
+    function test_RevertWhen_CollateralAllocationPaused(
         uint16 _baseMintFee,
         uint16 _baseRedeemFee,
         uint16 _downsidePeg,
@@ -726,6 +726,16 @@ contract CollateralManager_validateAllocation_test is CollateralManagerTest {
         manager.addCollateral(USDT, _data);
         manager.addCollateralStrategy(USDT, USDT_TWO_POOL_STRATEGY, 2000);
         vm.expectRevert(abi.encodeWithSelector(CollateralManager.CollateralAllocationPaused.selector));
+        manager.validateAllocation(USDT, USDT_TWO_POOL_STRATEGY, 1);
+    }
+
+    function test_RevertWhen_CollateralStrategyNotMapped() external useKnownActor(USDS_OWNER) {
+        // Avoid fuzzing here as this is a revert test
+        collateralSetUp(
+            USDT, Helpers.MAX_PERCENTAGE, Helpers.MAX_PERCENTAGE, Helpers.MAX_PERCENTAGE, Helpers.MAX_PERCENTAGE
+        );
+
+        vm.expectRevert(abi.encodeWithSelector(CollateralManager.CollateralStrategyNotMapped.selector));
         manager.validateAllocation(USDT, USDT_TWO_POOL_STRATEGY, 1);
     }
 
