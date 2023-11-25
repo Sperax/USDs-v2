@@ -69,13 +69,7 @@ contract SPAOracleTest is BaseUniOracleTest {
     function setUp() public override {
         super.setUp();
         vm.startPrank(USDS_OWNER);
-        spaOracle = new SPAOracle(
-            masterOracle,
-            USDCe,
-            FEE_TIER,
-            MA_PERIOD,
-            WEIGHT_DIA
-        );
+        spaOracle = new SPAOracle(masterOracle, USDCe, FEE_TIER, MA_PERIOD, WEIGHT_DIA);
         spaOracle.updateDIAParams(WEIGHT_DIA, type(uint128).max);
         vm.stopPrank();
     }
@@ -98,6 +92,8 @@ contract Test_FetchPrice is SPAOracleTest {
 }
 
 contract Test_setUniMAPriceData is SPAOracleTest {
+    error InvalidMaPeriod();
+
     function test_revertsWhen_notOwner() public {
         vm.expectRevert("Ownable: caller is not the owner");
         spaOracle.setUniMAPriceData(SPA, USDCe, 10000, 600);
@@ -112,6 +108,14 @@ contract Test_setUniMAPriceData is SPAOracleTest {
         vm.expectEmit(true, true, true, true);
         emit UniMAPriceDataChanged(USDCe, 10000, 700);
         spaOracle.setUniMAPriceData(SPA, USDCe, 10000, 700);
+    }
+
+    function test_revertsWhen_invalidMaPeriod() public useKnownActor(USDS_OWNER) {
+        vm.expectRevert(abi.encodeWithSelector(InvalidMaPeriod.selector));
+        spaOracle.setUniMAPriceData(SPA, USDCe, 10000, 599);
+
+        vm.expectRevert(abi.encodeWithSelector(InvalidMaPeriod.selector));
+        spaOracle.setUniMAPriceData(SPA, USDCe, 10000, 7201);
     }
 }
 

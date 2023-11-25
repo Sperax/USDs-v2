@@ -39,6 +39,7 @@ abstract contract BaseUniOracle is Ownable {
     error QuoteTokenFeedMissing();
     error FeedUnavailable();
     error InvalidAddress();
+    error InvalidMaPeriod();
 
     /// @notice A function to get price
     /// @return (uint256, uint256) Returns price and price precision
@@ -72,6 +73,11 @@ abstract contract BaseUniOracle is Ownable {
         // Validate if the oracle has a price feed for the _quoteToken
         if (!IMasterPriceOracle(masterOracle).priceFeedExists(_quoteToken)) {
             revert QuoteTokenFeedMissing();
+        }
+
+        // Validate if maPeriod is between 10 minutes and 2 hours
+        if (_maPeriod < 600 || _maPeriod > 7200) {
+            revert InvalidMaPeriod();
         }
 
         pool = uniOraclePool;
