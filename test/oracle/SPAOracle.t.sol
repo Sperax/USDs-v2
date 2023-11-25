@@ -69,13 +69,7 @@ contract SPAOracleTest is BaseUniOracleTest {
     function setUp() public override {
         super.setUp();
         vm.startPrank(USDS_OWNER);
-        spaOracle = new SPAOracle(
-            masterOracle,
-            USDCe,
-            FEE_TIER,
-            MA_PERIOD,
-            WEIGHT_DIA
-        );
+        spaOracle = new SPAOracle(masterOracle, USDCe, FEE_TIER, MA_PERIOD, WEIGHT_DIA);
         spaOracle.updateDIAParams(WEIGHT_DIA, type(uint128).max);
         vm.stopPrank();
     }
