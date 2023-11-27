@@ -12,11 +12,7 @@ contract UpgradeUtil {
     }
 
     function deployErc1967Proxy(address impl) public returns (address) {
-        TransparentUpgradeableProxy proxy = new TransparentUpgradeableProxy(
-            impl,
-            address(proxyAdmin),
-            ""
-        );
+        TransparentUpgradeableProxy proxy = new TransparentUpgradeableProxy(impl, address(proxyAdmin), "");
         return address(proxy);
     }
 }
