@@ -337,6 +337,9 @@ contract Deposit is StargateStrategyTest {
                 }
             }
             assertEq(strategy.checkBalance(assetData[i].asset), amt);
+            uint256 _bal = ERC20(assetData[i].asset).balanceOf(address(strategy));
+            emit log_named_uint("Strategy Balance", _bal);
+            assertApproxEqAbs(ERC20(assetData[i].asset).balanceOf(address(strategy)), 0, 1);
         }
     }
 

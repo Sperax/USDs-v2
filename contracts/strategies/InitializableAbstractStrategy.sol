@@ -79,6 +79,16 @@ abstract contract InitializableAbstractStrategy is Initializable, OwnableUpgrade
         emit HarvestIncentiveRateUpdated(_newRate);
     }
 
+    /// @notice A function to recover any erc20 token sent to this strategy mistakenly
+    /// @dev Only callable by owner
+    /// @param token Address of the token
+    /// @param receiver Receiver of the token
+    /// @param amount Amount to be recovered
+    /// @dev reverts if amount > balance
+    function recoverERC20(address token, address receiver, uint256 amount) external onlyOwner {
+        IERC20(token).safeTransfer(receiver, amount);
+    }
+
     /// @dev Deposit an amount of asset into the platform
     /// @param _asset Address for the asset
     /// @param _amount Units of asset to deposit
