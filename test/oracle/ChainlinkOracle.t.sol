@@ -113,8 +113,8 @@ contract Test_GetTokenPrice is ChainlinkOracleTest {
         chainlinkOracle.getTokenPrice(USDCe);
     }
 
-    function test_revertsWhen_PriceNegative() public {
-        int256 price = -100;
+    function testFuzz_revertsWhen_PriceNegative(int256 price) public {
+        vm.assume(price < 0);
         uint256 updatedAt = block.timestamp;
         vm.mockCall(
             0x50834F3163758fcC1Df9973b6e91f0F0F0434aD3,
