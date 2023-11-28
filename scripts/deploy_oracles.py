@@ -28,27 +28,22 @@ def main():
     chainlink_oracle = ChainlinkOracle.deploy(
         chainlink_feeds, {"from": user}, publish_source=True
     )
-    master_price_oracle = MasterPriceOracle.deploy(
-        {"from": user}, publish_source=True)
+    master_price_oracle = MasterPriceOracle.deploy({"from": user}, publish_source=True)
 
     master_price_oracle.updateTokenPriceFeed(
-        USDC_E, chainlink_oracle, chainlink_oracle.getTokenPrice.encode_input(
-            USDC_E)
+        USDC_E, chainlink_oracle, chainlink_oracle.getTokenPrice.encode_input(USDC_E)
     )
     master_price_oracle.updateTokenPriceFeed(
         DAI, chainlink_oracle, chainlink_oracle.getTokenPrice.encode_input(DAI)
     )
     master_price_oracle.updateTokenPriceFeed(
-        FRAX, chainlink_oracle, chainlink_oracle.getTokenPrice.encode_input(
-            FRAX)
+        FRAX, chainlink_oracle, chainlink_oracle.getTokenPrice.encode_input(FRAX)
     )
     master_price_oracle.updateTokenPriceFeed(
-        USDT, chainlink_oracle, chainlink_oracle.getTokenPrice.encode_input(
-            USDT)
+        USDT, chainlink_oracle, chainlink_oracle.getTokenPrice.encode_input(USDT)
     )
     master_price_oracle.updateTokenPriceFeed(
-        LUSD, chainlink_oracle, chainlink_oracle.getTokenPrice.encode_input(
-            LUSD)
+        LUSD, chainlink_oracle, chainlink_oracle.getTokenPrice.encode_input(LUSD)
     )
 
     spa_oracle = SPAOracle.deploy(
@@ -73,5 +68,4 @@ def main():
 
     tokens = [SPA, USDS, USDC_E, USDT, FRAX, DAI, LUSD]
     for token in tokens:
-        print(
-            f"Fetching Price feed for {token}: {master_price_oracle.getPrice(token)}")
+        print(f"Fetching Price feed for {token}: {master_price_oracle.getPrice(token)}")
