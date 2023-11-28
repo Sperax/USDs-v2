@@ -4,7 +4,7 @@ pragma solidity 0.8.19;
 import {BaseTest} from "../utils/BaseTest.sol";
 import {MasterPriceOracle} from "../../contracts/oracle/MasterPriceOracle.sol";
 import {ChainlinkOracle} from "../../contracts/oracle/ChainlinkOracle.sol";
-import {VSTOracle} from "../../contracts/oracle/VSTOracle.sol";
+
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 // import {console} from "forge-std/console.sol";
@@ -24,7 +24,6 @@ contract MasterPriceOracleTest is BaseTest {
 
     MasterPriceOracle public masterOracle;
     ChainlinkOracle public chainlinkOracle;
-    VSTOracle public vstOracle;
     address spaOracle;
     address usdsOracle;
 
@@ -40,7 +39,6 @@ contract MasterPriceOracleTest is BaseTest {
 
         // @dev Deploy and configure all the underlying oracles
         deployAndConfigureChainlink();
-        vstOracle = new VSTOracle();
         // A pre-requisite for initializing SPA and USDs oracles
         masterOracle.updateTokenPriceFeed(
             USDCe, address(chainlinkOracle), abi.encodeWithSelector(ChainlinkOracle.getTokenPrice.selector, USDCe)
@@ -140,17 +138,15 @@ contract MasterPriceOracleTest is BaseTest {
     }
 
     function getPriceFeedConfig() private view returns (PriceFeedData[] memory) {
-        PriceFeedData[] memory feedData = new PriceFeedData[](5);
+        PriceFeedData[] memory feedData = new PriceFeedData[](4);
         feedData[0] = PriceFeedData(
             FRAX, address(chainlinkOracle), abi.encodeWithSelector(ChainlinkOracle.getTokenPrice.selector, FRAX)
         );
         feedData[1] = PriceFeedData(
             DAI, address(chainlinkOracle), abi.encodeWithSelector(ChainlinkOracle.getTokenPrice.selector, DAI)
         );
-        feedData[2] = PriceFeedData(VST, address(vstOracle), abi.encodeWithSelector(VSTOracle.getPrice.selector));
-        feedData[3] = PriceFeedData(SPA, spaOracle, abi.encodeWithSelector(ICustomOracle.getPrice.selector));
-        feedData[4] = PriceFeedData(USDS, usdsOracle, abi.encodeWithSelector(ICustomOracle.getPrice.selector));
-        // feedData[0] = PriceFeedData(USDCe, address(chainlinkOracle), abi.encodeWithSelector(ChainlinkOracle.getTokenPrice.selector, USDCe));
+        feedData[2] = PriceFeedData(SPA, spaOracle, abi.encodeWithSelector(ICustomOracle.getPrice.selector));
+        feedData[3] = PriceFeedData(USDS, usdsOracle, abi.encodeWithSelector(ICustomOracle.getPrice.selector));
         return feedData;
     }
 }
