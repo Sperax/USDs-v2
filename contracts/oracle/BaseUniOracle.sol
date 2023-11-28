@@ -99,6 +99,8 @@ abstract contract BaseUniOracle is Ownable {
         uint32 oldestObservationSecondsAgo = IUniswapUtils(UNISWAP_UTILS).getOldestObservationSecondsAgo(pool);
         uint32 period = maPeriod < oldestObservationSecondsAgo ? maPeriod : oldestObservationSecondsAgo;
 
+        // if the period value is less than the MIN_TWAP_PERIOD (10 minutes), set period value to MIN_TWAP_PERIOD (10 minutes)
+        // this is done to make sure the period value is not too small as it is prone to manipulations
         if (period < MIN_TWAP_PERIOD) {
             period = MIN_TWAP_PERIOD;
         }
