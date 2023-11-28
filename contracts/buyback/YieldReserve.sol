@@ -221,16 +221,18 @@ contract YieldReserve is ReentrancyGuard, Ownable {
         view
         returns (uint256)
     {
-        if (!tokenData[_srcToken].srcAllowed) revert InvalidSourceToken();
-        if (!tokenData[_dstToken].dstAllowed) revert InvalidDestinationToken();
+        TokenData storage srcTokenData = tokenData[_srcToken];
+        TokenData storage dstTokenData = tokenData[_dstToken];
+        if (!srcTokenData.srcAllowed) revert InvalidSourceToken();
+        if (!dstTokenData.dstAllowed) revert InvalidDestinationToken();
         Helpers._isNonZeroAmt(_amountIn);
         // Getting prices from Oracle
         IOracle.PriceData memory tokenAPriceData = IOracle(oracle).getPrice(_srcToken);
         IOracle.PriceData memory tokenBPriceData = IOracle(oracle).getPrice(_dstToken);
         // Calculating the value
         return (
-            (_amountIn * tokenData[_srcToken].conversionFactor * tokenAPriceData.price * tokenBPriceData.precision)
-                / (tokenBPriceData.price * tokenAPriceData.precision * tokenData[_dstToken].conversionFactor)
+            (_amountIn * srcTokenData.conversionFactor * tokenAPriceData.price * tokenBPriceData.precision)
+                / (tokenBPriceData.price * tokenAPriceData.precision * dstTokenData.conversionFactor)
         );
     }
 
