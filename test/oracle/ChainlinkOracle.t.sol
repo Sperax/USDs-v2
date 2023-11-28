@@ -40,6 +40,13 @@ contract Test_SetTokenData is ChainlinkOracleTest {
         chainlinkOracle.setTokenData(tokenData.token, tokenData.data);
     }
 
+    function test_revertsWhen_InvalidPrecision() public useKnownActor(USDS_OWNER) {
+        ChainlinkOracle.SetupTokenData memory tokenData = _getTokenData()[0];
+        tokenData.data.pricePrecision = 1e9;
+        vm.expectRevert(abi.encodeWithSelector(ChainlinkOracle.InvalidPrecision.selector));
+        chainlinkOracle.setTokenData(tokenData.token, tokenData.data);
+    }
+
     function test_setTokenData() public useKnownActor(USDS_OWNER) {
         ChainlinkOracle.SetupTokenData memory tokenData = _getTokenData()[0];
         vm.expectEmit(true, true, true, true);

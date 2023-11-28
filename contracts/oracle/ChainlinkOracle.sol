@@ -34,6 +34,7 @@ contract ChainlinkOracle is Ownable {
     error RoundNotComplete();
     error StalePrice();
     error InvalidPrice();
+    error InvalidPrecision();
 
     constructor(SetupTokenData[] memory _priceFeedData) {
         for (uint256 i; i < _priceFeedData.length;) {
@@ -48,6 +49,9 @@ contract ChainlinkOracle is Ownable {
     /// @param _token Address of the desired token
     /// @param _tokenData Token price feed configuration
     function setTokenData(address _token, TokenData memory _tokenData) public onlyOwner {
+        if (_tokenData.pricePrecision != 10 ** AggregatorV3Interface(_tokenData.priceFeed).decimals()) {
+            revert InvalidPrecision();
+        }
         getTokenData[_token] = _tokenData;
         emit TokenDataChanged(_token, _tokenData.priceFeed, _tokenData.pricePrecision, _tokenData.configurableTime);
     }
