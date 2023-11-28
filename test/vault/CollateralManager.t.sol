@@ -66,6 +66,18 @@ contract CollateralManagerTest is PreMigrationSetup {
     }
 }
 
+contract Constructor is CollateralManagerTest {
+    function test_RevertWhen_InvalidAddress() external {
+        vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAddress.selector));
+        new CollateralManager(address(0));
+    }
+
+    function test_constructor() external {
+        assertEq(manager.VAULT(), VAULT);
+        assertEq(manager.owner(), USDS_OWNER); // owner is USDS_OWNER
+    }
+}
+
 contract CollateralManager_AddCollateral_Test is CollateralManagerTest {
     function test_revertsWhen_downsidePegExceedsMax(
         uint16 _baseMintFee,
