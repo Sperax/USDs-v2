@@ -3,7 +3,7 @@ pragma solidity 0.8.19;
 
 import {BaseTest} from "../utils/BaseTest.sol";
 import {UpgradeUtil} from "../utils/UpgradeUtil.sol";
-import {USDs} from "../../contracts/token/USDs.sol";
+import {USDs, Helpers} from "../../contracts/token/USDs.sol";
 import {IERC20, ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 import {ITransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
@@ -67,6 +67,7 @@ contract USDsTest is BaseTest {
         setArbitrumFork();
         USER1 = actors[0];
         USER2 = actors[1];
+        upgradeUtil = new UpgradeUtil();
 
         USDsPrecision = 10 ** ERC20(USDS).decimals();
 
@@ -83,6 +84,42 @@ contract USDsTest is BaseTest {
     function test_change_vault() public useKnownActor(USDS_OWNER) {
         usds.updateVault(USER1);
         assertEq(USER1, usds.vault());
+    }
+}
+
+contract TestInitialize is USDsTest {
+    USDs internal newUsds;
+    string internal tokenName = "TestToken";
+    string internal tokenSymbol = "TT";
+    uint256 internal EXPECTED_REBASING_CREDITS_PER_TOKEN = 1e27;
+
+    error InvalidAddress();
+
+    function setUp() public override {
+        super.setUp();
+
+        USDs usdsImpl = new USDs();
+        newUsds = USDs(upgradeUtil.deployErc1967Proxy(address(usdsImpl)));
+    }
+
+    function test_revertWhen_InvalidAddress() public useKnownActor(USDS_OWNER) {
+        vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAddress.selector));
+        newUsds.initialize(tokenName, tokenSymbol, address(0));
+    }
+
+    function test_Initialize() public useKnownActor(USER1) {
+        newUsds.initialize(tokenName, tokenSymbol, VAULT);
+
+        assertEq(tokenName, newUsds.name());
+        assertEq(tokenSymbol, newUsds.symbol());
+        assertEq(VAULT, newUsds.vault());
+        assertEq(EXPECTED_REBASING_CREDITS_PER_TOKEN, newUsds.rebasingCreditsPerToken());
+        assertEq(currentActor, newUsds.owner());
+    }
+
+    function test_revertWhen_AlreadyInitialized() public useKnownActor(USDS_OWNER) {
+        vm.expectRevert("Initializable: contract is already initialized");
+        usds.initialize(tokenName, tokenSymbol, VAULT);
     }
 }
 
