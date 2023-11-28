@@ -1,5 +1,5 @@
-pragma solidity 0.6.12;
-pragma experimental ABIEncoderV2;
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity 0.8.19;
 
 import {USDsOracle} from "../../contracts/oracle/USDsOracle.sol";
 import {IUniswapV3Factory} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Factory.sol";
