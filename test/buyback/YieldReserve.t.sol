@@ -8,7 +8,7 @@ import {VaultCore} from "../../contracts/vault/VaultCore.sol";
 import {IERC20, ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {PreMigrationSetup} from "../utils/DeploymentSetup.sol";
 
-contract YieldReserveTest is PreMigrationSetup {
+contract YieldReserveSetup is PreMigrationSetup {
     YieldReserve internal yieldReserve;
     IVault internal vault;
     uint256 USDCePrecision;
@@ -43,7 +43,9 @@ contract YieldReserveTest is PreMigrationSetup {
         (bool srcAllowed, bool dstAllowed, uint160 conversionFactor) = yieldReserve.tokenData(token);
         return YieldReserve.TokenData(srcAllowed, dstAllowed, conversionFactor);
     }
+}
 
+contract YieldReserveTest is YieldReserveSetup {
     function test_toggleSrcTokenPermission_auth_error() public useActor(0) {
         vm.expectRevert("Ownable: caller is not the owner");
         yieldReserve.toggleSrcTokenPermission(SPA, true);
@@ -55,6 +57,7 @@ contract YieldReserveTest is PreMigrationSetup {
         yieldReserve.toggleSrcTokenPermission(SPA, true);
         YieldReserve.TokenData memory tokenData = getTokenData(SPA);
         assertTrue(tokenData.srcAllowed);
+        assertEq(tokenData.conversionFactor, 1);
 
         assertTrue(IOracle(ORACLE).priceFeedExists(SPA));
 
@@ -89,6 +92,7 @@ contract YieldReserveTest is PreMigrationSetup {
 
         YieldReserve.TokenData memory tokenData = getTokenData(SPA);
         assertTrue(tokenData.dstAllowed);
+        assertEq(tokenData.conversionFactor, 1);
 
         assertTrue(IOracle(ORACLE).priceFeedExists(SPA));
 
@@ -246,6 +250,9 @@ contract YieldReserveTest is PreMigrationSetup {
         yieldReserve.toggleSrcTokenPermission(USDS, true);
         yieldReserve.toggleDstTokenPermission(USDCe, true);
 
+        assertEq(getTokenData(USDCe).conversionFactor, 1e12);
+        assertEq(getTokenData(USDS).conversionFactor, 1);
+
         uint256 amount = yieldReserve.getTokenBForTokenA(USDS, USDCe, amountIn * USDsPrecision);
 
         assertEq(amount, amountIn * USDCePrecision);
@@ -259,13 +266,16 @@ contract YieldReserveTest is PreMigrationSetup {
         yieldReserve.toggleSrcTokenPermission(USDS, true);
         yieldReserve.toggleDstTokenPermission(DAI, true);
 
+        assertEq(getTokenData(DAI).conversionFactor, 1);
+        assertEq(getTokenData(USDS).conversionFactor, 1);
+
         uint256 amount = yieldReserve.getTokenBForTokenA(USDS, DAI, amountIn * USDsPrecision);
 
         assertEq(amount, amountIn * DAIPrecision);
     }
 }
 
-contract SwapTest is YieldReserveTest {
+contract SwapTest is YieldReserveSetup {
     function setUp() public override {
         super.setUp();
         vm.startPrank(USDS_OWNER);
