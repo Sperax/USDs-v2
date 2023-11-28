@@ -89,6 +89,9 @@ contract USDsTest is BaseTest {
 
 contract TestInitialize is USDsTest {
     USDs internal newUsds;
+    string internal tokenName = "TestToken";
+    string internal tokenSymbol = "TT";
+    uint256 internal EXPECTED_REBASING_CREDITS_PER_TOKEN = 1e27;
 
     error InvalidAddress();
 
@@ -99,22 +102,24 @@ contract TestInitialize is USDsTest {
         newUsds = USDs(upgradeUtil.deployErc1967Proxy(address(usdsImpl)));
     }
 
-    function test_Initialize() public useKnownActor(USER1) {
+    function test_revertWhen_InvalidAddress() public useKnownActor(USDS_OWNER) {
         vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAddress.selector));
-        newUsds.initialize("A", "B", address(0));
+        newUsds.initialize(tokenName, tokenSymbol, address(0));
+    }
 
-        newUsds.initialize("A", "B", VAULT);
+    function test_Initialize() public useKnownActor(USER1) {
+        newUsds.initialize(tokenName, tokenSymbol, VAULT);
 
-        assertEq("A", newUsds.name());
-        assertEq("B", newUsds.symbol());
+        assertEq(tokenName, newUsds.name());
+        assertEq(tokenSymbol, newUsds.symbol());
         assertEq(VAULT, newUsds.vault());
-        assertEq(1e27, newUsds.rebasingCreditsPerToken());
-        assertEq(USER1, newUsds.owner());
+        assertEq(EXPECTED_REBASING_CREDITS_PER_TOKEN, newUsds.rebasingCreditsPerToken());
+        assertEq(currentActor, newUsds.owner());
     }
 
     function test_revertWhen_AlreadyInitialized() public useKnownActor(USDS_OWNER) {
         vm.expectRevert("Initializable: contract is already initialized");
-        usds.initialize("A", "A", address(0));
+        usds.initialize(tokenName, tokenSymbol, VAULT);
     }
 }
 
