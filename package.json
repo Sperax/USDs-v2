@@ -32,9 +32,8 @@
   },
   "dependencies": {
     "@chainlink/contracts": "^0.5.1",
-    "@openzeppelin/contracts": "^4.8.3",
-    "@openzeppelin/contracts_v3.4.2": "npm:@openzeppelin/contracts@^3.4.2",
-    "@openzeppelin/contracts-upgradeable": "^4.9.0",
+    "@openzeppelin/contracts": "^4.9.3",
+    "@openzeppelin/contracts-upgradeable": "^4.9.3",
     "@uniswap/v3-core": "^1.0.1",
     "@uniswap/v3-periphery": "^1.4.3"
   }
