@@ -26,6 +26,8 @@ contract StargateStrategy is InitializableAbstractStrategy {
     address public farm;
     mapping(address => AssetInfo) public assetInfo;
 
+    event FarmUpdated(address newFarm);
+
     error IncorrectPoolId(address asset, uint16 pid);
     error IncorrectRewardPoolId(address asset, uint256 rewardPid);
 
@@ -174,6 +176,18 @@ contract StargateStrategy is InitializableAbstractStrategy {
         uint256 rewardEarned = IERC20(rewardToken).balanceOf(address(this));
         uint256 harvestAmt = _splitAndSendReward(rewardToken, yieldReceiver, msg.sender, rewardEarned);
         emit RewardTokenCollected(rewardToken, yieldReceiver, harvestAmt);
+    }
+
+    /// @notice A function to withdraw from old farm, update farm and deposit in new farm
+    /// @param _newFarm Address of the new farm
+    /// @param _asset Address of asset of which lp token is to be withdrawn and deposited
+    /// @dev Only callable by owner
+    function updateFarm(address _newFarm, address _asset) external onlyOwner {
+        uint256 lpTokenAmt = checkLPTokenBalance(_asset);
+        ILPStaking(farm).withdraw(assetInfo[_asset].rewardPID, lpTokenAmt);
+        farm = _newFarm;
+        ILPStaking(_newFarm).deposit(assetInfo[_asset].rewardPID, lpTokenAmt); // Gas savings
+        emit FarmUpdated(_newFarm);
     }
 
     /// @inheritdoc InitializableAbstractStrategy
