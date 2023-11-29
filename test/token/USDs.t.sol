@@ -10,7 +10,6 @@ import {ITransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transp
 import {SafeMathUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/math/SafeMathUpgradeable.sol";
 import {StableMath} from "../../contracts/libraries/StableMath.sol";
 import {IUSDs} from "../../contracts/interfaces/IUSDs.sol";
-import "forge-std/console.sol";
 
 contract USDsUpgradabilityTest is BaseTest {
     USDs internal usds;
@@ -51,6 +50,9 @@ contract USDsTest is BaseTest {
     address internal OWNER;
     address internal USER1;
     address internal USER2;
+
+    event RebaseOptIn(address indexed account);
+    event RebaseOptOut(address indexed account);
 
     modifier testTransfer(uint256 amountToTransfer) {
         uint256 prevBalUser1 = usds.balanceOf(USER1);
@@ -416,6 +418,8 @@ contract TestRebase is USDsTest {
     }
 
     function test_rebaseOptIn() public useKnownActor(USDS_OWNER) {
+        vm.expectEmit(address(usds));
+        emit RebaseOptIn(USDS_OWNER);
         usds.rebaseOptIn();
 
         assertEq(usds.nonRebasingCreditsPerToken(USDS_OWNER), 0);
@@ -429,6 +433,9 @@ contract TestRebase is USDsTest {
 
     function test_rebaseOptOut() public useKnownActor(USDS_OWNER) {
         usds.rebaseOptIn();
+
+        vm.expectEmit(address(usds));
+        emit RebaseOptOut(USDS_OWNER);
         usds.rebaseOptOut();
 
         assertEq(usds.nonRebasingCreditsPerToken(USDS_OWNER), 1);
