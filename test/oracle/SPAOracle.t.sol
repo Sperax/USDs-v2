@@ -8,6 +8,7 @@ import {BaseTest} from "../utils/BaseTest.sol";
 interface IChainlinkOracle {
     struct TokenData {
         address source;
+        uint96 timeout;
         uint256 precision;
     }
 
@@ -41,7 +42,7 @@ abstract contract BaseUniOracleTest is BaseTest {
 
         chainlinkOracle = deployCode("ChainlinkOracle.sol", abi.encode(new IChainlinkOracle.TokenData[](0)));
         IChainlinkOracle.TokenData memory usdcData =
-            IChainlinkOracle.TokenData(0x50834F3163758fcC1Df9973b6e91f0F0F0434aD3, 1e8);
+            IChainlinkOracle.TokenData(0x50834F3163758fcC1Df9973b6e91f0F0F0434aD3, 25 hours, 1e8);
 
         IChainlinkOracle(chainlinkOracle).setTokenData(USDCe, usdcData);
 
@@ -115,6 +116,8 @@ contract Test_FetchPrice is SPAOracleTest {
 }
 
 contract Test_setUniMAPriceData is SPAOracleTest {
+    error InvalidMaPeriod();
+
     function test_revertsWhen_notOwner() public {
         vm.expectRevert("Ownable: caller is not the owner");
         spaOracle.setUniMAPriceData(SPA, USDCe, 10000, 600);
@@ -129,6 +132,14 @@ contract Test_setUniMAPriceData is SPAOracleTest {
         vm.expectEmit(true, true, true, true);
         emit UniMAPriceDataChanged(USDCe, 10000, 700);
         spaOracle.setUniMAPriceData(SPA, USDCe, 10000, 700);
+    }
+
+    function test_revertsWhen_invalidMaPeriod() public useKnownActor(USDS_OWNER) {
+        vm.expectRevert(abi.encodeWithSelector(InvalidMaPeriod.selector));
+        spaOracle.setUniMAPriceData(SPA, USDCe, 10000, 599);
+
+        vm.expectRevert(abi.encodeWithSelector(InvalidMaPeriod.selector));
+        spaOracle.setUniMAPriceData(SPA, USDCe, 10000, 7201);
     }
 }
 
