@@ -25,6 +25,8 @@ interface IMasterPriceOracle {
 abstract contract BaseUniOracle is Ownable {
     address public constant UNISWAP_FACTORY = 0x1F98431c8aD98523631AE4a59f267346ea31F984;
     address public constant UNISWAP_UTILS = 0xd2Aa19D3B7f8cdb1ea5B782c5647542055af415e;
+    uint256 internal constant MA_PERIOD_LOWER_BOUND = 10 minutes;
+    uint256 internal constant MA_PERIOD_UPPER_BOUND = 2 hours;
 
     address public masterOracle; // Address of the master price oracle
     address public pool; // Address of the uniswap pool for the token and quoteToken
@@ -39,6 +41,7 @@ abstract contract BaseUniOracle is Ownable {
     error QuoteTokenFeedMissing();
     error FeedUnavailable();
     error InvalidAddress();
+    error InvalidMaPeriod();
 
     /// @notice A function to get price
     /// @return (uint256, uint256) Returns price and price precision
@@ -72,6 +75,11 @@ abstract contract BaseUniOracle is Ownable {
         // Validate if the oracle has a price feed for the _quoteToken
         if (!IMasterPriceOracle(masterOracle).priceFeedExists(_quoteToken)) {
             revert QuoteTokenFeedMissing();
+        }
+
+        // Validate if maPeriod is between 10 minutes and 2 hours
+        if (_maPeriod < MA_PERIOD_LOWER_BOUND || _maPeriod > MA_PERIOD_UPPER_BOUND) {
+            revert InvalidMaPeriod();
         }
 
         pool = uniOraclePool;
