@@ -273,6 +273,8 @@ contract StargateStrategy is InitializableAbstractStrategy {
     {
         Helpers._isNonZeroAddr(_recipient);
         Helpers._isNonZeroAmt(_amount, "Must withdraw something");
+        if (!supportsCollateral(_asset)) revert CollateralNotSupported(_asset);
+
         uint256 lpTokenAmt = _convertToPToken(_asset, _amount);
         ILPStaking(farm).withdraw(assetInfo[_asset].rewardPID, lpTokenAmt);
         uint256 minRecvAmt = (_amount * (Helpers.MAX_PERCENTAGE - withdrawSlippage)) / Helpers.MAX_PERCENTAGE;
