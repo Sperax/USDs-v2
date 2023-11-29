@@ -264,7 +264,7 @@ contract USDs is ERC20PermitUpgradeable, OwnableUpgradeable, ReentrancyGuardUpgr
     /// @param _account Address to query the balance of.
     /// @return A uint256 representing the _amount of base units owned by the
     ///          specified address.
-    function balanceOf(address _account) public view override returns (uint256) {
+    function balanceOf(address _account) public view override(ERC20Upgradeable, IUSDs) returns (uint256) {
         return _balanceOf(_account);
     }
 

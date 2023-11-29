@@ -149,6 +149,7 @@ contract VaultCore is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradea
         _mint(_collateral, _collateralAmt, _minUSDSAmt, _deadline);
     }
 
+    // TODO can be removed
     /// @notice redeem USDs for `_collateral`
     /// @param _collateral address of the collateral
     /// @param _usdsAmt Amount of USDs to be redeemed
@@ -179,9 +180,33 @@ contract VaultCore is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradea
         external
         nonReentrant
     {
+        rebase();
+
         _redeem({
             _collateral: _collateral,
             _usdsAmt: _usdsAmt,
+            _minCollateralAmt: _minCollAmt,
+            _deadline: _deadline,
+            _strategyAddr: _strategy
+        });
+    }
+
+    // TODO this only works when caller approves enough USDs to this contract
+    /// @notice redeem all USDs for `_collateral`
+    /// @dev `_usdsAmt` is calculated based on the current balance of the sender
+    /// @param _collateral address of the collateral
+    /// @param _minCollAmt minimum expected amount of collateral to be received
+    /// @param _deadline expiry time of the transaction
+    /// @param _strategy address of the strategy to withdraw excess collateral from
+    function redeemFull(address _collateral, uint256 _minCollAmt, uint256 _deadline, address _strategy)
+        external
+        nonReentrant
+    {
+        rebase();
+
+        _redeem({
+            _collateral: _collateral,
+            _usdsAmt: IUSDs(Helpers.USDS).balanceOf(msg.sender),
             _minCollateralAmt: _minCollAmt,
             _deadline: _deadline,
             _strategyAddr: _strategy
@@ -297,13 +322,14 @@ contract VaultCore is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradea
     /// @param _deadline Deadline timestamp for executing mint
     function _mint(address _collateral, uint256 _collateralAmt, uint256 _minUSDSAmt, uint256 _deadline) private {
         Helpers._checkDeadline(_deadline);
+
+        rebase();
+
         (uint256 toMinterAmt, uint256 feeAmt) = mintView(_collateral, _collateralAmt);
         if (toMinterAmt == 0) revert MintFailed();
         if (toMinterAmt < _minUSDSAmt) {
             revert Helpers.MinSlippageError(toMinterAmt, _minUSDSAmt);
         }
-
-        rebase();
 
         IERC20Upgradeable(_collateral).safeTransferFrom(msg.sender, address(this), _collateralAmt);
         IUSDs(Helpers.USDS).mint(msg.sender, toMinterAmt);
@@ -335,6 +361,7 @@ contract VaultCore is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradea
         address _strategyAddr
     ) private {
         Helpers._checkDeadline(_deadline);
+
         (
             uint256 collateralAmt,
             uint256 burnAmt,

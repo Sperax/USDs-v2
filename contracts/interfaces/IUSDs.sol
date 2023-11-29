@@ -8,6 +8,8 @@ interface IUSDs {
 
     function rebase(uint256 _rebaseAmt) external;
 
+    function balanceOf(address _account) external view returns (uint256);
+
     function totalSupply() external view returns (uint256);
 
     function nonRebasingSupply() external view returns (uint256);

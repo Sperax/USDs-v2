@@ -22,6 +22,10 @@ contract VaultCoreTest is PreMigrationSetup {
     address internal defaultStrategy;
     address internal otherStrategy;
 
+    event Redeemed(
+        address indexed wallet, address indexed collateralAddr, uint256 usdsAmt, uint256 collateralAmt, uint256 feeAmt
+    );
+
     modifier mockOracle(uint256 _price) {
         vm.mockCall(address(ORACLE), abi.encodeWithSignature("getPrice(address)", USDCe), abi.encode(_price, 1e8));
         _;
@@ -84,6 +88,21 @@ contract VaultCoreTest is PreMigrationSetup {
             //     "Insufficient collateral"
             // );
         }
+    }
+
+    function _increaseRebaseAmt() internal returns (uint256) {
+        vm.startPrank(VAULT);
+        IRebaseManager(REBASE_MANAGER).fetchRebaseAmt();
+        skip(1 days);
+        IUSDs(USDS).mint(DRIPPER, 1e22);
+        IDripper(DRIPPER).collect();
+        skip(1 days);
+        (uint256 min, uint256 max) = IRebaseManager(REBASE_MANAGER).getMinAndMaxRebaseAmt();
+
+        assertTrue(min > 0);
+        assertTrue(max > 0);
+
+        return max;
     }
 }
 
@@ -470,17 +489,12 @@ contract TestRebase is VaultCoreTest {
     event RebasedUSDs(uint256 rebaseAmt);
 
     function test_Rebase() public {
-        vm.startPrank(VAULT);
-        IRebaseManager(REBASE_MANAGER).fetchRebaseAmt();
-        skip(1 days);
-        IUSDs(USDS).mint(DRIPPER, 1e22);
-        IDripper(DRIPPER).collect();
-        skip(1 days);
-        (uint256 min, uint256 max) = IRebaseManager(REBASE_MANAGER).getMinAndMaxRebaseAmt();
+        uint256 expectedMax = _increaseRebaseAmt();
+
         vm.expectEmit(true, true, true, true, VAULT);
-        emit RebasedUSDs(max);
+        emit RebasedUSDs(expectedMax);
         IVault(VAULT).rebase();
-        (min, max) = IRebaseManager(REBASE_MANAGER).getMinAndMaxRebaseAmt();
+        (uint256 min, uint256 max) = IRebaseManager(REBASE_MANAGER).getMinAndMaxRebaseAmt();
         assertEq(min, 0);
         assertEq(max, 0);
         vm.stopPrank();
@@ -681,10 +695,6 @@ contract TestRedeem is VaultCoreTest {
     uint256 private _minCollAmt;
     uint256 private _deadline;
 
-    event Redeemed(
-        address indexed wallet, address indexed collateralAddr, uint256 usdsAmt, uint256 collateralAmt, uint256 feeAmt
-    );
-
     function setUp() public override {
         super.setUp();
         redeemer = actors[1];
@@ -795,5 +805,155 @@ contract TestRedeem is VaultCoreTest {
         assertEq(balAfterFeeVault - balBeforeFeeVault, _feeAmt);
         assertEq(balBeforeUSDsRedeemer - balAfterUSDsRedeemer, _usdsAmt);
         assertEq(balAfterUSDCeRedeemer - balBeforeUSDCeRedeemer, _calculatedCollateralAmt);
+    }
+
+    function test_redeeming_entire_USDs_leaves_out_rebased_amount() public useKnownActor(redeemer) {
+        deal(USDCe, VAULT, (_usdsAmt / 2) / 1e12);
+        _allocateIntoStrategy(_collateral, defaultStrategy, (_usdsAmt / 2) / 1e12);
+        (uint256 _calculatedCollateralAmt, uint256 _usdsBurnAmt, uint256 _feeAmt,,) =
+            _redeemViewTest(_usdsAmt, defaultStrategy);
+
+        assertEq(ERC20(USDS).balanceOf(redeemer), 0);
+
+        changePrank(VAULT);
+        IUSDs(USDS).mint(redeemer, _usdsAmt);
+        changePrank(redeemer);
+
+        uint256 balBeforeFeeVault = ERC20(USDS).balanceOf(FEE_VAULT);
+        uint256 balBeforeUSDsRedeemer = ERC20(USDS).balanceOf(redeemer);
+        uint256 balBeforeUSDCeRedeemer = ERC20(USDCe).balanceOf(redeemer);
+
+        // TODO rebase and increase User's USDS balance
+        // User balance should be increased due to rebase before redeeming,
+        // hence some USDs balance must be left in the User account after redeeming
+        _increaseRebaseAmt();
+        ERC20(USDS).approve(VAULT, _usdsAmt);
+        vm.expectEmit(VAULT);
+        emit Redeemed(redeemer, _collateral, _usdsBurnAmt, _calculatedCollateralAmt, _feeAmt);
+        IVault(VAULT).redeem(_collateral, _usdsAmt, _calculatedCollateralAmt, block.timestamp, defaultStrategy);
+
+        uint256 balAfterFeeVault = ERC20(USDS).balanceOf(FEE_VAULT);
+        uint256 balAfterUSDsRedeemer = ERC20(USDS).balanceOf(redeemer);
+        uint256 balAfterUSDCeRedeemer = ERC20(USDCe).balanceOf(redeemer);
+
+        assertEq(balAfterFeeVault - balBeforeFeeVault, _feeAmt);
+        assertEq(balBeforeUSDsRedeemer - balAfterUSDsRedeemer, _usdsAmt);
+        assertEq(balAfterUSDCeRedeemer - balBeforeUSDCeRedeemer, _calculatedCollateralAmt);
+        assertTrue(balAfterUSDsRedeemer > 0);
+    }
+
+    function test_redeeming_entire_USDs() public useKnownActor(redeemer) {
+        deal(USDCe, VAULT, (_usdsAmt / 2) / 1e12);
+        _allocateIntoStrategy(_collateral, defaultStrategy, (_usdsAmt / 2) / 1e12);
+
+        uint256 redeemAmt = _usdsAmt / 2;
+        (uint256 _calculatedCollateralAmt, uint256 _usdsBurnAmt, uint256 _feeAmt,,) =
+            _redeemViewTest(redeemAmt, defaultStrategy);
+
+        assertEq(ERC20(USDS).balanceOf(redeemer), 0);
+
+        changePrank(VAULT);
+        IUSDs(USDS).mint(redeemer, _usdsAmt);
+        changePrank(redeemer);
+
+        uint256 balBeforeFeeVault = ERC20(USDS).balanceOf(FEE_VAULT);
+        uint256 balBeforeUSDsRedeemer = ERC20(USDS).balanceOf(redeemer);
+        uint256 balBeforeUSDCeRedeemer = ERC20(USDCe).balanceOf(redeemer);
+
+        // TODO rebase and increase User's USDS balance
+        // User balance should be increased due to rebase before redeeming,
+        // hence some USDs balance must be left in the User account after redeeming
+        ERC20(USDS).approve(VAULT, _usdsAmt);
+        vm.expectEmit(VAULT);
+        emit Redeemed(redeemer, _collateral, _usdsBurnAmt, _calculatedCollateralAmt, _feeAmt);
+        IVault(VAULT).redeem(_collateral, redeemAmt, _calculatedCollateralAmt, block.timestamp, defaultStrategy);
+
+        uint256 balAfterFeeVault = ERC20(USDS).balanceOf(FEE_VAULT);
+        uint256 balAfterUSDsRedeemer = ERC20(USDS).balanceOf(redeemer);
+        uint256 balAfterUSDCeRedeemer = ERC20(USDCe).balanceOf(redeemer);
+
+        assertEq(balAfterFeeVault - balBeforeFeeVault, _feeAmt);
+        assertEq(balBeforeUSDsRedeemer - balAfterUSDsRedeemer, redeemAmt);
+        assertEq(balAfterUSDCeRedeemer - balBeforeUSDCeRedeemer, _calculatedCollateralAmt);
+        assertTrue(balAfterUSDsRedeemer > 0);
+    }
+}
+
+contract RedeemFull is VaultCoreTest {
+    address private redeemer;
+    uint256 private _usdsAmt;
+    uint256 private _minCollAmt;
+
+    function setUp() public override {
+        super.setUp();
+        redeemer = actors[1];
+        _usdsAmt = 1000e18;
+        _collateral = USDCe;
+    }
+
+    function test_redeemFull() public useKnownActor(redeemer) {
+        deal(USDCe, VAULT, (_usdsAmt / 2) / 1e12);
+        _allocateIntoStrategy(_collateral, defaultStrategy, (_usdsAmt / 2) / 1e12);
+        (uint256 _calculatedCollateralAmt, uint256 _usdsBurnAmt, uint256 _feeAmt,,) =
+            _redeemViewTest(_usdsAmt, defaultStrategy);
+
+        assertEq(ERC20(USDS).balanceOf(redeemer), 0);
+
+        changePrank(VAULT);
+        IUSDs(USDS).mint(redeemer, _usdsAmt);
+        changePrank(redeemer);
+
+        uint256 balBeforeFeeVault = ERC20(USDS).balanceOf(FEE_VAULT);
+        uint256 balBeforeUSDsRedeemer = ERC20(USDS).balanceOf(redeemer);
+        uint256 balBeforeUSDCeRedeemer = ERC20(USDCe).balanceOf(redeemer);
+
+        // User balance should be increased due to rebase before redeeming,
+        // hence some USDs balance must be left in the User account after redeeming
+        _increaseRebaseAmt();
+        ERC20(USDS).approve(VAULT, _usdsAmt * 2); // higher approval
+        vm.expectEmit(VAULT);
+        emit Redeemed(redeemer, _collateral, _usdsBurnAmt, _calculatedCollateralAmt, _feeAmt);
+        IVault(VAULT).redeemFull(_collateral, _calculatedCollateralAmt, block.timestamp, defaultStrategy);
+
+        uint256 balAfterFeeVault = ERC20(USDS).balanceOf(FEE_VAULT);
+        uint256 balAfterUSDsRedeemer = ERC20(USDS).balanceOf(redeemer);
+        uint256 balAfterUSDCeRedeemer = ERC20(USDCe).balanceOf(redeemer);
+
+        assertTrue(balAfterFeeVault - balBeforeFeeVault > _feeAmt);
+        assertTrue(balBeforeUSDsRedeemer - balAfterUSDsRedeemer > _usdsAmt);
+        assertTrue(balAfterUSDCeRedeemer - balBeforeUSDCeRedeemer > _calculatedCollateralAmt);
+        assertTrue(balAfterUSDsRedeemer == 0);
+    }
+
+    // TODO remove if the `test_redeemFull` is working
+    function test_redeemFull_entire_USDs() public useKnownActor(redeemer) {
+        deal(USDCe, VAULT, (_usdsAmt / 2) / 1e12);
+        _allocateIntoStrategy(_collateral, defaultStrategy, (_usdsAmt / 2) / 1e12);
+        (uint256 _calculatedCollateralAmt, uint256 _usdsBurnAmt, uint256 _feeAmt,,) =
+            _redeemViewTest(_usdsAmt, defaultStrategy);
+
+        assertEq(ERC20(USDS).balanceOf(redeemer), 0);
+
+        changePrank(VAULT);
+        IUSDs(USDS).mint(redeemer, _usdsAmt);
+        changePrank(redeemer);
+
+        uint256 balBeforeFeeVault = ERC20(USDS).balanceOf(FEE_VAULT);
+        uint256 balBeforeUSDsRedeemer = ERC20(USDS).balanceOf(redeemer);
+        uint256 balBeforeUSDCeRedeemer = ERC20(USDCe).balanceOf(redeemer);
+
+        ERC20(USDS).approve(VAULT, _usdsAmt * 2); // higher approval
+        vm.expectEmit(VAULT);
+        emit Redeemed(redeemer, _collateral, _usdsBurnAmt, _calculatedCollateralAmt, _feeAmt);
+        IVault(VAULT).redeemFull(_collateral, _calculatedCollateralAmt, block.timestamp, defaultStrategy);
+
+        uint256 balAfterFeeVault = ERC20(USDS).balanceOf(FEE_VAULT);
+        uint256 balAfterUSDsRedeemer = ERC20(USDS).balanceOf(redeemer);
+        uint256 balAfterUSDCeRedeemer = ERC20(USDCe).balanceOf(redeemer);
+
+        assertEq(balAfterFeeVault - balBeforeFeeVault, _feeAmt);
+        assertEq(balBeforeUSDsRedeemer - balAfterUSDsRedeemer, _usdsAmt);
+        assertEq(balAfterUSDCeRedeemer - balBeforeUSDCeRedeemer, _calculatedCollateralAmt);
+        assertEq(balAfterUSDsRedeemer, 0);
     }
 }

@@ -22,6 +22,8 @@ interface IVault {
 
     function redeem(address _collateral, uint256 _usdsAmt, uint256 _minCollAmt, uint256 _deadline) external;
 
+    function redeemFull(address _collateral, uint256 _minCollAmt, uint256 _deadline, address _strategy) external;
+
     function rebase() external;
 
     function allocate(address _collateral, address _strategy, uint256 _amount) external;
