@@ -10,7 +10,7 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 contract ChainlinkOracle is Ownable {
     struct TokenData {
         address priceFeed;
-        uint96 configurableTime;
+        uint96 timeout;
         uint256 pricePrecision;
     }
 
@@ -24,9 +24,7 @@ contract ChainlinkOracle is Ownable {
 
     mapping(address => TokenData) public getTokenData;
 
-    event TokenDataChanged(
-        address indexed tokenAddr, address priceFeed, uint256 pricePrecision, uint96 configurableTime
-    );
+    event TokenDataChanged(address indexed tokenAddr, address priceFeed, uint256 pricePrecision, uint96 timeout);
 
     error TokenNotSupported(address token);
     error ChainlinkSequencerDown();
@@ -53,7 +51,7 @@ contract ChainlinkOracle is Ownable {
             revert InvalidPricePrecision();
         }
         getTokenData[_token] = _tokenData;
-        emit TokenDataChanged(_token, _tokenData.priceFeed, _tokenData.pricePrecision, _tokenData.configurableTime);
+        emit TokenDataChanged(_token, _tokenData.priceFeed, _tokenData.pricePrecision, _tokenData.timeout);
     }
 
     /// @notice Gets the token price and price precision
@@ -78,7 +76,7 @@ contract ChainlinkOracle is Ownable {
 
         (, int256 price,, uint256 updatedAt,) = AggregatorV3Interface(tokenInfo.priceFeed).latestRoundData();
         if (updatedAt == 0) revert RoundNotComplete();
-        if (block.timestamp - updatedAt > tokenInfo.configurableTime) revert StalePrice();
+        if (block.timestamp > updatedAt + tokenInfo.timeout) revert StalePrice();
         if (price < 0) revert InvalidPrice();
 
         return (uint256(price), tokenInfo.pricePrecision);

@@ -8,7 +8,7 @@ import {BaseTest} from "../utils/BaseTest.sol";
 interface IChainlinkOracle {
     struct TokenData {
         address source;
-        uint96 configurableTime;
+        uint96 timeout;
         uint256 precision;
     }
 

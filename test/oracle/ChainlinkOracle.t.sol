@@ -7,9 +7,7 @@ import {BaseTest} from "../utils/BaseTest.sol";
 contract ChainlinkOracleTest is BaseTest {
     ChainlinkOracle public chainlinkOracle;
 
-    event TokenDataChanged(
-        address indexed tokenAddr, address priceFeed, uint256 pricePrecision, uint96 configurableTime
-    );
+    event TokenDataChanged(address indexed tokenAddr, address priceFeed, uint256 pricePrecision, uint96 timeout);
 
     function setUp() public virtual override {
         super.setUp();
@@ -51,14 +49,14 @@ contract Test_SetTokenData is ChainlinkOracleTest {
         ChainlinkOracle.SetupTokenData memory tokenData = _getTokenData()[0];
         vm.expectEmit(true, true, true, true);
         emit TokenDataChanged(
-            tokenData.token, tokenData.data.priceFeed, tokenData.data.pricePrecision, tokenData.data.configurableTime
+            tokenData.token, tokenData.data.priceFeed, tokenData.data.pricePrecision, tokenData.data.timeout
         );
         chainlinkOracle.setTokenData(tokenData.token, tokenData.data);
 
-        (address priceFeed, uint96 configurableTime, uint256 precision) = chainlinkOracle.getTokenData(tokenData.token);
+        (address priceFeed, uint96 timeout, uint256 precision) = chainlinkOracle.getTokenData(tokenData.token);
         assertEq(priceFeed, tokenData.data.priceFeed);
         assertEq(precision, tokenData.data.pricePrecision);
-        assertEq(configurableTime, tokenData.data.configurableTime);
+        assertEq(timeout, tokenData.data.timeout);
     }
 }
 
