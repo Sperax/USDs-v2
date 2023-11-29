@@ -8,6 +8,7 @@ import {BaseTest} from "../utils/BaseTest.sol";
 interface IChainlinkOracle {
     struct TokenData {
         address source;
+        uint96 timeout;
         uint256 precision;
     }
 
@@ -41,7 +42,7 @@ abstract contract BaseUniOracleTest is BaseTest {
 
         chainlinkOracle = deployCode("ChainlinkOracle.sol", abi.encode(new IChainlinkOracle.TokenData[](0)));
         IChainlinkOracle.TokenData memory usdcData =
-            IChainlinkOracle.TokenData(0x50834F3163758fcC1Df9973b6e91f0F0F0434aD3, 1e8);
+            IChainlinkOracle.TokenData(0x50834F3163758fcC1Df9973b6e91f0F0F0434aD3, 25 hours, 1e8);
 
         IChainlinkOracle(chainlinkOracle).setTokenData(USDCe, usdcData);
 
