@@ -21,7 +21,6 @@ import {ChainlinkOracle} from "../../contracts/oracle/ChainlinkOracle.sol";
 import {StargateStrategy} from "../../contracts/strategies/stargate/StargateStrategy.sol";
 import {AaveStrategy} from "../../contracts/strategies/aave/AaveStrategy.sol";
 import {CompoundStrategy} from "../../contracts/strategies/compound/CompoundStrategy.sol";
-import {VSTOracle} from "../../contracts/oracle/VSTOracle.sol";
 
 interface ICustomOracle {
     function updateDIAParams(uint256 _weightDIA, uint128 _maxTime) external;
@@ -39,7 +38,6 @@ abstract contract PreMigrationSetup is Setup {
     UpgradeUtil internal upgradeUtil;
     MasterPriceOracle internal masterOracle;
     ChainlinkOracle chainlinkOracle;
-    VSTOracle vstOracle;
     address internal spaOracle;
     address internal usdsOracle;
     StargateStrategy internal stargateStrategy;
@@ -89,7 +87,6 @@ abstract contract PreMigrationSetup is Setup {
         vault.updateRebaseManager(REBASE_MANAGER);
         vault.updateFeeVault(FEE_VAULT);
 
-        vstOracle = new VSTOracle();
         masterOracle = MasterPriceOracle(ORACLE);
         // A pre-requisite for initializing SPA and USDs oracles
         deployAndConfigureChainlink();
@@ -133,7 +130,6 @@ abstract contract PreMigrationSetup is Setup {
         collateralManager.addCollateral(USDCe, _data);
         collateralManager.addCollateral(USDT, _data);
         collateralManager.addCollateral(FRAX, _data);
-        collateralManager.addCollateral(VST, _data);
         collateralManager.addCollateral(USDC, _data);
         collateralManager.addCollateralStrategy(USDCe, address(stargateStrategy), 3000);
         collateralManager.addCollateralStrategy(USDCe, address(aaveStrategy), 4000);
@@ -157,28 +153,27 @@ abstract contract PreMigrationSetup is Setup {
     function deployAndConfigureChainlink() private {
         ChainlinkOracle.SetupTokenData[] memory chainlinkFeeds = new ChainlinkOracle.SetupTokenData[](3);
         chainlinkFeeds[0] = ChainlinkOracle.SetupTokenData(
-            USDCe, ChainlinkOracle.TokenData(0x50834F3163758fcC1Df9973b6e91f0F0F0434aD3, 1e8)
+            USDCe, ChainlinkOracle.TokenData(0x50834F3163758fcC1Df9973b6e91f0F0F0434aD3, 25 hours, 1e8)
         );
         chainlinkFeeds[1] = ChainlinkOracle.SetupTokenData(
-            FRAX, ChainlinkOracle.TokenData(0x0809E3d38d1B4214958faf06D8b1B1a2b73f2ab8, 1e8)
+            FRAX, ChainlinkOracle.TokenData(0x0809E3d38d1B4214958faf06D8b1B1a2b73f2ab8, 25 hours, 1e8)
         );
         chainlinkFeeds[2] = ChainlinkOracle.SetupTokenData(
-            DAI, ChainlinkOracle.TokenData(0xc5C8E77B397E531B8EC06BFb0048328B30E9eCfB, 1e8)
+            DAI, ChainlinkOracle.TokenData(0xc5C8E77B397E531B8EC06BFb0048328B30E9eCfB, 25 hours, 1e8)
         );
         chainlinkOracle = new ChainlinkOracle(chainlinkFeeds);
     }
 
     function updatePriceFeeds() private {
-        PriceFeedData[] memory feedData = new PriceFeedData[](5);
+        PriceFeedData[] memory feedData = new PriceFeedData[](4);
         feedData[0] = PriceFeedData(
             FRAX, address(chainlinkOracle), abi.encodeWithSelector(ChainlinkOracle.getTokenPrice.selector, FRAX)
         );
         feedData[1] = PriceFeedData(
             DAI, address(chainlinkOracle), abi.encodeWithSelector(ChainlinkOracle.getTokenPrice.selector, DAI)
         );
-        feedData[2] = PriceFeedData(VST, address(vstOracle), abi.encodeWithSelector(VSTOracle.getPrice.selector));
-        feedData[3] = PriceFeedData(SPA, spaOracle, abi.encodeWithSelector(ICustomOracle.getPrice.selector));
-        feedData[4] = PriceFeedData(USDS, usdsOracle, abi.encodeWithSelector(ICustomOracle.getPrice.selector));
+        feedData[2] = PriceFeedData(SPA, spaOracle, abi.encodeWithSelector(ICustomOracle.getPrice.selector));
+        feedData[3] = PriceFeedData(USDS, usdsOracle, abi.encodeWithSelector(ICustomOracle.getPrice.selector));
         // feedData[0] = PriceFeedData(USDCe, address(chainlinkOracle), abi.encodeWithSelector(ChainlinkOracle.getTokenPrice.selector, USDCe));
         for (uint8 i = 0; i < feedData.length; ++i) {
             masterOracle.updateTokenPriceFeed(feedData[i].token, feedData[i].source, feedData[i].msgData);

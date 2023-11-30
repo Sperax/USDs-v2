@@ -25,6 +25,9 @@ interface IMasterPriceOracle {
 abstract contract BaseUniOracle is Ownable {
     address public constant UNISWAP_FACTORY = 0x1F98431c8aD98523631AE4a59f267346ea31F984;
     address public constant UNISWAP_UTILS = 0xd2Aa19D3B7f8cdb1ea5B782c5647542055af415e;
+    uint32 internal constant MIN_TWAP_PERIOD = 10 minutes;
+    uint256 internal constant MA_PERIOD_LOWER_BOUND = 10 minutes;
+    uint256 internal constant MA_PERIOD_UPPER_BOUND = 2 hours;
 
     address public masterOracle; // Address of the master price oracle
     address public pool; // Address of the uniswap pool for the token and quoteToken
@@ -39,6 +42,7 @@ abstract contract BaseUniOracle is Ownable {
     error QuoteTokenFeedMissing();
     error FeedUnavailable();
     error InvalidAddress();
+    error InvalidMaPeriod();
 
     /// @notice A function to get price
     /// @return (uint256, uint256) Returns price and price precision
@@ -74,6 +78,11 @@ abstract contract BaseUniOracle is Ownable {
             revert QuoteTokenFeedMissing();
         }
 
+        // Validate if maPeriod is between 10 minutes and 2 hours
+        if (_maPeriod < MA_PERIOD_LOWER_BOUND || _maPeriod > MA_PERIOD_UPPER_BOUND) {
+            revert InvalidMaPeriod();
+        }
+
         pool = uniOraclePool;
         quoteToken = _quoteToken;
         quoteTokenPrecision = uint128(10) ** ERC20(quoteToken).decimals();
@@ -97,6 +106,13 @@ abstract contract BaseUniOracle is Ownable {
         // get MA tick
         uint32 oldestObservationSecondsAgo = IUniswapUtils(UNISWAP_UTILS).getOldestObservationSecondsAgo(pool);
         uint32 period = maPeriod < oldestObservationSecondsAgo ? maPeriod : oldestObservationSecondsAgo;
+
+        // if the period value is less than the MIN_TWAP_PERIOD (10 minutes), set period value to MIN_TWAP_PERIOD (10 minutes)
+        // this is done to make sure the period value is not too small as it is prone to manipulations
+        if (period < MIN_TWAP_PERIOD) {
+            period = MIN_TWAP_PERIOD;
+        }
+
         (int24 timeWeightedAverageTick,) = IUniswapUtils(UNISWAP_UTILS).consult(pool, period);
         // get MA price from MA tick
         uint256 tokenBPerTokenA =

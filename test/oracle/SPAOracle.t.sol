@@ -8,6 +8,7 @@ import {BaseTest} from "../utils/BaseTest.sol";
 interface IChainlinkOracle {
     struct TokenData {
         address source;
+        uint96 timeout;
         uint256 precision;
     }
 
@@ -41,7 +42,7 @@ abstract contract BaseUniOracleTest is BaseTest {
 
         chainlinkOracle = deployCode("ChainlinkOracle.sol", abi.encode(new IChainlinkOracle.TokenData[](0)));
         IChainlinkOracle.TokenData memory usdcData =
-            IChainlinkOracle.TokenData(0x50834F3163758fcC1Df9973b6e91f0F0F0434aD3, 1e8);
+            IChainlinkOracle.TokenData(0x50834F3163758fcC1Df9973b6e91f0F0F0434aD3, 25 hours, 1e8);
 
         IChainlinkOracle(chainlinkOracle).setTokenData(USDCe, usdcData);
 
@@ -89,9 +90,34 @@ contract Test_FetchPrice is SPAOracleTest {
         assertEq(precision, SPA_PRICE_PRECISION);
         assertGt(price, 0);
     }
+
+    function testFuzz_fetchPrice_when_period_value_below_minTwapPeriod(uint256 period) public {
+        // this test is to make sure that even if the twap period value is less than MIN_TWAP_PERIOD (10 mins)
+        // we still get the price based on MIN_TWAP_PERIOD (10 mins)
+        vm.assume(period < 10 minutes);
+        address UNISWAP_UTILS = spaOracle.UNISWAP_UTILS();
+        vm.mockCall(
+            UNISWAP_UTILS,
+            abi.encodeWithSignature("getOldestObservationSecondsAgo(address)", spaOracle.pool()),
+            abi.encode(period)
+        );
+        (uint256 price0, uint256 precision0) = spaOracle.getPrice();
+
+        vm.mockCall(
+            UNISWAP_UTILS,
+            abi.encodeWithSignature("getOldestObservationSecondsAgo(address)", spaOracle.pool()),
+            abi.encode(10 minutes)
+        );
+        (uint256 price1, uint256 precision1) = spaOracle.getPrice();
+
+        assertEq(price0, price1);
+        assertEq(precision0, precision1);
+    }
 }
 
 contract Test_setUniMAPriceData is SPAOracleTest {
+    error InvalidMaPeriod();
+
     function test_revertsWhen_notOwner() public {
         vm.expectRevert("Ownable: caller is not the owner");
         spaOracle.setUniMAPriceData(SPA, USDCe, 10000, 600);
@@ -106,6 +132,14 @@ contract Test_setUniMAPriceData is SPAOracleTest {
         vm.expectEmit(true, true, true, true);
         emit UniMAPriceDataChanged(USDCe, 10000, 700);
         spaOracle.setUniMAPriceData(SPA, USDCe, 10000, 700);
+    }
+
+    function test_revertsWhen_invalidMaPeriod() public useKnownActor(USDS_OWNER) {
+        vm.expectRevert(abi.encodeWithSelector(InvalidMaPeriod.selector));
+        spaOracle.setUniMAPriceData(SPA, USDCe, 10000, 599);
+
+        vm.expectRevert(abi.encodeWithSelector(InvalidMaPeriod.selector));
+        spaOracle.setUniMAPriceData(SPA, USDCe, 10000, 7201);
     }
 }
 

@@ -6,7 +6,7 @@ import {IUniswapV3Factory} from "@uniswap/v3-core/contracts/interfaces/IUniswapV
 import {BaseUniOracleTest} from "./SPAOracle.t.sol";
 
 abstract contract USDsOracleTest is BaseUniOracleTest {
-    uint24 public constant FEE_TIER = 10000;
+    uint24 public constant FEE_TIER = 500;
     uint32 public constant MA_PERIOD = 600;
     uint128 public constant USDS_PRICE_PRECISION = 1e8;
 
@@ -31,5 +31,28 @@ contract Test_FetchPrice is USDsOracleTest {
         (uint256 price, uint256 precision) = usdsOracle.getPrice();
         assertEq(precision, USDS_PRICE_PRECISION);
         assertGt(price, 0);
+    }
+
+    function testFuzz_fetchPrice_when_period_value_below_minTwapPeriod(uint256 period) public {
+        // this test is to make sure that even if the twap period value is less than MIN_TWAP_PERIOD (10 mins)
+        // we still get the price based on MIN_TWAP_PERIOD (10 mins)
+        vm.assume(period < 10 minutes);
+        address UNISWAP_UTILS = usdsOracle.UNISWAP_UTILS();
+        vm.mockCall(
+            UNISWAP_UTILS,
+            abi.encodeWithSignature("getOldestObservationSecondsAgo(address)", usdsOracle.pool()),
+            abi.encode(period)
+        );
+        (uint256 price0, uint256 precision0) = usdsOracle.getPrice();
+
+        vm.mockCall(
+            UNISWAP_UTILS,
+            abi.encodeWithSignature("getOldestObservationSecondsAgo(address)", usdsOracle.pool()),
+            abi.encode(10 minutes)
+        );
+        (uint256 price1, uint256 precision1) = usdsOracle.getPrice();
+
+        assertEq(price0, price1);
+        assertEq(precision0, precision1);
     }
 }
