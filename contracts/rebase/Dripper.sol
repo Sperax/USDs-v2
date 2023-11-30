@@ -62,8 +62,6 @@ contract Dripper is IDripper, Ownable {
         if (_amount != 0) {
             IERC20(Helpers.USDS).safeTransferFrom(msg.sender, address(this), _amount);
             dripRate = IERC20(Helpers.USDS).balanceOf(address(this)) / dripDuration;
-        } else {
-            revert Helpers.InvalidAmount();
         }
     }
 

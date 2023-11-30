@@ -232,7 +232,9 @@ contract YieldReserve is ReentrancyGuard, Ownable {
 
         emit USDsSent(toBuyback, toDripper);
         IERC20(Helpers.USDS).safeTransfer(buyback, toBuyback);
-        IERC20(Helpers.USDS).forceApprove(dripper, toDripper);
-        IDripper(dripper).addUSDs(toDripper);
+        if (toDripper != 0) {
+            IERC20(Helpers.USDS).forceApprove(dripper, toDripper);
+            IDripper(dripper).addUSDs(toDripper);
+        }
     }
 }
