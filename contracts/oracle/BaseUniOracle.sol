@@ -25,6 +25,7 @@ interface IMasterPriceOracle {
 abstract contract BaseUniOracle is Ownable {
     address public constant UNISWAP_FACTORY = 0x1F98431c8aD98523631AE4a59f267346ea31F984;
     address public constant UNISWAP_UTILS = 0xd2Aa19D3B7f8cdb1ea5B782c5647542055af415e;
+    uint32 internal constant MIN_TWAP_PERIOD = 10 minutes;
     uint256 internal constant MA_PERIOD_LOWER_BOUND = 10 minutes;
     uint256 internal constant MA_PERIOD_UPPER_BOUND = 2 hours;
 
@@ -105,6 +106,13 @@ abstract contract BaseUniOracle is Ownable {
         // get MA tick
         uint32 oldestObservationSecondsAgo = IUniswapUtils(UNISWAP_UTILS).getOldestObservationSecondsAgo(pool);
         uint32 period = maPeriod < oldestObservationSecondsAgo ? maPeriod : oldestObservationSecondsAgo;
+
+        // if the period value is less than the MIN_TWAP_PERIOD (10 minutes), set period value to MIN_TWAP_PERIOD (10 minutes)
+        // this is done to make sure the period value is not too small as it is prone to manipulations
+        if (period < MIN_TWAP_PERIOD) {
+            period = MIN_TWAP_PERIOD;
+        }
+
         (int24 timeWeightedAverageTick,) = IUniswapUtils(UNISWAP_UTILS).consult(pool, period);
         // get MA price from MA tick
         uint256 tokenBPerTokenA =
