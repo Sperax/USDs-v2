@@ -613,3 +613,38 @@ contract EdgeCases is StargateStrategyTest {
         assertTrue(strategy.checkBalance(data.asset) < initialBal);
     }
 }
+
+contract TestRecoverERC20 is StargateStrategyTest {
+    address token;
+    address receiver;
+    uint256 amount;
+
+    function setUp() public override {
+        super.setUp();
+        vm.startPrank(USDS_OWNER);
+        _initializeStrategy();
+        _createDeposits();
+        vm.stopPrank();
+        token = DAI;
+        receiver = actors[1];
+        amount = 1e22;
+    }
+
+    function test_RevertsWhen_CallerIsNotOwner() public {
+        vm.expectRevert("Ownable: caller is not the owner");
+        strategy.recoverERC20(token, receiver, amount);
+    }
+
+    function test_RevertsWhen_AmountMoreThanBalance() public useKnownActor(USDS_OWNER) {
+        vm.expectRevert();
+        strategy.recoverERC20(token, receiver, amount);
+    }
+
+    function test_RecoverERC20() public useKnownActor(USDS_OWNER) {
+        deal(token, address(strategy), amount);
+        uint256 balBefore = ERC20(token).balanceOf(receiver);
+        strategy.recoverERC20(token, receiver, amount);
+        uint256 balAfter = ERC20(token).balanceOf(receiver);
+        assertEq(balAfter - balBefore, amount);
+    }
+}
