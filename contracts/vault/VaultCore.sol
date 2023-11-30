@@ -116,7 +116,7 @@ contract VaultCore is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradea
         if (!ICollateralManager(collateralManager).validateAllocation(_collateral, _strategy, _amount)) {
             revert AllocationNotAllowed(_collateral, _strategy, _amount);
         }
-        IERC20Upgradeable(_collateral).safeIncreaseAllowance(_strategy, _amount);
+        IERC20Upgradeable(_collateral).forceApprove(_strategy, _amount);
         IStrategy(_strategy).deposit(_collateral, _amount);
         emit Allocated(_collateral, _strategy, _amount);
     }
