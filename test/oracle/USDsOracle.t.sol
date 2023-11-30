@@ -6,7 +6,7 @@ import {IUniswapV3Factory} from "@uniswap/v3-core/contracts/interfaces/IUniswapV
 import {BaseUniOracleTest} from "./SPAOracle.t.sol";
 
 abstract contract USDsOracleTest is BaseUniOracleTest {
-    uint24 public constant FEE_TIER = 10000;
+    uint24 public constant FEE_TIER = 500;
     uint32 public constant MA_PERIOD = 600;
     uint128 public constant USDS_PRICE_PRECISION = 1e8;
 
