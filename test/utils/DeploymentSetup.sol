@@ -153,13 +153,13 @@ abstract contract PreMigrationSetup is Setup {
     function deployAndConfigureChainlink() private {
         ChainlinkOracle.SetupTokenData[] memory chainlinkFeeds = new ChainlinkOracle.SetupTokenData[](3);
         chainlinkFeeds[0] = ChainlinkOracle.SetupTokenData(
-            USDCe, ChainlinkOracle.TokenData(0x50834F3163758fcC1Df9973b6e91f0F0F0434aD3, 1e8)
+            USDCe, ChainlinkOracle.TokenData(0x50834F3163758fcC1Df9973b6e91f0F0F0434aD3, 25 hours, 1e8)
         );
         chainlinkFeeds[1] = ChainlinkOracle.SetupTokenData(
-            FRAX, ChainlinkOracle.TokenData(0x0809E3d38d1B4214958faf06D8b1B1a2b73f2ab8, 1e8)
+            FRAX, ChainlinkOracle.TokenData(0x0809E3d38d1B4214958faf06D8b1B1a2b73f2ab8, 25 hours, 1e8)
         );
         chainlinkFeeds[2] = ChainlinkOracle.SetupTokenData(
-            DAI, ChainlinkOracle.TokenData(0xc5C8E77B397E531B8EC06BFb0048328B30E9eCfB, 1e8)
+            DAI, ChainlinkOracle.TokenData(0xc5C8E77B397E531B8EC06BFb0048328B30E9eCfB, 25 hours, 1e8)
         );
         chainlinkOracle = new ChainlinkOracle(chainlinkFeeds);
     }

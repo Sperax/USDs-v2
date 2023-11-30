@@ -58,7 +58,7 @@ contract CompoundStrategy is InitializableAbstractStrategy {
         allocatedAmount[_asset] += _amount;
 
         IERC20(_asset).safeTransferFrom(msg.sender, address(this), _amount);
-        IERC20(_asset).safeApprove(lpToken, _amount);
+        IERC20(_asset).forceApprove(lpToken, _amount);
 
         // Supply Compound Strategy.
         IComet(lpToken).supply(_asset, _amount);
