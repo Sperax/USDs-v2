@@ -7,6 +7,7 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {IVault} from "../interfaces/IVault.sol";
 import {IOracle} from "../interfaces/IOracle.sol";
 import {Helpers} from "../libraries/Helpers.sol";
+import {IDripper} from "../interfaces/IDripper.sol";
 
 /// @title YieldReserve of USDs protocol
 /// @notice The contract allows users to swap the supported stable coins against yield earned by USDs protocol
@@ -231,6 +232,7 @@ contract YieldReserve is ReentrancyGuard, Ownable {
 
         emit USDsSent(toBuyback, toDripper);
         IERC20(Helpers.USDS).safeTransfer(buyback, toBuyback);
-        IERC20(Helpers.USDS).safeTransfer(dripper, toDripper);
+        IERC20(Helpers.USDS).forceApprove(dripper, toDripper);
+        IDripper(dripper).addUSDs(toDripper);
     }
 }
