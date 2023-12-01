@@ -311,7 +311,10 @@ contract SwapTest is YieldReserveSetup {
         yieldReserve.toggleSrcTokenPermission(USDS, true);
         yieldReserve.toggleDstTokenPermission(USDCe, true);
 
+        uint256 initialBal = IERC20(USDCe).balanceOf(currentActor);
+        uint256 expectedAmt = yieldReserve.getTokenBForTokenA(USDS, USDCe, amt * USDsPrecision);
         yieldReserve.swap(USDS, USDCe, amt * USDsPrecision, 0);
+        assertEq(IERC20(USDCe).balanceOf(currentActor), initialBal + expectedAmt);
     }
 
     function test_swap_samePrecision() public useKnownActor(USDS_OWNER) {
@@ -320,8 +323,10 @@ contract SwapTest is YieldReserveSetup {
 
         yieldReserve.toggleSrcTokenPermission(USDS, true);
         yieldReserve.toggleDstTokenPermission(DAI, true);
-
+        uint256 initialBal = IERC20(DAI).balanceOf(currentActor);
+        uint256 expectedAmt = yieldReserve.getTokenBForTokenA(USDS, DAI, amt * USDsPrecision);
         yieldReserve.swap(USDS, DAI, amt * USDsPrecision, 0);
+        assertEq(IERC20(DAI).balanceOf(currentActor), initialBal + expectedAmt);
     }
 
     function test_swap_non_USDS() public useKnownActor(USDS_OWNER) {
