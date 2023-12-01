@@ -7,7 +7,7 @@ import {BaseTest} from "../utils/BaseTest.sol";
 contract ChainlinkOracleTest is BaseTest {
     ChainlinkOracle public chainlinkOracle;
 
-    event TokenDataChanged(address indexed tokenAddr, address priceFeed, uint256 pricePrecision);
+    event TokenDataChanged(address indexed tokenAddr, address priceFeed, uint256 pricePrecision, uint96 timeout);
 
     function setUp() public virtual override {
         super.setUp();
@@ -19,13 +19,13 @@ contract ChainlinkOracleTest is BaseTest {
     function _getTokenData() internal pure returns (ChainlinkOracle.SetupTokenData[] memory) {
         ChainlinkOracle.SetupTokenData[] memory chainlinkFeeds = new ChainlinkOracle.SetupTokenData[](3);
         chainlinkFeeds[0] = ChainlinkOracle.SetupTokenData(
-            USDCe, ChainlinkOracle.TokenData(0x50834F3163758fcC1Df9973b6e91f0F0F0434aD3, 1e8)
+            USDCe, ChainlinkOracle.TokenData(0x50834F3163758fcC1Df9973b6e91f0F0F0434aD3, 25 hours, 1e8)
         );
         chainlinkFeeds[1] = ChainlinkOracle.SetupTokenData(
-            FRAX, ChainlinkOracle.TokenData(0x0809E3d38d1B4214958faf06D8b1B1a2b73f2ab8, 1e8)
+            FRAX, ChainlinkOracle.TokenData(0x0809E3d38d1B4214958faf06D8b1B1a2b73f2ab8, 25 hours, 1e8)
         );
         chainlinkFeeds[2] = ChainlinkOracle.SetupTokenData(
-            DAI, ChainlinkOracle.TokenData(0xc5C8E77B397E531B8EC06BFb0048328B30E9eCfB, 1e8)
+            DAI, ChainlinkOracle.TokenData(0xc5C8E77B397E531B8EC06BFb0048328B30E9eCfB, 25 hours, 1e8)
         );
         return chainlinkFeeds;
     }
@@ -38,15 +38,25 @@ contract Test_SetTokenData is ChainlinkOracleTest {
         chainlinkOracle.setTokenData(tokenData.token, tokenData.data);
     }
 
+    function test_revertsWhen_InvalidPrecision() public useKnownActor(USDS_OWNER) {
+        ChainlinkOracle.SetupTokenData memory tokenData = _getTokenData()[0];
+        tokenData.data.pricePrecision = 1e9;
+        vm.expectRevert(abi.encodeWithSelector(ChainlinkOracle.InvalidPricePrecision.selector));
+        chainlinkOracle.setTokenData(tokenData.token, tokenData.data);
+    }
+
     function test_setTokenData() public useKnownActor(USDS_OWNER) {
         ChainlinkOracle.SetupTokenData memory tokenData = _getTokenData()[0];
         vm.expectEmit(true, true, true, true);
-        emit TokenDataChanged(tokenData.token, tokenData.data.priceFeed, tokenData.data.pricePrecision);
+        emit TokenDataChanged(
+            tokenData.token, tokenData.data.priceFeed, tokenData.data.pricePrecision, tokenData.data.timeout
+        );
         chainlinkOracle.setTokenData(tokenData.token, tokenData.data);
 
-        (address priceFeed, uint256 precision) = chainlinkOracle.getTokenData(tokenData.token);
+        (address priceFeed, uint96 timeout, uint256 precision) = chainlinkOracle.getTokenData(tokenData.token);
         assertEq(priceFeed, tokenData.data.priceFeed);
         assertEq(precision, tokenData.data.pricePrecision);
+        assertEq(timeout, tokenData.data.timeout);
     }
 }
 
@@ -93,6 +103,41 @@ contract Test_GetTokenPrice is ChainlinkOracleTest {
         vm.expectRevert(
             abi.encodeWithSelector(ChainlinkOracle.GracePeriodNotPassed.selector, block.timestamp - startedAt)
         );
+        chainlinkOracle.getTokenPrice(USDCe);
+    }
+
+    function test_revertsWhen_roundNotComplete() public {
+        uint256 updatedAt = 0;
+        uint256 price = 100;
+        vm.mockCall(
+            0x50834F3163758fcC1Df9973b6e91f0F0F0434aD3,
+            abi.encodeWithSignature("latestRoundData()"),
+            abi.encode(0, price, 0, updatedAt, 0)
+        );
+        vm.expectRevert(abi.encodeWithSelector(ChainlinkOracle.RoundNotComplete.selector));
+        chainlinkOracle.getTokenPrice(USDCe);
+    }
+
+    function testFuzz_revertsWhen_PriceNegative(int256 price) public {
+        vm.assume(price < 0);
+        uint256 updatedAt = block.timestamp;
+        vm.mockCall(
+            0x50834F3163758fcC1Df9973b6e91f0F0F0434aD3,
+            abi.encodeWithSignature("latestRoundData()"),
+            abi.encode(0, price, 0, updatedAt, 0)
+        );
+        vm.expectRevert(abi.encodeWithSelector(ChainlinkOracle.InvalidPrice.selector));
+        chainlinkOracle.getTokenPrice(USDCe);
+    }
+
+    function test_revertsWhen_stalePrice() public {
+        uint256 updatedAt = block.timestamp - (25 hours + 1 seconds);
+        vm.mockCall(
+            0x50834F3163758fcC1Df9973b6e91f0F0F0434aD3,
+            abi.encodeWithSignature("latestRoundData()"),
+            abi.encode(0, 0, 0, updatedAt, 0)
+        );
+        vm.expectRevert(abi.encodeWithSelector(ChainlinkOracle.StalePrice.selector));
         chainlinkOracle.getTokenPrice(USDCe);
     }
 
