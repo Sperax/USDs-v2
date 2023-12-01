@@ -52,7 +52,7 @@ contract AaveStrategy is InitializableAbstractStrategy {
     }
 
     /// @inheritdoc InitializableAbstractStrategy
-    function deposit(address _asset, uint256 _amount) external override nonReentrant {
+    function deposit(address _asset, uint256 _amount) external override onlyVault nonReentrant {
         if (!supportsCollateral(_asset)) revert CollateralNotSupported(_asset);
         Helpers._isNonZeroAmt(_amount);
         // Following line also doubles as a check that we are depositing
