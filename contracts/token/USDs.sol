@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.16;
+pragma solidity 0.8.19;
 
 import {SafeMathUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/math/SafeMathUpgradeable.sol";
 import {
@@ -59,6 +59,8 @@ contract USDs is ERC20PermitUpgradeable, OwnableUpgradeable, ReentrancyGuardUpgr
     event TotalSupplyUpdated(uint256 totalSupply, uint256 rebasingCredits, uint256 rebasingCreditsPerToken);
     event Paused(bool isPaused);
     event VaultUpdated(address newVault);
+    event RebaseOptIn(address indexed account);
+    event RebaseOptOut(address indexed account);
 
     error CallerNotVault(address caller);
     error ContractPaused();
@@ -79,6 +81,17 @@ contract USDs is ERC20PermitUpgradeable, OwnableUpgradeable, ReentrancyGuardUpgr
 
     constructor() {
         _disableInitializers();
+    }
+
+    function initialize(string memory _nameArg, string memory _symbolArg, address _vaultAddress) external initializer {
+        Helpers._isNonZeroAddr(_vaultAddress);
+        __ERC20_init(_nameArg, _symbolArg);
+        __ERC20Permit_init(_nameArg);
+        __Ownable_init();
+        __ReentrancyGuard_init();
+
+        rebasingCreditsPerToken = 1e27;
+        vault = _vaultAddress;
     }
 
     /// @notice Mints new USDs tokens, increasing totalSupply.
@@ -392,6 +405,8 @@ contract USDs is ERC20PermitUpgradeable, OwnableUpgradeable, ReentrancyGuardUpgr
 
         // Delete any fixed credits per token
         delete nonRebasingCreditsPerToken[_account];
+
+        emit RebaseOptIn(_account);
     }
 
     /// @notice Remove a contract address to the non rebasing exception list.
@@ -412,6 +427,8 @@ contract USDs is ERC20PermitUpgradeable, OwnableUpgradeable, ReentrancyGuardUpgr
 
         // Mark explicitly opted out of rebasing
         rebaseState[_account] = RebaseOptions.OptOut;
+
+        emit RebaseOptOut(_account);
     }
 
     /// @notice Is an account using rebasing accounting or non-rebasing accounting?

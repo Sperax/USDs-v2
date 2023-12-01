@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.16;
+pragma solidity 0.8.19;
 
 import {BaseStrategy} from "./BaseStrategy.t.sol";
 import {BaseTest} from "../utils/BaseTest.sol";
@@ -27,6 +27,8 @@ contract AaveStrategyTest is BaseStrategy, BaseTest {
     address internal proxyAddress;
     address internal ASSET;
     address internal P_TOKEN;
+
+    error NoRewardIncentive();
 
     function setUp() public virtual override {
         super.setUp();
@@ -298,6 +300,11 @@ contract WithdrawTest is AaveStrategyTest {
         strategy.withdraw(address(0), ASSET, 1);
     }
 
+    function test_RevertWhen_CollateralNotSupported() public useKnownActor(VAULT) {
+        vm.expectRevert(abi.encodeWithSelector(CollateralNotSupported.selector, DUMMY_ADDRESS));
+        strategy.withdraw(VAULT, DUMMY_ADDRESS, 1); // invalid asset
+    }
+
     function test_RevertWhen_CallerNotVault() public useActor(0) {
         vm.expectRevert(abi.encodeWithSelector(CallerNotVault.selector, actors[0]));
         strategy.withdraw(VAULT, ASSET, 1);
@@ -377,7 +384,7 @@ contract MiscellaneousTest is AaveStrategyTest {
     }
 
     function test_CollectReward() public {
-        vm.expectRevert("No reward incentive for AAVE");
+        vm.expectRevert(abi.encodeWithSelector(NoRewardIncentive.selector));
         strategy.collectReward();
     }
 

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.16;
+pragma solidity 0.8.19;
 
 import {BaseStrategy} from "./BaseStrategy.t.sol";
 import {BaseTest} from "../utils/BaseTest.sol";
@@ -13,6 +13,8 @@ import {
     IStargatePool
 } from "../../contracts/strategies/stargate/StargateStrategy.sol";
 import {VmSafe} from "forge-std/Vm.sol";
+
+address constant DUMMY_ADDRESS = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
 
 contract StargateStrategyTest is BaseStrategy, BaseTest {
     struct AssetData {
@@ -337,6 +339,9 @@ contract Deposit is StargateStrategyTest {
                 }
             }
             assertEq(strategy.checkBalance(assetData[i].asset), amt);
+            uint256 _bal = ERC20(assetData[i].asset).balanceOf(address(strategy));
+            emit log_named_uint("Strategy Balance", _bal);
+            assertApproxEqAbs(ERC20(assetData[i].asset).balanceOf(address(strategy)), 0, 1);
         }
     }
 
@@ -525,6 +530,11 @@ contract Withdraw is StargateStrategyTest {
         strategy.withdraw(address(0), assetData[0].asset, 1);
     }
 
+    function test_RevertWhen_CollateralNotSupported() public useKnownActor(VAULT) {
+        vm.expectRevert(abi.encodeWithSelector(CollateralNotSupported.selector, DUMMY_ADDRESS));
+        strategy.withdraw(VAULT, DUMMY_ADDRESS, 1); // invalid asset
+    }
+
     function test_WithdrawToVault() public useKnownActor(USDS_OWNER) {
         for (uint8 i = 0; i < assetData.length; ++i) {
             ERC20 collateral = ERC20(assetData[i].asset);
@@ -608,5 +618,40 @@ contract EdgeCases is StargateStrategyTest {
         vm.mockCall(data.pToken, abi.encodeWithSignature("totalLiquidity()"), abi.encode(initialTotalLiq / 2));
 
         assertTrue(strategy.checkBalance(data.asset) < initialBal);
+    }
+}
+
+contract TestRecoverERC20 is StargateStrategyTest {
+    address token;
+    address receiver;
+    uint256 amount;
+
+    function setUp() public override {
+        super.setUp();
+        vm.startPrank(USDS_OWNER);
+        _initializeStrategy();
+        _createDeposits();
+        vm.stopPrank();
+        token = DAI;
+        receiver = actors[1];
+        amount = 1e22;
+    }
+
+    function test_RevertsWhen_CallerIsNotOwner() public {
+        vm.expectRevert("Ownable: caller is not the owner");
+        strategy.recoverERC20(token, receiver, amount);
+    }
+
+    function test_RevertsWhen_AmountMoreThanBalance() public useKnownActor(USDS_OWNER) {
+        vm.expectRevert();
+        strategy.recoverERC20(token, receiver, amount);
+    }
+
+    function test_RecoverERC20() public useKnownActor(USDS_OWNER) {
+        deal(token, address(strategy), amount);
+        uint256 balBefore = ERC20(token).balanceOf(receiver);
+        strategy.recoverERC20(token, receiver, amount);
+        uint256 balAfter = ERC20(token).balanceOf(receiver);
+        assertEq(balAfter - balBefore, amount);
     }
 }

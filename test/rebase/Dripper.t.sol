@@ -1,4 +1,4 @@
-pragma solidity 0.8.16;
+pragma solidity 0.8.19;
 
 import {BaseTest} from ".././utils/BaseTest.sol";
 import {Dripper, Helpers} from "../../contracts/rebase/Dripper.sol";
@@ -92,7 +92,7 @@ contract RecoverTokens is DripperTest {
     }
 
     function test_RecoverTokens(uint128 amount) external useKnownActor(USDS_OWNER) {
-        address[5] memory assets = [USDCe, USDT, VST, FRAX, DAI];
+        address[4] memory assets = [USDCe, USDT, FRAX, DAI];
         vm.assume(amount != 0);
         for (uint8 i = 0; i < assets.length; i++) {
             deal(address(assets[i]), address(dripper), amount, true);
@@ -110,11 +110,9 @@ contract Collect is DripperTest {
     }
 
     function test_CollectDripper() external useKnownActor(WHALE_USDS) {
-        IERC20(USDS).approve(WHALE_USDS, 100000 * 10 ** 18);
-        IERC20(USDS).transfer(address(dripper), 10000 * 10 ** 18);
+        IERC20(USDS).approve(address(dripper), 100000 * 10 ** 18);
+        dripper.addUSDs(10000 * 10 ** 18);
         // deal(USDS, address(dripper), 1, true);
-        skip(86400);
-        dripper.collect();
         skip(86400 * 14);
         vm.expectEmit(true, true, false, true);
         emit Collected(10000 * 10 ** 18);

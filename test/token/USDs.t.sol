@@ -1,16 +1,15 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.16;
+pragma solidity 0.8.19;
 
 import {BaseTest} from "../utils/BaseTest.sol";
 import {UpgradeUtil} from "../utils/UpgradeUtil.sol";
-import {USDs} from "../../contracts/token/USDs.sol";
+import {USDs, Helpers} from "../../contracts/token/USDs.sol";
 import {IERC20, ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 import {ITransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import {SafeMathUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/math/SafeMathUpgradeable.sol";
 import {StableMath} from "../../contracts/libraries/StableMath.sol";
 import {IUSDs} from "../../contracts/interfaces/IUSDs.sol";
-import "forge-std/console.sol";
 
 contract USDsUpgradabilityTest is BaseTest {
     USDs internal usds;
@@ -52,6 +51,9 @@ contract USDsTest is BaseTest {
     address internal USER1;
     address internal USER2;
 
+    event RebaseOptIn(address indexed account);
+    event RebaseOptOut(address indexed account);
+
     modifier testTransfer(uint256 amountToTransfer) {
         uint256 prevBalUser1 = usds.balanceOf(USER1);
         uint256 prevBalUser2 = usds.balanceOf(USER2);
@@ -67,6 +69,7 @@ contract USDsTest is BaseTest {
         setArbitrumFork();
         USER1 = actors[0];
         USER2 = actors[1];
+        upgradeUtil = new UpgradeUtil();
 
         USDsPrecision = 10 ** ERC20(USDS).decimals();
 
@@ -83,6 +86,42 @@ contract USDsTest is BaseTest {
     function test_change_vault() public useKnownActor(USDS_OWNER) {
         usds.updateVault(USER1);
         assertEq(USER1, usds.vault());
+    }
+}
+
+contract TestInitialize is USDsTest {
+    USDs internal newUsds;
+    string internal tokenName = "TestToken";
+    string internal tokenSymbol = "TT";
+    uint256 internal EXPECTED_REBASING_CREDITS_PER_TOKEN = 1e27;
+
+    error InvalidAddress();
+
+    function setUp() public override {
+        super.setUp();
+
+        USDs usdsImpl = new USDs();
+        newUsds = USDs(upgradeUtil.deployErc1967Proxy(address(usdsImpl)));
+    }
+
+    function test_revertWhen_InvalidAddress() public useKnownActor(USDS_OWNER) {
+        vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAddress.selector));
+        newUsds.initialize(tokenName, tokenSymbol, address(0));
+    }
+
+    function test_Initialize() public useKnownActor(USER1) {
+        newUsds.initialize(tokenName, tokenSymbol, VAULT);
+
+        assertEq(tokenName, newUsds.name());
+        assertEq(tokenSymbol, newUsds.symbol());
+        assertEq(VAULT, newUsds.vault());
+        assertEq(EXPECTED_REBASING_CREDITS_PER_TOKEN, newUsds.rebasingCreditsPerToken());
+        assertEq(currentActor, newUsds.owner());
+    }
+
+    function test_revertWhen_AlreadyInitialized() public useKnownActor(USDS_OWNER) {
+        vm.expectRevert("Initializable: contract is already initialized");
+        usds.initialize(tokenName, tokenSymbol, VAULT);
     }
 }
 
@@ -347,7 +386,7 @@ contract TestBurn is USDsTest {
         usds.burn(amount);
 
         // account for mathematical
-        assertApproxEqAbs(amount - bal, usds.balanceOf(VAULT), 1);
+        assertApproxEqAbs(bal - amount, usds.balanceOf(VAULT), 1);
     }
 
     function test_burn_case3() public useKnownActor(USDS_OWNER) {
@@ -379,6 +418,8 @@ contract TestRebase is USDsTest {
     }
 
     function test_rebaseOptIn() public useKnownActor(USDS_OWNER) {
+        vm.expectEmit(address(usds));
+        emit RebaseOptIn(USDS_OWNER);
         usds.rebaseOptIn();
 
         assertEq(usds.nonRebasingCreditsPerToken(USDS_OWNER), 0);
@@ -392,6 +433,9 @@ contract TestRebase is USDsTest {
 
     function test_rebaseOptOut() public useKnownActor(USDS_OWNER) {
         usds.rebaseOptIn();
+
+        vm.expectEmit(address(usds));
+        emit RebaseOptOut(USDS_OWNER);
         usds.rebaseOptOut();
 
         assertEq(usds.nonRebasingCreditsPerToken(USDS_OWNER), 1);

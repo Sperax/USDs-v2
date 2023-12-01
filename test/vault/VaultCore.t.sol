@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.16;
+pragma solidity 0.8.19;
 
 import {VaultCore, Helpers} from "../../contracts/vault/VaultCore.sol";
 import {PreMigrationSetup} from "../utils/DeploymentSetup.sol";
@@ -83,6 +83,8 @@ contract VaultCoreTest is PreMigrationSetup {
             //     _strategy.checkAvailableBalance(_collateral) >= _strategyAmt,
             //     "Insufficient collateral"
             // );
+        } else {
+            _vaultAmt = _calculatedCollateralAmt;
         }
     }
 }
@@ -472,8 +474,12 @@ contract TestRebase is VaultCoreTest {
     function test_Rebase() public {
         vm.startPrank(VAULT);
         IRebaseManager(REBASE_MANAGER).fetchRebaseAmt();
+        IUSDs(USDS).mint(actors[1], 1e22);
+        changePrank(actors[1]);
+        ERC20(USDS).approve(DRIPPER, 1e22);
+        IDripper(DRIPPER).addUSDs(1e22);
+        changePrank(VAULT);
         skip(1 days);
-        IUSDs(USDS).mint(DRIPPER, 1e22);
         IDripper(DRIPPER).collect();
         skip(1 days);
         (uint256 min, uint256 max) = IRebaseManager(REBASE_MANAGER).getMinAndMaxRebaseAmt();
@@ -632,6 +638,24 @@ contract TestRedeemView is VaultCoreTest {
         assertEq(_feeAmt, feeAmt);
         assertEq(_vaultAmt, vaultAmt);
         assertEq(_strategyAmt, strategyAmt);
+    }
+
+    function test_RedeemView_valueLessThanVaultBal() public {
+        deal(USDCe, VAULT, (usdsAmt + 100e18) / 1e12);
+        (
+            uint256 _calculatedCollateralAmt,
+            uint256 _usdsBurnAmt,
+            uint256 _feeAmt,
+            uint256 _vaultAmt,
+            uint256 _strategyAmt
+        ) = _redeemViewTest(usdsAmt, address(0));
+        (uint256 calculatedCollateralAmt, uint256 usdsBurnAmt, uint256 feeAmt, uint256 vaultAmt, uint256 strategyAmt) =
+            IVault(VAULT).redeemView(_collateral, usdsAmt);
+        assertEq(_calculatedCollateralAmt, calculatedCollateralAmt);
+        assertEq(_usdsBurnAmt, usdsBurnAmt);
+        assertEq(_feeAmt, feeAmt);
+        assertEq(_vaultAmt, calculatedCollateralAmt);
+        assertEq(_strategyAmt, 0);
     }
 
     function test_RedeemView_RevertsIf_InvalidStrategy() public {
