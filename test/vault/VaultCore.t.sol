@@ -83,6 +83,8 @@ contract VaultCoreTest is PreMigrationSetup {
             //     _strategy.checkAvailableBalance(_collateral) >= _strategyAmt,
             //     "Insufficient collateral"
             // );
+        } else {
+            _vaultAmt = _calculatedCollateralAmt;
         }
     }
 }
@@ -636,6 +638,24 @@ contract TestRedeemView is VaultCoreTest {
         assertEq(_feeAmt, feeAmt);
         assertEq(_vaultAmt, vaultAmt);
         assertEq(_strategyAmt, strategyAmt);
+    }
+
+    function test_RedeemView_valueLessThanVaultBal() public {
+        deal(USDCe, VAULT, (usdsAmt + 100e18) / 1e12);
+        (
+            uint256 _calculatedCollateralAmt,
+            uint256 _usdsBurnAmt,
+            uint256 _feeAmt,
+            uint256 _vaultAmt,
+            uint256 _strategyAmt
+        ) = _redeemViewTest(usdsAmt, address(0));
+        (uint256 calculatedCollateralAmt, uint256 usdsBurnAmt, uint256 feeAmt, uint256 vaultAmt, uint256 strategyAmt) =
+            IVault(VAULT).redeemView(_collateral, usdsAmt);
+        assertEq(_calculatedCollateralAmt, calculatedCollateralAmt);
+        assertEq(_usdsBurnAmt, usdsBurnAmt);
+        assertEq(_feeAmt, feeAmt);
+        assertEq(_vaultAmt, calculatedCollateralAmt);
+        assertEq(_strategyAmt, 0);
     }
 
     function test_RedeemView_RevertsIf_InvalidStrategy() public {
