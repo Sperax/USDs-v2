@@ -59,6 +59,8 @@ contract USDs is ERC20PermitUpgradeable, OwnableUpgradeable, ReentrancyGuardUpgr
     event TotalSupplyUpdated(uint256 totalSupply, uint256 rebasingCredits, uint256 rebasingCreditsPerToken);
     event Paused(bool isPaused);
     event VaultUpdated(address newVault);
+    event RebaseOptIn(address indexed account);
+    event RebaseOptOut(address indexed account);
 
     error CallerNotVault(address caller);
     error ContractPaused();
@@ -403,6 +405,8 @@ contract USDs is ERC20PermitUpgradeable, OwnableUpgradeable, ReentrancyGuardUpgr
 
         // Delete any fixed credits per token
         delete nonRebasingCreditsPerToken[_account];
+
+        emit RebaseOptIn(_account);
     }
 
     /// @notice Remove a contract address to the non rebasing exception list.
@@ -423,6 +427,8 @@ contract USDs is ERC20PermitUpgradeable, OwnableUpgradeable, ReentrancyGuardUpgr
 
         // Mark explicitly opted out of rebasing
         rebaseState[_account] = RebaseOptions.OptOut;
+
+        emit RebaseOptOut(_account);
     }
 
     /// @notice Is an account using rebasing accounting or non-rebasing accounting?

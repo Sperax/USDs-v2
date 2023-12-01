@@ -52,7 +52,7 @@ contract AaveStrategy is InitializableAbstractStrategy {
     }
 
     /// @inheritdoc InitializableAbstractStrategy
-    function deposit(address _asset, uint256 _amount) external override nonReentrant {
+    function deposit(address _asset, uint256 _amount) external override onlyVault nonReentrant {
         if (!supportsCollateral(_asset)) revert CollateralNotSupported(_asset);
         Helpers._isNonZeroAmt(_amount);
         // Following line also doubles as a check that we are depositing
@@ -60,7 +60,7 @@ contract AaveStrategy is InitializableAbstractStrategy {
         allocatedAmount[_asset] += _amount;
 
         IERC20(_asset).safeTransferFrom(msg.sender, address(this), _amount);
-        IERC20(_asset).safeApprove(address(aavePool), _amount);
+        IERC20(_asset).forceApprove(address(aavePool), _amount);
         aavePool.supply(_asset, _amount, address(this), REFERRAL_CODE);
 
         emit Deposit(_asset, _amount);

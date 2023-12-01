@@ -116,7 +116,7 @@ contract VaultCore is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradea
         if (!ICollateralManager(collateralManager).validateAllocation(_collateral, _strategy, _amount)) {
             revert AllocationNotAllowed(_collateral, _strategy, _amount);
         }
-        IERC20Upgradeable(_collateral).safeIncreaseAllowance(_strategy, _amount);
+        IERC20Upgradeable(_collateral).forceApprove(_strategy, _amount);
         IStrategy(_strategy).deposit(_collateral, _amount);
         emit Allocated(_collateral, _strategy, _amount);
     }
@@ -382,8 +382,8 @@ contract VaultCore is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradea
     ///                          based on the price calculation
     /// @return usdsBurnAmt expected amount of USDs to be burnt in the process
     /// @return feeAmt amount of USDs collected as fee for redemption
-    /// @return vaultAmt amount of Collateral released from Vault
-    /// @return strategyAmt amount of Collateral to withdraw from strategy
+    /// @return vaultAmt amount of Collateral to be released from Vault
+    /// @return strategyAmt amount of Collateral to be withdrawn from strategy
     /// @return strategy Strategy to withdraw collateral from
     function _redeemView(address _collateral, uint256 _usdsAmt, address _strategyAddr)
         private
@@ -429,17 +429,18 @@ contract VaultCore is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradea
         vaultAmt = IERC20Upgradeable(_collateral).balanceOf(address(this));
 
         if (calculatedCollateralAmt > vaultAmt) {
+            // @dev Insufficient fund in the vault to support redemption Check in linked strategy
             unchecked {
                 strategyAmt = calculatedCollateralAmt - vaultAmt;
             }
-            // Withdraw from default strategy
             if (_strategyAddr == address(0)) {
+                // Withdraw from default strategy if strategy not specified
                 if (collateralRedeemConfig.defaultStrategy == address(0)) {
                     revert InsufficientCollateral(_collateral, address(0), calculatedCollateralAmt, vaultAmt);
                 }
                 strategy = IStrategy(collateralRedeemConfig.defaultStrategy);
-                // Withdraw from specified strategy
             } else {
+                // Withdraw from specified strategy
                 if (!ICollateralManager(collateralManager).isValidStrategy(_collateral, _strategyAddr)) {
                     revert InvalidStrategy(_collateral, _strategyAddr);
                 }
@@ -451,6 +452,9 @@ contract VaultCore is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradea
                     _collateral, _strategyAddr, calculatedCollateralAmt, vaultAmt + availableBal
                 );
             }
+        } else {
+            // @dev Case where the redemption amount is less <= vaultAmt
+            vaultAmt = calculatedCollateralAmt;
         }
     }
 }
