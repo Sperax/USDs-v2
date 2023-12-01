@@ -91,8 +91,9 @@ contract StargateStrategy is InitializableAbstractStrategy {
         IERC20(_asset).safeTransferFrom(msg.sender, address(this), _amount);
         IERC20(_asset).forceApprove(router, _amount);
 
+        AssetInfo storage asset = assetInfo[_asset];
         // Add liquidity in the stargate pool.
-        IStargateRouter(router).addLiquidity(assetInfo[_asset].pid, _amount, address(this));
+        IStargateRouter(router).addLiquidity(asset.pid, _amount, address(this));
         // Deposit the generated lpToken in the farm.
         // @dev We are assuming that the 100% of lpToken is deposited in the farm.
         uint256 lpTokenBal = IERC20(lpToken).balanceOf(address(this));
@@ -103,10 +104,10 @@ contract StargateStrategy is InitializableAbstractStrategy {
         }
 
         // Update the allocated amount in the strategy
-        assetInfo[_asset].allocatedAmt += depositAmt;
+        asset.allocatedAmt += depositAmt;
 
         IERC20(lpToken).forceApprove(farm, lpTokenBal);
-        ILPStaking(farm).deposit(assetInfo[_asset].rewardPID, lpTokenBal);
+        ILPStaking(farm).deposit(asset.rewardPID, lpTokenBal);
         emit Deposit(_asset, depositAmt);
     }
 
@@ -137,11 +138,12 @@ contract StargateStrategy is InitializableAbstractStrategy {
     /// @param _asset Asset to withdraw
     function emergencyWithdrawToVault(address _asset) external onlyOwner nonReentrant {
         uint256 lpTokenAmt = checkLPTokenBalance(_asset);
+        AssetInfo storage asset = assetInfo[_asset];
         // Withdraw from LPStaking without caring for rewards
-        ILPStaking(farm).emergencyWithdraw(assetInfo[_asset].rewardPID);
-        uint256 amtRecv = IStargateRouter(router).instantRedeemLocal(assetInfo[_asset].pid, lpTokenAmt, vault)
+        ILPStaking(farm).emergencyWithdraw(asset.rewardPID);
+        uint256 amtRecv = IStargateRouter(router).instantRedeemLocal(asset.pid, lpTokenAmt, vault)
             * IStargatePool(assetToPToken[_asset]).convertRate();
-        assetInfo[_asset].allocatedAmt -= amtRecv;
+        asset.allocatedAmt -= amtRecv;
         emit Withdrawal(_asset, amtRecv);
     }
 
@@ -221,18 +223,20 @@ contract StargateStrategy is InitializableAbstractStrategy {
         uint256 lpTokenBal = checkLPTokenBalance(_asset);
 
         uint256 collateralBal = _convertToCollateral(_asset, lpTokenBal);
-        if (collateralBal <= assetInfo[_asset].allocatedAmt) {
+        uint256 allocatedAmt = assetInfo[_asset].allocatedAmt;
+        if (collateralBal <= allocatedAmt) {
             return 0;
         }
-        return collateralBal - assetInfo[_asset].allocatedAmt;
+        return collateralBal - allocatedAmt;
     }
 
     /// @inheritdoc InitializableAbstractStrategy
     function checkBalance(address _asset) public view override returns (uint256) {
         uint256 lpTokenBal = checkLPTokenBalance(_asset);
         uint256 calcCollateralBal = _convertToCollateral(_asset, lpTokenBal);
-        if (assetInfo[_asset].allocatedAmt <= calcCollateralBal) {
-            return assetInfo[_asset].allocatedAmt;
+        uint256 allocatedAmt = assetInfo[_asset].allocatedAmt;
+        if (allocatedAmt <= calcCollateralBal) {
+            return allocatedAmt;
         }
         return calcCollateralBal;
     }
@@ -241,10 +245,11 @@ contract StargateStrategy is InitializableAbstractStrategy {
     function checkAvailableBalance(address _asset) public view override returns (uint256) {
         IStargatePool pool = IStargatePool(assetToPToken[_asset]);
         uint256 availableFunds = _convertToCollateral(_asset, pool.deltaCredit());
-        if (availableFunds <= assetInfo[_asset].allocatedAmt) {
+        uint256 allocatedAmt = assetInfo[_asset].allocatedAmt;
+        if (availableFunds <= allocatedAmt) {
             return availableFunds;
         }
-        return assetInfo[_asset].allocatedAmt;
+        return allocatedAmt;
     }
 
     /// @inheritdoc InitializableAbstractStrategy
@@ -290,16 +295,17 @@ contract StargateStrategy is InitializableAbstractStrategy {
         Helpers._isNonZeroAddr(_recipient);
         Helpers._isNonZeroAmt(_amount, "Must withdraw something");
         uint256 lpTokenAmt = _convertToPToken(_asset, _amount);
-        ILPStaking(farm).withdraw(assetInfo[_asset].rewardPID, lpTokenAmt);
+        AssetInfo storage asset = assetInfo[_asset];
+        ILPStaking(farm).withdraw(asset.rewardPID, lpTokenAmt);
         uint256 minRecvAmt = (_amount * (Helpers.MAX_PERCENTAGE - withdrawSlippage)) / Helpers.MAX_PERCENTAGE;
-        uint256 amtRecv = IStargateRouter(router).instantRedeemLocal(assetInfo[_asset].pid, lpTokenAmt, _recipient)
+        uint256 amtRecv = IStargateRouter(router).instantRedeemLocal(asset.pid, lpTokenAmt, _recipient)
             * IStargatePool(assetToPToken[_asset]).convertRate();
         if (amtRecv < minRecvAmt) {
             revert Helpers.MinSlippageError(amtRecv, minRecvAmt);
         }
 
         if (!_withdrawInterest) {
-            assetInfo[_asset].allocatedAmt -= amtRecv;
+            asset.allocatedAmt -= amtRecv;
             emit Withdrawal(_asset, amtRecv);
         }
 
