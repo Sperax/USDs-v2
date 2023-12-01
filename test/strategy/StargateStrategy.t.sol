@@ -14,6 +14,8 @@ import {
 } from "../../contracts/strategies/stargate/StargateStrategy.sol";
 import {VmSafe} from "forge-std/Vm.sol";
 
+address constant DUMMY_ADDRESS = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
+
 contract StargateStrategyTest is BaseStrategy, BaseTest {
     struct AssetData {
         string name;
@@ -526,6 +528,11 @@ contract Withdraw is StargateStrategyTest {
     function test_withdraw_InvalidAddress() public useKnownActor(VAULT) {
         vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAddress.selector));
         strategy.withdraw(address(0), assetData[0].asset, 1);
+    }
+
+    function test_RevertWhen_CollateralNotSupported() public useKnownActor(VAULT) {
+        vm.expectRevert(abi.encodeWithSelector(CollateralNotSupported.selector, DUMMY_ADDRESS));
+        strategy.withdraw(VAULT, DUMMY_ADDRESS, 1); // invalid asset
     }
 
     function test_WithdrawToVault() public useKnownActor(USDS_OWNER) {

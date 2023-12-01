@@ -159,6 +159,8 @@ contract AaveStrategy is InitializableAbstractStrategy {
     function _withdraw(address _recipient, address _asset, uint256 _amount) internal returns (uint256) {
         Helpers._isNonZeroAddr(_recipient);
         Helpers._isNonZeroAmt(_amount, "Must withdraw something");
+        if (!supportsCollateral(_asset)) revert CollateralNotSupported(_asset);
+
         allocatedAmount[_asset] -= _amount;
         uint256 actual = aavePool.withdraw(_asset, _amount, _recipient);
         if (actual < _amount) revert Helpers.MinSlippageError(actual, _amount);
