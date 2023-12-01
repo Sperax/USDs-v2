@@ -110,11 +110,9 @@ contract Collect is DripperTest {
     }
 
     function test_CollectDripper() external useKnownActor(WHALE_USDS) {
-        IERC20(USDS).approve(WHALE_USDS, 100000 * 10 ** 18);
-        IERC20(USDS).transfer(address(dripper), 10000 * 10 ** 18);
+        IERC20(USDS).approve(address(dripper), 100000 * 10 ** 18);
+        dripper.addUSDs(10000 * 10 ** 18);
         // deal(USDS, address(dripper), 1, true);
-        skip(86400);
-        dripper.collect();
         skip(86400 * 14);
         vm.expectEmit(true, true, false, true);
         emit Collected(10000 * 10 ** 18);
