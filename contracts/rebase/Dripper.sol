@@ -53,6 +53,7 @@ contract Dripper is IDripper, Ownable {
             emit Collected(collectableAmt);
         }
         if (IERC20(Helpers.USDS).balanceOf(address(this)) == 0) dripRate = 0;
+        if (IERC20(Helpers.USDS).balanceOf(address(this)) == 0) dripRate = 0;
         return collectableAmt;
     }
 
