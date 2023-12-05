@@ -25,10 +25,10 @@ contract SPABuybackTestSetup is BaseTest {
 
     modifier mockOracle() {
         vm.mockCall(
-            address(ORACLE), abi.encodeWithSignature("getPrice(address)", USDS), abi.encode(995263234350000000, 1e18)
+            address(ORACLE), abi.encodeWithSignature("getPrice(address)", USDS), abi.encode(995263234350000000, 1 ether)
         );
         vm.mockCall(
-            address(ORACLE), abi.encodeWithSignature("getPrice(address)", SPA), abi.encode(4729390000000000, 1e18)
+            address(ORACLE), abi.encodeWithSignature("getPrice(address)", SPA), abi.encode(4729390000000000, 1 ether)
         );
         _;
         vm.clearMockedCalls();
@@ -102,8 +102,8 @@ contract TestGetters is SPABuybackTestSetup {
 
     function setUp() public override {
         super.setUp();
-        usdsAmount = 100e18;
-        spaIn = 100000e18;
+        usdsAmount = 100 ether;
+        spaIn = 1e5 ether;
     }
 
     function testGetSpaReqdForUSDs() public mockOracle {
@@ -195,7 +195,7 @@ contract TestWithdraw is SPABuybackTestSetup {
     function setUp() public override {
         super.setUp();
         token = USDS;
-        amount = 100e18;
+        amount = 100 ether;
 
         vm.prank(VAULT);
         IUSDs(USDS).mint(address(spaBuyback), amount);
@@ -214,7 +214,7 @@ contract TestWithdraw is SPABuybackTestSetup {
 
     function testCannotWithdrawMoreThanBalance() public useKnownActor(USDS_OWNER) {
         amount = IERC20(USDS).balanceOf(address(spaBuyback));
-        amount = amount + 100e18;
+        amount = amount + 100 ether;
         vm.expectRevert("Transfer greater than balance");
         spaBuyback.withdraw(token, user, amount);
     }
@@ -251,7 +251,7 @@ contract TestBuyUSDs is SPABuybackTestSetup {
 
     function setUp() public override {
         super.setUp();
-        spaIn = 100000e18;
+        spaIn = 1e5 ether;
         minUSDsOut = 1;
     }
 
@@ -262,8 +262,8 @@ contract TestBuyUSDs is SPABuybackTestSetup {
     }
 
     function testCannotIfSlippageMoreThanExpected() public mockOracle {
-        minUSDsOut = spaBuyback.getUsdsOutForSpa(spaIn) + 100e18;
-        vm.expectRevert(abi.encodeWithSelector(Helpers.MinSlippageError.selector, minUSDsOut - 100e18, minUSDsOut));
+        minUSDsOut = spaBuyback.getUsdsOutForSpa(spaIn) + 100 ether;
+        vm.expectRevert(abi.encodeWithSelector(Helpers.MinSlippageError.selector, minUSDsOut - 100 ether, minUSDsOut));
         spaBuyback.buyUSDs(spaIn, minUSDsOut);
     }
 
@@ -276,7 +276,7 @@ contract TestBuyUSDs is SPABuybackTestSetup {
     function testBuyUSDs() public mockOracle {
         minUSDsOut = _calculateUSDsForSpaIn(spaIn);
         vm.prank(VAULT);
-        IUSDs(USDS).mint(address(spaBuyback), minUSDsOut + 10e18);
+        IUSDs(USDS).mint(address(spaBuyback), minUSDsOut + 10 ether);
         spaTotalSupply.balBefore = IERC20(SPA).totalSupply();
         spaBal.balBefore = IERC20(SPA).balanceOf(VESPA_REWARDER);
         deal(SPA, user, spaIn);
@@ -300,13 +300,13 @@ contract TestBuyUSDs is SPABuybackTestSetup {
     // Testing with fuzzing
     function testBuyUSDs(uint256 spaIn, uint256 spaPrice, uint256 usdsPrice) public {
         usdsPrice = bound(usdsPrice, 7e17, 13e17);
-        spaPrice = bound(spaPrice, 1e15, 1e20);
-        spaIn = bound(spaIn, 1e18, 1e27);
-        uint256 swapValue = (spaIn * spaPrice) / 1e18;
-        vm.mockCall(address(ORACLE), abi.encodeWithSignature("getPrice(address)", USDS), abi.encode(usdsPrice, 1e18));
-        vm.mockCall(address(ORACLE), abi.encodeWithSignature("getPrice(address)", SPA), abi.encode(spaPrice, 1e18));
+        spaPrice = bound(spaPrice, 1e15, 100 ether);
+        spaIn = bound(spaIn, 1 ether, 1e9 ether);
+        uint256 swapValue = (spaIn * spaPrice) / 1 ether;
+        vm.mockCall(address(ORACLE), abi.encodeWithSignature("getPrice(address)", USDS), abi.encode(usdsPrice, 1 ether));
+        vm.mockCall(address(ORACLE), abi.encodeWithSignature("getPrice(address)", SPA), abi.encode(spaPrice, 1 ether));
         minUSDsOut = _calculateUSDsForSpaIn(spaIn);
-        if (swapValue > 1e18 && minUSDsOut > 1e18) {
+        if (swapValue > 1 ether && minUSDsOut > 1 ether) {
             vm.prank(VAULT);
             IUSDs(USDS).mint(address(spaBuyback), minUSDsOut);
             deal(SPA, user, spaIn);

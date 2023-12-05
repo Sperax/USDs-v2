@@ -2,15 +2,10 @@ pragma solidity 0.8.19;
 
 import {BaseTest} from ".././utils/BaseTest.sol";
 import {Dripper, Helpers} from "../../contracts/rebase/Dripper.sol";
+import {IUSDs} from "../../contracts/interfaces/IUSDs.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 address constant WHALE_USDS = 0x50450351517117Cb58189edBa6bbaD6284D45902;
-
-interface IUSDS {
-    function approve(address _spender, uint256 _value) external returns (bool);
-
-    function transferFrom(address _from, address _to, uint256 _value) external returns (bool);
-}
 
 contract DripperTest is BaseTest {
     //  Init Variables.
@@ -27,7 +22,7 @@ contract DripperTest is BaseTest {
     function setUp() public override {
         super.setUp();
         setArbitrumFork();
-        dripper = new Dripper(VAULT, (86400 * 7));
+        dripper = new Dripper(VAULT, (7 days));
         dripper.transferOwnership(USDS_OWNER);
     }
 }
@@ -110,12 +105,14 @@ contract Collect is DripperTest {
     }
 
     function test_CollectDripper() external useKnownActor(WHALE_USDS) {
-        IERC20(USDS).approve(address(dripper), 100000 * 10 ** 18);
-        dripper.addUSDs(10000 * 10 ** 18);
-        // deal(USDS, address(dripper), 1, true);
-        skip(86400 * 14);
+        changePrank(VAULT);
+        IUSDs(USDS).mint(WHALE_USDS, 1e6 ether);
+        changePrank(WHALE_USDS);
+        IERC20(USDS).approve(address(dripper), 1e6 ether);
+        dripper.addUSDs(1e6 ether);
+        skip(14 days);
         vm.expectEmit(true, true, false, true);
-        emit Collected(10000 * 10 ** 18);
+        emit Collected(1e6 ether);
         dripper.collect();
     }
 }

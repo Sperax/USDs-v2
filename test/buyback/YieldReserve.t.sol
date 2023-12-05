@@ -227,8 +227,8 @@ contract YieldReserveTest is YieldReserveSetup {
     }
 
     function test_getTokenBForTokenA_inputs() public useKnownActor(USDS_OWNER) {
-        mockPrice(USDCe, 10e8, PRICE_PRECISION);
-        mockPrice(USDS, 10e8, PRICE_PRECISION);
+        mockPrice(USDCe, 1 gwei, PRICE_PRECISION);
+        mockPrice(USDS, 1 gwei, PRICE_PRECISION);
 
         vm.expectRevert(abi.encodeWithSelector(YieldReserve.InvalidSourceToken.selector));
         yieldReserve.getTokenBForTokenA(USDS, USDCe, 10000);
@@ -250,7 +250,7 @@ contract YieldReserveTest is YieldReserveSetup {
         yieldReserve.toggleSrcTokenPermission(USDS, true);
         yieldReserve.toggleDstTokenPermission(USDCe, true);
 
-        assertEq(getTokenData(USDCe).conversionFactor, 1e12);
+        assertEq(getTokenData(USDCe).conversionFactor, 1e3 gwei);
         assertEq(getTokenData(USDS).conversionFactor, 1);
 
         uint256 amount = yieldReserve.getTokenBForTokenA(USDS, USDCe, amountIn * USDsPrecision);
