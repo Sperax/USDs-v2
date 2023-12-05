@@ -180,14 +180,25 @@ contract StargateStrategy is InitializableAbstractStrategy {
 
     /// @notice A function to withdraw from old farm, update farm and deposit in new farm
     /// @param _newFarm Address of the new farm
-    /// @param _asset Address of asset of which lp token is to be withdrawn and deposited
     /// @dev Only callable by owner
-    function updateFarm(address _newFarm, address _asset) external onlyOwner {
-        uint256 _rewardPID = assetInfo[_asset].rewardPID;
-        uint256 lpTokenAmt = checkLPTokenBalance(_asset);
-        ILPStaking(farm).withdraw(_rewardPID, lpTokenAmt);
+    function updateFarm(address _newFarm) external onlyOwner {
+        address _oldFarm = farm;
+        uint256 _numAssets = assetsMapped.length;
+        address _asset;
+        uint256 _rewardPID;
+        uint256 _lpTokenAmt;
+        for (uint8 i = 0; i < _numAssets;) {
+            _asset = assetsMapped[i];
+            _rewardPID = assetInfo[_asset].rewardPID;
+            _lpTokenAmt = checkLPTokenBalance(_asset);
+            ILPStaking(_oldFarm).withdraw(_rewardPID, _lpTokenAmt);
+            IERC20(assetToPToken[_asset]).forceApprove(_newFarm, _lpTokenAmt);
+            ILPStaking(_newFarm).deposit(_rewardPID, _lpTokenAmt);
+            unchecked {
+                ++i;
+            }
+        }
         farm = _newFarm;
-        ILPStaking(_newFarm).deposit(_rewardPID, lpTokenAmt); // Gas savings
         emit FarmUpdated(_newFarm);
     }
 
