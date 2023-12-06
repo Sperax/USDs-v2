@@ -61,6 +61,7 @@ contract CollateralManager is ICollateralManager, Ownable {
     error IsDefaultStrategy();
 
     constructor(address _vault) {
+        Helpers._isNonZeroAddr(_vault);
         VAULT = _vault;
     }
 
