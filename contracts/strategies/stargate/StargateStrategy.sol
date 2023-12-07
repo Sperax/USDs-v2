@@ -181,7 +181,7 @@ contract StargateStrategy is InitializableAbstractStrategy {
     /// @notice A function to withdraw from old farm, update farm and deposit in new farm
     /// @param _newFarm Address of the new farm
     /// @dev Only callable by owner
-    function updateFarm(address _newFarm) external onlyOwner {
+    function updateFarm(address _newFarm) external nonReentrant onlyOwner {
         address _oldFarm = farm;
         uint256 _numAssets = assetsMapped.length;
         address _asset;
