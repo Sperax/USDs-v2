@@ -187,7 +187,7 @@ contract StargateStrategy is InitializableAbstractStrategy {
         address _asset;
         uint256 _rewardPID;
         uint256 _lpTokenAmt;
-        for (uint8 i = 0; i < _numAssets;) {
+        for (uint8 i; i < _numAssets;) {
             _asset = assetsMapped[i];
             _rewardPID = assetInfo[_asset].rewardPID;
             _lpTokenAmt = checkLPTokenBalance(_asset);
