@@ -108,6 +108,11 @@ contract AaveStrategy is InitializableAbstractStrategy {
     }
 
     /// @inheritdoc InitializableAbstractStrategy
+    function checkRewardEarned() external pure override returns (RewardData[] memory) {
+        return (new RewardData[](0));
+    }
+
+    /// @inheritdoc InitializableAbstractStrategy
     function checkInterestEarned(address _asset) public view override returns (uint256) {
         uint256 balance = checkLPTokenBalance(_asset);
         uint256 allocatedAmt = allocatedAmount[_asset];
@@ -145,11 +150,6 @@ contract AaveStrategy is InitializableAbstractStrategy {
     /// @inheritdoc InitializableAbstractStrategy
     function supportsCollateral(address _asset) public view override returns (bool) {
         return assetToPToken[_asset] != address(0);
-    }
-
-    /// @inheritdoc InitializableAbstractStrategy
-    function checkRewardEarned() public pure override returns (uint256) {
-        return 0;
     }
 
     /// @notice Withdraw asset from Aave lending Pool
