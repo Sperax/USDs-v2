@@ -472,12 +472,13 @@ contract TestRebase is VaultCoreTest {
     event RebasedUSDs(uint256 rebaseAmt);
 
     function test_Rebase() public {
+        uint256 _amount = 1e22;
         vm.startPrank(VAULT);
         IRebaseManager(REBASE_MANAGER).fetchRebaseAmt();
-        IUSDs(USDS).mint(actors[1], 1e5 ether);
+        IUSDs(USDS).mint(actors[1], _amount);
         changePrank(actors[1]);
-        ERC20(USDS).approve(DRIPPER, 1e5 ether);
-        IDripper(DRIPPER).addUSDs(1e5 ether);
+        ERC20(USDS).approve(DRIPPER, _amount);
+        IDripper(DRIPPER).addUSDs(_amount);
         changePrank(VAULT);
         skip(1 days);
         IDripper(DRIPPER).collect();

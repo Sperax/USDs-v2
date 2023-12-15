@@ -106,13 +106,13 @@ contract Collect is DripperTest {
 
     function test_CollectDripper() external useKnownActor(WHALE_USDS) {
         changePrank(VAULT);
-        IUSDs(USDS).mint(WHALE_USDS, 1e6 ether);
+        IUSDs(USDS).mint(WHALE_USDS, 1e24);
         changePrank(WHALE_USDS);
-        IERC20(USDS).approve(address(dripper), 1e6 ether);
-        dripper.addUSDs(1e6 ether);
+        IERC20(USDS).approve(address(dripper), 1e24);
+        dripper.addUSDs(1e24);
         skip(14 days);
         vm.expectEmit(true, true, false, true);
-        emit Collected(1e6 ether);
+        emit Collected(1e24);
         dripper.collect();
     }
 }

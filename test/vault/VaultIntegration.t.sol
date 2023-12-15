@@ -203,7 +203,7 @@ contract TestRebase is VaultCoreTest {
     event RebasedUSDs(uint256 rebaseAmt);
 
     function test_Rebase() public useKnownActor(VAULT) {
-        uint256 _amount = 1e5 ether;
+        uint256 _amount = 1e23;
         IRebaseManager(REBASE_MANAGER).fetchRebaseAmt();
         IUSDs(USDS).mint(actors[1], _amount);
         changePrank(actors[1]);

@@ -155,7 +155,7 @@ contract FetchRebaseAmt is RebaseManagerTest {
         // Minting USDs
         mintUSDs(100 gwei);
         vm.prank(USDS_OWNER);
-        IERC20(USDS).transfer(address(dripper), 10000 ether);
+        IERC20(USDS).transfer(address(dripper), 1e22);
 
         vm.startPrank(VAULT);
         dripper.collect();
