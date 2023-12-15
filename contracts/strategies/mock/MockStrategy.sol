@@ -8,21 +8,27 @@ import {InitializableAbstractStrategy, Helpers, IStrategyVault} from "../Initial
 contract MockStrategy is InitializableAbstractStrategy {
     using SafeERC20 for IERC20;
 
+    struct AssetInfo {
+        uint256 lastInterestUpdateTimestamp;
+        uint256 lastRewardUpdateTimestamp;
+    }
+
     mapping(address => bool) public asset;
-    uint256 public interest;
+    uint256 public interestPerSecond;
     address public rewardToken;
-    uint256 public reward;
+    uint256 public rewardPerSecond;
+    mapping(address => AssetInfo) public assetInfo;
 
     function initialize(
         address _vault,
         address[] memory _asset,
-        uint256 _interest,
+        uint256 _interestPerSecond,
         address _rewardToken,
-        uint256 _reward
+        uint256 _rewardPerSecond
     ) external initializer {
-        interest = _interest;
+        interestPerSecond = _interestPerSecond;
         rewardToken = _rewardToken;
-        reward = _reward;
+        rewardPerSecond = _rewardPerSecond;
 
         uint256 length = _asset.length;
         for (uint256 i; i < length;) {
@@ -37,14 +43,19 @@ contract MockStrategy is InitializableAbstractStrategy {
     }
 
     /// @notice Function to change interest and reward values for testing purposes.
-    function changeInterestAndReward(uint256 _interest, uint256 _reward) external onlyOwner {
-        interest = _interest;
-        reward = _reward;
+    function changeInterestAndReward(uint256 _interestPerSecond, uint256 _rewardPerSecond) external onlyOwner {
+        interestPerSecond = _interestPerSecond;
+        rewardPerSecond = _rewardPerSecond;
     }
 
     /// @inheritdoc InitializableAbstractStrategy
     function deposit(address _asset, uint256 _amount) external override onlyVault nonReentrant {
         if (!supportsCollateral(_asset)) revert CollateralNotSupported(_asset);
+
+        if (assetInfo[_asset].lastInterestUpdateTimestamp == 0) {
+            assetInfo[_asset].lastInterestUpdateTimestamp = block.timestamp;
+            assetInfo[_asset].lastRewardUpdateTimestamp = block.timestamp;
+        }
 
         IERC20(_asset).safeTransferFrom(msg.sender, address(this), _amount);
 
@@ -78,16 +89,28 @@ contract MockStrategy is InitializableAbstractStrategy {
         if (!supportsCollateral(_asset)) revert CollateralNotSupported(_asset);
         address yieldReceiver = IStrategyVault(vault).yieldReceiver();
 
-        uint256 harvestAmt = _splitAndSendReward(_asset, yieldReceiver, msg.sender, interest);
-        emit InterestCollected(_asset, yieldReceiver, harvestAmt);
+        uint256 timeElapsed = block.timestamp - assetInfo[_asset].lastInterestUpdateTimestamp;
+        uint256 interestEarned = timeElapsed * interestPerSecond;
+
+        if (interestEarned != 0) {
+            assetInfo[_asset].lastInterestUpdateTimestamp = block.timestamp;
+            uint256 harvestAmt = _splitAndSendReward(_asset, yieldReceiver, msg.sender, interestEarned);
+            emit InterestCollected(_asset, yieldReceiver, harvestAmt);
+        }
     }
 
     /// @inheritdoc InitializableAbstractStrategy
     function collectReward() external override nonReentrant {
         address yieldReceiver = IStrategyVault(vault).yieldReceiver();
 
-        uint256 harvestAmt = _splitAndSendReward(rewardToken, yieldReceiver, msg.sender, reward);
-        emit RewardTokenCollected(rewardToken, yieldReceiver, harvestAmt);
+        uint256 timeElapsed = block.timestamp - assetInfo[rewardToken].lastRewardUpdateTimestamp;
+        uint256 rewardEarned = timeElapsed * rewardPerSecond;
+
+        if (rewardEarned != 0) {
+            assetInfo[rewardToken].lastRewardUpdateTimestamp = block.timestamp;
+            uint256 harvestAmt = _splitAndSendReward(rewardToken, yieldReceiver, msg.sender, rewardEarned);
+            emit RewardTokenCollected(rewardToken, yieldReceiver, harvestAmt);
+        }
     }
 
     /// @inheritdoc InitializableAbstractStrategy
@@ -97,14 +120,14 @@ contract MockStrategy is InitializableAbstractStrategy {
 
     /// @inheritdoc InitializableAbstractStrategy
     function checkRewardEarned() public view override returns (uint256) {
-        return reward;
+        return rewardPerSecond;
     }
 
     /// @inheritdoc InitializableAbstractStrategy
     function checkInterestEarned(address _asset) public view override returns (uint256) {
         if (!supportsCollateral(_asset)) revert CollateralNotSupported(_asset);
 
-        return interest;
+        return interestPerSecond;
     }
 
     /// @inheritdoc InitializableAbstractStrategy
