@@ -8,19 +8,30 @@ import {InitializableAbstractStrategy, Helpers, IStrategyVault} from "../Initial
 contract MockStrategy is InitializableAbstractStrategy {
     using SafeERC20 for IERC20;
 
-    address public asset;
+    mapping(address => bool) public asset;
     uint256 public interest;
     address public rewardToken;
     uint256 public reward;
 
-    function initialize(address _vault, address _asset, uint256 _interest, address _rewardToken, uint256 _reward)
-        external
-        initializer
-    {
-        asset = _asset;
+    function initialize(
+        address _vault,
+        address[] memory _asset,
+        uint256 _interest,
+        address _rewardToken,
+        uint256 _reward
+    ) external initializer {
         interest = _interest;
         rewardToken = _rewardToken;
         reward = _reward;
+
+        uint256 length = _asset.length;
+        for (uint256 i; i < length;) {
+            asset[_asset[i]] = true;
+
+            unchecked {
+                ++i;
+            }
+        }
 
         InitializableAbstractStrategy._initialize(_vault, 0, 0);
     }
@@ -81,7 +92,7 @@ contract MockStrategy is InitializableAbstractStrategy {
 
     /// @inheritdoc InitializableAbstractStrategy
     function supportsCollateral(address _asset) public view override returns (bool) {
-        return _asset == asset;
+        return asset[_asset];
     }
 
     /// @inheritdoc InitializableAbstractStrategy
