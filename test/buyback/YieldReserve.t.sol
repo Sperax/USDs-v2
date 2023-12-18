@@ -250,7 +250,7 @@ contract YieldReserveTest is YieldReserveSetup {
         yieldReserve.toggleSrcTokenPermission(USDS, true);
         yieldReserve.toggleDstTokenPermission(USDCe, true);
 
-        assertEq(getTokenData(USDCe).conversionFactor, 1e3 gwei);
+        assertEq(getTokenData(USDCe).conversionFactor, 1e12);
         assertEq(getTokenData(USDS).conversionFactor, 1);
 
         uint256 amount = yieldReserve.getTokenBForTokenA(USDS, USDCe, amountIn * USDsPrecision);

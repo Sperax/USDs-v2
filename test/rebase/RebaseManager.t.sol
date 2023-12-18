@@ -153,7 +153,7 @@ contract FetchRebaseAmt is RebaseManagerTest {
             address(ORACLE), abi.encodeWithSignature("getPrice(address)", USDCe), abi.encode(usdcePrice, usdcePrecision)
         );
         // Minting USDs
-        mintUSDs(100 gwei);
+        mintUSDs(1e11);
         vm.prank(USDS_OWNER);
         IERC20(USDS).transfer(address(dripper), 1e22);
 
