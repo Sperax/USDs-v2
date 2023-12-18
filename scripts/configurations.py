@@ -1,4 +1,4 @@
-from brownie import VaultCore, MasterPriceOracle, ChainlinkOracle, VSTOracle, USDs
+from brownie import VaultCore, MasterPriceOracle, ChainlinkOracle, USDs
 
 from .utils import (
     Deployment_data,
@@ -20,7 +20,7 @@ DAI = "0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1"
 FRAX = "0x17FC002b466eEc40DaE837Fc4bE5c67993ddBd6F"
 USDT = "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9"
 LUSD = "0x93b346b6bc2548da6a1e7d98e9a421b42541425b"
-VST = "0x64343594Ab9b56e99087BfA6F2335Db24c2d1F17"
+
 
 deployment_config = {
     "vault": Deployment_data(

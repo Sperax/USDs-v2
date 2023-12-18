@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: MIT
-pragma solidity 0.8.16;
+pragma solidity 0.8.19;
 
 interface IFeeCalculator {
     /// @notice Calculates fee to be collected for minting

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.16;
+pragma solidity 0.8.19;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -49,7 +49,7 @@ contract CompoundStrategy is InitializableAbstractStrategy {
     }
 
     /// @inheritdoc InitializableAbstractStrategy
-    function deposit(address _asset, uint256 _amount) external override nonReentrant {
+    function deposit(address _asset, uint256 _amount) external override onlyVault nonReentrant {
         Helpers._isNonZeroAmt(_amount);
         address lpToken = _getPTokenFor(_asset);
 
@@ -58,7 +58,7 @@ contract CompoundStrategy is InitializableAbstractStrategy {
         allocatedAmount[_asset] += _amount;
 
         IERC20(_asset).safeTransferFrom(msg.sender, address(this), _amount);
-        IERC20(_asset).safeApprove(lpToken, _amount);
+        IERC20(_asset).forceApprove(lpToken, _amount);
 
         // Supply Compound Strategy.
         IComet(lpToken).supply(_asset, _amount);

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.16;
+pragma solidity 0.8.19;
 pragma experimental ABIEncoderV2;
 
 import {BaseUniOracle} from "./BaseUniOracle.sol";

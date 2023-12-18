@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: MIT
-pragma solidity 0.8.16;
+pragma solidity 0.8.19;
 
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
@@ -77,6 +77,16 @@ abstract contract InitializableAbstractStrategy is Initializable, OwnableUpgrade
         Helpers._isLTEMaxPercentage(_newRate);
         harvestIncentiveRate = _newRate;
         emit HarvestIncentiveRateUpdated(_newRate);
+    }
+
+    /// @notice A function to recover any erc20 token sent to this strategy mistakenly
+    /// @dev Only callable by owner
+    /// @param token Address of the token
+    /// @param receiver Receiver of the token
+    /// @param amount Amount to be recovered
+    /// @dev reverts if amount > balance
+    function recoverERC20(address token, address receiver, uint256 amount) external onlyOwner {
+        IERC20(token).safeTransfer(receiver, amount);
     }
 
     /// @dev Deposit an amount of asset into the platform

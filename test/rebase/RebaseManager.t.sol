@@ -1,8 +1,9 @@
-pragma solidity 0.8.16;
+pragma solidity 0.8.19;
 
 import {PreMigrationSetup} from ".././utils/DeploymentSetup.t.sol";
 import {Dripper} from "../../contracts/rebase/Dripper.sol";
 import {RebaseManager, Helpers} from "../../contracts/rebase/RebaseManager.sol";
+import {IOracle} from "../../contracts/interfaces/IOracle.sol";
 import {IERC20, ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {console} from "forge-std/console.sol";
 import {IVault} from "../../contracts/interfaces/IVault.sol";
@@ -142,7 +143,15 @@ contract FetchRebaseAmt is RebaseManagerTest {
     function test_FetchRebaseAmt_Scenario() external {
         vm.prank(VAULT);
         rebaseManager.fetchRebaseAmt();
+        // current price feed data of USDCe
+        IOracle.PriceData memory usdceData = IOracle(ORACLE).getPrice(USDS);
+        uint256 usdcePrice = usdceData.price;
+        uint256 usdcePrecision = usdceData.precision;
         skip(86400 * 10);
+        // Using mock call to set price feed as we are skipping 10 days into the future and oracle will not have the data for that day.
+        vm.mockCall(
+            address(ORACLE), abi.encodeWithSignature("getPrice(address)", USDCe), abi.encode(usdcePrice, usdcePrecision)
+        );
         // Minting USDs
         mintUSDs(1e11);
         vm.prank(USDS_OWNER);

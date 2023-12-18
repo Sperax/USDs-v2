@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.16;
+pragma solidity 0.8.19;
 
 import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
@@ -10,6 +10,7 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 contract ChainlinkOracle is Ownable {
     struct TokenData {
         address priceFeed;
+        uint96 timeout;
         uint256 pricePrecision;
     }
 
@@ -23,11 +24,15 @@ contract ChainlinkOracle is Ownable {
 
     mapping(address => TokenData) public getTokenData;
 
-    event TokenDataChanged(address indexed tokenAddr, address priceFeed, uint256 pricePrecision);
+    event TokenDataChanged(address indexed tokenAddr, address priceFeed, uint256 pricePrecision, uint96 timeout);
 
     error TokenNotSupported(address token);
     error ChainlinkSequencerDown();
     error GracePeriodNotPassed(uint256 timeSinceUp);
+    error RoundNotComplete();
+    error StalePrice();
+    error InvalidPrice();
+    error InvalidPricePrecision();
 
     constructor(SetupTokenData[] memory _priceFeedData) {
         for (uint256 i; i < _priceFeedData.length;) {
@@ -42,8 +47,11 @@ contract ChainlinkOracle is Ownable {
     /// @param _token Address of the desired token
     /// @param _tokenData Token price feed configuration
     function setTokenData(address _token, TokenData memory _tokenData) public onlyOwner {
+        if (_tokenData.pricePrecision != 10 ** AggregatorV3Interface(_tokenData.priceFeed).decimals()) {
+            revert InvalidPricePrecision();
+        }
         getTokenData[_token] = _tokenData;
-        emit TokenDataChanged(_token, _tokenData.priceFeed, _tokenData.pricePrecision);
+        emit TokenDataChanged(_token, _tokenData.priceFeed, _tokenData.pricePrecision, _tokenData.timeout);
     }
 
     /// @notice Gets the token price and price precision
@@ -66,7 +74,10 @@ contract ChainlinkOracle is Ownable {
             revert GracePeriodNotPassed(timeSinceUp);
         }
 
-        (, int256 price,,,) = AggregatorV3Interface(tokenInfo.priceFeed).latestRoundData();
+        (, int256 price,, uint256 updatedAt,) = AggregatorV3Interface(tokenInfo.priceFeed).latestRoundData();
+        if (updatedAt == 0) revert RoundNotComplete();
+        if (block.timestamp > updatedAt + tokenInfo.timeout) revert StalePrice();
+        if (price < 0) revert InvalidPrice();
 
         return (uint256(price), tokenInfo.pricePrecision);
     }

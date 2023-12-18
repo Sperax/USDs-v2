@@ -2,7 +2,7 @@
   "extends": "solhint:recommended",
 
   "rules": {
-    "compiler-version": ["error", "0.8.16"],
+    "compiler-version": ["error", "0.8.19"],
     "ordering": "error",
     "avoid-throw": "off",
     "avoid-suicide": "error",

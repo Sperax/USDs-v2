@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.16;
+pragma solidity 0.8.19;
 
 import {BaseTest} from "../utils/BaseTest.t.sol";
 import {MasterPriceOracle} from "../../contracts/oracle/MasterPriceOracle.sol";
 import {ChainlinkOracle} from "../../contracts/oracle/ChainlinkOracle.sol";
-import {VSTOracle} from "../../contracts/oracle/VSTOracle.sol";
+
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 // import {console} from "forge-std/console.sol";
@@ -24,7 +24,6 @@ contract MasterPriceOracleTest is BaseTest {
 
     MasterPriceOracle public masterOracle;
     ChainlinkOracle public chainlinkOracle;
-    VSTOracle public vstOracle;
     address spaOracle;
     address usdsOracle;
 
@@ -40,7 +39,6 @@ contract MasterPriceOracleTest is BaseTest {
 
         // @dev Deploy and configure all the underlying oracles
         deployAndConfigureChainlink();
-        vstOracle = new VSTOracle();
         // A pre-requisite for initializing SPA and USDs oracles
         masterOracle.updateTokenPriceFeed(
             USDCe, address(chainlinkOracle), abi.encodeWithSelector(ChainlinkOracle.getTokenPrice.selector, USDCe)
@@ -128,29 +126,27 @@ contract MasterPriceOracleTest is BaseTest {
     function deployAndConfigureChainlink() private {
         ChainlinkOracle.SetupTokenData[] memory chainlinkFeeds = new ChainlinkOracle.SetupTokenData[](3);
         chainlinkFeeds[0] = ChainlinkOracle.SetupTokenData(
-            USDCe, ChainlinkOracle.TokenData(0x50834F3163758fcC1Df9973b6e91f0F0F0434aD3, 1e8)
+            USDCe, ChainlinkOracle.TokenData(0x50834F3163758fcC1Df9973b6e91f0F0F0434aD3, 25 hours, 1e8)
         );
         chainlinkFeeds[1] = ChainlinkOracle.SetupTokenData(
-            FRAX, ChainlinkOracle.TokenData(0x0809E3d38d1B4214958faf06D8b1B1a2b73f2ab8, 1e8)
+            FRAX, ChainlinkOracle.TokenData(0x0809E3d38d1B4214958faf06D8b1B1a2b73f2ab8, 25 hours, 1e8)
         );
         chainlinkFeeds[2] = ChainlinkOracle.SetupTokenData(
-            DAI, ChainlinkOracle.TokenData(0xc5C8E77B397E531B8EC06BFb0048328B30E9eCfB, 1e8)
+            DAI, ChainlinkOracle.TokenData(0xc5C8E77B397E531B8EC06BFb0048328B30E9eCfB, 25 hours, 1e8)
         );
         chainlinkOracle = new ChainlinkOracle(chainlinkFeeds);
     }
 
     function getPriceFeedConfig() private view returns (PriceFeedData[] memory) {
-        PriceFeedData[] memory feedData = new PriceFeedData[](5);
+        PriceFeedData[] memory feedData = new PriceFeedData[](4);
         feedData[0] = PriceFeedData(
             FRAX, address(chainlinkOracle), abi.encodeWithSelector(ChainlinkOracle.getTokenPrice.selector, FRAX)
         );
         feedData[1] = PriceFeedData(
             DAI, address(chainlinkOracle), abi.encodeWithSelector(ChainlinkOracle.getTokenPrice.selector, DAI)
         );
-        feedData[2] = PriceFeedData(VST, address(vstOracle), abi.encodeWithSelector(VSTOracle.getPrice.selector));
-        feedData[3] = PriceFeedData(SPA, spaOracle, abi.encodeWithSelector(ICustomOracle.getPrice.selector));
-        feedData[4] = PriceFeedData(USDS, usdsOracle, abi.encodeWithSelector(ICustomOracle.getPrice.selector));
-        // feedData[0] = PriceFeedData(USDCe, address(chainlinkOracle), abi.encodeWithSelector(ChainlinkOracle.getTokenPrice.selector, USDCe));
+        feedData[2] = PriceFeedData(SPA, spaOracle, abi.encodeWithSelector(ICustomOracle.getPrice.selector));
+        feedData[3] = PriceFeedData(USDS, usdsOracle, abi.encodeWithSelector(ICustomOracle.getPrice.selector));
         return feedData;
     }
 }

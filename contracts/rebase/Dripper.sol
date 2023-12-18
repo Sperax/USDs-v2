@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.16;
+pragma solidity 0.8.19;
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -52,8 +52,17 @@ contract Dripper is IDripper, Ownable {
             IERC20(Helpers.USDS).safeTransfer(vault, collectableAmt);
             emit Collected(collectableAmt);
         }
-        dripRate = IERC20(Helpers.USDS).balanceOf(address(this)) / dripDuration;
+        if (IERC20(Helpers.USDS).balanceOf(address(this)) == 0) dripRate = 0;
         return collectableAmt;
+    }
+
+    /// @notice Function to be used to send USDs to dripper and update `dripRate`
+    /// @param _amount Amount of USDs to be sent form caller to this contract
+    function addUSDs(uint256 _amount) external {
+        if (_amount != 0) {
+            IERC20(Helpers.USDS).safeTransferFrom(msg.sender, address(this), _amount);
+            dripRate = IERC20(Helpers.USDS).balanceOf(address(this)) / dripDuration;
+        }
     }
 
     /// @notice Update the vault address

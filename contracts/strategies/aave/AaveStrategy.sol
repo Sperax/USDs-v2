@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.16;
+pragma solidity 0.8.19;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -52,7 +52,7 @@ contract AaveStrategy is InitializableAbstractStrategy {
     }
 
     /// @inheritdoc InitializableAbstractStrategy
-    function deposit(address _asset, uint256 _amount) external override nonReentrant {
+    function deposit(address _asset, uint256 _amount) external override onlyVault nonReentrant {
         if (!supportsCollateral(_asset)) revert CollateralNotSupported(_asset);
         Helpers._isNonZeroAmt(_amount);
         // Following line also doubles as a check that we are depositing
@@ -60,7 +60,7 @@ contract AaveStrategy is InitializableAbstractStrategy {
         allocatedAmount[_asset] += _amount;
 
         IERC20(_asset).safeTransferFrom(msg.sender, address(this), _amount);
-        IERC20(_asset).safeApprove(address(aavePool), _amount);
+        IERC20(_asset).forceApprove(address(aavePool), _amount);
         aavePool.supply(_asset, _amount, address(this), REFERRAL_CODE);
 
         emit Deposit(_asset, _amount);
@@ -159,6 +159,8 @@ contract AaveStrategy is InitializableAbstractStrategy {
     function _withdraw(address _recipient, address _asset, uint256 _amount) internal returns (uint256) {
         Helpers._isNonZeroAddr(_recipient);
         Helpers._isNonZeroAmt(_amount, "Must withdraw something");
+        if (!supportsCollateral(_asset)) revert CollateralNotSupported(_asset);
+
         allocatedAmount[_asset] -= _amount;
         uint256 actual = aavePool.withdraw(_asset, _amount, _recipient);
         if (actual < _amount) revert Helpers.MinSlippageError(actual, _amount);

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.16;
+pragma solidity 0.8.19;
 
 import {BaseStrategy} from "./BaseStrategy.t.sol";
 import {BaseTest} from "../utils/BaseTest.t.sol";
@@ -298,6 +298,11 @@ contract WithdrawTest is AaveStrategyTest {
     function test_RevertWhen_InvalidAddress() public useKnownActor(VAULT) {
         vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAddress.selector));
         strategy.withdraw(address(0), ASSET, 1);
+    }
+
+    function test_RevertWhen_CollateralNotSupported() public useKnownActor(VAULT) {
+        vm.expectRevert(abi.encodeWithSelector(CollateralNotSupported.selector, DUMMY_ADDRESS));
+        strategy.withdraw(VAULT, DUMMY_ADDRESS, 1); // invalid asset
     }
 
     function test_RevertWhen_CallerNotVault() public useActor(0) {
