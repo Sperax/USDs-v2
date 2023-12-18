@@ -349,8 +349,8 @@ contract MiscellaneousTest is AaveStrategyTest {
     }
 
     function test_CheckRewardEarned() public {
-        uint256 reward = strategy.checkRewardEarned();
-        assertEq(reward, 0);
+        InitializableAbstractStrategy.RewardData[] memory rewardData = strategy.checkRewardEarned();
+        assertEq(rewardData.length, 0);
     }
 
     function test_CheckBalance() public {

@@ -327,9 +327,8 @@ contract UniswapStrategy is InitializableAbstractStrategy, IERC721Receiver {
     }
 
     /// @inheritdoc InitializableAbstractStrategy
-    /// @dev No rewards for the Uniswap V3 pool, hence return 0.
-    function checkRewardEarned() external pure override returns (uint256) {
-        return 0;
+    function checkRewardEarned() external pure override returns (RewardData[] memory) {
+        return (new RewardData[](0));
     }
 
     /// @inheritdoc InitializableAbstractStrategy

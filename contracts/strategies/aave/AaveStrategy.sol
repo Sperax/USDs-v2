@@ -124,8 +124,8 @@ contract AaveStrategy is InitializableAbstractStrategy {
     }
 
     /// @inheritdoc InitializableAbstractStrategy
-    function checkRewardEarned() external pure override returns (uint256) {
-        return 0;
+    function checkRewardEarned() external pure override returns (RewardData[] memory) {
+        return (new RewardData[](0));
     }
 
     /// @inheritdoc InitializableAbstractStrategy

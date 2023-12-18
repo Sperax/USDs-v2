@@ -778,7 +778,8 @@ contract MiscellaneousTests is UniswapStrategyTest {
     }
 
     function test_CheckRewardEarned() public {
-        assertEq(strategy.checkRewardEarned(), 0);
+        InitializableAbstractStrategy.RewardData[] memory rewardData = strategy.checkRewardEarned();
+        assertEq(rewardData.length, 0);
     }
 
     function test_RevertWhen_CollectReward() public {

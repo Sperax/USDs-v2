@@ -340,8 +340,8 @@ contract CheckRewardEarnedTest is CompoundStrategyTest {
         vm.warp(block.timestamp + 10 days);
         vm.mockCall(P_TOKEN, abi.encodeWithSignature("baseTrackingAccrued(address)"), abi.encode(10000000));
         IComet(P_TOKEN).accrueAccount(address(strategy));
-        uint256 reward = strategy.checkRewardEarned();
-        assertNotEq(reward, 0);
+        CompoundStrategy.RewardData[] memory rewardData = strategy.checkRewardEarned();
+        assert(rewardData.length > 0);
     }
 }
 
@@ -354,7 +354,7 @@ contract CheckAvailableBalanceTest is CompoundStrategyTest {
         _deposit();
     }
 
-    function test_checkAvilableBalance_LTAllocatedAmount() public {
+    function test_checkAvailableBalance_LTAllocatedAmount() public {
         vm.mockCall(ASSET, abi.encodeWithSignature("balanceOf(address)"), abi.encode(depositAmount - 100));
         uint256 availableBalance = strategy.checkAvailableBalance(ASSET);
         assertTrue(availableBalance < depositAmount);
