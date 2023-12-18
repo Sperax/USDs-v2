@@ -227,8 +227,8 @@ contract YieldReserveTest is YieldReserveSetup {
     }
 
     function test_getTokenBForTokenA_inputs() public useKnownActor(USDS_OWNER) {
-        mockPrice(USDCe, 10e8, PRICE_PRECISION);
-        mockPrice(USDS, 10e8, PRICE_PRECISION);
+        mockPrice(USDCe, 1e8, PRICE_PRECISION);
+        mockPrice(USDS, 1e8, PRICE_PRECISION);
 
         vm.expectRevert(abi.encodeWithSelector(YieldReserve.InvalidSourceToken.selector));
         yieldReserve.getTokenBForTokenA(USDS, USDCe, 10000);
@@ -279,9 +279,9 @@ contract SwapTest is YieldReserveSetup {
     function setUp() public override {
         super.setUp();
         vm.startPrank(USDS_OWNER);
-        deal(address(USDCe), USDS_OWNER, 1 ether);
-        deal(address(USDCe), address(yieldReserve), 100 ether);
-        deal(address(DAI), address(yieldReserve), 100 ether);
+        deal(address(USDCe), USDS_OWNER, 1e18);
+        deal(address(USDCe), address(yieldReserve), 1e20);
+        deal(address(DAI), address(yieldReserve), 1e20);
 
         mockPrice(USDCe, 1e8, PRICE_PRECISION);
         mockPrice(USDS, 1e8, PRICE_PRECISION);

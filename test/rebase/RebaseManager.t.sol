@@ -101,7 +101,7 @@ contract UpdateGap is RebaseManagerTest {
 
     function test_RevertWhen_CallerIsNotOwner() external useActor(0) {
         vm.expectRevert("Ownable: caller is not the owner");
-        rebaseManager.updateGap(86400 * 7);
+        rebaseManager.updateGap(7 days);
     }
 
     function test_UpdateGap(uint256 gap) external useKnownActor(USDS_OWNER) {
@@ -147,7 +147,7 @@ contract FetchRebaseAmt is RebaseManagerTest {
         IOracle.PriceData memory usdceData = IOracle(ORACLE).getPrice(USDS);
         uint256 usdcePrice = usdceData.price;
         uint256 usdcePrecision = usdceData.precision;
-        skip(86400 * 10);
+        skip(10 days);
         // Using mock call to set price feed as we are skipping 10 days into the future and oracle will not have the data for that day.
         vm.mockCall(
             address(ORACLE), abi.encodeWithSignature("getPrice(address)", USDCe), abi.encode(usdcePrice, usdcePrecision)
@@ -160,12 +160,12 @@ contract FetchRebaseAmt is RebaseManagerTest {
         vm.startPrank(VAULT);
         dripper.collect();
         console.log("Day 1 After Minting USDs");
-        skip(86400 * 1);
+        skip(1 days);
         (uint256 min, uint256 max) = rebaseManager.getMinAndMaxRebaseAmt();
         console.log("Min Rebase Amt", min / (10 ** 18), "max Rebase Amt", max / (10 ** 18));
         uint256 collectable0 = dripper.getCollectableAmt();
         console.log("collectable0", collectable0 / 10 ** 18);
-        skip(86400 * 1);
+        skip(1 days);
         console.log("Day 2 After Minting USDs");
         (uint256 min2, uint256 max2) = rebaseManager.getMinAndMaxRebaseAmt();
         console.log("Min Rebase Amt", min2 / (10 ** 18), "max Rebase Amt", max2 / (10 ** 18));
@@ -175,7 +175,7 @@ contract FetchRebaseAmt is RebaseManagerTest {
         console.log("Rebase Amount", rebaseAmt1 / 10 ** 18);
         // Trying to collect from dripper after rebase
         dripper.collect();
-        skip(86400 * 1);
+        skip(1 days);
         console.log("Day 3 After Minting USDs");
         (uint256 min3, uint256 max3) = rebaseManager.getMinAndMaxRebaseAmt();
         console.log("Min Rebase Amt", min3 / (10 ** 18), "max Rebase Amt", max3 / (10 ** 18));
