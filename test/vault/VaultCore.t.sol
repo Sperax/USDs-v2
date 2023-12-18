@@ -649,7 +649,7 @@ contract TestRedeemView is VaultCoreTest {
             uint256 _vaultAmt,
             uint256 _strategyAmt
         ) = _redeemViewTest(usdsAmt, address(0));
-        (uint256 calculatedCollateralAmt, uint256 usdsBurnAmt, uint256 feeAmt, uint256 vaultAmt, uint256 strategyAmt) =
+        (uint256 calculatedCollateralAmt, uint256 usdsBurnAmt, uint256 feeAmt,,) =
             IVault(VAULT).redeemView(_collateral, usdsAmt);
         assertEq(_calculatedCollateralAmt, calculatedCollateralAmt);
         assertEq(_usdsBurnAmt, usdsBurnAmt);
