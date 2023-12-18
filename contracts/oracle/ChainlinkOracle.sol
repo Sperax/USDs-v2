@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.16;
+pragma solidity 0.8.19;
 
 import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
@@ -11,6 +11,7 @@ contract ChainlinkOracle is Ownable {
     // Struct to store price feed and precision information for each token
     struct TokenData {
         address priceFeed; // Address of the Chainlink price feed
+        uint96 timeout;
         uint256 pricePrecision; // Precision factor for the token's price
     }
 
@@ -29,13 +30,16 @@ contract ChainlinkOracle is Ownable {
     // Mapping to store price feed and precision data for each supported token
     mapping(address => TokenData) public getTokenData;
 
-    // Events
-    event TokenDataChanged(address indexed tokenAddr, address priceFeed, uint256 pricePrecision);
+    event TokenDataChanged(address indexed tokenAddr, address priceFeed, uint256 pricePrecision, uint96 timeout);
 
     // Custom error messages
     error TokenNotSupported(address token);
     error ChainlinkSequencerDown();
     error GracePeriodNotPassed(uint256 timeSinceUp);
+    error RoundNotComplete();
+    error StalePrice();
+    error InvalidPrice();
+    error InvalidPricePrecision();
 
     /// @notice Constructor to set up initial token data during contract deployment
     /// @param _priceFeedData Array of token setup data containing token addresses and price feed configurations
@@ -53,8 +57,11 @@ contract ChainlinkOracle is Ownable {
     /// @param _tokenData Token price feed configuration
     /// @dev Only the contract owner can call this function
     function setTokenData(address _token, TokenData memory _tokenData) public onlyOwner {
+        if (_tokenData.pricePrecision != 10 ** AggregatorV3Interface(_tokenData.priceFeed).decimals()) {
+            revert InvalidPricePrecision();
+        }
         getTokenData[_token] = _tokenData;
-        emit TokenDataChanged(_token, _tokenData.priceFeed, _tokenData.pricePrecision);
+        emit TokenDataChanged(_token, _tokenData.priceFeed, _tokenData.pricePrecision, _tokenData.timeout);
     }
 
     /// @notice Gets the price and price precision of a supported token
@@ -81,8 +88,10 @@ contract ChainlinkOracle is Ownable {
             revert GracePeriodNotPassed(timeSinceUp);
         }
 
-        // Retrieve the latest price data for the token from its Chainlink price feed.
-        (, int256 price,,,) = AggregatorV3Interface(tokenInfo.priceFeed).latestRoundData();
+        (, int256 price,, uint256 updatedAt,) = AggregatorV3Interface(tokenInfo.priceFeed).latestRoundData();
+        if (updatedAt == 0) revert RoundNotComplete();
+        if (block.timestamp > updatedAt + tokenInfo.timeout) revert StalePrice();
+        if (price < 0) revert InvalidPrice();
 
         return (uint256(price), tokenInfo.pricePrecision);
     }

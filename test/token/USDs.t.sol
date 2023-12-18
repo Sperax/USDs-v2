@@ -1,16 +1,15 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.16;
+pragma solidity 0.8.19;
 
 import {BaseTest} from "../utils/BaseTest.sol";
 import {UpgradeUtil} from "../utils/UpgradeUtil.sol";
-import {USDs} from "../../contracts/token/USDs.sol";
+import {USDs, Helpers} from "../../contracts/token/USDs.sol";
 import {IERC20, ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 import {ITransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import {SafeMathUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/math/SafeMathUpgradeable.sol";
 import {StableMath} from "../../contracts/libraries/StableMath.sol";
 import {IUSDs} from "../../contracts/interfaces/IUSDs.sol";
-import "forge-std/console.sol";
 
 contract USDsUpgradabilityTest is BaseTest {
     USDs internal usds;
@@ -52,6 +51,9 @@ contract USDsTest is BaseTest {
     address internal USER1;
     address internal USER2;
 
+    event RebaseOptIn(address indexed account);
+    event RebaseOptOut(address indexed account);
+
     modifier testTransfer(uint256 amountToTransfer) {
         uint256 prevBalUser1 = usds.balanceOf(USER1);
         uint256 prevBalUser2 = usds.balanceOf(USER2);
@@ -67,6 +69,7 @@ contract USDsTest is BaseTest {
         setArbitrumFork();
         USER1 = actors[0];
         USER2 = actors[1];
+        upgradeUtil = new UpgradeUtil();
 
         USDsPrecision = 10 ** ERC20(USDS).decimals();
 
@@ -83,6 +86,42 @@ contract USDsTest is BaseTest {
     function test_change_vault() public useKnownActor(USDS_OWNER) {
         usds.updateVault(USER1);
         assertEq(USER1, usds.vault());
+    }
+}
+
+contract TestInitialize is USDsTest {
+    USDs internal newUsds;
+    string internal tokenName = "TestToken";
+    string internal tokenSymbol = "TT";
+    uint256 internal EXPECTED_REBASING_CREDITS_PER_TOKEN = 1e27;
+
+    error InvalidAddress();
+
+    function setUp() public override {
+        super.setUp();
+
+        USDs usdsImpl = new USDs();
+        newUsds = USDs(upgradeUtil.deployErc1967Proxy(address(usdsImpl)));
+    }
+
+    function test_revertWhen_InvalidAddress() public useKnownActor(USDS_OWNER) {
+        vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAddress.selector));
+        newUsds.initialize(tokenName, tokenSymbol, address(0));
+    }
+
+    function test_Initialize() public useKnownActor(USER1) {
+        newUsds.initialize(tokenName, tokenSymbol, VAULT);
+
+        assertEq(tokenName, newUsds.name());
+        assertEq(tokenSymbol, newUsds.symbol());
+        assertEq(VAULT, newUsds.vault());
+        assertEq(EXPECTED_REBASING_CREDITS_PER_TOKEN, newUsds.rebasingCreditsPerToken());
+        assertEq(currentActor, newUsds.owner());
+    }
+
+    function test_revertWhen_AlreadyInitialized() public useKnownActor(USDS_OWNER) {
+        vm.expectRevert("Initializable: contract is already initialized");
+        usds.initialize(tokenName, tokenSymbol, VAULT);
     }
 }
 
@@ -192,10 +231,10 @@ contract TestTransfer is USDsTest {
         useKnownActor(USDS_OWNER)
         testTransfer(usds.balanceOf(USER1))
     {
-        usds.rebaseOptOut(USER1);
-        usds.rebaseOptIn(USER1);
-
         changePrank(USER1);
+        usds.rebaseOptOut();
+        usds.rebaseOptIn();
+
         usds.transfer(USER2, usds.balanceOf(USER1));
     }
 
@@ -204,12 +243,13 @@ contract TestTransfer is USDsTest {
         useKnownActor(USDS_OWNER)
         testTransfer(usds.balanceOf(USER1))
     {
-        usds.rebaseOptOut(USER1);
-
-        usds.rebaseOptOut(USER2);
-        usds.rebaseOptIn(USER2);
+        changePrank(USER2);
+        usds.rebaseOptOut();
+        usds.rebaseOptIn();
 
         changePrank(USER1);
+        usds.rebaseOptOut();
+
         usds.transfer(USER2, usds.balanceOf(USER1));
     }
 
@@ -218,12 +258,13 @@ contract TestTransfer is USDsTest {
         useKnownActor(USDS_OWNER)
         testTransfer(usds.balanceOf(USER1))
     {
-        usds.rebaseOptOut(USER1);
-        usds.rebaseOptIn(USER1);
-
-        usds.rebaseOptOut(USER2);
+        changePrank(USER2);
+        usds.rebaseOptOut();
 
         changePrank(USER1);
+        usds.rebaseOptOut();
+        usds.rebaseOptIn();
+
         usds.transfer(USER2, usds.balanceOf(USER1));
     }
 
@@ -304,10 +345,10 @@ contract TestBurn is USDsTest {
     }
 
     function test_burn_opt_in() public useKnownActor(USDS_OWNER) {
-        usds.rebaseOptIn(VAULT);
-        usds.rebaseOptOut(VAULT);
-
         changePrank(VAULT);
+        usds.rebaseOptIn();
+        usds.rebaseOptOut();
+
         usds.mint(VAULT, amount);
 
         uint256 prevSupply = usds.totalSupply();
@@ -321,8 +362,8 @@ contract TestBurn is USDsTest {
     }
 
     function test_credit_amount_changes_case1() public useKnownActor(USDS_OWNER) {
-        usds.rebaseOptIn(VAULT);
         changePrank(VAULT);
+        usds.rebaseOptIn();
         usds.mint(VAULT, amount);
         uint256 creditAmount = amount.mulTruncate(usds.rebasingCreditsPerToken());
 
@@ -335,8 +376,8 @@ contract TestBurn is USDsTest {
     }
 
     function test_burn_case2() public useKnownActor(USDS_OWNER) {
-        usds.rebaseOptIn(VAULT);
         changePrank(VAULT);
+        usds.rebaseOptIn();
 
         usds.transfer(USER1, usds.balanceOf(VAULT));
         usds.mint(VAULT, amount);
@@ -345,12 +386,12 @@ contract TestBurn is USDsTest {
         usds.burn(amount);
 
         // account for mathematical
-        assertApproxEqAbs(amount - bal, usds.balanceOf(VAULT), 1);
+        assertApproxEqAbs(bal - amount, usds.balanceOf(VAULT), 1);
     }
 
     function test_burn_case3() public useKnownActor(USDS_OWNER) {
-        usds.rebaseOptIn(VAULT);
         changePrank(VAULT);
+        usds.rebaseOptIn();
 
         vm.expectRevert("Insufficient balance");
         amount = 1000000000 * USDsPrecision;
@@ -371,26 +412,31 @@ contract TestRebase is USDsTest {
     }
 
     function test_revertIf_IsAlreadyRebasingAccount() public useKnownActor(USDS_OWNER) {
-        usds.rebaseOptIn(USDS_OWNER);
+        usds.rebaseOptIn();
         vm.expectRevert(abi.encodeWithSelector(USDs.IsAlreadyRebasingAccount.selector, USDS_OWNER));
-        usds.rebaseOptIn(USDS_OWNER);
+        usds.rebaseOptIn();
     }
 
     function test_rebaseOptIn() public useKnownActor(USDS_OWNER) {
-        usds.rebaseOptIn(USDS_OWNER);
+        vm.expectEmit(address(usds));
+        emit RebaseOptIn(USDS_OWNER);
+        usds.rebaseOptIn();
 
         assertEq(usds.nonRebasingCreditsPerToken(USDS_OWNER), 0);
     }
 
     function test_revertIf_IsAlreadyNonRebasingAccount() public useKnownActor(USDS_OWNER) {
-        // usds.rebaseOptOut(USDS_OWNER);
+        // usds.rebaseOptOut();
         vm.expectRevert(abi.encodeWithSelector(USDs.IsAlreadyNonRebasingAccount.selector, USDS_OWNER));
-        usds.rebaseOptOut(USDS_OWNER);
+        usds.rebaseOptOut();
     }
 
     function test_rebaseOptOut() public useKnownActor(USDS_OWNER) {
-        usds.rebaseOptIn(USDS_OWNER);
-        usds.rebaseOptOut(USDS_OWNER);
+        usds.rebaseOptIn();
+
+        vm.expectEmit(address(usds));
+        emit RebaseOptOut(USDS_OWNER);
+        usds.rebaseOptOut();
 
         assertEq(usds.nonRebasingCreditsPerToken(USDS_OWNER), 1);
     }
@@ -420,9 +466,9 @@ contract TestRebase is USDsTest {
     }
 
     function test_rebase_opt_in() public useKnownActor(USDS_OWNER) {
-        usds.rebaseOptIn(VAULT);
-        uint256 amount = 100000;
         changePrank(VAULT);
+        usds.rebaseOptIn();
+        uint256 amount = 100000;
         usds.mint(VAULT, amount);
         uint256 prevSupply = usds.totalSupply();
         usds.rebase(amount);
@@ -430,10 +476,10 @@ contract TestRebase is USDsTest {
     }
 
     function test_rebase_opt_out() public useKnownActor(USDS_OWNER) {
-        usds.rebaseOptIn(VAULT);
-        usds.rebaseOptOut(VAULT);
-        uint256 amount = 100000;
         changePrank(VAULT);
+        usds.rebaseOptIn();
+        usds.rebaseOptOut();
+        uint256 amount = 100000;
         usds.mint(VAULT, amount);
         uint256 prevSupply = usds.totalSupply();
         usds.rebase(amount);
@@ -471,8 +517,8 @@ contract TestEnsureRebasingMigration is USDsTest {
         _deploy(bytecode, salt);
 
         // Trigger _isNonRebasingAccount by sending amount2 to any non-rebasing account
-        vm.prank(USDS_OWNER);
-        usds.rebaseOptOut(msg.sender);
+        vm.prank(msg.sender);
+        usds.rebaseOptOut();
         uint256 transferAmount = amount / 2;
         vm.prank(predictedAddress);
         usds.transfer(msg.sender, transferAmount);

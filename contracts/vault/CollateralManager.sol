@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.16;
+pragma solidity 0.8.19;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
@@ -66,6 +66,7 @@ contract CollateralManager is ICollateralManager, Ownable {
     /// @dev Constructor to initialize the Collateral Manager
     /// @param _vault Address of the Vault contract
     constructor(address _vault) {
+        Helpers._isNonZeroAddr(_vault);
         VAULT = _vault;
     }
 
@@ -303,10 +304,14 @@ contract CollateralManager is ICollateralManager, Ownable {
             revert CollateralAllocationPaused();
         }
 
-        // Calculate the maximum collateral usage based on the allocation cap
+        StrategyData storage strategyData = collateralStrategyInfo[_collateral][_strategy];
+
+        if (!strategyData.exists) {
+            revert CollateralStrategyNotMapped();
+        }
+
         uint256 maxCollateralUsage = (
-            collateralStrategyInfo[_collateral][_strategy].allocationCap
-                * (getCollateralInVault(_collateral) + getCollateralInStrategies(_collateral))
+            strategyData.allocationCap * (getCollateralInVault(_collateral) + getCollateralInStrategies(_collateral))
         ) / Helpers.MAX_PERCENTAGE;
 
         // Get the collateral balance in the specified strategy

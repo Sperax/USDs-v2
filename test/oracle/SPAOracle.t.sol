@@ -1,5 +1,5 @@
-pragma solidity 0.6.12;
-pragma experimental ABIEncoderV2;
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity 0.8.19;
 
 import {SPAOracle} from "../../contracts/oracle/SPAOracle.sol";
 import {IUniswapV3Factory} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Factory.sol";
@@ -8,6 +8,7 @@ import {BaseTest} from "../utils/BaseTest.sol";
 interface IChainlinkOracle {
     struct TokenData {
         address source;
+        uint96 timeout;
         uint256 precision;
     }
 
@@ -30,6 +31,9 @@ abstract contract BaseUniOracleTest is BaseTest {
     event UniMAPriceDataChanged(address quoteToken, uint24 feeTier, uint32 maPeriod);
     event MasterOracleUpdated(address newOracle);
 
+    error FeedUnavailable();
+    error InvalidAddress();
+
     function setUp() public virtual override {
         super.setUp();
         setArbitrumFork();
@@ -38,7 +42,7 @@ abstract contract BaseUniOracleTest is BaseTest {
 
         chainlinkOracle = deployCode("ChainlinkOracle.sol", abi.encode(new IChainlinkOracle.TokenData[](0)));
         IChainlinkOracle.TokenData memory usdcData =
-            IChainlinkOracle.TokenData(0x50834F3163758fcC1Df9973b6e91f0F0F0434aD3, 1e8);
+            IChainlinkOracle.TokenData(0x50834F3163758fcC1Df9973b6e91f0F0F0434aD3, 25 hours, 1e8);
 
         IChainlinkOracle(chainlinkOracle).setTokenData(USDCe, usdcData);
 
@@ -61,16 +65,12 @@ contract SPAOracleTest is BaseUniOracleTest {
 
     event DIAParamsUpdated(uint256 weightDIA, uint128 maxTime);
 
+    error InvalidWeight();
+
     function setUp() public override {
         super.setUp();
         vm.startPrank(USDS_OWNER);
-        spaOracle = new SPAOracle(
-            masterOracle,
-            USDCe,
-            FEE_TIER,
-            MA_PERIOD,
-            WEIGHT_DIA
-        );
+        spaOracle = new SPAOracle(masterOracle, USDCe, FEE_TIER, MA_PERIOD, WEIGHT_DIA);
         spaOracle.updateDIAParams(WEIGHT_DIA, type(uint128).max);
         vm.stopPrank();
     }
@@ -90,16 +90,41 @@ contract Test_FetchPrice is SPAOracleTest {
         assertEq(precision, SPA_PRICE_PRECISION);
         assertGt(price, 0);
     }
+
+    function testFuzz_fetchPrice_when_period_value_below_minTwapPeriod(uint256 period) public {
+        // this test is to make sure that even if the twap period value is less than MIN_TWAP_PERIOD (10 mins)
+        // we still get the price based on MIN_TWAP_PERIOD (10 mins)
+        vm.assume(period < 10 minutes);
+        address UNISWAP_UTILS = spaOracle.UNISWAP_UTILS();
+        vm.mockCall(
+            UNISWAP_UTILS,
+            abi.encodeWithSignature("getOldestObservationSecondsAgo(address)", spaOracle.pool()),
+            abi.encode(period)
+        );
+        (uint256 price0, uint256 precision0) = spaOracle.getPrice();
+
+        vm.mockCall(
+            UNISWAP_UTILS,
+            abi.encodeWithSignature("getOldestObservationSecondsAgo(address)", spaOracle.pool()),
+            abi.encode(10 minutes)
+        );
+        (uint256 price1, uint256 precision1) = spaOracle.getPrice();
+
+        assertEq(price0, price1);
+        assertEq(precision0, precision1);
+    }
 }
 
 contract Test_setUniMAPriceData is SPAOracleTest {
+    error InvalidMaPeriod();
+
     function test_revertsWhen_notOwner() public {
         vm.expectRevert("Ownable: caller is not the owner");
         spaOracle.setUniMAPriceData(SPA, USDCe, 10000, 600);
     }
 
     function test_revertsWhen_invalidData() public useKnownActor(USDS_OWNER) {
-        vm.expectRevert("Feed unavailable");
+        vm.expectRevert(abi.encodeWithSelector(FeedUnavailable.selector));
         spaOracle.setUniMAPriceData(SPA, FRAX, 3000, 600);
     }
 
@@ -107,6 +132,14 @@ contract Test_setUniMAPriceData is SPAOracleTest {
         vm.expectEmit(true, true, true, true);
         emit UniMAPriceDataChanged(USDCe, 10000, 700);
         spaOracle.setUniMAPriceData(SPA, USDCe, 10000, 700);
+    }
+
+    function test_revertsWhen_invalidMaPeriod() public useKnownActor(USDS_OWNER) {
+        vm.expectRevert(abi.encodeWithSelector(InvalidMaPeriod.selector));
+        spaOracle.setUniMAPriceData(SPA, USDCe, 10000, 599);
+
+        vm.expectRevert(abi.encodeWithSelector(InvalidMaPeriod.selector));
+        spaOracle.setUniMAPriceData(SPA, USDCe, 10000, 7201);
     }
 }
 
@@ -117,7 +150,7 @@ contract Test_updateMasterOracle is SPAOracleTest {
     }
 
     function test_revertsWhen_invalidAddress() public useKnownActor(USDS_OWNER) {
-        vm.expectRevert("Invalid Address");
+        vm.expectRevert(abi.encodeWithSelector(InvalidAddress.selector));
         spaOracle.updateMasterOracle(address(0));
     }
 
@@ -142,7 +175,7 @@ contract Test_UpdateDIAWeight is SPAOracleTest {
 
     function test_revertsWhen_invalidWeight() public useKnownActor(USDS_OWNER) {
         uint256 newWeight = spaOracle.MAX_WEIGHT() + 10;
-        vm.expectRevert("Invalid weight");
+        vm.expectRevert(abi.encodeWithSelector(InvalidWeight.selector));
         spaOracle.updateDIAParams(newWeight, 600);
     }
 

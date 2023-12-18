@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.16;
+pragma solidity 0.8.19;
 
 import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {IVault} from "../interfaces/IVault.sol";
 import {IOracle} from "../interfaces/IOracle.sol";
 import {Helpers} from "../libraries/Helpers.sol";
+import {IDripper} from "../interfaces/IDripper.sol";
 
 /// @title YieldReserve of USDs Protocol.
 /// @notice This contract allows users to swap supported stablecoins for yield earned by the USDs protocol.
@@ -14,6 +16,12 @@ import {Helpers} from "../libraries/Helpers.sol";
 /// @author Sperax Foundation
 contract YieldReserve is ReentrancyGuard, Ownable {
     using SafeERC20 for IERC20;
+
+    struct TokenData {
+        bool srcAllowed;
+        bool dstAllowed;
+        uint160 conversionFactor;
+    }
 
     // Addresses of key contracts
     address public vault; // Address of the Vault contract
@@ -24,9 +32,7 @@ contract YieldReserve is ReentrancyGuard, Ownable {
     // Percentage of USDs to be sent to Buyback (e.g., 5000 for 50%)
     uint256 public buybackPercentage;
 
-    // Token permission mappings
-    mapping(address => bool) public isAllowedSrc; // Allowed source tokens
-    mapping(address => bool) public isAllowedDst; // Allowed destination tokens
+    mapping(address => TokenData) public tokenData;
 
     // Events
     event Swapped(
@@ -91,11 +97,17 @@ contract YieldReserve is ReentrancyGuard, Ownable {
     /// @param _token Address of the token to be allowed or disallowed.
     /// @param _isAllowed If set to `true`, the token will be allowed as a source/input token; otherwise, it will be disallowed.
     function toggleSrcTokenPermission(address _token, bool _isAllowed) external onlyOwner {
-        if (isAllowedSrc[_token] == _isAllowed) revert AlreadyInDesiredState();
-        if (_isAllowed && !IOracle(oracle).priceFeedExists(_token)) {
-            revert TokenPriceFeedMissing();
+        TokenData storage data = tokenData[_token];
+        if (data.srcAllowed == _isAllowed) revert AlreadyInDesiredState();
+        if (_isAllowed) {
+            if (!IOracle(oracle).priceFeedExists(_token)) {
+                revert TokenPriceFeedMissing();
+            }
+            if (data.conversionFactor == 0) {
+                data.conversionFactor = uint160(10 ** (18 - ERC20(_token).decimals()));
+            }
         }
-        isAllowedSrc[_token] = _isAllowed;
+        data.srcAllowed = _isAllowed;
         emit SrcTokenPermissionUpdated(_token, _isAllowed);
     }
 
@@ -103,11 +115,17 @@ contract YieldReserve is ReentrancyGuard, Ownable {
     /// @param _token Address of the token to be allowed or disallowed.
     /// @param _isAllowed If set to `true`, the token will be allowed as a destination/output token; otherwise, it will be disallowed.
     function toggleDstTokenPermission(address _token, bool _isAllowed) external onlyOwner {
-        if (isAllowedDst[_token] == _isAllowed) revert AlreadyInDesiredState();
-        if (_isAllowed && !IOracle(oracle).priceFeedExists(_token)) {
-            revert TokenPriceFeedMissing();
+        TokenData storage data = tokenData[_token];
+        if (data.dstAllowed == _isAllowed) revert AlreadyInDesiredState();
+        if (_isAllowed) {
+            if (!IOracle(oracle).priceFeedExists(_token)) {
+                revert TokenPriceFeedMissing();
+            }
+            if (data.conversionFactor == 0) {
+                data.conversionFactor = uint160(10 ** (18 - ERC20(_token).decimals()));
+            }
         }
-        isAllowedDst[_token] = _isAllowed;
+        data.dstAllowed = _isAllowed;
         emit DstTokenPermissionUpdated(_token, _isAllowed);
     }
 
@@ -181,7 +199,7 @@ contract YieldReserve is ReentrancyGuard, Ownable {
         IERC20(_srcToken).safeTransferFrom(msg.sender, address(this), _amountIn);
         if (_srcToken != Helpers.USDS) {
             // Mint USDs
-            IERC20(_srcToken).safeApprove(vault, _amountIn);
+            IERC20(_srcToken).forceApprove(vault, _amountIn);
             IVault(vault).mint(_srcToken, _amountIn, 0, block.timestamp);
             // No need to do a slippage check as it is our contract, and the vault does that.
         }
@@ -206,16 +224,18 @@ contract YieldReserve is ReentrancyGuard, Ownable {
         view
         returns (uint256)
     {
-        if (!isAllowedSrc[_srcToken]) revert InvalidSourceToken();
-        if (!isAllowedDst[_dstToken]) revert InvalidDestinationToken();
+        TokenData storage srcTokenData = tokenData[_srcToken];
+        TokenData storage dstTokenData = tokenData[_dstToken];
+        if (!srcTokenData.srcAllowed) revert InvalidSourceToken();
+        if (!dstTokenData.dstAllowed) revert InvalidDestinationToken();
         Helpers._isNonZeroAmt(_amountIn);
         // Getting prices from Oracle
         IOracle.PriceData memory tokenAPriceData = IOracle(oracle).getPrice(_srcToken);
         IOracle.PriceData memory tokenBPriceData = IOracle(oracle).getPrice(_dstToken);
         // Calculating the value
         return (
-            (_amountIn * tokenAPriceData.price * tokenBPriceData.precision)
-                / (tokenBPriceData.price * tokenAPriceData.precision)
+            (_amountIn * srcTokenData.conversionFactor * tokenAPriceData.price * tokenBPriceData.precision)
+                / (tokenBPriceData.price * tokenAPriceData.precision * dstTokenData.conversionFactor)
         );
     }
 
@@ -234,6 +254,9 @@ contract YieldReserve is ReentrancyGuard, Ownable {
 
         emit USDsSent(toBuyback, toDripper);
         IERC20(Helpers.USDS).safeTransfer(buyback, toBuyback);
-        IERC20(Helpers.USDS).safeTransfer(dripper, toDripper);
+        if (toDripper != 0) {
+            IERC20(Helpers.USDS).forceApprove(dripper, toDripper);
+            IDripper(dripper).addUSDs(toDripper);
+        }
     }
 }

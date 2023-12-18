@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.16;
+pragma solidity 0.8.19;
 
 import {VaultCore} from "../../contracts/vault/VaultCore.sol";
 import {PreMigrationSetup} from "../utils/DeploymentSetup.sol";
@@ -195,7 +195,7 @@ contract TestMint is VaultCoreTest {
         uint256 feeVaultBalAfter = ERC20(USDS).balanceOf(FEE_VAULT);
         assertEq(totalSupplyAfter - totalSupplyBefore, _minUSDSAmt + feeAmt);
         assertEq(feeVaultBalAfter - feeVaultBalBefore, feeAmt);
-        assertGe(ERC20(USDS).balanceOf(minter), _minUSDSAmt);
+        assertApproxEqAbs(ERC20(USDS).balanceOf(minter), _minUSDSAmt, 1);
     }
 }
 
@@ -204,8 +204,12 @@ contract TestRebase is VaultCoreTest {
 
     function test_Rebase() public useKnownActor(VAULT) {
         IRebaseManager(REBASE_MANAGER).fetchRebaseAmt();
+        IUSDs(USDS).mint(actors[1], 1e22);
+        changePrank(actors[1]);
+        ERC20(USDS).approve(DRIPPER, 1e22);
+        IDripper(DRIPPER).addUSDs(1e22);
+        changePrank(VAULT);
         skip(1 days);
-        IUSDs(USDS).mint(DRIPPER, 1e22);
         IDripper(DRIPPER).collect();
         skip(1 days);
         (uint256 min, uint256 max) = IRebaseManager(REBASE_MANAGER).getMinAndMaxRebaseAmt();

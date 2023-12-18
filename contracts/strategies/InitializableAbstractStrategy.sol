@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: MIT
-pragma solidity 0.8.16;
+pragma solidity 0.8.19;
 
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
@@ -14,6 +14,11 @@ interface IStrategyVault {
 
 abstract contract InitializableAbstractStrategy is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradeable {
     using SafeERC20 for IERC20;
+
+    struct RewardData {
+        address token; // Reward token
+        uint256 amount; // Collectible amount
+    }
 
     address public vault;
     uint16 public withdrawSlippage;
@@ -79,6 +84,16 @@ abstract contract InitializableAbstractStrategy is Initializable, OwnableUpgrade
         emit HarvestIncentiveRateUpdated(_newRate);
     }
 
+    /// @notice A function to recover any erc20 token sent to this strategy mistakenly
+    /// @dev Only callable by owner
+    /// @param token Address of the token
+    /// @param receiver Receiver of the token
+    /// @param amount Amount to be recovered
+    /// @dev reverts if amount > balance
+    function recoverERC20(address token, address receiver, uint256 amount) external onlyOwner {
+        IERC20(token).safeTransfer(receiver, amount);
+    }
+
     /// @dev Deposit an amount of asset into the platform
     /// @param _asset Address for the asset
     /// @param _amount Units of asset to deposit
@@ -127,7 +142,7 @@ abstract contract InitializableAbstractStrategy is Initializable, OwnableUpgrade
     function checkInterestEarned(address _asset) external view virtual returns (uint256);
 
     /// @notice Get the amount of claimable reward
-    function checkRewardEarned() external view virtual returns (uint256);
+    function checkRewardEarned() external view virtual returns (RewardData[] memory);
 
     /// @notice Get the total LP token balance for a asset.
     /// @param _asset Address of the asset.

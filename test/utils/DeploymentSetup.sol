@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Unlicensed
-pragma solidity 0.8.16;
+pragma solidity 0.8.19;
 
 import {Setup} from "./BaseTest.sol";
 import {UpgradeUtil} from "./UpgradeUtil.sol";
@@ -21,7 +21,6 @@ import {ChainlinkOracle} from "../../contracts/oracle/ChainlinkOracle.sol";
 import {StargateStrategy} from "../../contracts/strategies/stargate/StargateStrategy.sol";
 import {AaveStrategy} from "../../contracts/strategies/aave/AaveStrategy.sol";
 import {CompoundStrategy} from "../../contracts/strategies/compound/CompoundStrategy.sol";
-import {VSTOracle} from "../../contracts/oracle/VSTOracle.sol";
 
 interface ICustomOracle {
     function updateDIAParams(uint256 _weightDIA, uint128 _maxTime) external;
@@ -39,7 +38,6 @@ abstract contract PreMigrationSetup is Setup {
     UpgradeUtil internal upgradeUtil;
     MasterPriceOracle internal masterOracle;
     ChainlinkOracle chainlinkOracle;
-    VSTOracle vstOracle;
     address internal spaOracle;
     address internal usdsOracle;
     StargateStrategy internal stargateStrategy;
@@ -75,9 +73,7 @@ abstract contract PreMigrationSetup is Setup {
         CollateralManager collateralManager = new CollateralManager(VAULT);
 
         ORACLE = address(new MasterPriceOracle());
-        FeeCalculator feeCalculator = new FeeCalculator(
-            address(collateralManager)
-        );
+        FeeCalculator feeCalculator = new FeeCalculator(address(collateralManager));
         FEE_CALCULATOR = address(feeCalculator);
 
         COLLATERAL_MANAGER = address(collateralManager);
@@ -91,7 +87,6 @@ abstract contract PreMigrationSetup is Setup {
         vault.updateRebaseManager(REBASE_MANAGER);
         vault.updateFeeVault(FEE_VAULT);
 
-        vstOracle = new VSTOracle();
         masterOracle = MasterPriceOracle(ORACLE);
         // A pre-requisite for initializing SPA and USDs oracles
         deployAndConfigureChainlink();
@@ -122,7 +117,7 @@ abstract contract PreMigrationSetup is Setup {
         vm.makePersistent(stargateStrategyProxy);
         stargateStrategy = StargateStrategy(stargateStrategyProxy);
         stargateStrategy.initialize(stargateRouter, VAULT, stg, stargateFarm, 20, 20);
-        stargateStrategy.setPTokenAddress(USDCe, 0x892785f33CdeE22A30AEF750F285E18c18040c3e, 1, 0, 0);
+        stargateStrategy.setPTokenAddress(USDCe, 0x892785f33CdeE22A30AEF750F285E18c18040c3e, 1, 0);
 
         address aavePoolProvider = 0xa97684ead0e402dC232d5A977953DF7ECBaB3CDb;
         AaveStrategy aaveStrategyImpl = new AaveStrategy();
@@ -130,12 +125,11 @@ abstract contract PreMigrationSetup is Setup {
         vm.makePersistent(aaveStrategyProxy);
         aaveStrategy = AaveStrategy(aaveStrategyProxy);
         aaveStrategy.initialize(aavePoolProvider, VAULT);
-        aaveStrategy.setPTokenAddress(USDCe, 0x625E7708f30cA75bfd92586e17077590C60eb4cD, 0);
+        aaveStrategy.setPTokenAddress(USDCe, 0x625E7708f30cA75bfd92586e17077590C60eb4cD);
 
         collateralManager.addCollateral(USDCe, _data);
         collateralManager.addCollateral(USDT, _data);
         collateralManager.addCollateral(FRAX, _data);
-        collateralManager.addCollateral(VST, _data);
         collateralManager.addCollateral(USDC, _data);
         collateralManager.addCollateralStrategy(USDCe, address(stargateStrategy), 3000);
         collateralManager.addCollateralStrategy(USDCe, address(aaveStrategy), 4000);
@@ -151,7 +145,7 @@ abstract contract PreMigrationSetup is Setup {
         // vm.makePersistent(aaveStrategyProxy);
         compoundStrategy = CompoundStrategy(compoundStrategyProxy);
         compoundStrategy.initialize(VAULT, compoundRewardPool);
-        compoundStrategy.setPTokenAddress(USDC, 0x9c4ec768c28520B50860ea7a15bd7213a9fF58bf, 0);
+        compoundStrategy.setPTokenAddress(USDC, 0x9c4ec768c28520B50860ea7a15bd7213a9fF58bf);
         collateralManager.addCollateralStrategy(USDC, address(compoundStrategy), 4000);
         vm.stopPrank();
     }
@@ -159,28 +153,27 @@ abstract contract PreMigrationSetup is Setup {
     function deployAndConfigureChainlink() private {
         ChainlinkOracle.SetupTokenData[] memory chainlinkFeeds = new ChainlinkOracle.SetupTokenData[](3);
         chainlinkFeeds[0] = ChainlinkOracle.SetupTokenData(
-            USDCe, ChainlinkOracle.TokenData(0x50834F3163758fcC1Df9973b6e91f0F0F0434aD3, 1e8)
+            USDCe, ChainlinkOracle.TokenData(0x50834F3163758fcC1Df9973b6e91f0F0F0434aD3, 25 hours, 1e8)
         );
         chainlinkFeeds[1] = ChainlinkOracle.SetupTokenData(
-            FRAX, ChainlinkOracle.TokenData(0x0809E3d38d1B4214958faf06D8b1B1a2b73f2ab8, 1e8)
+            FRAX, ChainlinkOracle.TokenData(0x0809E3d38d1B4214958faf06D8b1B1a2b73f2ab8, 25 hours, 1e8)
         );
         chainlinkFeeds[2] = ChainlinkOracle.SetupTokenData(
-            DAI, ChainlinkOracle.TokenData(0xc5C8E77B397E531B8EC06BFb0048328B30E9eCfB, 1e8)
+            DAI, ChainlinkOracle.TokenData(0xc5C8E77B397E531B8EC06BFb0048328B30E9eCfB, 25 hours, 1e8)
         );
         chainlinkOracle = new ChainlinkOracle(chainlinkFeeds);
     }
 
     function updatePriceFeeds() private {
-        PriceFeedData[] memory feedData = new PriceFeedData[](5);
+        PriceFeedData[] memory feedData = new PriceFeedData[](4);
         feedData[0] = PriceFeedData(
             FRAX, address(chainlinkOracle), abi.encodeWithSelector(ChainlinkOracle.getTokenPrice.selector, FRAX)
         );
         feedData[1] = PriceFeedData(
             DAI, address(chainlinkOracle), abi.encodeWithSelector(ChainlinkOracle.getTokenPrice.selector, DAI)
         );
-        feedData[2] = PriceFeedData(VST, address(vstOracle), abi.encodeWithSelector(VSTOracle.getPrice.selector));
-        feedData[3] = PriceFeedData(SPA, spaOracle, abi.encodeWithSelector(ICustomOracle.getPrice.selector));
-        feedData[4] = PriceFeedData(USDS, usdsOracle, abi.encodeWithSelector(ICustomOracle.getPrice.selector));
+        feedData[2] = PriceFeedData(SPA, spaOracle, abi.encodeWithSelector(ICustomOracle.getPrice.selector));
+        feedData[3] = PriceFeedData(USDS, usdsOracle, abi.encodeWithSelector(ICustomOracle.getPrice.selector));
         // feedData[0] = PriceFeedData(USDCe, address(chainlinkOracle), abi.encodeWithSelector(ChainlinkOracle.getTokenPrice.selector, USDCe));
         for (uint8 i = 0; i < feedData.length; ++i) {
             masterOracle.updateTokenPriceFeed(feedData[i].token, feedData[i].source, feedData[i].msgData);

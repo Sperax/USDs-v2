@@ -1,4 +1,4 @@
-from brownie import VSTOracle, MasterPriceOracle, ChainlinkOracle, SPAOracle, USDsOracle
+from brownie import MasterPriceOracle, ChainlinkOracle, SPAOracle, USDsOracle
 
 from .configurations import (
     USDS_OWNER_ADDR,
@@ -9,7 +9,6 @@ from .configurations import (
     FRAX,
     DAI,
     LUSD,
-    VST,
 )
 
 from .utils import get_user
@@ -29,7 +28,6 @@ def main():
     chainlink_oracle = ChainlinkOracle.deploy(
         chainlink_feeds, {"from": user}, publish_source=True
     )
-    vst_oracle = VSTOracle.deploy({"from": user}, publish_source=True)
     master_price_oracle = MasterPriceOracle.deploy({"from": user}, publish_source=True)
 
     master_price_oracle.updateTokenPriceFeed(
@@ -46,9 +44,6 @@ def main():
     )
     master_price_oracle.updateTokenPriceFeed(
         LUSD, chainlink_oracle, chainlink_oracle.getTokenPrice.encode_input(LUSD)
-    )
-    master_price_oracle.updateTokenPriceFeed(
-        VST, vst_oracle, vst_oracle.getPrice.encode_input()
     )
 
     spa_oracle = SPAOracle.deploy(
@@ -71,6 +66,6 @@ def main():
     usds_oracle.transferOwnership(USDS_OWNER_ADDR, {"from": user})
     master_price_oracle.transferOwnership(USDS_OWNER_ADDR, {"from": user})
 
-    tokens = [SPA, USDS, USDC_E, USDT, FRAX, DAI, VST, LUSD]
+    tokens = [SPA, USDS, USDC_E, USDT, FRAX, DAI, LUSD]
     for token in tokens:
         print(f"Fetching Price feed for {token}: {master_price_oracle.getPrice(token)}")

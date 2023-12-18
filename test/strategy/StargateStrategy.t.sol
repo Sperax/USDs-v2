@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.16;
+pragma solidity 0.8.19;
 
 import {BaseStrategy} from "./BaseStrategy.t.sol";
 import {BaseTest} from "../utils/BaseTest.sol";
@@ -14,6 +14,8 @@ import {
 } from "../../contracts/strategies/stargate/StargateStrategy.sol";
 import {VmSafe} from "forge-std/Vm.sol";
 
+address constant DUMMY_ADDRESS = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
+
 contract StargateStrategyTest is BaseStrategy, BaseTest {
     struct AssetData {
         string name;
@@ -21,7 +23,6 @@ contract StargateStrategyTest is BaseStrategy, BaseTest {
         address pToken;
         uint16 pid;
         uint256 rewardPid;
-        uint256 intLiqThreshold;
     }
 
     AssetData[] public assetData;
@@ -39,9 +40,7 @@ contract StargateStrategyTest is BaseStrategy, BaseTest {
     StargateStrategy internal strategy;
     address internal proxyAddress;
 
-    // Test events
-    event SkipRwdValidationStatus(bool status);
-    event IntLiqThresholdUpdated(address indexed asset, uint256 intLiqThreshold);
+    event FarmUpdated(address _newFarm);
 
     // Test errors
     error IncorrectPoolId(address asset, uint16 pid);
@@ -72,13 +71,7 @@ contract StargateStrategyTest is BaseStrategy, BaseTest {
 
     function _setAssetData() internal {
         for (uint8 i = 0; i < assetData.length; ++i) {
-            strategy.setPTokenAddress(
-                assetData[i].asset,
-                assetData[i].pToken,
-                assetData[i].pid,
-                assetData[i].rewardPid,
-                assetData[i].intLiqThreshold
-            );
+            strategy.setPTokenAddress(assetData[i].asset, assetData[i].pToken, assetData[i].pid, assetData[i].rewardPid);
         }
     }
 
@@ -116,8 +109,7 @@ contract StargateStrategyTest is BaseStrategy, BaseTest {
                 asset: 0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8,
                 pToken: 0x892785f33CdeE22A30AEF750F285E18c18040c3e,
                 pid: 1,
-                rewardPid: 0,
-                intLiqThreshold: 0
+                rewardPid: 0
             })
         );
 
@@ -127,8 +119,7 @@ contract StargateStrategyTest is BaseStrategy, BaseTest {
                 asset: 0x17FC002b466eEc40DaE837Fc4bE5c67993ddBd6F,
                 pToken: 0xaa4BF442F024820B2C28Cd0FD72b82c63e66F56C,
                 pid: 7,
-                rewardPid: 3,
-                intLiqThreshold: 0
+                rewardPid: 3
             })
         );
     }
@@ -199,20 +190,12 @@ contract SetPToken is StargateStrategyTest {
 
             vm.expectEmit(true, true, false, true);
             emit PTokenAdded(assetData[i].asset, assetData[i].pToken);
-            strategy.setPTokenAddress(
-                assetData[i].asset,
-                assetData[i].pToken,
-                assetData[i].pid,
-                assetData[i].rewardPid,
-                assetData[i].intLiqThreshold
-            );
+            strategy.setPTokenAddress(assetData[i].asset, assetData[i].pToken, assetData[i].pid, assetData[i].rewardPid);
 
             assertEq(strategy.assetToPToken(assetData[i].asset), assetData[i].pToken);
             assertTrue(strategy.supportsCollateral(assetData[i].asset));
-            (uint256 allocatedAmt, uint256 intLiqThreshold, uint256 rewardPID, uint16 pid) =
-                strategy.assetInfo(assetData[i].asset);
+            (uint256 allocatedAmt, uint256 rewardPID, uint16 pid) = strategy.assetInfo(assetData[i].asset);
             assertEq(allocatedAmt, 0);
-            assertEq(intLiqThreshold, assetData[i].intLiqThreshold);
             assertEq(rewardPID, assetData[i].rewardPid);
             assertEq(pid, assetData[i].pid);
         }
@@ -222,7 +205,7 @@ contract SetPToken is StargateStrategyTest {
         AssetData memory data = assetData[0];
 
         vm.expectRevert("Ownable: caller is not the owner");
-        strategy.setPTokenAddress(data.asset, data.pToken, data.pid, data.rewardPid, data.intLiqThreshold);
+        strategy.setPTokenAddress(data.asset, data.pToken, data.pid, data.rewardPid);
     }
 
     function test_RevertWhen_InvalidPToken() public useKnownActor(USDS_OWNER) {
@@ -230,7 +213,7 @@ contract SetPToken is StargateStrategyTest {
         data.pToken = assetData[1].pToken;
 
         vm.expectRevert(abi.encodeWithSelector(InvalidAssetLpPair.selector, data.asset, data.pToken));
-        strategy.setPTokenAddress(data.asset, data.pToken, data.pid, data.rewardPid, data.intLiqThreshold);
+        strategy.setPTokenAddress(data.asset, data.pToken, data.pid, data.rewardPid);
     }
 
     function test_RevertWhen_InvalidPid() public useKnownActor(USDS_OWNER) {
@@ -238,7 +221,7 @@ contract SetPToken is StargateStrategyTest {
         data.pid += 1;
 
         vm.expectRevert(abi.encodeWithSelector(IncorrectPoolId.selector, data.asset, data.pid));
-        strategy.setPTokenAddress(data.asset, data.pToken, data.pid, data.rewardPid, data.intLiqThreshold);
+        strategy.setPTokenAddress(data.asset, data.pToken, data.pid, data.rewardPid);
     }
 
     function test_RevertWhen_InvalidRewardPid() public useKnownActor(USDS_OWNER) {
@@ -246,15 +229,15 @@ contract SetPToken is StargateStrategyTest {
         data.rewardPid += 1;
 
         vm.expectRevert(abi.encodeWithSelector(IncorrectRewardPoolId.selector, data.asset, data.rewardPid));
-        strategy.setPTokenAddress(data.asset, data.pToken, data.pid, data.rewardPid, data.intLiqThreshold);
+        strategy.setPTokenAddress(data.asset, data.pToken, data.pid, data.rewardPid);
     }
 
     function test_RevertWhen_DuplicateAsset() public useKnownActor(USDS_OWNER) {
         AssetData memory data = assetData[0];
-        strategy.setPTokenAddress(data.asset, data.pToken, data.pid, data.rewardPid, data.intLiqThreshold);
+        strategy.setPTokenAddress(data.asset, data.pToken, data.pid, data.rewardPid);
 
         vm.expectRevert(abi.encodeWithSelector(PTokenAlreadySet.selector, data.asset, data.pToken));
-        strategy.setPTokenAddress(data.asset, data.pToken, data.pid, data.rewardPid, data.intLiqThreshold);
+        strategy.setPTokenAddress(data.asset, data.pToken, data.pid, data.rewardPid);
     }
 }
 
@@ -289,7 +272,7 @@ contract RemovePToken is StargateStrategyTest {
         // Mock asset allocation!
         stdstore.target(address(strategy)).sig("assetInfo(address)").with_key(data.asset).depth(0).checked_write(1e18);
 
-        (uint256 allocatedAmt,,,) = strategy.assetInfo(data.asset);
+        (uint256 allocatedAmt,,) = strategy.assetInfo(data.asset);
 
         assert(allocatedAmt > 0);
         vm.expectRevert(abi.encodeWithSelector(CollateralAllocated.selector, data.asset));
@@ -299,37 +282,6 @@ contract RemovePToken is StargateStrategyTest {
     function test_RevertWhen_InvalidId() public useKnownActor(USDS_OWNER) {
         vm.expectRevert(abi.encodeWithSelector(InvalidIndex.selector));
         strategy.removePToken(assetData.length);
-    }
-}
-
-contract UpdateIntLiqThreshold is StargateStrategyTest {
-    function setUp() public override {
-        super.setUp();
-        vm.startPrank(USDS_OWNER);
-        _initializeStrategy();
-        _setAssetData();
-        vm.stopPrank();
-    }
-
-    function test_UpdateIntLiqThreshold() public useKnownActor(USDS_OWNER) {
-        AssetData memory data = assetData[0];
-        uint256 newThreshold = 100e18;
-        vm.expectEmit(true, true, false, true);
-        emit IntLiqThresholdUpdated(data.asset, newThreshold);
-        strategy.updateIntLiqThreshold(data.asset, newThreshold);
-        (, uint256 intLiqThreshold,,) = strategy.assetInfo(data.asset);
-        assertEq(intLiqThreshold, newThreshold);
-    }
-
-    function test_RevertWhen_NotOwner() public {
-        AssetData memory data = assetData[0];
-        vm.expectRevert("Ownable: caller is not the owner");
-        strategy.updateIntLiqThreshold(data.asset, 100e18);
-    }
-
-    function test_RevertWhen_CollateralNotSupported() public useKnownActor(USDS_OWNER) {
-        vm.expectRevert(abi.encodeWithSelector(CollateralNotSupported.selector, address(0)));
-        strategy.updateIntLiqThreshold(address(0), 100e18);
     }
 }
 
@@ -389,6 +341,9 @@ contract Deposit is StargateStrategyTest {
                 }
             }
             assertEq(strategy.checkBalance(assetData[i].asset), amt);
+            uint256 _bal = ERC20(assetData[i].asset).balanceOf(address(strategy));
+            emit log_named_uint("Strategy Balance", _bal);
+            assertApproxEqAbs(ERC20(assetData[i].asset).balanceOf(address(strategy)), 0, 1);
         }
     }
 
@@ -470,18 +425,19 @@ contract CollectReward is HarvestTest {
         _harvestIncentiveRate = uint16(bound(_harvestIncentiveRate, 0, 10000));
         vm.prank(USDS_OWNER);
         strategy.updateHarvestIncentiveRate(_harvestIncentiveRate);
-        uint256 initialRewards = strategy.checkRewardEarned();
+        StargateStrategy.RewardData[] memory initialRewards = strategy.checkRewardEarned();
 
-        assert(initialRewards == 0);
+        assert(initialRewards[0].token == strategy.rewardTokenAddress(0));
+        assert(initialRewards[0].amount == 0);
 
         // Do a time travel & mine dummy blocks for accumulating some rewards
         vm.warp(block.timestamp + 10 days);
         vm.roll(block.number + 1000);
 
-        uint256 currentRewards = strategy.checkRewardEarned();
-        assert(currentRewards > 0);
-        uint256 incentiveAmt = (currentRewards * strategy.harvestIncentiveRate()) / Helpers.MAX_PERCENTAGE;
-        uint256 harvestAmt = currentRewards - incentiveAmt;
+        StargateStrategy.RewardData[] memory currentRewards = strategy.checkRewardEarned();
+        assert(currentRewards[0].amount > 0);
+        uint256 incentiveAmt = (currentRewards[0].amount * strategy.harvestIncentiveRate()) / Helpers.MAX_PERCENTAGE;
+        uint256 harvestAmt = currentRewards[0].amount - incentiveAmt;
         address caller = actors[1];
 
         if (incentiveAmt > 0) {
@@ -497,7 +453,7 @@ contract CollectReward is HarvestTest {
         assertEq(ERC20(E_TOKEN).balanceOf(caller), incentiveAmt);
 
         currentRewards = strategy.checkRewardEarned();
-        assert(currentRewards == 0);
+        assert(currentRewards[0].amount == 0);
     }
 }
 
@@ -530,18 +486,6 @@ contract CollectInterest is HarvestTest {
             strategy.collectInterest(assetData[i].asset);
             /// @note precision Error from stargate
             assertApproxEqAbs(strategy.checkLPTokenBalance(assetData[i].asset), initialLPBal, 1);
-        }
-    }
-
-    function test_InterestLessThanThreshold() public {
-        for (uint8 i = 0; i < assetData.length; ++i) {
-            uint256 interestAmt = strategy.checkInterestEarned(assetData[i].asset);
-
-            vm.prank(USDS_OWNER);
-            strategy.updateIntLiqThreshold(assetData[i].asset, 1);
-
-            strategy.collectInterest(assetData[i].asset);
-            assertEq(strategy.checkInterestEarned(assetData[i].asset), interestAmt);
         }
     }
 
@@ -587,6 +531,11 @@ contract Withdraw is StargateStrategyTest {
     function test_withdraw_InvalidAddress() public useKnownActor(VAULT) {
         vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAddress.selector));
         strategy.withdraw(address(0), assetData[0].asset, 1);
+    }
+
+    function test_RevertWhen_CollateralNotSupported() public useKnownActor(VAULT) {
+        vm.expectRevert(abi.encodeWithSelector(CollateralNotSupported.selector, DUMMY_ADDRESS));
+        strategy.withdraw(VAULT, DUMMY_ADDRESS, 1); // invalid asset
     }
 
     function test_WithdrawToVault() public useKnownActor(USDS_OWNER) {
@@ -672,5 +621,74 @@ contract EdgeCases is StargateStrategyTest {
         vm.mockCall(data.pToken, abi.encodeWithSignature("totalLiquidity()"), abi.encode(initialTotalLiq / 2));
 
         assertTrue(strategy.checkBalance(data.asset) < initialBal);
+    }
+}
+
+contract TestRecoverERC20 is StargateStrategyTest {
+    address token;
+    address receiver;
+    uint256 amount;
+
+    function setUp() public override {
+        super.setUp();
+        vm.startPrank(USDS_OWNER);
+        _initializeStrategy();
+        _createDeposits();
+        vm.stopPrank();
+        token = DAI;
+        receiver = actors[1];
+        amount = 1000 * 10 ** ERC20(token).decimals();
+    }
+
+    function test_RevertsWhen_CallerIsNotOwner() public {
+        vm.expectRevert("Ownable: caller is not the owner");
+        strategy.recoverERC20(token, receiver, amount);
+    }
+
+    function test_RevertsWhen_AmountMoreThanBalance() public useKnownActor(USDS_OWNER) {
+        vm.expectRevert();
+        strategy.recoverERC20(token, receiver, amount);
+    }
+
+    function test_RecoverERC20() public useKnownActor(USDS_OWNER) {
+        deal(token, address(strategy), amount);
+        uint256 balBefore = ERC20(token).balanceOf(receiver);
+        strategy.recoverERC20(token, receiver, amount);
+        uint256 balAfter = ERC20(token).balanceOf(receiver);
+        assertEq(balAfter - balBefore, amount);
+    }
+}
+
+contract TestUpdateFarm is StargateStrategyTest {
+    address _newFarm;
+
+    function setUp() public override {
+        super.setUp();
+        vm.startPrank(USDS_OWNER);
+        _initializeStrategy();
+        _createDeposits();
+        vm.stopPrank();
+        _newFarm = 0xeA8DfEE1898a7e0a59f7527F076106d7e44c2176;
+    }
+
+    function test_revertsWhen_CallerIsNotOwner() public {
+        vm.expectRevert("Ownable: caller is not the owner");
+        strategy.updateFarm(_newFarm);
+    }
+
+    function test_UpdateFarm() public useKnownActor(USDS_OWNER) {
+        uint256 _length = assetData.length;
+        uint256[] memory oldFarmBalances = new uint256[](_length);
+        uint256[] memory newFarmBalances = new uint256[](_length);
+        for (uint8 i = 0; i < _length; ++i) {
+            (oldFarmBalances[i],) = ILPStaking(STARGATE_FARM).userInfo(assetData[i].rewardPid, address(strategy));
+        }
+        vm.expectEmit(true, true, true, true);
+        emit FarmUpdated(_newFarm);
+        strategy.updateFarm(_newFarm);
+        for (uint8 i = 0; i < assetData.length; ++i) {
+            (newFarmBalances[i],) = ILPStaking(_newFarm).userInfo(assetData[i].rewardPid, address(strategy));
+            assertEq(oldFarmBalances[i], newFarmBalances[i], "Mismatch in balance");
+        }
     }
 }

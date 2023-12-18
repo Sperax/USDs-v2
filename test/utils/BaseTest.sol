@@ -6,14 +6,12 @@ import {Test} from "forge-std/Test.sol";
 abstract contract Setup is Test {
     // Define global constants | Test config
     // @dev Make it 0 to test on latest
-    uint256 public constant FORK_BLOCK = 135087311;
     uint256 public constant NUM_ACTORS = 5;
 
     // Define Collateral constants here
     address public constant USDCe = 0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8;
     address public constant USDT = 0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9;
     address public constant FRAX = 0x17FC002b466eEc40DaE837Fc4bE5c67993ddBd6F;
-    address public constant VST = 0x64343594Ab9b56e99087BfA6F2335Db24c2d1F17;
     address public constant DAI = 0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1;
     address public constant USDC = 0xaf88d065e77c8cC2239327C5EDb3A432268e5831;
 
@@ -64,8 +62,8 @@ abstract contract Setup is Test {
     }
 
     /// @notice Initialize global test configuration.
+    /// @dev Initialize actors for testing.
     function setUp() public virtual {
-        /// @dev Initialize actors for testing.
         string memory mnemonic = vm.envString("TEST_MNEMONIC");
         for (uint32 i = 0; i < NUM_ACTORS; ++i) {
             (address act,) = deriveRememberKey(mnemonic, i);
@@ -75,6 +73,7 @@ abstract contract Setup is Test {
 
     /// @notice
     function setArbitrumFork() public {
+        uint256 FORK_BLOCK = vm.envUint("FORK_BLOCK");
         string memory arbRpcUrl = vm.envString("ARB_URL");
         arbFork = vm.createFork(arbRpcUrl);
         vm.selectFork(arbFork);

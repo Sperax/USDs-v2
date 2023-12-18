@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: MIT
-pragma solidity 0.8.16;
+//SPDX-License-Identifier: MIT
+pragma solidity 0.8.19;
 
 import {OwnableUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
@@ -116,7 +116,7 @@ contract VaultCore is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradea
         if (!ICollateralManager(collateralManager).validateAllocation(_collateral, _strategy, _amount)) {
             revert AllocationNotAllowed(_collateral, _strategy, _amount);
         }
-        IERC20Upgradeable(_collateral).safeIncreaseAllowance(_strategy, _amount);
+        IERC20Upgradeable(_collateral).forceApprove(_strategy, _amount);
         IStrategy(_strategy).deposit(_collateral, _amount);
         emit Allocated(_collateral, _strategy, _amount);
     }
@@ -445,17 +445,18 @@ contract VaultCore is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradea
         vaultAmt = IERC20Upgradeable(_collateral).balanceOf(address(this));
 
         if (calculatedCollateralAmt > vaultAmt) {
+            // @dev Insufficient fund in the vault to support redemption Check in linked strategy
             unchecked {
                 strategyAmt = calculatedCollateralAmt - vaultAmt;
             }
-            // Withdraw from default strategy
             if (_strategyAddr == address(0)) {
+                // Withdraw from default strategy if strategy not specified
                 if (collateralRedeemConfig.defaultStrategy == address(0)) {
                     revert InsufficientCollateral(_collateral, address(0), calculatedCollateralAmt, vaultAmt);
                 }
                 strategy = IStrategy(collateralRedeemConfig.defaultStrategy);
-                // Withdraw from specified strategy
             } else {
+                // Withdraw from specified strategy
                 if (!ICollateralManager(collateralManager).isValidStrategy(_collateral, _strategyAddr)) {
                     revert InvalidStrategy(_collateral, _strategyAddr);
                 }
@@ -467,6 +468,9 @@ contract VaultCore is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradea
                     _collateral, _strategyAddr, calculatedCollateralAmt, vaultAmt + availableBal
                 );
             }
+        } else {
+            // @dev Case where the redemption amount is less <= vaultAmt
+            vaultAmt = calculatedCollateralAmt;
         }
     }
 }
