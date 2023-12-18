@@ -118,8 +118,9 @@ contract CompoundStrategy is InitializableAbstractStrategy {
     }
 
     /// @inheritdoc InitializableAbstractStrategy
-    function checkRewardEarned() external view override returns (uint256 total) {
+    function checkRewardEarned() external view override returns (RewardData[] memory) {
         uint256 numAssets = assetsMapped.length;
+        RewardData[] memory rewardData = new RewardData[](numAssets);
         for (uint256 i; i < numAssets;) {
             address lpToken = assetToPToken[assetsMapped[i]];
             uint256 accrued = uint256(IComet(lpToken).baseTrackingAccrued(address(this)));
@@ -131,12 +132,12 @@ contract CompoundStrategy is InitializableAbstractStrategy {
             }
             accrued = ((accrued * config.multiplier) / FACTOR_SCALE);
 
-            // assuming homogeneous reward tokens
-            total += accrued - rewardPool.rewardsClaimed(lpToken, address(this));
+            rewardData[i] = RewardData(config.token, accrued - rewardPool.rewardsClaimed(lpToken, address(this)));
             unchecked {
                 ++i;
             }
         }
+        return rewardData;
     }
 
     /// @inheritdoc InitializableAbstractStrategy

@@ -203,19 +203,7 @@ contract StargateStrategy is InitializableAbstractStrategy {
     }
 
     /// @inheritdoc InitializableAbstractStrategy
-    function supportsCollateral(address _asset) public view override returns (bool) {
-        return assetToPToken[_asset] != address(0);
-    }
-
-    /// @notice Get the amount STG pending to be collected.
-    /// @param _asset Address for the asset
-    function checkPendingRewards(address _asset) public view returns (uint256) {
-        if (!supportsCollateral(_asset)) revert CollateralNotSupported(_asset);
-        return ILPStaking(farm).pendingEmissionToken(assetInfo[_asset].rewardPID, address(this));
-    }
-
-    /// @inheritdoc InitializableAbstractStrategy
-    function checkRewardEarned() public view override returns (uint256) {
+    function checkRewardEarned() external view override returns (RewardData[] memory) {
         uint256 pendingRewards = 0;
         uint256 numAssets = assetsMapped.length;
         for (uint256 i; i < numAssets;) {
@@ -226,7 +214,21 @@ contract StargateStrategy is InitializableAbstractStrategy {
             }
         }
         uint256 claimedRewards = IERC20(rewardTokenAddress[0]).balanceOf(address(this));
-        return claimedRewards + pendingRewards;
+        RewardData[] memory rewardData = new RewardData[](1);
+        rewardData[0] = RewardData(rewardTokenAddress[0], claimedRewards + pendingRewards);
+        return rewardData;
+    }
+
+    /// @inheritdoc InitializableAbstractStrategy
+    function supportsCollateral(address _asset) public view override returns (bool) {
+        return assetToPToken[_asset] != address(0);
+    }
+
+    /// @notice Get the amount STG pending to be collected.
+    /// @param _asset Address for the asset
+    function checkPendingRewards(address _asset) public view returns (uint256) {
+        if (!supportsCollateral(_asset)) revert CollateralNotSupported(_asset);
+        return ILPStaking(farm).pendingEmissionToken(assetInfo[_asset].rewardPID, address(this));
     }
 
     /// @inheritdoc InitializableAbstractStrategy
