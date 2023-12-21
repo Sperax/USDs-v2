@@ -1,0 +1,38 @@
+@startuml USDs Mint Flow
+
+title USDs Mint Flow
+actor User
+participant Vault
+participant CollateralManager
+participant Oracle
+participant FeeCalculator
+participant USDs
+participant FeeVault
+box "External Contracts" #LightBlue
+    participant Collateral
+end box
+
+User -> Collateral: approve(vault, amount)
+User -> Vault: mint(collateral, amount, minAmtToRecv, deadline)
+note over Vault: Validate the transaction \nis within deadline
+Vault -> CollateralManager: getMintParams
+note over CollateralManager: Validates if token \ncollateral is registered
+CollateralManager --> Vault: Collateral's mint config
+Vault -> Oracle: getPrice(collateral)
+note over Oracle: Validate the price \nfeed for the collateral
+Oracle --> Vault: Collateral Price
+note over Vault: Validate conditions \n1. Mint is allowed \n2. Price of collateral is \nabove a `downsidePeg`
+Vault -> FeeCalculator: getMintFee(collateral)
+note over FeeCalculator: Calculates fee based \non the composition of \ncollateral in USDs
+FeeCalculator --> Vault: Fee amount
+note over Vault: Perform a slippage check
+Vault -> Vault: Rebase()
+note over Vault: Perform a rebase if \npreset conditions match
+Vault -> Collateral: safeTransferFrom(user, vault, amount)
+Collateral --> Vault: Collateral
+Vault -> USDs: mint(user, toMinterAmt)
+USDs --> User: Mint USDs for User
+Vault -> USDs: mint(feeVault, feeAmt)
+USDs --> FeeVault: Mint USDs as fee to feeVault
+
+@enduml

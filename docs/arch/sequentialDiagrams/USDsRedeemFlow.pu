@@ -1,0 +1,40 @@
+@startuml USDs Redeem Flow
+
+title USDs Redeem Flow
+actor User
+participant Vault
+participant CollateralManager
+participant Oracle
+participant FeeCalculator
+participant USDs
+participant FeeVault
+box "External Contracts" #LightBlue
+    participant Collateral
+end box
+
+User -> USDs: approve(vault, usdsAmt)
+User -> Vault: redeem(collateral, usdsAmt, minCollAmt, deadline)
+note over Vault: Validate the transaction\nis within the deadline
+Vault -> CollateralManager: getRedeemParams(collateral)
+note over CollateralManager: Validates if token\ncollateral is registered
+CollateralManager --> Vault: Collateral's redeem params
+note over Vault: Validate if redemption\nis not paused for the collateral
+Vault -> Oracle: getPrice(collateral)
+note over Oracle: Validate the price\nfeed for the collateral
+Oracle --> Vault: Collateral Price
+Vault -> FeeCalculator: getRedeemFee(collateral)
+note over FeeCalculator: Calculates fee based\non the composition of\ncollateral in USDs
+FeeCalculator --> Vault: Fee amount
+note over Vault: Verify enough collateral in\nVault; if absent, withdraw from\nthe strategy
+note over Vault: Perform a slippage check
+Vault -> USDs: safeTransferFrom(user, vault, usdsAmt)
+USDs --> Vault: usdsAmt to burn
+Vault -> USDs: burn(vault, usdsAmt)
+Vault -> USDs: safeTransfer(feeVault, feeAmt)
+USDs --> FeeVault: USDs feeAmt
+Vault -> Collateral: safeTransfer(user, collateralAmt)
+Collateral --> User: collateralAmt
+Vault -> Vault: Rebase()
+note over Vault: Perform a rebase if\npreset-conditions match
+
+@enduml
