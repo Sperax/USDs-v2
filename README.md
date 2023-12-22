@@ -13,6 +13,7 @@ The project uses foundry framework for compiling, developing and testing contrac
 
 ## Project Summary:
 * [Summary](/docs/src/SUMMARY.md)
+* [Sequence Diagrams](/docs/arch/sequentialDiagrams/readme.md)
 
 ## Project Setup:
 * [Install Foundry](https://book.getfoundry.sh/getting-started/installation)
