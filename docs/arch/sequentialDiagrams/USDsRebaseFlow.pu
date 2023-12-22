@@ -15,7 +15,8 @@ note over RebaseManager : Calculate rebase amount based on\n1. Available USDs\n2
 note over RebaseManager : Validate time gap since the last rebase
 RebaseManager -> Dripper : collect()
 Dripper -> USDs : safeTransfer(vault, collectableAmt)
-note over Dripper, USDs : collectableAmt always >= rebaseAmt
+USDs --> Vault : collectableAmt USDs
+note over Dripper, USDs : collectableAmt is always >= rebaseAmt
 RebaseManager --> Vault : rebaseAmt
 Vault -> USDs : rebase(rebaseAmt)
 USDs -> USDs : _burn(vault, rebaseAmt)

@@ -29,7 +29,7 @@ note over Vault: Perform a slippage check
 Vault -> Vault: Rebase()
 note over Vault: Perform a rebase if \npreset conditions match
 Vault -> Collateral: safeTransferFrom(user, vault, amount)
-Collateral --> Vault: Collateral
+User --> Vault: Collateral
 Vault -> USDs: mint(user, toMinterAmt)
 USDs --> User: Mint USDs for User
 Vault -> USDs: mint(feeVault, feeAmt)

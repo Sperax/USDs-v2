@@ -28,12 +28,12 @@ FeeCalculator --> Vault: Fee amount
 note over Vault: Verify enough collateral in\nVault; if absent, withdraw from\nthe strategy
 note over Vault: Perform a slippage check
 Vault -> USDs: safeTransferFrom(user, vault, usdsAmt)
-USDs --> Vault: usdsAmt to burn
+User --> Vault: USDs (usdsAmt) to burn
 Vault -> USDs: burn(vault, usdsAmt)
 Vault -> USDs: safeTransfer(feeVault, feeAmt)
-USDs --> FeeVault: USDs feeAmt
+Vault --> FeeVault: USDs (feeAmt)
 Vault -> Collateral: safeTransfer(user, collateralAmt)
-Collateral --> User: collateralAmt
+Vault --> User: Collateral (collateralAmt)
 Vault -> Vault: Rebase()
 note over Vault: Perform a rebase if\npreset-conditions match
 

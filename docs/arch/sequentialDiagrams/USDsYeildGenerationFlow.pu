@@ -14,28 +14,31 @@ end box
 
 group Allocate
     User -> Vault: allocate(collateral, strategy, amount)
-    group validate allocation
-        Vault -> CollateralManager: validateAllocation(collateral, strategy, amount)
-        CollateralManager --> Vault: Boolean (true/false)
-    end
+    Vault -> CollateralManager: validateAllocation(collateral, strategy, amount)
+    CollateralManager -> Vault: Boolean (true/false)
+    note over Vault: Validate allocation
     Vault -> Collateral: forceApprove(strategy, amount)
     Vault -> Strategy: deposit(collateral, amount)
     note over Strategy: Validate support for collateral
     Strategy -> Collateral: safeTransferFrom(vault, strategy, amount)
-    Collateral --> Strategy: Collateral amount
-    Strategy -> YieldEarningStrategies: Deposit collateral for earning yield
+    Vault --> Strategy: Collateral (amount)
+    Strategy -> YieldEarningStrategies: Deposit collateral in yeild earning strategies
+    Strategy --> YieldEarningStrategies: Collateral (amount)
 end
 
 group Harvest
     User -> Strategy: collectReward() / checkRewardEarned()
     Strategy --> User: Harvest Incentive
+    YieldEarningStrategies --> Strategy: Harvest Amount
     Strategy --> YieldReserve: Harvest Amount
 end
 
 group Yield purchase using USDs
     User -> YieldReserve: swap(srcToken, dstToken, amountIn, minAmountOut)
+    User --> YieldReserve: srcToken (amountIn)
     YieldReserve --> User: dstToken
     YieldReserve -> Dripper: addUSDs(rebaseAmt)
+    YieldReserve --> Dripper: USDs (rebaseAmt)
     note over YieldReserve, Dripper: USDs for rebase
 end
 
