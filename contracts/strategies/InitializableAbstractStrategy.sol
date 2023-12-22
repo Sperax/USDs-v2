@@ -15,6 +15,11 @@ interface IStrategyVault {
 abstract contract InitializableAbstractStrategy is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradeable {
     using SafeERC20 for IERC20;
 
+    struct RewardData {
+        address token; // Reward token
+        uint256 amount; // Collectible amount
+    }
+
     address public vault;
     uint16 public withdrawSlippage;
     uint16 public depositSlippage;
@@ -137,7 +142,7 @@ abstract contract InitializableAbstractStrategy is Initializable, OwnableUpgrade
     function checkInterestEarned(address _asset) external view virtual returns (uint256);
 
     /// @notice Get the amount of claimable reward
-    function checkRewardEarned() external view virtual returns (uint256);
+    function checkRewardEarned() external view virtual returns (RewardData[] memory);
 
     /// @notice Get the total LP token balance for a asset.
     /// @param _asset Address of the asset.

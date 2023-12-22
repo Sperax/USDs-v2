@@ -40,6 +40,8 @@ contract StargateStrategyTest is BaseStrategy, BaseTest {
     StargateStrategy internal strategy;
     address internal proxyAddress;
 
+    event FarmUpdated(address _newFarm);
+
     // Test errors
     error IncorrectPoolId(address asset, uint16 pid);
     error IncorrectRewardPoolId(address asset, uint256 rewardPid);
@@ -423,18 +425,19 @@ contract CollectReward is HarvestTest {
         _harvestIncentiveRate = uint16(bound(_harvestIncentiveRate, 0, 10000));
         vm.prank(USDS_OWNER);
         strategy.updateHarvestIncentiveRate(_harvestIncentiveRate);
-        uint256 initialRewards = strategy.checkRewardEarned();
+        StargateStrategy.RewardData[] memory initialRewards = strategy.checkRewardEarned();
 
-        assert(initialRewards == 0);
+        assert(initialRewards[0].token == strategy.rewardTokenAddress(0));
+        assert(initialRewards[0].amount == 0);
 
         // Do a time travel & mine dummy blocks for accumulating some rewards
         vm.warp(block.timestamp + 10 days);
         vm.roll(block.number + 1000);
 
-        uint256 currentRewards = strategy.checkRewardEarned();
-        assert(currentRewards > 0);
-        uint256 incentiveAmt = (currentRewards * strategy.harvestIncentiveRate()) / Helpers.MAX_PERCENTAGE;
-        uint256 harvestAmt = currentRewards - incentiveAmt;
+        StargateStrategy.RewardData[] memory currentRewards = strategy.checkRewardEarned();
+        assert(currentRewards[0].amount > 0);
+        uint256 incentiveAmt = (currentRewards[0].amount * strategy.harvestIncentiveRate()) / Helpers.MAX_PERCENTAGE;
+        uint256 harvestAmt = currentRewards[0].amount - incentiveAmt;
         address caller = actors[1];
 
         if (incentiveAmt > 0) {
@@ -450,7 +453,7 @@ contract CollectReward is HarvestTest {
         assertEq(ERC20(E_TOKEN).balanceOf(caller), incentiveAmt);
 
         currentRewards = strategy.checkRewardEarned();
-        assert(currentRewards == 0);
+        assert(currentRewards[0].amount == 0);
     }
 }
 
@@ -634,7 +637,7 @@ contract TestRecoverERC20 is StargateStrategyTest {
         vm.stopPrank();
         token = DAI;
         receiver = actors[1];
-        amount = 1e22;
+        amount = 1000 * 10 ** ERC20(token).decimals();
     }
 
     function test_RevertsWhen_CallerIsNotOwner() public {
@@ -653,5 +656,39 @@ contract TestRecoverERC20 is StargateStrategyTest {
         strategy.recoverERC20(token, receiver, amount);
         uint256 balAfter = ERC20(token).balanceOf(receiver);
         assertEq(balAfter - balBefore, amount);
+    }
+}
+
+contract TestUpdateFarm is StargateStrategyTest {
+    address _newFarm;
+
+    function setUp() public override {
+        super.setUp();
+        vm.startPrank(USDS_OWNER);
+        _initializeStrategy();
+        _createDeposits();
+        vm.stopPrank();
+        _newFarm = 0xeA8DfEE1898a7e0a59f7527F076106d7e44c2176;
+    }
+
+    function test_revertsWhen_CallerIsNotOwner() public {
+        vm.expectRevert("Ownable: caller is not the owner");
+        strategy.updateFarm(_newFarm);
+    }
+
+    function test_UpdateFarm() public useKnownActor(USDS_OWNER) {
+        uint256 _length = assetData.length;
+        uint256[] memory oldFarmBalances = new uint256[](_length);
+        uint256[] memory newFarmBalances = new uint256[](_length);
+        for (uint8 i = 0; i < _length; ++i) {
+            (oldFarmBalances[i],) = ILPStaking(STARGATE_FARM).userInfo(assetData[i].rewardPid, address(strategy));
+        }
+        vm.expectEmit(true, true, true, true);
+        emit FarmUpdated(_newFarm);
+        strategy.updateFarm(_newFarm);
+        for (uint8 i = 0; i < assetData.length; ++i) {
+            (newFarmBalances[i],) = ILPStaking(_newFarm).userInfo(assetData[i].rewardPid, address(strategy));
+            assertEq(oldFarmBalances[i], newFarmBalances[i], "Mismatch in balance");
+        }
     }
 }

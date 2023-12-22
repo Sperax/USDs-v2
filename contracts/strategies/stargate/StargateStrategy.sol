@@ -26,6 +26,8 @@ contract StargateStrategy is InitializableAbstractStrategy {
     address public farm;
     mapping(address => AssetInfo) public assetInfo;
 
+    event FarmUpdated(address newFarm);
+
     error IncorrectPoolId(address asset, uint16 pid);
     error IncorrectRewardPoolId(address asset, uint256 rewardPid);
 
@@ -176,20 +178,32 @@ contract StargateStrategy is InitializableAbstractStrategy {
         emit RewardTokenCollected(rewardToken, yieldReceiver, harvestAmt);
     }
 
-    /// @inheritdoc InitializableAbstractStrategy
-    function supportsCollateral(address _asset) public view override returns (bool) {
-        return assetToPToken[_asset] != address(0);
+    /// @notice A function to withdraw from old farm, update farm and deposit in new farm
+    /// @param _newFarm Address of the new farm
+    /// @dev Only callable by owner
+    function updateFarm(address _newFarm) external nonReentrant onlyOwner {
+        address _oldFarm = farm;
+        uint256 _numAssets = assetsMapped.length;
+        address _asset;
+        uint256 _rewardPID;
+        uint256 _lpTokenAmt;
+        for (uint8 i; i < _numAssets;) {
+            _asset = assetsMapped[i];
+            _rewardPID = assetInfo[_asset].rewardPID;
+            _lpTokenAmt = checkLPTokenBalance(_asset);
+            ILPStaking(_oldFarm).withdraw(_rewardPID, _lpTokenAmt);
+            IERC20(assetToPToken[_asset]).forceApprove(_newFarm, _lpTokenAmt);
+            ILPStaking(_newFarm).deposit(_rewardPID, _lpTokenAmt);
+            unchecked {
+                ++i;
+            }
+        }
+        farm = _newFarm;
+        emit FarmUpdated(_newFarm);
     }
 
-    /// @notice Get the amount STG pending to be collected.
-    /// @param _asset Address for the asset
-    function checkPendingRewards(address _asset) public view returns (uint256) {
-        if (!supportsCollateral(_asset)) revert CollateralNotSupported(_asset);
-        return ILPStaking(farm).pendingEmissionToken(assetInfo[_asset].rewardPID, address(this));
-    }
-
     /// @inheritdoc InitializableAbstractStrategy
-    function checkRewardEarned() public view override returns (uint256) {
+    function checkRewardEarned() external view override returns (RewardData[] memory) {
         uint256 pendingRewards = 0;
         uint256 numAssets = assetsMapped.length;
         for (uint256 i; i < numAssets;) {
@@ -200,7 +214,21 @@ contract StargateStrategy is InitializableAbstractStrategy {
             }
         }
         uint256 claimedRewards = IERC20(rewardTokenAddress[0]).balanceOf(address(this));
-        return claimedRewards + pendingRewards;
+        RewardData[] memory rewardData = new RewardData[](1);
+        rewardData[0] = RewardData(rewardTokenAddress[0], claimedRewards + pendingRewards);
+        return rewardData;
+    }
+
+    /// @inheritdoc InitializableAbstractStrategy
+    function supportsCollateral(address _asset) public view override returns (bool) {
+        return assetToPToken[_asset] != address(0);
+    }
+
+    /// @notice Get the amount STG pending to be collected.
+    /// @param _asset Address for the asset
+    function checkPendingRewards(address _asset) public view returns (uint256) {
+        if (!supportsCollateral(_asset)) revert CollateralNotSupported(_asset);
+        return ILPStaking(farm).pendingEmissionToken(assetInfo[_asset].rewardPID, address(this));
     }
 
     /// @inheritdoc InitializableAbstractStrategy
