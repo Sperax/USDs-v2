@@ -5,8 +5,8 @@ pragma solidity 0.8.19;
 /// @author Sperax Foundation
 library Helpers {
     uint16 internal constant MAX_PERCENTAGE = 10000;
-    address internal constant SPA = 0x5575552988A3A80504bBaeB1311674fCFd40aD4B;
-    address internal constant USDS = 0xD74f5255D557944cf7Dd0E45FF521520002D5748;
+    address internal constant SPA = 0x2b6bD6c795554600F50a306166D13b2dc4201564;
+    address internal constant USDS = 0x7160654d6a254d28EaDa2E5A107ED46081DDB222;
 
     error CustomError(string message);
     error InvalidAddress();

@@ -19,6 +19,7 @@ contract ChainlinkOracle is Ownable {
         TokenData data;
     }
 
+    // @note Sequencer feed unavailable in arbitrum-sepolia
     address public constant CHAINLINK_SEQ_UPTIME_FEED = 0xFdB631F5EE196F0ed6FAa767959853A9F217697D;
     uint256 private constant GRACE_PERIOD_TIME = 3600;
 
@@ -62,17 +63,17 @@ contract ChainlinkOracle is Ownable {
         TokenData memory tokenInfo = getTokenData[_token];
         if (tokenInfo.pricePrecision == 0) revert TokenNotSupported(_token);
 
-        (, int256 answer, uint256 startedAt,,) = AggregatorV3Interface(CHAINLINK_SEQ_UPTIME_FEED).latestRoundData();
-        // Answer == 0: Sequencer is up
-        // Answer == 1: Sequencer is down
-        bool isSequencerUp = answer == 0;
-        if (!isSequencerUp) revert ChainlinkSequencerDown();
+        // (, int256 answer, uint256 startedAt,,) = AggregatorV3Interface(CHAINLINK_SEQ_UPTIME_FEED).latestRoundData();
+        // // Answer == 0: Sequencer is up
+        // // Answer == 1: Sequencer is down
+        // bool isSequencerUp = answer == 0;
+        // if (!isSequencerUp) revert ChainlinkSequencerDown();
 
-        // Make sure the grace period has passed after the sequencer is back up.
-        uint256 timeSinceUp = block.timestamp - startedAt;
-        if (timeSinceUp <= GRACE_PERIOD_TIME) {
-            revert GracePeriodNotPassed(timeSinceUp);
-        }
+        // // Make sure the grace period has passed after the sequencer is back up.
+        // uint256 timeSinceUp = block.timestamp - startedAt;
+        // if (timeSinceUp <= GRACE_PERIOD_TIME) {
+        //     revert GracePeriodNotPassed(timeSinceUp);
+        // }
 
         (, int256 price,, uint256 updatedAt,) = AggregatorV3Interface(tokenInfo.priceFeed).latestRoundData();
         if (updatedAt == 0) revert RoundNotComplete();
