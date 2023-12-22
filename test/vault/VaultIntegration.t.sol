@@ -259,7 +259,7 @@ contract TestRedeem is VaultCoreTest {
         vm.expectEmit(true, true, true, true, VAULT);
         emit Redeemed(redeemer, _collateral, _usdsBurnAmt, _calculatedCollateralAmt, _feeAmt);
         vm.prank(redeemer);
-        IVault(VAULT).redeem(_collateral, _usdsAmt, _calculatedCollateralAmt, _deadline);
+        IVault(VAULT).redeem(_collateral, _usdsAmt, _calculatedCollateralAmt, _deadline, address(0));
         uint256 balAfterFeeVault = ERC20(USDS).balanceOf(FEE_VAULT);
         uint256 balAfterUSDsRedeemer = ERC20(USDS).balanceOf(redeemer);
         uint256 balAfterUSDCeRedeemer = ERC20(USDCe).balanceOf(redeemer);

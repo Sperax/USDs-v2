@@ -154,26 +154,6 @@ contract VaultCore is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradea
     /// @param _usdsAmt Amount of USDs to be redeemed
     /// @param _minCollAmt minimum expected amount of collateral to be received
     /// @param _deadline expiry time of the transaction
-    /// @dev In case where there is not sufficient collateral available in the vault,
-    ///      the collateral is withdrawn from the default strategy configured for the collateral.
-    function redeem(address _collateral, uint256 _usdsAmt, uint256 _minCollAmt, uint256 _deadline)
-        external
-        nonReentrant
-    {
-        _redeem({
-            _collateral: _collateral,
-            _usdsAmt: _usdsAmt,
-            _minCollateralAmt: _minCollAmt,
-            _deadline: _deadline,
-            _strategyAddr: address(0)
-        });
-    }
-
-    /// @notice redeem USDs for `_collateral`
-    /// @param _collateral address of the collateral
-    /// @param _usdsAmt Amount of USDs to be redeemed
-    /// @param _minCollAmt minimum expected amount of collateral to be received
-    /// @param _deadline expiry time of the transaction
     /// @param _strategy address of the strategy to withdraw excess collateral from
     function redeem(address _collateral, uint256 _usdsAmt, uint256 _minCollAmt, uint256 _deadline, address _strategy)
         external
