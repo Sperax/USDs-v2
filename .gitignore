@@ -17,6 +17,7 @@ build
 tests
 reports
 deployed/arbitrum-main-fork
+deployed/arbitrum-sepolia-fork
 __pycache__
 lcov.info
 .DS_Store
