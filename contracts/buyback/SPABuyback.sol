@@ -7,6 +7,7 @@ import {ERC20BurnableUpgradeable} from
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {IveSPARewarder} from "../interfaces/IveSPARewarder.sol";
 import {IOracle} from "../interfaces/IOracle.sol";
 import {Helpers} from "../libraries/Helpers.sol";
 
@@ -156,7 +157,8 @@ contract SPABuyback is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
         uint256 toReward = (balance * rewardPercentage) / Helpers.MAX_PERCENTAGE;
 
         // Transferring SPA tokens
-        ERC20BurnableUpgradeable(Helpers.SPA).safeTransfer(veSpaRewarder, toReward);
+        ERC20BurnableUpgradeable(Helpers.SPA).forceApprove(veSpaRewarder, toReward);
+        IveSPARewarder(veSpaRewarder).addRewards(Helpers.SPA, toReward, 1);
         emit SPARewarded(toReward);
 
         // Remaining balance will be burned
