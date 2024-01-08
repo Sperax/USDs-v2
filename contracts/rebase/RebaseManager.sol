@@ -10,10 +10,10 @@ import {Helpers} from "../libraries/Helpers.sol";
 import {IRebaseManager} from "../interfaces/IRebaseManager.sol";
 
 /// @title Rebase Manager for USDs Protocol
+/// @author Sperax Foundation
 /// @notice This contract handles the configuration and execution of the rebasing mechanism for the USDs stablecoin.
 ///         It ensures that rebases occur only when certain prerequisites are fulfilled, such as the time gap between rebases and acceptable APR (Annual Percentage Rate) ranges.
 /// @dev The Rebase Manager coordinates with the Vault and Dripper contracts to manage the rebase process.
-/// @author Sperax Foundation
 contract RebaseManager is IRebaseManager, Ownable {
     using SafeMath for uint256;
 
@@ -27,11 +27,13 @@ contract RebaseManager is IRebaseManager, Ownable {
     uint256 public aprBottom; // Minimum allowed APR for a rebase
     uint256 public lastRebaseTS; // Timestamp of the last rebase transaction
 
+    // Events
     event VaultUpdated(address vault);
     event DripperUpdated(address dripper);
     event GapUpdated(uint256 gap);
     event APRUpdated(uint256 aprBottom, uint256 aprCap);
 
+    // Custom error messages
     error CallerNotVault(address caller);
     error InvalidAPRConfig(uint256 aprBottom, uint256 aprCap);
 

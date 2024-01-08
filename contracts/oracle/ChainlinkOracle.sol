@@ -5,8 +5,8 @@ import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/interfaces/Ag
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 /// @title Chainlink Oracle contract for USDs protocol
-/// @notice This contract provides functionality for obtaining price data from Chainlink's price feeds for various assets.
 /// @author Sperax Foundation
+/// @notice This contract provides functionality for obtaining price data from Chainlink's price feeds for various assets.
 contract ChainlinkOracle is Ownable {
     // Struct to store price feed and precision information for each token
     struct TokenData {
@@ -30,6 +30,7 @@ contract ChainlinkOracle is Ownable {
     // Mapping to store price feed and precision data for each supported token
     mapping(address => TokenData) public getTokenData;
 
+    // Events
     event TokenDataChanged(address indexed tokenAddr, address priceFeed, uint256 pricePrecision, uint96 timeout);
 
     // Custom error messages

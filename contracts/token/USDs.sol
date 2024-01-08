@@ -14,14 +14,13 @@ import {StableMath} from "../libraries/StableMath.sol";
 import {Helpers} from "../libraries/Helpers.sol";
 import {IUSDs} from "../interfaces/IUSDs.sol";
 
-/// @dev This ERC20 token represents USDs on the Arbitrum (L2) network. Note that the invariant holds that the sum of
+/// @title USDs Token Contract on Arbitrum (L2)
+/// @author Sperax Foundation
+/// @dev ERC20 compatible contract for USDs supporting the rebase feature.
+/// This ERC20 token represents USDs on the Arbitrum (L2) network. Note that the invariant holds that the sum of
 /// balanceOf(x) for all x is not greater than totalSupply(). This is a consequence of the rebasing design. Integrations
 /// with USDs should be aware of this feature.
-
-/// @title USDs Token Contract on Arbitrum (L2)
-/// @dev ERC20 compatible contract for USDs supporting the rebase feature.
 /// Inspired by OUSD: https://github.com/OriginProtocol/origin-dollar/blob/master/contracts/contracts/token/OUSD.sol
-/// @author Sperax Foundation
 contract USDs is ERC20PermitUpgradeable, OwnableUpgradeable, ReentrancyGuardUpgradeable, IUSDs {
     using SafeMathUpgradeable for uint256;
     using StableMath for uint256;
@@ -56,12 +55,14 @@ contract USDs is ERC20PermitUpgradeable, OwnableUpgradeable, ReentrancyGuardUpgr
     bool public paused;
     // solhint-enable var-name-mixedcase
 
+    // Events
     event TotalSupplyUpdated(uint256 totalSupply, uint256 rebasingCredits, uint256 rebasingCreditsPerToken);
     event Paused(bool isPaused);
     event VaultUpdated(address newVault);
     event RebaseOptIn(address indexed account);
     event RebaseOptOut(address indexed account);
 
+    // Custom error messages
     error CallerNotVault(address caller);
     error ContractPaused();
     error IsAlreadyRebasingAccount(address account);
@@ -79,6 +80,7 @@ contract USDs is ERC20PermitUpgradeable, OwnableUpgradeable, ReentrancyGuardUpgr
         _;
     }
 
+    // Disable initialization for the implementation contract
     constructor() {
         _disableInitializers();
     }
@@ -316,6 +318,8 @@ contract USDs is ERC20PermitUpgradeable, OwnableUpgradeable, ReentrancyGuardUpgr
     }
 
     /// @notice Destroys `_amount` tokens from `_account`, reducing the total supply.
+    /// @param _account The account address from which the USDs will be burnt.
+    /// @param _amount The amount of USDs that will be burnt.
     /// @dev Emits a {Transfer} event with `to` set to the zero address.
     /// @dev Requirements:
     ///  - `_account` cannot be the zero address.
@@ -380,6 +384,7 @@ contract USDs is ERC20PermitUpgradeable, OwnableUpgradeable, ReentrancyGuardUpgr
     /// @notice Add a contract address to the non-rebasing exception list. I.e., the
     ///  address's balance will be part of rebases so the account will be exposed
     ///  to upside and downside.
+    /// @param _account address of the account opting in for rebase.
     function _rebaseOptIn(address _account) private {
         if (!_isNonRebasingAccount(_account)) {
             revert IsAlreadyRebasingAccount(_account);

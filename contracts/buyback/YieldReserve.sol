@@ -11,9 +11,9 @@ import {Helpers} from "../libraries/Helpers.sol";
 import {IDripper} from "../interfaces/IDripper.sol";
 
 /// @title YieldReserve of USDs Protocol.
-/// @notice This contract allows users to swap supported stablecoins for yield earned by the USDs protocol.
+/// @author Sperax Foundation
+/// @notice This contract allows users to swap supported stable-coins for yield earned by the USDs protocol.
 /// It sends USDs to the Dripper contract for rebase and to the Buyback Contract for buyback.
-/// @author Sperax Foundation.
 contract YieldReserve is ReentrancyGuard, Ownable {
     using SafeERC20 for IERC20;
 

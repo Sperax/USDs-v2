@@ -7,8 +7,8 @@ import {Helpers} from "../libraries/Helpers.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /// @title Fee Calculator Contract for the USDs Protocol
-/// @dev A contract that calculates fees for minting and redeeming USDs.
 /// @author Sperax Foundation
+/// @dev A contract that calculates fees for minting and redeeming USDs.
 contract FeeCalculator is IFeeCalculator {
     struct FeeData {
         uint32 nextUpdate;
@@ -26,8 +26,10 @@ contract FeeCalculator is IFeeCalculator {
 
     mapping(address => FeeData) public collateralFee;
 
+    // Events
     event FeeCalibrated(address indexed collateral, uint16 mintFee, uint16 redeemFee);
 
+    // Custom error messages
     error InvalidCalibration();
     error FeeNotCalibrated(address collateral);
 

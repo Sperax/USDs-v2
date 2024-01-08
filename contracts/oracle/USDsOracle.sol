@@ -3,9 +3,9 @@ pragma solidity 0.8.19;
 
 import {BaseUniOracle} from "./BaseUniOracle.sol";
 
-/// @title Oracle contract for USDs protocol.
-/// @dev providing USDs prices (from Uniswap V3 pools).
-/// @author Sperax Foundation.
+/// @title Oracle contract for USDs protocol
+/// @author Sperax Foundation
+/// @dev providing USDs prices (from Uniswap V3 pools)
 contract USDsOracle is BaseUniOracle {
     address public constant USDS = 0xD74f5255D557944cf7Dd0E45FF521520002D5748;
     uint128 private constant USDS_PRECISION = 1e18;

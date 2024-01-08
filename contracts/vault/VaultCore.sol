@@ -22,13 +22,14 @@ import {Helpers} from "../libraries/Helpers.sol";
 contract VaultCore is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradeable {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
-    address public feeVault; // SPABuyback contract
-    address public yieldReceiver;
-    address public collateralManager;
-    address public feeCalculator;
-    address public oracle;
-    address public rebaseManager;
+    address public feeVault; // Address of the SPABuyback contract
+    address public yieldReceiver; // Address of the Yield Receiver contract
+    address public collateralManager; // Address of the Collateral Manager contract
+    address public feeCalculator; // Address of the Fee Calculator contract
+    address public oracle; // Address of the Oracle contract
+    address public rebaseManager; // Address of the Rebase Manager contract
 
+    // Events
     event FeeVaultUpdated(address newFeeVault);
     event YieldReceiverUpdated(address newYieldReceiver);
     event CollateralManagerUpdated(address newCollateralManager);
@@ -44,6 +45,7 @@ contract VaultCore is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradea
     event RebasedUSDs(uint256 rebaseAmt);
     event Allocated(address indexed collateral, address indexed strategy, uint256 amount);
 
+    // Custom Error messages
     error AllocationNotAllowed(address collateral, address strategy, uint256 amount);
     error RedemptionPausedForCollateral(address collateral);
     error InsufficientCollateral(address collateral, address strategy, uint256 amount, uint256 availableAmount);
@@ -60,7 +62,7 @@ contract VaultCore is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradea
     }
 
     /// @notice Updates the address receiving fee.
-    /// @param _feeVault New desired address.
+    /// @param _feeVault New desired SPABuyback address.
     function updateFeeVault(address _feeVault) external onlyOwner {
         Helpers._isNonZeroAddr(_feeVault);
         feeVault = _feeVault;
@@ -68,7 +70,7 @@ contract VaultCore is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradea
     }
 
     /// @notice Updates the address receiving yields from strategies.
-    /// @param _yieldReceiver New desired address.
+    /// @param _yieldReceiver New desired yield receiver address.
     function updateYieldReceiver(address _yieldReceiver) external onlyOwner {
         Helpers._isNonZeroAddr(_yieldReceiver);
         yieldReceiver = _yieldReceiver;
@@ -76,7 +78,7 @@ contract VaultCore is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradea
     }
 
     /// @notice Updates the address having the configuration for collaterals.
-    /// @param _collateralManager New desired address.
+    /// @param _collateralManager New desired collateral manager address.
     function updateCollateralManager(address _collateralManager) external onlyOwner {
         Helpers._isNonZeroAddr(_collateralManager);
         collateralManager = _collateralManager;
@@ -84,7 +86,7 @@ contract VaultCore is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradea
     }
 
     /// @notice Updates the address having the configuration for rebases.
-    /// @param _rebaseManager New desired address.
+    /// @param _rebaseManager New desired rebase manager address.
     function updateRebaseManager(address _rebaseManager) external onlyOwner {
         Helpers._isNonZeroAddr(_rebaseManager);
         rebaseManager = _rebaseManager;
@@ -92,7 +94,7 @@ contract VaultCore is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradea
     }
 
     /// @notice Updates the fee calculator library.
-    /// @param _feeCalculator New desired address.
+    /// @param _feeCalculator New desired fee calculator address.
     function updateFeeCalculator(address _feeCalculator) external onlyOwner {
         Helpers._isNonZeroAddr(_feeCalculator);
         feeCalculator = _feeCalculator;
@@ -100,7 +102,7 @@ contract VaultCore is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradea
     }
 
     /// @notice Updates the price oracle address.
-    /// @param _oracle New desired address.
+    /// @param _oracle New desired oracle address.
     function updateOracle(address _oracle) external onlyOwner {
         Helpers._isNonZeroAddr(_oracle);
         oracle = _oracle;
