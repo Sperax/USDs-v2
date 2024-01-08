@@ -18,17 +18,17 @@ interface IERC20Custom is IERC20 {
 contract CollateralManager is ICollateralManager, Ownable {
     // Struct for storing collateral data
     struct CollateralData {
-        bool mintAllowed;
-        bool redeemAllowed;
-        bool allocationAllowed;
+        bool mintAllowed; // mint switch for collateral
+        bool redeemAllowed; // redemption switch for collateral
+        bool allocationAllowed; // allocation switch for collateral
         bool exists;
-        address defaultStrategy;
+        address defaultStrategy; // default redemption strategy for collateral
         uint16 baseMintFee;
         uint16 baseRedeemFee;
-        uint16 downsidePeg;
-        uint16 desiredCollateralComposition;
-        uint16 collateralCapacityUsed;
-        uint256 conversionFactor;
+        uint16 downsidePeg; // min price of collateral to be eligible for minting
+        uint16 desiredCollateralComposition; // collateral composition in vault
+        uint16 collateralCapacityUsed; // tracks current allocation capacity of a collateral
+        uint256 conversionFactor; // normalization factor for bringing token amounts to same decimal levels
     }
 
     // Struct for storing strategy data
@@ -37,12 +37,12 @@ contract CollateralManager is ICollateralManager, Ownable {
         bool exists;
     }
 
-    uint16 public collateralCompositionUsed;
-    address public immutable VAULT;
-    address[] private collaterals;
-    mapping(address => CollateralData) public collateralInfo;
-    mapping(address => mapping(address => StrategyData)) private collateralStrategyInfo;
-    mapping(address => address[]) private collateralStrategies;
+    uint16 public collateralCompositionUsed; // vault composition allocated to collaterals
+    address public immutable VAULT; // address of USDs-vault
+    address[] private collaterals; // address of all registered collaterals
+    mapping(address => CollateralData) public collateralInfo; // collateral configuration
+    mapping(address => mapping(address => StrategyData)) private collateralStrategyInfo; // collateral -> strategy => collateralStrategy config
+    mapping(address => address[]) private collateralStrategies; // collateral => strategies[]
 
     event CollateralAdded(address collateral, CollateralBaseData data);
     event CollateralRemoved(address collateral);
@@ -271,7 +271,7 @@ contract CollateralManager is ICollateralManager, Ownable {
         }
 
         uint256 numStrategy = collateralStrategies[_collateral].length;
-
+        // Unlink the strategy from the collateral and update collateral capacity used
         for (uint256 i; i < numStrategy;) {
             if (collateralStrategies[_collateral][i] == _strategy) {
                 collateralStrategies[_collateral][i] = collateralStrategies[_collateral][numStrategy - 1];
