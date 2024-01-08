@@ -19,9 +19,9 @@ import {Helpers} from "../libraries/Helpers.sol";
 contract SPABuyback is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradeable {
     using SafeERC20Upgradeable for ERC20BurnableUpgradeable;
 
-    address public veSpaRewarder;
-    uint256 public rewardPercentage;
-    address public oracle;
+    address public veSpaRewarder; // Rewarder contract.
+    uint256 public rewardPercentage; // Share of rewards to be distributed with veSPA holders.
+    address public oracle; // Price oracle for SPA and USDs
 
     event BoughtBack(
         address indexed receiverOfUSDs,
@@ -128,6 +128,7 @@ contract SPABuyback is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
         (uint256 usdsToSend, uint256 spaPrice) = _getUsdsOutForSpa(_spaIn);
         Helpers._isNonZeroAmt(usdsToSend, "SPA Amount too low");
 
+        // Slippage check
         if (usdsToSend < _minUSDsOut) {
             revert Helpers.MinSlippageError(usdsToSend, _minUSDsOut);
         }
@@ -156,7 +157,7 @@ contract SPABuyback is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
         // Calculating the amount to reward based on rewardPercentage
         uint256 toReward = (balance * rewardPercentage) / Helpers.MAX_PERCENTAGE;
 
-        // Transferring SPA tokens
+        // Transferring SPA tokens to rewarder
         ERC20BurnableUpgradeable(Helpers.SPA).forceApprove(veSpaRewarder, toReward);
         IveSPARewarder(veSpaRewarder).addRewards(Helpers.SPA, toReward, 1);
         emit SPARewarded(toReward);
