@@ -79,6 +79,7 @@ contract USDs is ERC20PermitUpgradeable, OwnableUpgradeable, ReentrancyGuardUpgr
         _;
     }
 
+    // Disable initialization for the implementation contract
     constructor() {
         _disableInitializers();
     }
@@ -316,6 +317,8 @@ contract USDs is ERC20PermitUpgradeable, OwnableUpgradeable, ReentrancyGuardUpgr
     }
 
     /// @notice Destroys `_amount` tokens from `_account`, reducing the total supply.
+    /// @param _account The account address from which the USDs will be burnt.
+    /// @param _amount The amount of USDs that will be burnt.
     /// @dev Emits a {Transfer} event with `to` set to the zero address.
     /// @dev Requirements:
     ///  - `_account` cannot be the zero address.
@@ -380,6 +383,7 @@ contract USDs is ERC20PermitUpgradeable, OwnableUpgradeable, ReentrancyGuardUpgr
     /// @notice Add a contract address to the non-rebasing exception list. I.e., the
     ///  address's balance will be part of rebases so the account will be exposed
     ///  to upside and downside.
+    /// @param _account address of the account opting in for rebase.
     function _rebaseOptIn(address _account) private {
         if (!_isNonRebasingAccount(_account)) {
             revert IsAlreadyRebasingAccount(_account);
