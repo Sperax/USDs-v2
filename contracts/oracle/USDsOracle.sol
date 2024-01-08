@@ -3,9 +3,9 @@ pragma solidity 0.8.19;
 
 import {BaseUniOracle} from "./BaseUniOracle.sol";
 
-/// @title Oracle contract for USDs protocol
-/// @dev providing USDs prices (from Uniswap V3 pools)
-/// @author Sperax Foundation
+/// @title Oracle contract for USDs protocol.
+/// @dev providing USDs prices (from Uniswap V3 pools).
+/// @author Sperax Foundation.
 contract USDsOracle is BaseUniOracle {
     address public constant USDS = 0xD74f5255D557944cf7Dd0E45FF521520002D5748;
     uint128 private constant USDS_PRECISION = 1e18;
@@ -17,8 +17,8 @@ contract USDsOracle is BaseUniOracle {
         setUniMAPriceData(USDS, _quoteToken, _feeTier, _maPeriod);
     }
 
-    /// @notice Gets the USDs price from chainlink
-    /// @return (uint256, uint256) price and pricePrecision
+    /// @notice Gets the USDs price from chainlink.
+    /// @return (uint256, uint256) USDs price and pricePrecision.
     function getPrice() external view override returns (uint256, uint256) {
         uint256 quoteTokenAmtPerUSDs = _getUniMAPrice(USDS, USDS_PRECISION);
         (uint256 quoteTokenPrice, uint256 quoteTokenPricePrecision) = _getQuoteTokenPrice();
