@@ -7,9 +7,9 @@ import {Helpers} from "../libraries/Helpers.sol";
 import {IDripper} from "../interfaces/IDripper.sol";
 
 /// @title Dripper for USDs Protocol.
+/// @author Sperax Foundation
 /// @notice This contract releases tokens at a steady rate to the Vault contract, for rebasing the USDs stablecoin.
 /// @dev The Dripper contract ensures that tokens are released gradually over time, allowing for consistent and controlled distribution.
-/// @author Sperax Foundation
 contract Dripper is IDripper, Ownable {
     using SafeERC20 for IERC20;
 
