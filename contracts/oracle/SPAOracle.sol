@@ -40,7 +40,7 @@ contract SPAOracle is BaseUniOracle {
         _isNonZeroAddr(_masterOracle);
         masterOracle = _masterOracle;
         setUniMAPriceData(SPA, _quoteToken, _feeTier, _maPeriod);
-        updateDIAParams(_weightDIA, 600);
+        updateDIAParams(_weightDIA, 86400);
     }
 
     /// @notice Get SPA price.
