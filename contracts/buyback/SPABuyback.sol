@@ -12,10 +12,10 @@ import {IOracle} from "../interfaces/IOracle.sol";
 import {Helpers} from "../libraries/Helpers.sol";
 
 /// @title SPABuyback of USDs Protocol.
+/// @author Sperax Foundation
 /// @notice This contract allows users to exchange SPA tokens for USDs tokens.
 /// @dev Users can provide SPA tokens and receive USDs tokens in return based on the current exchange rate.
 /// @dev A percentage of the provided SPA tokens are distributed as rewards, and the rest are burned.
-/// @author Sperax Foundation
 contract SPABuyback is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradeable {
     using SafeERC20Upgradeable for ERC20BurnableUpgradeable;
 
@@ -23,6 +23,7 @@ contract SPABuyback is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
     uint256 public rewardPercentage; // Share of rewards to be distributed with veSPA holders.
     address public oracle; // Price oracle for SPA and USDs
 
+    // Events
     event BoughtBack(
         address indexed receiverOfUSDs,
         address indexed senderOfSPA,
@@ -37,6 +38,7 @@ contract SPABuyback is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
     event VeSpaRewarderUpdated(address newVeSpaRewarder);
     event OracleUpdated(address newOracle);
 
+    // Custom error messages
     error CannotWithdrawSPA();
     error InsufficientUSDsBalance(uint256 toSend, uint256 bal);
 

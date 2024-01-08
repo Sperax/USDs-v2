@@ -27,11 +27,13 @@ contract RebaseManager is IRebaseManager, Ownable {
     uint256 public aprBottom; // Minimum allowed APR for a rebase
     uint256 public lastRebaseTS; // Timestamp of the last rebase transaction
 
+    // Events
     event VaultUpdated(address vault);
     event DripperUpdated(address dripper);
     event GapUpdated(uint256 gap);
     event APRUpdated(uint256 aprBottom, uint256 aprCap);
 
+    // Custom error messages
     error CallerNotVault(address caller);
     error InvalidAPRConfig(uint256 aprBottom, uint256 aprCap);
 

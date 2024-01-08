@@ -12,9 +12,9 @@ interface IERC20Custom is IERC20 {
 }
 
 /// @title Collateral Manager for the USDs Protocol
+/// @author Sperax Foundation
 /// @notice This contract manages the addition and removal of collateral, configuration of collateral strategies, and allocation percentages.
 /// @dev Collateral Manager interacts with the Vault and various strategies for collateral management.
-/// @author Sperax Foundation
 contract CollateralManager is ICollateralManager, Ownable {
     // Struct for storing collateral data
     struct CollateralData {
@@ -44,6 +44,7 @@ contract CollateralManager is ICollateralManager, Ownable {
     mapping(address => mapping(address => StrategyData)) private collateralStrategyInfo; // collateral -> strategy => collateralStrategy config
     mapping(address => address[]) private collateralStrategies; // collateral => strategies[]
 
+    // Events
     event CollateralAdded(address collateral, CollateralBaseData data);
     event CollateralRemoved(address collateral);
     event CollateralInfoUpdated(address collateral, CollateralBaseData data);
@@ -51,7 +52,7 @@ contract CollateralManager is ICollateralManager, Ownable {
     event CollateralStrategyUpdated(address collateral, address strategy);
     event CollateralStrategyRemoved(address collateral, address strategy);
 
-    // Error messages
+    // Custom error messages
     error CollateralExists();
     error CollateralDoesNotExist();
     error CollateralStrategyExists();

@@ -18,11 +18,13 @@ contract Dripper is IDripper, Ownable {
     uint256 public dripDuration; // Duration over which tokens are dripped
     uint256 public lastCollectTS; // Timestamp of the last collection
 
+    // Events
     event Collected(uint256 amount);
     event Recovered(address owner, uint256 amount);
     event VaultUpdated(address vault);
     event DripDurationUpdated(uint256 dripDuration);
 
+    // Custom error messages
     error NothingToRecover();
 
     /// @notice Constructor to initialize the Dripper

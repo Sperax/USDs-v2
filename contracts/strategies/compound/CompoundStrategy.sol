@@ -7,6 +7,7 @@ import {InitializableAbstractStrategy, Helpers, IStrategyVault} from "../Initial
 import {IComet, IReward} from "./interfaces/ICompoundHelper.sol";
 
 /// @title Compound strategy for USDs protocol
+/// @author Sperax Foundation
 /// @notice A yield earning strategy for USDs protocol
 /// @notice Important contract addresses:
 ///         Addresses https://docs.compound.finance/#networks

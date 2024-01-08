@@ -9,8 +9,8 @@ interface IDiaOracle {
 }
 
 /// @title Oracle contract for USDs protocol for SPA token
-/// @dev providing SPA prices (from Uniswap V3 pools and DIA oracle)
 /// @author Sperax Foundation
+/// @dev providing SPA prices (from Uniswap V3 pools and DIA oracle)
 contract SPAOracle is BaseUniOracle {
     address public constant SPA = 0x5575552988A3A80504bBaeB1311674fCFd40aD4B;
     address public constant DIA_ORACLE = 0x7919D08e0f41398cBc1e0A8950Df831e4895c19b;
@@ -22,9 +22,10 @@ contract SPAOracle is BaseUniOracle {
     uint256 public weightDIA;
     uint256 public diaMaxTimeThreshold;
 
+    // Events
     event DIAParamsUpdated(uint256 weightDIA, uint128 diaMaxTimeThreshold);
 
-    // Custom Errors
+    // Custom error messages
     error PriceTooOld();
     error InvalidWeight();
     error InvalidTime();

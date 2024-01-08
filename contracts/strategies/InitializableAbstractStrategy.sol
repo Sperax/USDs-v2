@@ -12,6 +12,9 @@ interface IStrategyVault {
     function yieldReceiver() external view returns (address);
 }
 
+/// @title Base strategy for USDs protocol
+/// @author Sperax Foundation
+/// @dev Contract acts as a single interface for implementing specific yield-earning strategies.
 abstract contract InitializableAbstractStrategy is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradeable {
     using SafeERC20 for IERC20;
 

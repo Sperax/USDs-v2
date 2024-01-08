@@ -54,13 +54,14 @@ contract USDs is ERC20PermitUpgradeable, OwnableUpgradeable, ReentrancyGuardUpgr
     mapping(address => bool) private _deprecated_isUpgraded;
     bool public paused;
     // solhint-enable var-name-mixedcase
-
+    // Events
     event TotalSupplyUpdated(uint256 totalSupply, uint256 rebasingCredits, uint256 rebasingCreditsPerToken);
     event Paused(bool isPaused);
     event VaultUpdated(address newVault);
     event RebaseOptIn(address indexed account);
     event RebaseOptOut(address indexed account);
 
+    // Custom error messages
     error CallerNotVault(address caller);
     error ContractPaused();
     error IsAlreadyRebasingAccount(address account);

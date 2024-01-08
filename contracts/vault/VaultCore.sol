@@ -45,7 +45,7 @@ contract VaultCore is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradea
     event RebasedUSDs(uint256 rebaseAmt);
     event Allocated(address indexed collateral, address indexed strategy, uint256 amount);
 
-    // Custom Errors
+    // Custom Error messages
     error AllocationNotAllowed(address collateral, address strategy, uint256 amount);
     error RedemptionPausedForCollateral(address collateral);
     error InsufficientCollateral(address collateral, address strategy, uint256 amount, uint256 availableAmount);

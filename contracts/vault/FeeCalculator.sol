@@ -29,7 +29,7 @@ contract FeeCalculator is IFeeCalculator {
     // Events
     event FeeCalibrated(address indexed collateral, uint16 mintFee, uint16 redeemFee);
 
-    // Custom errors
+    // Custom error messages
     error InvalidCalibration();
     error FeeNotCalibrated(address collateral);
 
