@@ -16,6 +16,7 @@ contract MasterPriceOracle is Ownable, IOracle {
     event PriceFeedRemoved(address indexed token);
 
     // Custom error messages
+    error InvalidAddress();
     error UnableToFetchPriceFeed(address token);
     error InvalidPriceFeed(address token);
     error PriceFeedNotFound(address token);
@@ -26,6 +27,7 @@ contract MasterPriceOracle is Ownable, IOracle {
     /// @param _data call data for fetching the price feed.
     /// @dev Have to be extra cautious while updating the price feed.
     function updateTokenPriceFeed(address _token, address _source, bytes memory _data) external onlyOwner {
+        if (_token == address(0)) revert InvalidAddress();
         // Validate if the price feed is being emitted correctly.
         _getPriceFeed(_token, _source, _data);
 

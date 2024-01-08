@@ -39,7 +39,9 @@ contract ChainlinkOracle is Ownable {
     error GracePeriodNotPassed(uint256 timeSinceUp);
     error RoundNotComplete();
     error StalePrice();
+    error InvalidAddress();
     error InvalidPrice();
+    error InvalidPriceFeed();
     error InvalidPricePrecision();
 
     /// @notice Constructor to set up initial token data during contract deployment
@@ -58,6 +60,8 @@ contract ChainlinkOracle is Ownable {
     /// @param _tokenData Token price feed configuration
     /// @dev Only the contract owner can call this function
     function setTokenData(address _token, TokenData memory _tokenData) public onlyOwner {
+        if (_token == address(0)) revert InvalidAddress();
+        if (_tokenData.priceFeed == address(0)) revert InvalidPriceFeed();
         if (_tokenData.pricePrecision != 10 ** AggregatorV3Interface(_tokenData.priceFeed).decimals()) {
             revert InvalidPricePrecision();
         }
