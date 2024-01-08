@@ -22,8 +22,8 @@ contract StargateStrategy is InitializableAbstractStrategy {
         uint16 pid; // maps asset to pool id
     }
 
-    address public router;
-    address public farm;
+    address public router; // Address of the Stargate router contract
+    address public farm; // Address of the Stargate farm contract (LPStaking)
     mapping(address => AssetInfo) public assetInfo;
 
     event FarmUpdated(address newFarm);
@@ -226,6 +226,7 @@ contract StargateStrategy is InitializableAbstractStrategy {
 
     /// @notice Get the amount STG pending to be collected.
     /// @param _asset Address for the asset
+    /// @return Amount of STG pending to be collected.
     function checkPendingRewards(address _asset) public view returns (uint256) {
         if (!supportsCollateral(_asset)) revert CollateralNotSupported(_asset);
         return ILPStaking(farm).pendingEmissionToken(assetInfo[_asset].rewardPID, address(this));
@@ -281,6 +282,7 @@ contract StargateStrategy is InitializableAbstractStrategy {
     /// @notice Convert amount of lpToken to collateral.
     /// @param _asset Address for the asset
     /// @param _lpTokenAmount Amount of lpToken
+    /// @return Amount of collateral equivalent to the lpToken amount
     function _convertToCollateral(address _asset, uint256 _lpTokenAmount) internal view returns (uint256) {
         IStargatePool pool = IStargatePool(assetToPToken[_asset]);
         return ((_lpTokenAmount * pool.totalLiquidity()) / pool.totalSupply()) * pool.convertRate();
@@ -289,6 +291,7 @@ contract StargateStrategy is InitializableAbstractStrategy {
     /// @notice Convert amount of collateral to lpToken.
     /// @param _asset Address for the asset
     /// @param _collateralAmount Amount of collateral
+    /// @return Amount of lpToken equivalent to the collateral amount
     function _convertToPToken(address _asset, uint256 _collateralAmount) internal view returns (uint256) {
         IStargatePool pool = IStargatePool(assetToPToken[_asset]);
         return (_collateralAmount * pool.totalSupply()) / (pool.totalLiquidity() * pool.convertRate());
@@ -299,6 +302,7 @@ contract StargateStrategy is InitializableAbstractStrategy {
     /// @param _recipient Recipient of the amount
     /// @param _asset Address of the asset token
     /// @param _amount Amount to be withdrawn
+    /// @return Amount withdrawn
     /// @dev Validate if the farm has enough STG to withdraw as rewards.
     /// @dev It is designed to be called from functions with the `nonReentrant` modifier to ensure reentrancy protection.
     function _withdraw(bool _withdrawInterest, address _recipient, address _asset, uint256 _amount)
@@ -329,6 +333,7 @@ contract StargateStrategy is InitializableAbstractStrategy {
 
     /// @notice Validate if the farm has sufficient funds to claim rewards.
     /// @param _asset Address for the asset
+    /// @return bool if the farm has sufficient funds to claim rewards.
     /// @dev skipRwdValidation is a flag to skip the validation.
     function _validateRwdClaim(address _asset) private view returns (bool) {
         return checkPendingRewards(_asset) <= IERC20(rewardTokenAddress[0]).balanceOf(farm);
