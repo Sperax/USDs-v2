@@ -6,26 +6,34 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 /// @title Chainlink Oracle contract for USDs protocol
 /// @author Sperax Foundation
-/// @notice Has all the base functionalities, variables etc to be implemented by child contracts
+/// @notice This contract provides functionality for obtaining price data from Chainlink's price feeds for various assets.
 contract ChainlinkOracle is Ownable {
+    // Struct to store price feed and precision information for each token
     struct TokenData {
-        address priceFeed;
-        uint96 timeout;
-        uint256 pricePrecision;
+        address priceFeed; // Address of the Chainlink price feed
+        uint96 timeout; // timeout value used for price staleness check of a price feed
+        uint256 pricePrecision; // Precision factor for the token's price
     }
 
+    // Struct to set up token data during contract deployment
     struct SetupTokenData {
-        address token;
-        TokenData data;
+        address token; // Address of the token
+        TokenData data; // Token price feed configuration
     }
 
+    // Address of Chainlink's sequencer uptime feed
     address public constant CHAINLINK_SEQ_UPTIME_FEED = 0xFdB631F5EE196F0ed6FAa767959853A9F217697D;
+
+    // Grace period time in seconds
     uint256 private constant GRACE_PERIOD_TIME = 3600;
 
+    // Mapping to store price feed and precision data for each supported token
     mapping(address => TokenData) public getTokenData;
 
+    // Events
     event TokenDataChanged(address indexed tokenAddr, address priceFeed, uint256 pricePrecision, uint96 timeout);
 
+    // Custom error messages
     error TokenNotSupported(address token);
     error ChainlinkSequencerDown();
     error GracePeriodNotPassed(uint256 timeSinceUp);
@@ -34,6 +42,8 @@ contract ChainlinkOracle is Ownable {
     error InvalidPrice();
     error InvalidPricePrecision();
 
+    /// @notice Constructor to set up initial token data during contract deployment
+    /// @param _priceFeedData Array of token setup data containing token addresses and price feed configurations
     constructor(SetupTokenData[] memory _priceFeedData) {
         for (uint256 i; i < _priceFeedData.length;) {
             setTokenData(_priceFeedData[i].token, _priceFeedData[i].data);
@@ -43,9 +53,10 @@ contract ChainlinkOracle is Ownable {
         }
     }
 
-    /// @notice Configures chainlink price feed for an asset
+    /// @notice Configures Chainlink price feed for an asset
     /// @param _token Address of the desired token
     /// @param _tokenData Token price feed configuration
+    /// @dev Only the contract owner can call this function
     function setTokenData(address _token, TokenData memory _tokenData) public onlyOwner {
         if (_tokenData.pricePrecision != 10 ** AggregatorV3Interface(_tokenData.priceFeed).decimals()) {
             revert InvalidPricePrecision();
@@ -54,21 +65,25 @@ contract ChainlinkOracle is Ownable {
         emit TokenDataChanged(_token, _tokenData.priceFeed, _tokenData.pricePrecision, _tokenData.timeout);
     }
 
-    /// @notice Gets the token price and price precision
+    /// @notice Gets the price and price precision of a supported token
     /// @param _token Address of the desired token
     /// @dev Ref: https://docs.chain.link/data-feeds/l2-sequencer-feeds
-    /// @return (uint256, uint256) price and pricePrecision
+    /// @return (uint256, uint256) The token's price and its price precision
     function getTokenPrice(address _token) public view returns (uint256, uint256) {
         TokenData memory tokenInfo = getTokenData[_token];
+
+        // Check if the token is supported
         if (tokenInfo.pricePrecision == 0) revert TokenNotSupported(_token);
 
+        // Retrieve the latest data from Chainlink's sequencer uptime feed.
         (, int256 answer, uint256 startedAt,,) = AggregatorV3Interface(CHAINLINK_SEQ_UPTIME_FEED).latestRoundData();
+
         // Answer == 0: Sequencer is up
         // Answer == 1: Sequencer is down
         bool isSequencerUp = answer == 0;
         if (!isSequencerUp) revert ChainlinkSequencerDown();
 
-        // Make sure the grace period has passed after the sequencer is back up.
+        // Ensure the grace period has passed since the sequencer is back up.
         uint256 timeSinceUp = block.timestamp - startedAt;
         if (timeSinceUp <= GRACE_PERIOD_TIME) {
             revert GracePeriodNotPassed(timeSinceUp);
