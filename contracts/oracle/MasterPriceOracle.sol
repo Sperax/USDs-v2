@@ -11,9 +11,11 @@ contract MasterPriceOracle is Ownable, IOracle {
     /// Store price feed data for tokens.
     mapping(address => PriceFeedData) public tokenPriceFeed;
 
+    // Events
     event PriceFeedUpdated(address indexed token, address indexed source, bytes msgData);
     event PriceFeedRemoved(address indexed token);
 
+    // Custom error messages
     error UnableToFetchPriceFeed(address token);
     error InvalidPriceFeed(address token);
     error PriceFeedNotFound(address token);
