@@ -26,8 +26,10 @@ contract FeeCalculator is IFeeCalculator {
 
     mapping(address => FeeData) public collateralFee;
 
+    // Events
     event FeeCalibrated(address indexed collateral, uint16 mintFee, uint16 redeemFee);
 
+    // Custom errors
     error InvalidCalibration();
     error FeeNotCalibrated(address collateral);
 

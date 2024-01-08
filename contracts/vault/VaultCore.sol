@@ -29,6 +29,7 @@ contract VaultCore is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradea
     address public oracle; // Address of the Oracle contract
     address public rebaseManager; // Address of the Rebase Manager contract
 
+    // Events
     event FeeVaultUpdated(address newFeeVault);
     event YieldReceiverUpdated(address newYieldReceiver);
     event CollateralManagerUpdated(address newCollateralManager);
@@ -44,6 +45,7 @@ contract VaultCore is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradea
     event RebasedUSDs(uint256 rebaseAmt);
     event Allocated(address indexed collateral, address indexed strategy, uint256 amount);
 
+    // Custom Errors
     error AllocationNotAllowed(address collateral, address strategy, uint256 amount);
     error RedemptionPausedForCollateral(address collateral);
     error InsufficientCollateral(address collateral, address strategy, uint256 amount, uint256 availableAmount);

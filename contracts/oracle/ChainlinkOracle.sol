@@ -30,6 +30,7 @@ contract ChainlinkOracle is Ownable {
     // Mapping to store price feed and precision data for each supported token
     mapping(address => TokenData) public getTokenData;
 
+    // Events
     event TokenDataChanged(address indexed tokenAddr, address priceFeed, uint256 pricePrecision, uint96 timeout);
 
     // Custom error messages

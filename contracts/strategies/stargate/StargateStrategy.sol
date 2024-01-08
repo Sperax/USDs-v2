@@ -26,8 +26,10 @@ contract StargateStrategy is InitializableAbstractStrategy {
     address public farm; // Address of the Stargate farm contract (LPStaking)
     mapping(address => AssetInfo) public assetInfo;
 
+    // Events
     event FarmUpdated(address newFarm);
 
+    // Custom errors
     error IncorrectPoolId(address asset, uint16 pid);
     error IncorrectRewardPoolId(address asset, uint256 rewardPid);
 
