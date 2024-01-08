@@ -11,7 +11,7 @@ contract ChainlinkOracle is Ownable {
     // Struct to store price feed and precision information for each token
     struct TokenData {
         address priceFeed; // Address of the Chainlink price feed
-        uint96 timeout;
+        uint96 timeout; // timeout value used for price staleness check of a price feed
         uint256 pricePrecision; // Precision factor for the token's price
     }
 
