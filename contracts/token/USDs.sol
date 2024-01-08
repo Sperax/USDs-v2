@@ -54,6 +54,7 @@ contract USDs is ERC20PermitUpgradeable, OwnableUpgradeable, ReentrancyGuardUpgr
     mapping(address => bool) private _deprecated_isUpgraded;
     bool public paused;
     // solhint-enable var-name-mixedcase
+
     // Events
     event TotalSupplyUpdated(uint256 totalSupply, uint256 rebasingCredits, uint256 rebasingCreditsPerToken);
     event Paused(bool isPaused);
