@@ -45,10 +45,10 @@ contract YieldReserve is ReentrancyGuard, Ownable {
     event USDsMintedViaSwapper(address indexed collateralAddr, uint256 usdsMinted);
     event Withdrawn(address indexed token, address indexed receiver, uint256 amount);
     event BuybackPercentageUpdated(uint256 toBuyback);
-    event BuybackAddressUpdated(address newBuyback);
+    event BuybackUpdated(address newBuyback);
     event OracleUpdated(address newOracle);
-    event VaultAddressUpdated(address newVault);
-    event DripperAddressUpdated(address newDripper);
+    event VaultUpdated(address newVault);
+    event DripperUpdated(address newDripper);
     event USDsSent(uint256 toBuyback, uint256 toVault);
     event SrcTokenPermissionUpdated(address indexed token, bool isAllowed);
     event DstTokenPermissionUpdated(address indexed token, bool isAllowed);
@@ -65,10 +65,10 @@ contract YieldReserve is ReentrancyGuard, Ownable {
     /// @param _oracle Address of the Oracle.
     /// @param _dripper Address of the Dripper contract.
     constructor(address _buyback, address _vault, address _oracle, address _dripper) {
-        updateBuybackAddress(_buyback);
-        updateVaultAddress(_vault);
-        updateOracleAddress(_oracle);
-        updateDripperAddress(_dripper);
+        updateBuyback(_buyback);
+        updateVault(_vault);
+        updateOracle(_oracle);
+        updateDripper(_dripper);
 
         // Initialize buybackPercentage to 50%
         updateBuybackPercentage(5000);
@@ -154,16 +154,16 @@ contract YieldReserve is ReentrancyGuard, Ownable {
     /// @notice Update the address of the Buyback contract.
     /// @dev Reverts if caller is not owner.
     /// @param _newBuyBack New address of the Buyback contract.
-    function updateBuybackAddress(address _newBuyBack) public onlyOwner {
+    function updateBuyback(address _newBuyBack) public onlyOwner {
         Helpers._isNonZeroAddr(_newBuyBack);
         buyback = _newBuyBack;
-        emit BuybackAddressUpdated(_newBuyBack);
+        emit BuybackUpdated(_newBuyBack);
     }
 
     /// @notice Update the address of the Oracle contract.
     /// @dev Reverts if caller is not owner.
     /// @param _newOracle New address of the Oracle contract.
-    function updateOracleAddress(address _newOracle) public onlyOwner {
+    function updateOracle(address _newOracle) public onlyOwner {
         Helpers._isNonZeroAddr(_newOracle);
         oracle = _newOracle;
         emit OracleUpdated(_newOracle);
@@ -172,19 +172,19 @@ contract YieldReserve is ReentrancyGuard, Ownable {
     /// @notice Update the address of the Dripper contract.
     /// @dev Reverts if caller is not owner.
     /// @param _newDripper New address of the Dripper contract.
-    function updateDripperAddress(address _newDripper) public onlyOwner {
+    function updateDripper(address _newDripper) public onlyOwner {
         Helpers._isNonZeroAddr(_newDripper);
         dripper = _newDripper;
-        emit DripperAddressUpdated(_newDripper);
+        emit DripperUpdated(_newDripper);
     }
 
     /// @notice Update the address of the VaultCore contract.
     /// @dev Reverts if caller is not owner.
     /// @param _newVault New address of the VaultCore contract.
-    function updateVaultAddress(address _newVault) public onlyOwner {
+    function updateVault(address _newVault) public onlyOwner {
         Helpers._isNonZeroAddr(_newVault);
         vault = _newVault;
-        emit VaultAddressUpdated(_newVault);
+        emit VaultUpdated(_newVault);
     }
 
     /// @notice Swap allowed source token for allowed destination token.

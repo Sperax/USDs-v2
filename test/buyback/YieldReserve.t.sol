@@ -168,61 +168,61 @@ contract YieldReserveTest is YieldReserveSetup {
 
     function test_updateBuybackAddress_auth_error() public useActor(0) {
         vm.expectRevert("Ownable: caller is not the owner");
-        yieldReserve.updateBuybackAddress(VAULT);
+        yieldReserve.updateBuyback(VAULT);
     }
 
     function test_updateBuybackAddress_inputs() public useKnownActor(USDS_OWNER) {
         vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAddress.selector));
-        yieldReserve.updateBuybackAddress(address(0));
+        yieldReserve.updateBuyback(address(0));
     }
 
     function test_updateBuybackAddress() public useKnownActor(USDS_OWNER) {
-        yieldReserve.updateBuybackAddress(VAULT);
+        yieldReserve.updateBuyback(VAULT);
         assertEq(yieldReserve.buyback(), VAULT);
     }
 
     function test_updateOracleAddress_auth_error() public useActor(0) {
         vm.expectRevert("Ownable: caller is not the owner");
-        yieldReserve.updateOracleAddress(VAULT);
+        yieldReserve.updateOracle(VAULT);
     }
 
     function test_updateOracleAddress_inputs() public useKnownActor(USDS_OWNER) {
         vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAddress.selector));
-        yieldReserve.updateOracleAddress(address(0));
+        yieldReserve.updateOracle(address(0));
     }
 
     function test_updateOracleAddress() public useKnownActor(USDS_OWNER) {
-        yieldReserve.updateOracleAddress(VAULT);
+        yieldReserve.updateOracle(VAULT);
         assertEq(yieldReserve.oracle(), VAULT);
     }
 
     function test_updateDripperAddress_auth_error() public useActor(0) {
         vm.expectRevert("Ownable: caller is not the owner");
-        yieldReserve.updateDripperAddress(VAULT);
+        yieldReserve.updateDripper(VAULT);
     }
 
     function test_updateDripperAddress_inputs() public useKnownActor(USDS_OWNER) {
         vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAddress.selector));
-        yieldReserve.updateDripperAddress(address(0));
+        yieldReserve.updateDripper(address(0));
     }
 
     function test_updateDripperAddress() public useKnownActor(USDS_OWNER) {
-        yieldReserve.updateDripperAddress(VAULT);
+        yieldReserve.updateDripper(VAULT);
         assertEq(yieldReserve.dripper(), VAULT);
     }
 
     function test_updateVaultAddress_auth_error() public useActor(0) {
         vm.expectRevert("Ownable: caller is not the owner");
-        yieldReserve.updateVaultAddress(VAULT);
+        yieldReserve.updateVault(VAULT);
     }
 
     function test_updateVaultAddress_inputs() public useKnownActor(USDS_OWNER) {
         vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAddress.selector));
-        yieldReserve.updateVaultAddress(address(0));
+        yieldReserve.updateVault(address(0));
     }
 
     function test_updateVaultAddress() public useKnownActor(USDS_OWNER) {
-        yieldReserve.updateVaultAddress(ORACLE);
+        yieldReserve.updateVault(ORACLE);
         assertEq(yieldReserve.vault(), ORACLE);
     }
 
