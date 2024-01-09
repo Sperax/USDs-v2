@@ -44,6 +44,7 @@ contract USDsTest is BaseTest {
 
     uint256 constant APPROX_ERROR_MARGIN = 1;
     uint256 constant FULL_SCALE = 1e18;
+    uint256 MAX_SUPPLY = ~uint128(0);
 
     uint256 USDsPrecision;
     USDs internal usds;
@@ -349,14 +350,12 @@ contract TestMint is USDsTest {
     }
 
     function test_revertWhen_MaxSupplyReached() public useKnownActor(VAULT) {
-        uint256 MAX_SUPPLY = ~uint128(0);
         vm.expectRevert(abi.encodeWithSelector(USDs.MaxSupplyReached.selector, MAX_SUPPLY + usds.totalSupply()));
         usds.mint(USDS_OWNER, MAX_SUPPLY);
     }
 
     function testFuzz_mint_nonRebasing(uint256 _amount) public useKnownActor(VAULT) {
-        vm.assume(_amount > 1 || _amount < 1e6 * USDsPrecision);
-        amount = _amount;
+        amount = bound(_amount, 1, MAX_SUPPLY - usds.totalSupply());
 
         address account = USDS_OWNER; // USDS_OWNER is non-rebasing
         uint256 prevTotalSupply = usds.totalSupply();
@@ -377,8 +376,7 @@ contract TestMint is USDsTest {
     }
 
     function testFuzz_mint_rebasing(uint256 _amount) public useKnownActor(VAULT) {
-        vm.assume(_amount > 1 || _amount < 1e6 * USDsPrecision);
-        amount = _amount;
+        amount = bound(_amount, 1, MAX_SUPPLY - usds.totalSupply());
         address account = USER1;
 
         uint256 prevTotalSupply = usds.totalSupply();
@@ -435,8 +433,7 @@ contract TestBurn is USDsTest {
     }
 
     function test_burn_nonRebasing(uint256 _amount) public useKnownActor(USDS_OWNER) {
-        vm.assume(_amount > 1 || _amount < 1e6 * USDsPrecision);
-        amount = _amount;
+        amount = bound(_amount, 1, MAX_SUPPLY - usds.totalSupply());
         address account = VAULT; // VAULT is rebasing and has some existing USDs.
 
         changePrank(account);
@@ -461,8 +458,7 @@ contract TestBurn is USDsTest {
     }
 
     function test_burn_rebasing(uint256 _amount) public useKnownActor(USDS_OWNER) {
-        vm.assume(_amount > 1 || _amount < 1e6 * USDsPrecision);
-        amount = _amount;
+        amount = bound(_amount, 1, MAX_SUPPLY - usds.totalSupply());
         address account = VAULT; // VAULT is rebasing and has some existing USDs.
         changePrank(account);
         usds.rebaseOptIn();
@@ -581,7 +577,8 @@ contract TestRebase is USDsTest {
     }
 
     function test_rebase(uint256 amount) public useKnownActor(VAULT) {
-        vm.assume(amount > 1 || amount < 1e8 * USDsPrecision);
+        amount = bound(amount, 1, MAX_SUPPLY - usds.totalSupply());
+
         address account = VAULT;
         usds.mint(account, amount);
         uint256 prevSupply = usds.totalSupply();
