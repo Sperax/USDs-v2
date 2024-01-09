@@ -605,6 +605,40 @@ contract Test_Withdraw is StargateStrategyTest {
     }
 }
 
+contract Test_EmergencyWithdrawToVault is StargateStrategyTest {
+    function setUp() public override {
+        super.setUp();
+        vm.startPrank(USDS_OWNER);
+        _initializeStrategy();
+        _createDeposits();
+        vm.stopPrank();
+    }
+
+    function test_emergencyWithdrawToVault() public useKnownActor(USDS_OWNER) {
+        for (uint8 i = 0; i < assetData.length; ++i) {
+            uint256 initialBal = strategy.checkBalance(assetData[i].asset);
+            uint256 initialVaultBal = ERC20(assetData[i].asset).balanceOf(VAULT);
+
+            (uint256 allocatedAmtBeforeEmergencyWithdraw,,) = strategy.assetInfo(assetData[i].asset);
+
+            vm.expectEmit(address(strategy));
+            emit Withdrawal(assetData[i].asset, initialBal);
+            strategy.emergencyWithdrawToVault(assetData[i].asset);
+
+            (uint256 allocatedAmtAfterEmergencyWithdraw,,) = strategy.assetInfo(assetData[i].asset);
+
+            assertEq(strategy.checkLPTokenBalance(assetData[i].asset), 0);
+            assertEq(strategy.checkBalance(assetData[i].asset), 0);
+            assertEq(allocatedAmtAfterEmergencyWithdraw, allocatedAmtBeforeEmergencyWithdraw - initialBal);
+            assertApproxEqAbs(
+                ERC20(assetData[i].asset).balanceOf(VAULT),
+                initialVaultBal + initialBal,
+                1 * IStargatePool(assetData[i].pToken).convertRate()
+            );
+        }
+    }
+}
+
 contract Test_EdgeCases is StargateStrategyTest {
     function setUp() public override {
         super.setUp();
