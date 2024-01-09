@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.19;
 
-import {PreMigrationSetup} from "../utils/DeploymentSetup.sol";
+import {PreMigrationSetup} from "../utils/DeploymentSetup.t.sol";
 import {Helpers, FeeCalculator} from "../../contracts/vault/FeeCalculator.sol";
 import {ICollateralManager} from "../../contracts/vault/interfaces/ICollateralManager.sol";
 import {IOracle} from "../../contracts/interfaces/IOracle.sol";

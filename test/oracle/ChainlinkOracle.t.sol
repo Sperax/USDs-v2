@@ -2,7 +2,7 @@ pragma solidity 0.8.19;
 
 import {ChainlinkOracle, AggregatorV3Interface} from "../../contracts/oracle/ChainlinkOracle.sol";
 
-import {BaseTest} from "../utils/BaseTest.sol";
+import {BaseTest} from "../utils/BaseTest.t.sol";
 
 contract ChainlinkOracleTest is BaseTest {
     ChainlinkOracle public chainlinkOracle;

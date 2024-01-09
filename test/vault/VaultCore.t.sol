@@ -2,7 +2,7 @@
 pragma solidity 0.8.19;
 
 import {VaultCore, Helpers} from "../../contracts/vault/VaultCore.sol";
-import {PreMigrationSetup} from "../utils/DeploymentSetup.sol";
+import {PreMigrationSetup} from "../utils/DeploymentSetup.t.sol";
 import {IAccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/IAccessControlUpgradeable.sol";
 import {IStrategy} from "../../contracts/vault/interfaces/IStrategy.sol";
 import {IVault} from "../../contracts/interfaces/IVault.sol";

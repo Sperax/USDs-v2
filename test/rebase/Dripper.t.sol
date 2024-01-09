@@ -1,6 +1,6 @@
 pragma solidity 0.8.19;
 
-import {BaseTest} from ".././utils/BaseTest.sol";
+import {BaseTest} from ".././utils/BaseTest.t.sol";
 import {Dripper, Helpers} from "../../contracts/rebase/Dripper.sol";
 import {IUSDs} from "../../contracts/interfaces/IUSDs.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";

@@ -1,6 +1,6 @@
 pragma solidity 0.8.19;
 
-import {PreMigrationSetup} from ".././utils/DeploymentSetup.sol";
+import {PreMigrationSetup} from ".././utils/DeploymentSetup.t.sol";
 import {Dripper} from "../../contracts/rebase/Dripper.sol";
 import {RebaseManager, Helpers} from "../../contracts/rebase/RebaseManager.sol";
 import {IOracle} from "../../contracts/interfaces/IOracle.sol";

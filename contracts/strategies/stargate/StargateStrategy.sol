@@ -222,6 +222,28 @@ contract StargateStrategy is InitializableAbstractStrategy {
     }
 
     /// @inheritdoc InitializableAbstractStrategy
+    function checkBalance(address _asset) external view override returns (uint256) {
+        uint256 lpTokenBal = checkLPTokenBalance(_asset);
+        uint256 calcCollateralBal = _convertToCollateral(_asset, lpTokenBal);
+        uint256 allocatedAmt = assetInfo[_asset].allocatedAmt;
+        if (allocatedAmt <= calcCollateralBal) {
+            return allocatedAmt;
+        }
+        return calcCollateralBal;
+    }
+
+    /// @inheritdoc InitializableAbstractStrategy
+    function checkAvailableBalance(address _asset) external view override returns (uint256) {
+        IStargatePool pool = IStargatePool(assetToPToken[_asset]);
+        uint256 availableFunds = _convertToCollateral(_asset, pool.deltaCredit());
+        uint256 allocatedAmt = assetInfo[_asset].allocatedAmt;
+        if (availableFunds <= allocatedAmt) {
+            return availableFunds;
+        }
+        return allocatedAmt;
+    }
+
+    /// @inheritdoc InitializableAbstractStrategy
     function supportsCollateral(address _asset) public view override returns (bool) {
         return assetToPToken[_asset] != address(0);
     }
@@ -247,28 +269,6 @@ contract StargateStrategy is InitializableAbstractStrategy {
     }
 
     /// @inheritdoc InitializableAbstractStrategy
-    function checkBalance(address _asset) public view override returns (uint256) {
-        uint256 lpTokenBal = checkLPTokenBalance(_asset);
-        uint256 calcCollateralBal = _convertToCollateral(_asset, lpTokenBal);
-        uint256 allocatedAmt = assetInfo[_asset].allocatedAmt;
-        if (allocatedAmt <= calcCollateralBal) {
-            return allocatedAmt;
-        }
-        return calcCollateralBal;
-    }
-
-    /// @inheritdoc InitializableAbstractStrategy
-    function checkAvailableBalance(address _asset) public view override returns (uint256) {
-        IStargatePool pool = IStargatePool(assetToPToken[_asset]);
-        uint256 availableFunds = _convertToCollateral(_asset, pool.deltaCredit());
-        uint256 allocatedAmt = assetInfo[_asset].allocatedAmt;
-        if (availableFunds <= allocatedAmt) {
-            return availableFunds;
-        }
-        return allocatedAmt;
-    }
-
-    /// @inheritdoc InitializableAbstractStrategy
     function checkLPTokenBalance(address _asset) public view override returns (uint256) {
         if (!supportsCollateral(_asset)) revert CollateralNotSupported(_asset);
         (uint256 lpTokenStaked,) = ILPStaking(farm).userInfo(assetInfo[_asset].rewardPID, address(this));
@@ -276,10 +276,8 @@ contract StargateStrategy is InitializableAbstractStrategy {
     }
 
     /// @inheritdoc InitializableAbstractStrategy
-    /* solhint-disable no-empty-blocks */
+    /* solhint-disable-next-line no-empty-blocks */
     function _abstractSetPToken(address _asset, address _pToken) internal override {}
-
-    /* solhint-enable no-empty-blocks */
 
     /// @notice Convert amount of lpToken to collateral.
     /// @param _asset Address for the asset
