@@ -481,10 +481,26 @@ contract Test_CollectInterest is Test_Harvest {
             assertEq(strategy.checkLPTokenBalance(assetData[i].asset), mockBal);
             assertTrue(interestEarned > 0);
 
-            // vm.expectEmit(address(strategy)); // fails due to precision error
             vm.expectEmit(true, true, false, false);
-            emit InterestCollected(assetData[i].asset, yieldReceiver, interestEarned);
+            emit InterestCollected(assetData[i].asset, yieldReceiver, interestEarned); // used vm.recordLogs to test the interestEarned part due to precision error
+
+            vm.recordLogs();
+
             strategy.collectInterest(assetData[i].asset);
+
+            VmSafe.Log[] memory logs = vm.getRecordedLogs();
+
+            uint256 amt;
+            for (uint8 j = 0; j < logs.length; ++j) {
+                if (logs[j].topics[0] == keccak256("InterestCollected(address,address,uint256)")) {
+                    (amt) = abi.decode(logs[j].data, (uint256));
+                }
+            }
+
+            emit log_named_uint("amt", amt);
+            emit log_named_uint("interestEarned", interestEarned);
+            assertApproxEqAbs(amt, interestEarned, (interestEarned / 1e2));
+
             /// @note precision Error from stargate
             assertApproxEqAbs(strategy.checkLPTokenBalance(assetData[i].asset), initialLPBal, 1);
         }
@@ -513,10 +529,24 @@ contract Test_Withdraw is StargateStrategyTest {
             uint256 initialBal = strategy.checkBalance(assetData[i].asset);
             uint256 initialVaultBal = collateral.balanceOf(VAULT);
 
-            // vm.expectEmit(address(strategy)); // fails due to precision error
-            vm.expectEmit(true, false, false, false);
+            vm.expectEmit(true, false, false, false); // used vm.recordLogs to test the initialBal part due to precision error
             emit Withdrawal(assetData[i].asset, initialBal);
+
+            vm.recordLogs();
+
             strategy.withdraw(VAULT, assetData[i].asset, initialBal);
+
+            VmSafe.Log[] memory logs = vm.getRecordedLogs();
+
+            uint256 amt;
+            for (uint8 j = 0; j < logs.length; ++j) {
+                if (logs[j].topics[0] == keccak256("Withdrawal(address,uint256)")) {
+                    (amt) = abi.decode(logs[j].data, (uint256));
+                }
+            }
+
+            assertApproxEqAbs(amt, initialBal, (initialBal / 1e7));
+
             assertApproxEqAbs(
                 collateral.balanceOf(VAULT),
                 initialVaultBal + initialBal,
@@ -546,10 +576,24 @@ contract Test_Withdraw is StargateStrategyTest {
             uint256 initialBal = strategy.checkBalance(assetData[i].asset);
             uint256 initialVaultBal = collateral.balanceOf(VAULT);
 
-            // vm.expectEmit(address(strategy)); // fails due to precision error
-            vm.expectEmit(true, false, false, false);
+            vm.expectEmit(true, false, false, false); // used vm.recordLogs to test the initialBal part due to precision error
             emit Withdrawal(assetData[i].asset, initialBal);
+
+            vm.recordLogs();
+
             strategy.withdrawToVault(assetData[i].asset, initialBal);
+
+            VmSafe.Log[] memory logs = vm.getRecordedLogs();
+
+            uint256 amt;
+            for (uint8 j = 0; j < logs.length; ++j) {
+                if (logs[j].topics[0] == keccak256("Withdrawal(address,uint256)")) {
+                    (amt) = abi.decode(logs[j].data, (uint256));
+                }
+            }
+
+            assertApproxEqAbs(amt, initialBal, (initialBal / 1e7));
+
             assertApproxEqAbs(
                 collateral.balanceOf(VAULT),
                 initialVaultBal + initialBal,
