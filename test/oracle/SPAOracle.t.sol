@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.19;
 
+import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {SPAOracle} from "../../contracts/oracle/SPAOracle.sol";
 import {IUniswapV3Factory} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Factory.sol";
 import {BaseTest} from "../utils/BaseTest.sol";
@@ -66,6 +67,8 @@ contract SPAOracleTest is BaseUniOracleTest {
     event DIAParamsUpdated(uint256 weightDIA, uint128 maxTime);
 
     error InvalidWeight();
+    error InvalidTime();
+    error PriceTooOld();
 
     function setUp() public override {
         super.setUp();
@@ -132,6 +135,9 @@ contract Test_setUniMAPriceData is SPAOracleTest {
         vm.expectEmit(true, true, true, true);
         emit UniMAPriceDataChanged(USDCe, 10000, 700);
         spaOracle.setUniMAPriceData(SPA, USDCe, 10000, 700);
+        assertEq(spaOracle.quoteToken(), USDCe);
+        assertEq(spaOracle.maPeriod(), 700);
+        assertEq(spaOracle.quoteTokenPrecision(), uint128(10) ** ERC20(USDCe).decimals());
     }
 
     function test_revertsWhen_invalidMaPeriod() public useKnownActor(USDS_OWNER) {
@@ -164,6 +170,7 @@ contract Test_updateMasterOracle is SPAOracleTest {
         vm.expectEmit(true, true, true, true);
         emit MasterOracleUpdated(masterOracle);
         spaOracle.updateMasterOracle(masterOracle);
+        assertEq(spaOracle.masterOracle(), masterOracle);
     }
 }
 
@@ -179,11 +186,18 @@ contract Test_UpdateDIAWeight is SPAOracleTest {
         spaOracle.updateDIAParams(newWeight, 600);
     }
 
+    function test_revertsWhen_invalidTime() public useKnownActor(USDS_OWNER) {
+        vm.expectRevert(abi.encodeWithSelector(InvalidTime.selector));
+        spaOracle.updateDIAParams(80, 80);
+    }
+
     function test_updateDIAParams() public useKnownActor(USDS_OWNER) {
         uint256 newWeight = 80;
         uint128 maxTime = 600;
         vm.expectEmit(true, true, true, true);
         emit DIAParamsUpdated(newWeight, maxTime);
         spaOracle.updateDIAParams(newWeight, maxTime);
+        assertEq(spaOracle.weightDIA(), newWeight);
+        assertEq(spaOracle.diaMaxTimeThreshold(), maxTime);
     }
 }

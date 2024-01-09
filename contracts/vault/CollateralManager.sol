@@ -11,37 +11,40 @@ interface IERC20Custom is IERC20 {
     function decimals() external view returns (uint8);
 }
 
-/// @title Collateral Manager contract for USDs protocol
+/// @title Collateral Manager for the USDs Protocol
 /// @author Sperax Foundation
-/// @notice Manages addition and removal of collateral, configures
-///     collateral strategies and percentage of allocation
+/// @notice This contract manages the addition and removal of collateral, configuration of collateral strategies, and allocation percentages.
+/// @dev Collateral Manager interacts with the Vault and various strategies for collateral management.
 contract CollateralManager is ICollateralManager, Ownable {
+    // Struct for storing collateral data
     struct CollateralData {
-        bool mintAllowed;
-        bool redeemAllowed;
-        bool allocationAllowed;
+        bool mintAllowed; // mint switch for collateral
+        bool redeemAllowed; // redemption switch for collateral
+        bool allocationAllowed; // allocation switch for collateral
         bool exists;
-        address defaultStrategy;
+        address defaultStrategy; // default redemption strategy for collateral
         uint16 baseMintFee;
         uint16 baseRedeemFee;
-        uint16 downsidePeg;
-        uint16 desiredCollateralComposition;
-        uint16 collateralCapacityUsed;
-        uint256 conversionFactor;
+        uint16 downsidePeg; // min price of collateral to be eligible for minting
+        uint16 desiredCollateralComposition; // collateral composition in vault
+        uint16 collateralCapacityUsed; // tracks current allocation capacity of a collateral
+        uint256 conversionFactor; // normalization factor for bringing token amounts to same decimal levels
     }
 
+    // Struct for storing strategy data
     struct StrategyData {
         uint16 allocationCap;
         bool exists;
     }
 
-    uint16 public collateralCompositionUsed;
-    address public immutable VAULT;
-    address[] private collaterals;
-    mapping(address => CollateralData) public collateralInfo;
-    mapping(address => mapping(address => StrategyData)) private collateralStrategyInfo;
-    mapping(address => address[]) private collateralStrategies;
+    uint16 public collateralCompositionUsed; // vault composition allocated to collaterals
+    address public immutable VAULT; // address of USDs-vault
+    address[] private collaterals; // address of all registered collaterals
+    mapping(address => CollateralData) public collateralInfo; // collateral configuration
+    mapping(address => mapping(address => StrategyData)) private collateralStrategyInfo; // collateral -> strategy => collateralStrategy config
+    mapping(address => address[]) private collateralStrategies; // collateral => strategies[]
 
+    // Events
     event CollateralAdded(address collateral, CollateralBaseData data);
     event CollateralRemoved(address collateral);
     event CollateralInfoUpdated(address collateral, CollateralBaseData data);
@@ -49,6 +52,7 @@ contract CollateralManager is ICollateralManager, Ownable {
     event CollateralStrategyUpdated(address collateral, address strategy);
     event CollateralStrategyRemoved(address collateral, address strategy);
 
+    // Custom error messages
     error CollateralExists();
     error CollateralDoesNotExist();
     error CollateralStrategyExists();
@@ -60,6 +64,8 @@ contract CollateralManager is ICollateralManager, Ownable {
     error AllocationPercentageLowerThanAllocatedAmt();
     error IsDefaultStrategy();
 
+    /// @dev Constructor to initialize the Collateral Manager
+    /// @param _vault Address of the Vault contract
     constructor(address _vault) {
         Helpers._isNonZeroAddr(_vault);
         VAULT = _vault;
@@ -69,14 +75,16 @@ contract CollateralManager is ICollateralManager, Ownable {
     /// @param _collateral Address of the collateral
     /// @param _data Collateral configuration data
     function addCollateral(address _collateral, CollateralBaseData memory _data) external onlyOwner {
-        // Test if collateral is already added
+        // Check if collateral is already added
         // Initialize collateral storage data
         if (collateralInfo[_collateral].exists) revert CollateralExists();
 
+        // Check that configuration values do not exceed maximum percentage
         Helpers._isLTEMaxPercentage(_data.downsidePeg);
         Helpers._isLTEMaxPercentage(_data.baseMintFee);
         Helpers._isLTEMaxPercentage(_data.baseRedeemFee);
 
+        // Check the desired collateral composition does not exceed the maximum
         Helpers._isLTEMaxPercentage(
             _data.desiredCollateralComposition + collateralCompositionUsed, "Collateral composition exceeded"
         );
@@ -105,23 +113,26 @@ contract CollateralManager is ICollateralManager, Ownable {
     /// @param _collateral Address of the collateral
     /// @param _updateData Updated configuration for the collateral
     function updateCollateralData(address _collateral, CollateralBaseData memory _updateData) external onlyOwner {
-        // Check if collateral added;
+        // Check if collateral is added
         // Update the collateral storage data
         if (!collateralInfo[_collateral].exists) {
             revert CollateralDoesNotExist();
         }
 
+        // Check that updated configuration values do not exceed maximum percentage
         Helpers._isLTEMaxPercentage(_updateData.downsidePeg);
         Helpers._isLTEMaxPercentage(_updateData.baseMintFee);
         Helpers._isLTEMaxPercentage(_updateData.baseRedeemFee);
 
         CollateralData storage data = collateralInfo[_collateral];
 
+        // Calculate the new capacity used to ensure it does not exceed the maximum collateral composition
         uint16 newCapacityUsed =
             (collateralCompositionUsed - data.desiredCollateralComposition + _updateData.desiredCollateralComposition);
 
         Helpers._isLTEMaxPercentage(newCapacityUsed, "Collateral composition exceeded");
 
+        // Update the collateral data
         data.mintAllowed = _updateData.mintAllowed;
         data.redeemAllowed = _updateData.redeemAllowed;
         data.allocationAllowed = _updateData.allocationAllowed;
@@ -130,6 +141,7 @@ contract CollateralManager is ICollateralManager, Ownable {
         data.downsidePeg = _updateData.downsidePeg;
         data.desiredCollateralComposition = _updateData.desiredCollateralComposition;
 
+        // Update the collateral composition used
         collateralCompositionUsed = newCapacityUsed;
 
         emit CollateralInfoUpdated(_collateral, _updateData);
@@ -138,9 +150,11 @@ contract CollateralManager is ICollateralManager, Ownable {
     /// @notice Un-list a collateral
     /// @param _collateral Address of the collateral
     function removeCollateral(address _collateral) external onlyOwner {
+        // Check if the collateral exists
         if (!collateralInfo[_collateral].exists) {
             revert CollateralDoesNotExist();
         }
+        // Check if collateral strategies are empty
         if (collateralStrategies[_collateral].length != 0) {
             revert CollateralStrategyExists();
         }
@@ -149,9 +163,12 @@ contract CollateralManager is ICollateralManager, Ownable {
 
         for (uint256 i; i < numCollateral;) {
             if (collaterals[i] == _collateral) {
+                // Remove the collateral from the list
                 collaterals[i] = collaterals[numCollateral - 1];
                 collaterals.pop();
+                // Update the collateral composition used
                 collateralCompositionUsed -= collateralInfo[_collateral].desiredCollateralComposition;
+                // Delete the collateral data
                 delete (collateralInfo[_collateral]);
                 break;
             }
@@ -173,21 +190,21 @@ contract CollateralManager is ICollateralManager, Ownable {
 
         // Check if the collateral is valid
         if (!collateralData.exists) revert CollateralDoesNotExist();
-        // Check if collateral strategy not already added.
+        // Check if the collateral strategy is not already added.
         if (collateralStrategyInfo[_collateral][_strategy].exists) {
             revert CollateralStrategyMapped();
         }
-        // Check if collateral is allocation is supported by the strategy.
+        // Check if collateral allocation is supported by the strategy.
         if (!IStrategy(_strategy).supportsCollateral(_collateral)) {
             revert CollateralNotSupportedByStrategy();
         }
 
-        // Check if _allocation Per <= 100 - collateralCapacityUsed
+        // Check if the allocation percentage is within bounds
         Helpers._isLTEMaxPercentage(
             _allocationCap + collateralData.collateralCapacityUsed, "Allocation percentage exceeded"
         );
 
-        // add info to collateral mapping
+        // Add information to collateral mapping
         collateralStrategyInfo[_collateral][_strategy] = StrategyData(_allocationCap, true);
         collateralStrategies[_collateral].push(_strategy);
         collateralData.collateralCapacityUsed += _allocationCap;
@@ -203,9 +220,9 @@ contract CollateralManager is ICollateralManager, Ownable {
         external
         onlyOwner
     {
-        // Check if collateral and strategy are mapped
-        // Check if _allocationCap <= 100 - collateralCapacityUsed  + oldAllocationPer
-        // Update the info
+        // Check if the collateral and strategy are mapped
+        // Check if the new allocation percentage is within bounds
+        // _allocationCap <= 100 - collateralCapacityUsed  + oldAllocationPer
         if (!collateralStrategyInfo[_collateral][_strategy].exists) {
             revert CollateralStrategyNotMapped();
         }
@@ -213,16 +230,21 @@ contract CollateralManager is ICollateralManager, Ownable {
         CollateralData storage collateralData = collateralInfo[_collateral];
         StrategyData storage strategyData = collateralStrategyInfo[_collateral][_strategy];
 
+        // Calculate the new capacity used to ensure it's within bounds
         uint16 newCapacityUsed = collateralData.collateralCapacityUsed - strategyData.allocationCap + _allocationCap;
         Helpers._isLTEMaxPercentage(newCapacityUsed, "Allocation percentage exceeded");
 
+        // Calculate the current allocated percentage
         uint256 totalCollateral = getCollateralInVault(_collateral) + getCollateralInStrategies(_collateral);
         uint256 currentAllocatedPer =
             (getCollateralInAStrategy(_collateral, _strategy) * Helpers.MAX_PERCENTAGE) / totalCollateral;
 
+        // Ensure the new allocation percentage is greater than or equal to the currently allocated percentage
         if (_allocationCap < currentAllocatedPer) {
             revert AllocationPercentageLowerThanAllocatedAmt();
         }
+
+        // Update the collateral data and strategy data
         collateralData.collateralCapacityUsed = newCapacityUsed;
         strategyData.allocationCap = _allocationCap;
 
@@ -235,10 +257,9 @@ contract CollateralManager is ICollateralManager, Ownable {
     /// @dev Ensure all the collateral is removed from the strategy before calling this
     ///      Otherwise it will create error in collateral accounting
     function removeCollateralStrategy(address _collateral, address _strategy) external onlyOwner {
-        // Check if the collateral and strategy are mapped.
-        // ensure none of the collateral is deposited to strategy
-        // remove collateralCapacity.
-        // remove item from list.
+        // Check if the collateral and strategy are mapped
+        // Ensure none of the collateral is deposited into the strategy
+        // Remove collateral capacity and the strategy from the list
         if (!collateralStrategyInfo[_collateral][_strategy].exists) {
             revert CollateralStrategyNotMapped();
         }
@@ -251,7 +272,7 @@ contract CollateralManager is ICollateralManager, Ownable {
         }
 
         uint256 numStrategy = collateralStrategies[_collateral].length;
-
+        // Unlink the strategy from the collateral and update collateral capacity used
         for (uint256 i; i < numStrategy;) {
             if (collateralStrategies[_collateral][i] == _strategy) {
                 collateralStrategies[_collateral][i] = collateralStrategies[_collateral][numStrategy - 1];
@@ -294,8 +315,10 @@ contract CollateralManager is ICollateralManager, Ownable {
             strategyData.allocationCap * (getCollateralInVault(_collateral) + getCollateralInStrategies(_collateral))
         ) / Helpers.MAX_PERCENTAGE;
 
+        // Get the collateral balance in the specified strategy
         uint256 collateralBalance = IStrategy(_strategy).checkBalance(_collateral);
 
+        // Check if the allocation request is within the allowed limits
         if (maxCollateralUsage >= collateralBalance) {
             return ((maxCollateralUsage - collateralBalance) >= _amount);
         }
@@ -359,23 +382,23 @@ contract CollateralManager is ICollateralManager, Ownable {
         });
     }
 
-    /// @notice Gets list of all the listed collateral
-    /// @return address[] of listed collaterals
+    /// @notice Gets a list of all listed collaterals
+    /// @return List of addresses representing all listed collaterals
     function getAllCollaterals() external view returns (address[] memory) {
         return collaterals;
     }
 
-    /// @notice Gets list of all the collateral linked strategies
+    /// @notice Gets a list of all strategies linked to a collateral
     /// @param _collateral Address of the collateral
-    /// @return address[] list of available strategies for a collateral
+    /// @return List of addresses representing available strategies for the collateral
     function getCollateralStrategies(address _collateral) external view returns (address[] memory) {
         return collateralStrategies[_collateral];
     }
 
-    /// @notice Verify if a strategy is linked to a collateral
+    /// @notice Verifies if a strategy is linked to a collateral
     /// @param _collateral Address of the collateral
     /// @param _strategy Address of the strategy
-    /// @return boolean true if the strategy is linked to the collateral
+    /// @return True if the strategy is linked to the collateral, otherwise False
     function isValidStrategy(address _collateral, address _strategy) external view returns (bool) {
         return collateralStrategyInfo[_collateral][_strategy].exists;
     }

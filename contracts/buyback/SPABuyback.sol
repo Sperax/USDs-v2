@@ -11,17 +11,19 @@ import {IveSPARewarder} from "../interfaces/IveSPARewarder.sol";
 import {IOracle} from "../interfaces/IOracle.sol";
 import {Helpers} from "../libraries/Helpers.sol";
 
-/// @title Buyback contract of the USDs Buyback protocol.
-/// @notice Users can give their SPA and get USDs in return.
-/// @notice The SPA in the contract is distributed as rewards based on the rewardPercentage and the rest is burned.
+/// @title SPABuyback of USDs Protocol.
 /// @author Sperax Foundation
+/// @notice This contract allows users to exchange SPA tokens for USDs tokens.
+/// @dev Users can provide SPA tokens and receive USDs tokens in return based on the current exchange rate.
+/// @dev A percentage of the provided SPA tokens are distributed as rewards, and the rest are burned.
 contract SPABuyback is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradeable {
     using SafeERC20Upgradeable for ERC20BurnableUpgradeable;
 
-    address public veSpaRewarder;
-    uint256 public rewardPercentage;
-    address public oracle;
+    address public veSpaRewarder; // Rewarder contract.
+    uint256 public rewardPercentage; // Share of rewards to be distributed with veSPA holders.
+    address public oracle; // Price oracle for SPA and USDs
 
+    // Events
     event BoughtBack(
         address indexed receiverOfUSDs,
         address indexed senderOfSPA,
@@ -36,6 +38,7 @@ contract SPABuyback is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
     event VeSpaRewarderUpdated(address newVeSpaRewarder);
     event OracleUpdated(address newOracle);
 
+    // Custom error messages
     error CannotWithdrawSPA();
     error InsufficientUSDsBalance(uint256 toSend, uint256 bal);
 
@@ -127,6 +130,7 @@ contract SPABuyback is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
         (uint256 usdsToSend, uint256 spaPrice) = _getUsdsOutForSpa(_spaIn);
         Helpers._isNonZeroAmt(usdsToSend, "SPA Amount too low");
 
+        // Slippage check
         if (usdsToSend < _minUSDsOut) {
             revert Helpers.MinSlippageError(usdsToSend, _minUSDsOut);
         }
@@ -155,7 +159,7 @@ contract SPABuyback is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
         // Calculating the amount to reward based on rewardPercentage
         uint256 toReward = (balance * rewardPercentage) / Helpers.MAX_PERCENTAGE;
 
-        // Transferring SPA tokens
+        // Transferring SPA tokens to rewarder
         ERC20BurnableUpgradeable(Helpers.SPA).forceApprove(veSpaRewarder, toReward);
         IveSPARewarder(veSpaRewarder).addRewards(Helpers.SPA, toReward, 1);
         emit SPARewarded(toReward);
@@ -190,14 +194,19 @@ contract SPABuyback is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
         return (usdsOut, spaPrice);
     }
 
+    /// @dev Retrieves price data from the oracle contract for SPA and USDS tokens.
+    /// @return The price of USDS in SPA, the price of SPA in USDS, and their respective precisions.
     function _getOracleData() private view returns (uint256, uint256, uint256, uint256) {
-        // Fetches the price for SPA and USDS from oracle
+        // Fetches the price for SPA and USDS from the oracle contract
         IOracle.PriceData memory usdsData = IOracle(oracle).getPrice(Helpers.USDS);
         IOracle.PriceData memory spaData = IOracle(oracle).getPrice(Helpers.SPA);
 
         return (usdsData.price, spaData.price, usdsData.precision, spaData.precision);
     }
 
+    /// @dev Checks if the provided reward percentage is valid.
+    /// @param _rewardPercentage The reward percentage to validate.
+    /// @dev The reward percentage must be a non-zero value and should not exceed the maximum percentage value.
     function _isValidRewardPercentage(uint256 _rewardPercentage) private pure {
         Helpers._isNonZeroAmt(_rewardPercentage);
         Helpers._isLTEMaxPercentage(_rewardPercentage);
