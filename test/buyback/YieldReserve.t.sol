@@ -215,22 +215,22 @@ contract UpdateBuybackPercentageTest is YieldReserveTest {
 }
 
 contract UpdateBuybackAddressTest is YieldReserveTest {
-    event BuybackAddressUpdated(address newBuyback);
+    event BuybackUpdated(address newBuyback);
 
     function test_revertsWhen_callerNotOwner() public {
         vm.expectRevert("Ownable: caller is not the owner");
-        yieldReserve.updateBuybackAddress(VAULT);
+        yieldReserve.updateBuyback(VAULT);
     }
 
     function test_revertsWhen_InvalidAddress() public useKnownActor(USDS_OWNER) {
         vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAddress.selector));
-        yieldReserve.updateBuybackAddress(address(0));
+        yieldReserve.updateBuyback(address(0));
     }
 
     function test_updateBuybackAddress() public useKnownActor(USDS_OWNER) {
         vm.expectEmit(address(yieldReserve));
-        emit BuybackAddressUpdated(VAULT);
-        yieldReserve.updateBuybackAddress(VAULT);
+        emit BuybackUpdated(VAULT);
+        yieldReserve.updateBuyback(VAULT);
         assertEq(yieldReserve.buyback(), VAULT);
     }
 }
@@ -240,60 +240,60 @@ contract UpdateOracleAddressTest is YieldReserveTest {
 
     function test_revertsWhen_callerNotOwner() public useActor(0) {
         vm.expectRevert("Ownable: caller is not the owner");
-        yieldReserve.updateOracleAddress(VAULT);
+        yieldReserve.updateOracle(VAULT);
     }
 
     function test_revertsWhen_invalidAddress() public useKnownActor(USDS_OWNER) {
         vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAddress.selector));
-        yieldReserve.updateOracleAddress(address(0));
+        yieldReserve.updateOracle(address(0));
     }
 
     function test_updateOracleAddress() public useKnownActor(USDS_OWNER) {
         vm.expectEmit(address(yieldReserve));
         emit OracleUpdated(VAULT);
-        yieldReserve.updateOracleAddress(VAULT);
+        yieldReserve.updateOracle(VAULT);
         assertEq(yieldReserve.oracle(), VAULT);
     }
 }
 
 contract UpdateDripperAddressTest is YieldReserveTest {
-    event DripperAddressUpdated(address newDripper);
+    event DripperUpdated(address newDripper);
 
     function test_revertsWhen_callerNotOwner() public useActor(0) {
         vm.expectRevert("Ownable: caller is not the owner");
-        yieldReserve.updateDripperAddress(VAULT);
+        yieldReserve.updateDripper(VAULT);
     }
 
     function test_revertsWhen_invalidAddress() public useKnownActor(USDS_OWNER) {
         vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAddress.selector));
-        yieldReserve.updateDripperAddress(address(0));
+        yieldReserve.updateDripper(address(0));
     }
 
     function test_updateDripperAddress() public useKnownActor(USDS_OWNER) {
         vm.expectEmit(address(yieldReserve));
-        emit DripperAddressUpdated(VAULT);
-        yieldReserve.updateDripperAddress(VAULT);
+        emit DripperUpdated(VAULT);
+        yieldReserve.updateDripper(VAULT);
         assertEq(yieldReserve.dripper(), VAULT);
     }
 }
 
 contract UpdateVaultAddressTest is YieldReserveTest {
-    event VaultAddressUpdated(address newVault);
+    event VaultUpdated(address newVault);
 
     function test_revertsWhen_callerNotOwner() public useActor(0) {
         vm.expectRevert("Ownable: caller is not the owner");
-        yieldReserve.updateVaultAddress(VAULT);
+        yieldReserve.updateVault(VAULT);
     }
 
     function test_revertsWhen_invalidAddress() public useKnownActor(USDS_OWNER) {
         vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAddress.selector));
-        yieldReserve.updateVaultAddress(address(0));
+        yieldReserve.updateVault(address(0));
     }
 
     function test_updateVaultAddress() public useKnownActor(USDS_OWNER) {
         vm.expectEmit(address(yieldReserve));
-        emit VaultAddressUpdated(ORACLE);
-        yieldReserve.updateVaultAddress(ORACLE);
+        emit VaultUpdated(ORACLE);
+        yieldReserve.updateVault(ORACLE);
         assertEq(yieldReserve.vault(), ORACLE);
     }
 }
