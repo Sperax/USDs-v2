@@ -89,7 +89,7 @@ contract VaultCoreTest is PreMigrationSetup {
     }
 }
 
-contract TestInit is VaultCoreTest {
+contract Test_Init is VaultCoreTest {
     function test_Initialization() public useKnownActor(USDS_OWNER) {
         address _VAULT;
         // Deploy
@@ -103,7 +103,7 @@ contract TestInit is VaultCoreTest {
     }
 }
 
-contract TestSetters is VaultCoreTest {
+contract Test_Setters is VaultCoreTest {
     address private _newFeeVault;
     address private _newYieldReceiver;
     address private _newCollateralManager;
@@ -159,49 +159,49 @@ contract TestSetters is VaultCoreTest {
     }
 
     function test_updateFeeVault() public useKnownActor(USDS_OWNER) {
-        vm.expectEmit(true, true, true, true, VAULT);
+        vm.expectEmit(VAULT);
         emit FeeVaultUpdated(_newFeeVault);
         IVault(VAULT).updateFeeVault(_newFeeVault);
         assertEq(_newFeeVault, IVault(VAULT).feeVault());
     }
 
     function test_updateYieldReceiver() public useKnownActor(USDS_OWNER) {
-        vm.expectEmit(true, true, true, true, VAULT);
+        vm.expectEmit(VAULT);
         emit YieldReceiverUpdated(_newYieldReceiver);
         IVault(VAULT).updateYieldReceiver(_newYieldReceiver);
         assertEq(_newYieldReceiver, IVault(VAULT).yieldReceiver());
     }
 
     function test_updateCollateralManager() public useKnownActor(USDS_OWNER) {
-        vm.expectEmit(true, true, true, true, VAULT);
+        vm.expectEmit(VAULT);
         emit CollateralManagerUpdated(_newCollateralManager);
         IVault(VAULT).updateCollateralManager(_newCollateralManager);
         assertEq(_newCollateralManager, IVault(VAULT).collateralManager());
     }
 
     function test_updateRebaseManager() public useKnownActor(USDS_OWNER) {
-        vm.expectEmit(true, true, true, true, VAULT);
+        vm.expectEmit(VAULT);
         emit RebaseManagerUpdated(_newRebaseManager);
         IVault(VAULT).updateRebaseManager(_newRebaseManager);
         assertEq(_newRebaseManager, IVault(VAULT).rebaseManager());
     }
 
     function test_updateFeeCalculator() public useKnownActor(USDS_OWNER) {
-        vm.expectEmit(true, true, true, true, VAULT);
+        vm.expectEmit(VAULT);
         emit FeeCalculatorUpdated(_newFeeCalculator);
         IVault(VAULT).updateFeeCalculator(_newFeeCalculator);
         assertEq(_newFeeCalculator, IVault(VAULT).feeCalculator());
     }
 
     function test_updateOracle() public useKnownActor(USDS_OWNER) {
-        vm.expectEmit(true, true, true, true, VAULT);
+        vm.expectEmit(VAULT);
         emit OracleUpdated(_newOracle);
         IVault(VAULT).updateOracle(_newOracle);
         assertEq(_newOracle, IVault(VAULT).oracle());
     }
 }
 
-contract TestAllocate is VaultCoreTest {
+contract Test_Allocate is VaultCoreTest {
     address private _strategy;
     uint256 private _amount;
 
@@ -213,14 +213,14 @@ contract TestAllocate is VaultCoreTest {
         _strategy = AAVE_STRATEGY;
     }
 
-    function test_revertIf_CollateralAllocationPaused() public useActor(1) {
+    function test_revertsWhen_CollateralAllocationPaused() public useActor(1) {
         // DAI
         _collateral = 0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1;
         vm.expectRevert(abi.encodeWithSelector(CollateralManager.CollateralAllocationPaused.selector));
         IVault(VAULT).allocate(_collateral, _strategy, _amount);
     }
 
-    function test_revertIf_AllocationNotAllowed() public useActor(1) {
+    function test_revertsWhen_AllocationNotAllowed() public useActor(1) {
         uint16 cap = 3000;
         uint256 maxCollateralUsage = (
             cap
@@ -245,7 +245,7 @@ contract TestAllocate is VaultCoreTest {
         console.log("Value returned", _possibleAllocation());
         if (__amount > 0) {
             uint256 balBefore = ERC20(_collateral).balanceOf(VAULT);
-            vm.expectEmit(true, true, true, true, VAULT);
+            vm.expectEmit(VAULT);
             emit Allocated(_collateral, _strategy, __amount);
             IVault(VAULT).allocate(_collateral, _strategy, __amount);
             uint256 balAfter = ERC20(_collateral).balanceOf(VAULT);
@@ -257,7 +257,7 @@ contract TestAllocate is VaultCoreTest {
         _amount = 10000e6;
         deal(USDCe, VAULT, _amount * 4);
         uint256 balBefore = ERC20(_collateral).balanceOf(VAULT);
-        vm.expectEmit(true, true, true, true, VAULT);
+        vm.expectEmit(VAULT);
         emit Allocated(_collateral, _strategy, _amount);
         IVault(VAULT).allocate(_collateral, _strategy, _amount);
         uint256 balAfter = ERC20(_collateral).balanceOf(VAULT);
@@ -283,7 +283,7 @@ contract TestAllocate is VaultCoreTest {
     }
 }
 
-contract TestMint is VaultCoreTest {
+contract Test_Mint is VaultCoreTest {
     address private minter;
     uint256 private _collateralAmt;
     uint256 private _minUSDSAmt;
@@ -332,7 +332,7 @@ contract TestMint is VaultCoreTest {
         ERC20(USDCe).approve(VAULT, _collateralAmt);
         uint256 feeAmt;
         (_minUSDSAmt, feeAmt) = IVault(VAULT).mintView(_collateral, _collateralAmt);
-        vm.expectEmit(true, true, true, true, VAULT);
+        vm.expectEmit(VAULT);
         emit Minted(minter, USDCe, _minUSDSAmt, _collateralAmt, feeAmt);
         IVault(VAULT).mint(_collateral, _collateralAmt, _minUSDSAmt, _deadline);
         // _minUSDSAmt -= 1; //@todo report precision bug
@@ -358,7 +358,7 @@ contract TestMint is VaultCoreTest {
         ERC20(USDCe).approve(VAULT, _collateralAmt);
         uint256 feeAmt;
         (_minUSDSAmt, feeAmt) = IVault(VAULT).mintView(_collateral, _collateralAmt);
-        vm.expectEmit(true, true, true, true, VAULT);
+        vm.expectEmit(VAULT);
         emit Minted(minter, USDCe, _minUSDSAmt, _collateralAmt, feeAmt);
         vm.prank(minter);
         IVault(VAULT).mintBySpecifyingCollateralAmt(_collateral, _collateralAmt, _minUSDSAmt, _maxSPAburnt, _deadline);
@@ -366,7 +366,7 @@ contract TestMint is VaultCoreTest {
     }
 }
 
-contract TestMintView is VaultCoreTest {
+contract Test_MintView is VaultCoreTest {
     uint256 private _collateralAmt;
     uint256 private _toMinter;
     uint256 private _fee;
@@ -468,7 +468,7 @@ contract TestMintView is VaultCoreTest {
     }
 }
 
-contract TestRebase is VaultCoreTest {
+contract Test_Rebase is VaultCoreTest {
     event RebasedUSDs(uint256 rebaseAmt);
 
     function test_Rebase() public {
@@ -484,7 +484,7 @@ contract TestRebase is VaultCoreTest {
         IDripper(DRIPPER).collect();
         skip(1 days);
         (uint256 min, uint256 max) = IRebaseManager(REBASE_MANAGER).getMinAndMaxRebaseAmt();
-        vm.expectEmit(true, true, true, true, VAULT);
+        vm.expectEmit(VAULT);
         emit RebasedUSDs(max);
         IVault(VAULT).rebase();
         (min, max) = IRebaseManager(REBASE_MANAGER).getMinAndMaxRebaseAmt();
@@ -498,7 +498,7 @@ contract TestRebase is VaultCoreTest {
     }
 }
 
-contract TestRedeemView is VaultCoreTest {
+contract Test_RedeemView is VaultCoreTest {
     address private redeemer;
     uint256 private usdsAmt;
 
@@ -700,7 +700,7 @@ contract TestRedeemView is VaultCoreTest {
     }
 }
 
-contract TestRedeem is VaultCoreTest {
+contract Test_Redeem is VaultCoreTest {
     address private redeemer;
     uint256 private _usdsAmt;
     uint256 private _minCollAmt;
@@ -738,7 +738,7 @@ contract TestRedeem is VaultCoreTest {
         uint256 balBeforeFeeVault = ERC20(USDS).balanceOf(FEE_VAULT);
         uint256 balBeforeUSDsRedeemer = ERC20(USDS).balanceOf(redeemer);
         uint256 balBeforeUSDCeRedeemer = ERC20(USDCe).balanceOf(redeemer);
-        vm.expectEmit(true, true, true, true, VAULT);
+        vm.expectEmit(VAULT);
         emit Redeemed(redeemer, _collateral, _usdsBurnAmt, _calculatedCollateralAmt, _feeAmt);
         vm.prank(redeemer);
         IVault(VAULT).redeem(_collateral, _usdsAmt, _calculatedCollateralAmt, _deadline);
@@ -762,7 +762,7 @@ contract TestRedeem is VaultCoreTest {
         uint256 balBeforeFeeVault = ERC20(USDS).balanceOf(FEE_VAULT);
         uint256 balBeforeUSDsRedeemer = ERC20(USDS).balanceOf(redeemer);
         uint256 balBeforeUSDCeRedeemer = ERC20(USDCe).balanceOf(redeemer);
-        vm.expectEmit(true, true, true, true, VAULT);
+        vm.expectEmit(VAULT);
         emit Redeemed(redeemer, _collateral, _usdsBurnAmt, _calculatedCollateralAmt, _feeAmt);
         vm.prank(redeemer);
         IVault(VAULT).redeem(_collateral, _usdsAmt, _calculatedCollateralAmt, _deadline);
@@ -786,7 +786,7 @@ contract TestRedeem is VaultCoreTest {
         uint256 balBeforeFeeVault = ERC20(USDS).balanceOf(FEE_VAULT);
         uint256 balBeforeUSDsRedeemer = ERC20(USDS).balanceOf(redeemer);
         uint256 balBeforeUSDCeRedeemer = ERC20(USDCe).balanceOf(redeemer);
-        vm.expectEmit(true, true, true, true, VAULT);
+        vm.expectEmit(VAULT);
         emit Redeemed(redeemer, _collateral, _usdsBurnAmt, _calculatedCollateralAmt, _feeAmt);
         vm.prank(redeemer);
         IVault(VAULT).redeem(_collateral, _usdsAmt, _calculatedCollateralAmt, _deadline, otherStrategy);
@@ -810,7 +810,7 @@ contract TestRedeem is VaultCoreTest {
         uint256 balBeforeFeeVault = ERC20(USDS).balanceOf(FEE_VAULT);
         uint256 balBeforeUSDsRedeemer = ERC20(USDS).balanceOf(redeemer);
         uint256 balBeforeUSDCeRedeemer = ERC20(USDCe).balanceOf(redeemer);
-        vm.expectEmit(true, true, true, true, VAULT);
+        vm.expectEmit(VAULT);
         emit Redeemed(redeemer, _collateral, _usdsBurnAmt, _calculatedCollateralAmt, _feeAmt);
         vm.prank(redeemer);
         IVault(VAULT).redeem(_collateral, _usdsAmt, _calculatedCollateralAmt, _deadline, defaultStrategy);

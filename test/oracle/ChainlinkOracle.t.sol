@@ -47,7 +47,7 @@ contract Test_SetTokenData is ChainlinkOracleTest {
 
     function test_setTokenData() public useKnownActor(USDS_OWNER) {
         ChainlinkOracle.SetupTokenData memory tokenData = _getTokenData()[0];
-        vm.expectEmit(true, true, true, true);
+        vm.expectEmit(address(chainlinkOracle));
         emit TokenDataChanged(
             tokenData.token, tokenData.data.priceFeed, tokenData.data.pricePrecision, tokenData.data.timeout
         );
