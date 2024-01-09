@@ -497,8 +497,7 @@ contract Test_CollectInterest is Test_Harvest {
                 }
             }
 
-            emit log_named_uint("amt", amt);
-            emit log_named_uint("interestEarned", interestEarned);
+            // TODO need to check why there is a big delta
             assertApproxEqAbs(amt, interestEarned, (interestEarned / 1e2));
 
             /// @note precision Error from stargate
@@ -545,6 +544,7 @@ contract Test_Withdraw is StargateStrategyTest {
                 }
             }
 
+            // TODO need to check why there is a big delta
             assertApproxEqAbs(amt, initialBal, (initialBal / 1e7));
 
             assertApproxEqAbs(
@@ -592,6 +592,7 @@ contract Test_Withdraw is StargateStrategyTest {
                 }
             }
 
+            // TODO need to check why there is a big delta
             assertApproxEqAbs(amt, initialBal, (initialBal / 1e7));
 
             assertApproxEqAbs(
