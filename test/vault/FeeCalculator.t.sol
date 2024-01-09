@@ -48,6 +48,8 @@ contract Test_FeeCalculatorInit is FeeCalculatorTestSetup {
 contract Test_CalibrateFee is FeeCalculatorTestSetup {
     uint256 availableCollateral;
 
+    event FeeCalibrated(address indexed collateral, uint16 mintFee, uint16 redeemFee);
+
     function setUp() public override {
         super.setUp();
         availableCollateral = 1 * 10 ** ERC20(_collateral).decimals();
@@ -75,6 +77,8 @@ contract Test_CalibrateFee is FeeCalculatorTestSetup {
         vm.warp(block.timestamp + 1 days);
         // Collateral composition calls are mocked to return lesser than lower limit
         mockCollateralCalls(availableCollateral / 2);
+        vm.expectEmit(address(feeCalculator));
+        emit FeeCalibrated(_collateral, uint16(oldMintFee / 2), uint16(oldRedeemFee * 2));
         feeCalculator.calibrateFee(_collateral);
         vm.clearMockedCalls();
         uint256 newMintFee = feeCalculator.getMintFee(_collateral);
@@ -100,6 +104,8 @@ contract Test_CalibrateFee is FeeCalculatorTestSetup {
         vm.warp(block.timestamp + 1 days);
         // Ratio is changed but still in desired range
         mockCollateralCalls((IUSDs(USDS).totalSupply() * 600) / 10000);
+        vm.expectEmit(address(feeCalculator));
+        emit FeeCalibrated(_collateral, uint16(oldMintFee), uint16(oldRedeemFee));
         feeCalculator.calibrateFee(_collateral);
         vm.clearMockedCalls();
         uint256 newMintFee = feeCalculator.getMintFee(_collateral);
@@ -125,6 +131,8 @@ contract Test_CalibrateFee is FeeCalculatorTestSetup {
         vm.warp(block.timestamp + 1 days);
         // Collateral composition calls are mocked to return higher than upper limit
         mockCollateralCalls((IUSDs(USDS).totalSupply() * 1600) / 10000);
+        vm.expectEmit(address(feeCalculator));
+        emit FeeCalibrated(_collateral, uint16(oldMintFee * 4), uint16(oldRedeemFee / 4));
         feeCalculator.calibrateFee(_collateral);
         vm.clearMockedCalls();
         uint256 newMintFee = feeCalculator.getMintFee(_collateral);
