@@ -103,7 +103,6 @@ contract InitializeTests is AaveStrategyTest {
         strategy.initialize(address(0), VAULT);
 
         vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAddress.selector));
-
         strategy.initialize(AAVE_POOL_PROVIDER, address(0));
     }
 
@@ -220,10 +219,10 @@ contract Deposit is AaveStrategyTest {
 
         deal(address(ASSET), VAULT, depositAmount);
         IERC20(ASSET).approve(address(strategy), depositAmount);
-        strategy.deposit(ASSET, 1);
+        strategy.deposit(ASSET, depositAmount);
 
         uint256 new_bal = strategy.checkBalance(ASSET);
-        assertEq(initial_bal + 1, new_bal);
+        assertEq(initial_bal + depositAmount, new_bal);
     }
 }
 
