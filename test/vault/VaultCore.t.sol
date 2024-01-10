@@ -779,19 +779,21 @@ contract Test_Redeem is VaultCoreTest {
         ERC20(USDS).approve(VAULT, _usdsAmt);
         (uint256 _calculatedCollateralAmt, uint256 _usdsBurnAmt, uint256 _feeAmt,,) =
             _redeemViewTest(_usdsAmt, otherStrategy);
-        uint256 balBeforeFeeVault = ERC20(USDS).balanceOf(FEE_VAULT);
-        uint256 balBeforeUSDsRedeemer = ERC20(USDS).balanceOf(redeemer);
-        uint256 balBeforeUSDCeRedeemer = ERC20(USDCe).balanceOf(redeemer);
+        uint256 usdsBalanceOfFeeVaultBeforeRedeem = ERC20(USDS).balanceOf(FEE_VAULT);
+        uint256 usdsBalanceOfRedeemerBeforeRedeem = ERC20(USDS).balanceOf(redeemer);
+        uint256 usdceBalanceOfRedeemerBeforeRedeem = ERC20(USDCe).balanceOf(redeemer);
         vm.expectEmit(true, true, true, false, VAULT);
         emit Redeemed(redeemer, _collateral, _usdsBurnAmt, _calculatedCollateralAmt, _feeAmt);
         vm.prank(redeemer);
         IVault(VAULT).redeem(_collateral, _usdsAmt, _slippageCorrectedAmt(_calculatedCollateralAmt), _deadline);
-        uint256 balAfterFeeVault = ERC20(USDS).balanceOf(FEE_VAULT);
-        uint256 balAfterUSDsRedeemer = ERC20(USDS).balanceOf(redeemer);
-        uint256 balAfterUSDCeRedeemer = ERC20(USDCe).balanceOf(redeemer);
-        assertEq(balAfterFeeVault - balBeforeFeeVault, _feeAmt);
-        assertEq(balBeforeUSDsRedeemer - balAfterUSDsRedeemer, _usdsAmt);
-        assertApproxEqAbs(balAfterUSDCeRedeemer - balBeforeUSDCeRedeemer, _calculatedCollateralAmt, 10);
+        uint256 usdsBalanceOfFeeVaultAfterRedeem = ERC20(USDS).balanceOf(FEE_VAULT);
+        uint256 usdsBalanceOfRedeemerAfterRedeem = ERC20(USDS).balanceOf(redeemer);
+        uint256 usdceBalanceOfRedeemerAfterRedeem = ERC20(USDCe).balanceOf(redeemer);
+        assertEq(usdsBalanceOfFeeVaultAfterRedeem - usdsBalanceOfFeeVaultBeforeRedeem, _feeAmt);
+        assertEq(usdsBalanceOfRedeemerBeforeRedeem - usdsBalanceOfRedeemerAfterRedeem, _usdsAmt);
+        assertApproxEqAbs(
+            usdceBalanceOfRedeemerAfterRedeem - usdceBalanceOfRedeemerBeforeRedeem, _calculatedCollateralAmt, 10
+        );
     }
 
     function test_RedeemFromVault_WithFee() public useKnownActor(redeemer) mockOracle(99e6) {
@@ -808,19 +810,19 @@ contract Test_Redeem is VaultCoreTest {
             IVault(VAULT).redeemView(_collateral, _usdsAmt);
         assertTrue(_feeAmt > 0);
 
-        uint256 balBeforeFeeVault = ERC20(USDS).balanceOf(FEE_VAULT);
-        uint256 balBeforeUSDsRedeemer = ERC20(USDS).balanceOf(redeemer);
-        uint256 balBeforeUSDCeRedeemer = ERC20(USDCe).balanceOf(redeemer);
+        uint256 usdsBalanceOfFeeVaultBeforeRedeem = ERC20(USDS).balanceOf(FEE_VAULT);
+        uint256 usdsBalanceOfRedeemerBeforeRedeem = ERC20(USDS).balanceOf(redeemer);
+        uint256 usdceBalanceOfRedeemerBeforeRedeem = ERC20(USDCe).balanceOf(redeemer);
         vm.expectEmit(VAULT);
         emit Redeemed(redeemer, _collateral, _usdsBurnAmt, _calculatedCollateralAmt, _feeAmt);
         changePrank(redeemer);
         IVault(VAULT).redeem(_collateral, _usdsAmt, _calculatedCollateralAmt, _deadline);
-        uint256 balAfterFeeVault = ERC20(USDS).balanceOf(FEE_VAULT);
-        uint256 balAfterUSDsRedeemer = ERC20(USDS).balanceOf(redeemer);
-        uint256 balAfterUSDCeRedeemer = ERC20(USDCe).balanceOf(redeemer);
-        assertEq(balAfterFeeVault - balBeforeFeeVault, _feeAmt);
-        assertEq(balBeforeUSDsRedeemer - balAfterUSDsRedeemer, _usdsAmt);
-        assertEq(balAfterUSDCeRedeemer - balBeforeUSDCeRedeemer, _calculatedCollateralAmt);
+        uint256 usdsBalanceOfFeeVaultAfterRedeem = ERC20(USDS).balanceOf(FEE_VAULT);
+        uint256 usdsBalanceOfRedeemerAfterRedeem = ERC20(USDS).balanceOf(redeemer);
+        uint256 usdceBalanceOfRedeemerAfterRedeem = ERC20(USDCe).balanceOf(redeemer);
+        assertEq(usdsBalanceOfFeeVaultAfterRedeem - usdsBalanceOfFeeVaultBeforeRedeem, _feeAmt);
+        assertEq(usdsBalanceOfRedeemerBeforeRedeem - usdsBalanceOfRedeemerAfterRedeem, _usdsAmt);
+        assertEq(usdceBalanceOfRedeemerAfterRedeem - usdceBalanceOfRedeemerBeforeRedeem, _calculatedCollateralAmt);
     }
 
     function test_RedeemFromDefaultStrategy() public {
@@ -831,21 +833,21 @@ contract Test_Redeem is VaultCoreTest {
         IUSDs(USDS).mint(redeemer, _usdsAmt);
         vm.prank(redeemer);
         ERC20(USDS).approve(VAULT, _usdsAmt);
-        uint256 balBeforeFeeVault = ERC20(USDS).balanceOf(FEE_VAULT);
-        uint256 balBeforeUSDsRedeemer = ERC20(USDS).balanceOf(redeemer);
-        uint256 balBeforeUSDCeRedeemer = ERC20(USDCe).balanceOf(redeemer);
+        uint256 usdsBalanceOfFeeVaultBeforeRedeem = ERC20(USDS).balanceOf(FEE_VAULT);
+        uint256 usdsBalanceOfRedeemerBeforeRedeem = ERC20(USDS).balanceOf(redeemer);
+        uint256 usdceBalanceOfRedeemerBeforeRedeem = ERC20(USDCe).balanceOf(redeemer);
 
         (uint256 expectedReturn,,,,) = IVault(VAULT).redeemView(_collateral, _usdsAmt, address(0));
         vm.prank(redeemer);
         vm.expectEmit(true, true, true, false, VAULT);
         emit Redeemed(redeemer, _collateral, _usdsBurnAmt, expectedReturn, _feeAmt);
         IVault(VAULT).redeem(_collateral, _usdsAmt, _slippageCorrectedAmt(expectedReturn), _deadline);
-        uint256 balAfterFeeVault = ERC20(USDS).balanceOf(FEE_VAULT);
-        uint256 balAfterUSDsRedeemer = ERC20(USDS).balanceOf(redeemer);
-        uint256 balAfterUSDCeRedeemer = ERC20(USDCe).balanceOf(redeemer);
-        assertEq(balAfterFeeVault - balBeforeFeeVault, _feeAmt);
-        assertEq(balBeforeUSDsRedeemer - balAfterUSDsRedeemer, _usdsAmt);
-        assertApproxEqAbs(balAfterUSDCeRedeemer - balBeforeUSDCeRedeemer, expectedReturn, 10);
+        uint256 usdsBalanceOfFeeVaultAfterRedeem = ERC20(USDS).balanceOf(FEE_VAULT);
+        uint256 usdsBalanceOfRedeemerAfterRedeem = ERC20(USDS).balanceOf(redeemer);
+        uint256 usdceBalanceOfRedeemerAfterRedeem = ERC20(USDCe).balanceOf(redeemer);
+        assertEq(usdsBalanceOfFeeVaultAfterRedeem - usdsBalanceOfFeeVaultBeforeRedeem, _feeAmt);
+        assertEq(usdsBalanceOfRedeemerBeforeRedeem - usdsBalanceOfRedeemerAfterRedeem, _usdsAmt);
+        assertApproxEqAbs(usdceBalanceOfRedeemerAfterRedeem - usdceBalanceOfRedeemerBeforeRedeem, expectedReturn, 10);
     }
 
     function test_RedeemFromSpecificOtherStrategy() public {
@@ -857,21 +859,21 @@ contract Test_Redeem is VaultCoreTest {
         IUSDs(USDS).mint(redeemer, _usdsAmt);
         vm.prank(redeemer);
         ERC20(USDS).approve(VAULT, _usdsAmt);
-        uint256 balBeforeFeeVault = ERC20(USDS).balanceOf(FEE_VAULT);
-        uint256 balBeforeUSDsRedeemer = ERC20(USDS).balanceOf(redeemer);
-        uint256 balBeforeUSDCeRedeemer = ERC20(USDCe).balanceOf(redeemer);
+        uint256 usdsBalanceOfFeeVaultBeforeRedeem = ERC20(USDS).balanceOf(FEE_VAULT);
+        uint256 usdsBalanceOfRedeemerBeforeRedeem = ERC20(USDS).balanceOf(redeemer);
+        uint256 usdceBalanceOfRedeemerBeforeRedeem = ERC20(USDCe).balanceOf(redeemer);
         vm.expectEmit(true, true, true, false, VAULT);
         emit Redeemed(redeemer, _collateral, _usdsBurnAmt, _calculatedCollateralAmt, _feeAmt);
         vm.prank(redeemer);
         IVault(VAULT).redeem(
             _collateral, _usdsAmt, _slippageCorrectedAmt(_calculatedCollateralAmt), _deadline, otherStrategy
         );
-        uint256 balAfterFeeVault = ERC20(USDS).balanceOf(FEE_VAULT);
-        uint256 balAfterUSDsRedeemer = ERC20(USDS).balanceOf(redeemer);
-        uint256 balAfterUSDCeRedeemer = ERC20(USDCe).balanceOf(redeemer);
-        assertEq(balAfterFeeVault - balBeforeFeeVault, _feeAmt);
-        assertEq(balBeforeUSDsRedeemer - balAfterUSDsRedeemer, _usdsAmt);
-        assertEq(balAfterUSDCeRedeemer - balBeforeUSDCeRedeemer, _calculatedCollateralAmt);
+        uint256 usdsBalanceOfFeeVaultAfterRedeem = ERC20(USDS).balanceOf(FEE_VAULT);
+        uint256 usdsBalanceOfRedeemerAfterRedeem = ERC20(USDS).balanceOf(redeemer);
+        uint256 usdceBalanceOfRedeemerAfterRedeem = ERC20(USDCe).balanceOf(redeemer);
+        assertEq(usdsBalanceOfFeeVaultAfterRedeem - usdsBalanceOfFeeVaultBeforeRedeem, _feeAmt);
+        assertEq(usdsBalanceOfRedeemerBeforeRedeem - usdsBalanceOfRedeemerAfterRedeem, _usdsAmt);
+        assertEq(usdceBalanceOfRedeemerAfterRedeem - usdceBalanceOfRedeemerBeforeRedeem, _calculatedCollateralAmt);
     }
 
     function test_RedeemFromSpecifiedDefaultStrategy() public {
@@ -883,20 +885,22 @@ contract Test_Redeem is VaultCoreTest {
         IUSDs(USDS).mint(redeemer, _usdsAmt);
         vm.prank(redeemer);
         ERC20(USDS).approve(VAULT, _usdsAmt);
-        uint256 balBeforeFeeVault = ERC20(USDS).balanceOf(FEE_VAULT);
-        uint256 balBeforeUSDsRedeemer = ERC20(USDS).balanceOf(redeemer);
-        uint256 balBeforeUSDCeRedeemer = ERC20(USDCe).balanceOf(redeemer);
+        uint256 usdsBalanceOfFeeVaultBeforeRedeem = ERC20(USDS).balanceOf(FEE_VAULT);
+        uint256 usdsBalanceOfRedeemerBeforeRedeem = ERC20(USDS).balanceOf(redeemer);
+        uint256 usdceBalanceOfRedeemerBeforeRedeem = ERC20(USDCe).balanceOf(redeemer);
         vm.expectEmit(true, true, true, false, VAULT);
         emit Redeemed(redeemer, _collateral, _usdsBurnAmt, _calculatedCollateralAmt, _feeAmt);
         vm.prank(redeemer);
         IVault(VAULT).redeem(
             _collateral, _usdsAmt, _slippageCorrectedAmt(_calculatedCollateralAmt), _deadline, defaultStrategy
         );
-        uint256 balAfterFeeVault = ERC20(USDS).balanceOf(FEE_VAULT);
-        uint256 balAfterUSDsRedeemer = ERC20(USDS).balanceOf(redeemer);
-        uint256 balAfterUSDCeRedeemer = ERC20(USDCe).balanceOf(redeemer);
-        assertEq(balAfterFeeVault - balBeforeFeeVault, _feeAmt);
-        assertEq(balBeforeUSDsRedeemer - balAfterUSDsRedeemer, _usdsAmt);
-        assertApproxEqAbs(balAfterUSDCeRedeemer - balBeforeUSDCeRedeemer, _calculatedCollateralAmt, 100);
+        uint256 usdsBalanceOfFeeVaultAfterRedeem = ERC20(USDS).balanceOf(FEE_VAULT);
+        uint256 usdsBalanceOfRedeemerAfterRedeem = ERC20(USDS).balanceOf(redeemer);
+        uint256 usdceBalanceOfRedeemerAfterRedeem = ERC20(USDCe).balanceOf(redeemer);
+        assertEq(usdsBalanceOfFeeVaultAfterRedeem - usdsBalanceOfFeeVaultBeforeRedeem, _feeAmt);
+        assertEq(usdsBalanceOfRedeemerBeforeRedeem - usdsBalanceOfRedeemerAfterRedeem, _usdsAmt);
+        assertApproxEqAbs(
+            usdceBalanceOfRedeemerAfterRedeem - usdceBalanceOfRedeemerBeforeRedeem, _calculatedCollateralAmt, 100
+        );
     }
 }
