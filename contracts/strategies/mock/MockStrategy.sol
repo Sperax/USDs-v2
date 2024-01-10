@@ -150,7 +150,7 @@ contract MockStrategy is InitializableAbstractStrategy {
         if (!supportsCollateral(_asset)) revert CollateralNotSupported(_asset);
 
         uint256 timeElapsed = block.timestamp - assetInfo[_asset].lastInterestUpdateTimestamp;
-        uint256 bal = IERC20(rewardToken).balanceOf(address(this)) - assetInfo[_asset].allocatedAmt;
+        uint256 bal = IERC20(_asset).balanceOf(address(this)) - assetInfo[_asset].allocatedAmt;
         uint256 interestEarned = timeElapsed * assetInfo[_asset].interestPerSecond;
         interestEarned = interestEarned > bal ? bal : interestEarned;
         return interestEarned;
