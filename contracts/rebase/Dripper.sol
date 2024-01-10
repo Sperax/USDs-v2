@@ -52,8 +52,8 @@ contract Dripper is IDripper, Ownable {
     /// @notice Function to be used to send USDs to dripper and update `dripRate`.
     /// @param _amount Amount of USDs to be sent form caller to this contract.
     function addUSDs(uint256 _amount) external {
-        collect();
         Helpers._isNonZeroAmt(_amount);
+        collect();
         IERC20(Helpers.USDS).safeTransferFrom(msg.sender, address(this), _amount);
         dripRate = IERC20(Helpers.USDS).balanceOf(address(this)) / dripDuration;
         emit USDsAdded(_amount);
