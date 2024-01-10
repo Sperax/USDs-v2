@@ -497,8 +497,11 @@ contract Test_CollectInterest is Test_Harvest {
                 }
             }
 
+            uint256 incentiveAmt = (interestEarned * 10) / 10000;
+            uint256 harvestAmount = interestEarned - incentiveAmt;
+
             // TODO need to check why there is a big delta
-            assertApproxEqAbs(amt, interestEarned, (interestEarned / 1e2));
+            assertApproxEqAbs(amt, harvestAmount, (harvestAmount / 1e7));
 
             /// @note precision Error from stargate
             assertApproxEqAbs(strategy.checkLPTokenBalance(assetData[i].asset), initialLPBal, 1);
