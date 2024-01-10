@@ -643,6 +643,7 @@ contract TestUpdateVault is USDsTest {
     }
 
     function testFuzz_change_vault(address _newVault) public useKnownActor(USDS_OWNER) {
+        vm.assume(_newVault != address(0));
         vm.expectEmit(address(usds));
         emit VaultUpdated(_newVault);
         usds.updateVault(_newVault);
