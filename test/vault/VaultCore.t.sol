@@ -322,20 +322,20 @@ contract Test_Mint is VaultCoreTest {
         IVault(VAULT).updateFeeVault(feeVault);
     }
 
-    function testFuzz_RevertsIf_DeadlinePassed(uint256 __deadline) public useKnownActor(minter) {
+    function testFuzz_revertsWhen_DeadlinePassed(uint256 __deadline) public useKnownActor(minter) {
         uint256 _latestDeadline = block.timestamp - 1;
         _deadline = bound(__deadline, 0, _latestDeadline);
         vm.expectRevert(abi.encodeWithSelector(Helpers.CustomError.selector, "Deadline passed"));
         IVault(VAULT).mint(_collateral, _collateralAmt, _minUSDSAmt, _deadline);
     }
 
-    function test_RevertsIf_MintFailed() public useKnownActor(minter) {
+    function test_revertsWhen_MintFailed() public useKnownActor(minter) {
         _collateralAmt = 0;
         vm.expectRevert(abi.encodeWithSelector(VaultCore.MintFailed.selector));
         IVault(VAULT).mint(_collateral, _collateralAmt, _minUSDSAmt, _deadline);
     }
 
-    function test_RevertsIf_SlippageScrewsYou() public useKnownActor(minter) {
+    function test_revertsWhen_SlippageScrewsYou() public useKnownActor(minter) {
         (_minUSDSAmt,) = IVault(VAULT).mintView(_collateral, _collateralAmt);
         uint256 _expectedMinAmt = _minUSDSAmt + 10e18;
         vm.expectRevert(abi.encodeWithSelector(Helpers.MinSlippageError.selector, _minUSDSAmt, _expectedMinAmt));
@@ -560,7 +560,7 @@ contract Test_RedeemView is VaultCoreTest {
         _updateCollateralData(_data);
     }
 
-    function test_RevertsIf_RedeemNotAllowed() public {
+    function test_revertsWhen_RedeemNotAllowed() public {
         ICollateralManager.CollateralBaseData memory _data = ICollateralManager.CollateralBaseData({
             mintAllowed: true,
             redeemAllowed: false,
@@ -625,7 +625,7 @@ contract Test_RedeemView is VaultCoreTest {
         assertEq(strategyAmt, 0);
     }
 
-    function test_RevertsIf_CollateralAmtMoreThanVaultAmtAndDefaultStrategyNotSet() public {
+    function test_revertsWhen_CollateralAmtMoreThanVaultAmtAndDefaultStrategyNotSet() public {
         deal(USDCe, VAULT, (usdsAmt / 2) / 1e12);
         vm.prank(USDS_OWNER);
         ICollateralManager(COLLATERAL_MANAGER).updateCollateralDefaultStrategy(USDCe, address(0));
@@ -698,12 +698,12 @@ contract Test_RedeemView is VaultCoreTest {
         assertEq(_strategyAmt, 0);
     }
 
-    function test_RedeemView_RevertsIf_InvalidStrategy() public {
+    function test_RedeemView_revertsWhen_InvalidStrategy() public {
         vm.expectRevert(abi.encodeWithSelector(VaultCore.InvalidStrategy.selector, _collateral, COLLATERAL_MANAGER));
         IVault(VAULT).redeemView(_collateral, usdsAmt, COLLATERAL_MANAGER);
     }
 
-    function test_RedeemView_RevertsIf_InsufficientCollateral() public {
+    function test_RedeemView_revertsWhen_InsufficientCollateral() public {
         (uint256 _calculatedCollateralAmt,,,,) = _redeemViewTest(usdsAmt, otherStrategy);
         uint256 _availableAmount =
             ERC20(_collateral).balanceOf(VAULT) + IStrategy(otherStrategy).checkAvailableBalance(_collateral);
@@ -757,7 +757,7 @@ contract Test_Redeem is VaultCoreTest {
         _deadline = block.timestamp + 120;
     }
 
-    function test_RedeemFromVault_RevertsIf_SlippageMoreThanExpected() public useKnownActor(redeemer) {
+    function test_RedeemFromVault_revertsWhen_SlippageMoreThanExpected() public useKnownActor(redeemer) {
         deal(_collateral, VAULT, (_usdsAmt * 2) / 1e12);
         (_minCollAmt,,,,) = _redeemViewTest(_usdsAmt, address(0));
         emit log_named_uint("_minCollAmt", _minCollAmt);
