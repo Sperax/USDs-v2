@@ -1,0 +1,24 @@
+{
+    "new_impl": "0xa8308A2dEEaEb7eE7CB27845328A27Cd755C8Dc9",
+    "Description": "1. Upgrade solc version  \n2. Add new veSPA rewarder and integrate new oracle",
+    "type": "Upgrade",
+    "transactions": [
+        {
+            "step": "New_implementation_deployment",
+            "tx_hash": "0x3db3c68228b0885f638bbbabc4bce8c9f2f195fdc730d5dcde81c7d452eadaf0",
+            "contract": "SPABuyback",
+            "contract_addr": "0xa8308A2dEEaEb7eE7CB27845328A27Cd755C8Dc9",
+            "tx_func": "constructor",
+            "blocknumber": 168340658,
+            "gas_used": 16448193,
+            "gas_limit": 20208250
+        }
+    ],
+    "config_name": "spa_buyback_v3",
+    "config": {
+        "proxy_address": "0xFbc0d3cA777722d234FE01dba94DeDeDb277AFe3",
+        "gnosis_upgrade": true,
+        "proxy_admin": "0x3E49925A79CbFb68BAa5bc9DFb4f7D955D1ddF25",
+        "post_upgrade_steps": []
+    }
+}
