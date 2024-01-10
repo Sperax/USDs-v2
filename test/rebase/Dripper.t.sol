@@ -1,14 +1,17 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.19;
 
-import {BaseTest} from ".././utils/BaseTest.sol";
+import {PreMigrationSetup} from ".././utils/DeploymentSetup.sol";
 import {Dripper, Helpers} from "../../contracts/rebase/Dripper.sol";
 import {IUSDs} from "../../contracts/interfaces/IUSDs.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {USDs} from "../../contracts/token/USDs.sol";
+import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
+import {ITransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 
 address constant WHALE_USDS = 0x50450351517117Cb58189edBa6bbaD6284D45902;
 
-contract DripperTest is BaseTest {
+contract DripperTest is PreMigrationSetup {
     //  Constants for the test.
     uint256 constant DRIP_DURATION = 7 days;
     uint256 MAX_SUPPLY = ~uint128(0);
@@ -29,9 +32,7 @@ contract DripperTest is BaseTest {
 
     function setUp() public override {
         super.setUp();
-        setArbitrumFork();
-        dripper = new Dripper(VAULT, DRIP_DURATION);
-        dripper.transferOwnership(USDS_OWNER);
+        dripper = Dripper(DRIPPER);
     }
 }
 
@@ -40,6 +41,7 @@ contract TestConstructor is DripperTest {
         assertEq(dripper.vault(), VAULT);
         assertEq(dripper.dripDuration(), DRIP_DURATION);
         assertEq(dripper.lastCollectTS(), block.timestamp);
+        assertEq(dripper.owner(), USDS_OWNER);
     }
 }
 
@@ -116,14 +118,26 @@ contract RecoverTokens is DripperTest {
 }
 
 contract Collect is DripperTest {
-    function test_Collect_ZeroBalance() external useActor(0) {
+    function testFuzz_Collect_ZeroBalance(uint256 _amount) external useActor(0) {
+        // if _amount is less than 7 days, dripRate is 0
+        _amount = bound(_amount, 0, (7 days) - 1);
+
+        if (_amount > 0) {
+            changePrank(VAULT);
+            IUSDs(USDS).mint(WHALE_USDS, _amount);
+            changePrank(WHALE_USDS);
+            IERC20(USDS).approve(address(dripper), _amount);
+            dripper.addUSDs(_amount);
+            skip(8 days); // adding one additional day so that full amount can be collected
+        }
+        assertEq(dripper.dripRate(), 0);
         assertEq(dripper.getCollectableAmt(), 0);
         uint256 collectableAmt = dripper.collect();
         assertEq(collectableAmt, 0);
     }
 
     function testFuzz_CollectDripper(uint256 _amount) external {
-        _amount = bound(_amount, 1, MAX_SUPPLY - IUSDs(USDS).totalSupply());
+        _amount = bound(_amount, 7 days, MAX_SUPPLY - IUSDs(USDS).totalSupply());
 
         changePrank(VAULT);
         IUSDs(USDS).mint(WHALE_USDS, _amount);
@@ -139,6 +153,8 @@ contract Collect is DripperTest {
         uint256 collectableAmt = dripper.collect();
 
         assertEq(collectableAmt, _amount);
+        assertEq(dripper.dripRate(), 0);
+        assertEq(dripper.lastCollectTS(), block.timestamp);
     }
 }
 
