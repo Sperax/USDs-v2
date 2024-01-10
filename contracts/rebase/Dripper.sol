@@ -23,6 +23,7 @@ contract Dripper is IDripper, Ownable {
     event Recovered(address owner, uint256 amount);
     event VaultUpdated(address vault);
     event DripDurationUpdated(uint256 dripDuration);
+    event USDsAdded(uint256 _amount);
 
     // Custom error messages
     error NothingToRecover();
@@ -55,6 +56,7 @@ contract Dripper is IDripper, Ownable {
         Helpers._isNonZeroAmt(_amount);
         IERC20(Helpers.USDS).safeTransferFrom(msg.sender, address(this), _amount);
         dripRate = IERC20(Helpers.USDS).balanceOf(address(this)) / dripDuration;
+        emit USDsAdded(_amount);
     }
 
     /// @notice Transfers the dripped tokens to the vault.
