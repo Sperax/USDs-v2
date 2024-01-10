@@ -87,6 +87,23 @@ contract VaultCoreTest is PreMigrationSetup {
             _vaultAmt = _calculatedCollateralAmt;
         }
     }
+
+    function _calibrateCollateral() internal {
+        ICollateralManager.CollateralBaseData memory _data = ICollateralManager.CollateralBaseData({
+            mintAllowed: true,
+            redeemAllowed: true,
+            allocationAllowed: true,
+            baseMintFee: 450,
+            baseRedeemFee: 450,
+            downsidePeg: 9800,
+            desiredCollateralComposition: 1000
+        });
+        changePrank(USDS_OWNER);
+        ICollateralManager(COLLATERAL_MANAGER).updateCollateralData(_collateral, _data);
+        vm.warp(block.timestamp + 2 days);
+        FeeCalculator(FEE_CALCULATOR).calibrateFee(_collateral);
+        changePrank(currentActor);
+    }
 }
 
 contract Test_Init is VaultCoreTest {
@@ -337,6 +354,28 @@ contract Test_Mint is VaultCoreTest {
         IVault(VAULT).mint(_collateral, _collateralAmt, _minUSDSAmt, _deadline);
         // _minUSDSAmt -= 1; //@todo report precision bug
         assertApproxEqAbs(ERC20(USDS).balanceOf(minter), _minUSDSAmt, 1);
+    }
+
+    function test_Mint_WithFee() public useKnownActor(minter) mockOracle(99e6) {
+        deal(USDCe, currentActor, _collateralAmt);
+        assertEq(ERC20(USDCe).balanceOf(currentActor), _collateralAmt);
+        assertEq(ERC20(USDS).balanceOf(currentActor), 0);
+        uint256 feeAmt;
+        ERC20(USDCe).approve(VAULT, _collateralAmt);
+
+        _calibrateCollateral();
+        _deadline = block.timestamp + 300;
+
+        (_minUSDSAmt, feeAmt) = IVault(VAULT).mintView(_collateral, _collateralAmt);
+        assertTrue(feeAmt > 0);
+
+        vm.expectEmit(VAULT);
+        emit Minted(currentActor, USDCe, _minUSDSAmt, _collateralAmt, feeAmt);
+        IVault(VAULT).mint(_collateral, _collateralAmt, _minUSDSAmt, _deadline);
+
+        assertEq(ERC20(USDCe).balanceOf(currentActor), 0);
+        assertApproxEqAbs(ERC20(USDS).balanceOf(currentActor), _minUSDSAmt, 1);
+        assertApproxEqAbs(ERC20(USDS).balanceOf(feeVault), feeAmt, 1);
     }
 
     function test_MintBySpecifyingCollateralAmt() public {
@@ -741,6 +780,35 @@ contract Test_Redeem is VaultCoreTest {
         vm.expectEmit(VAULT);
         emit Redeemed(redeemer, _collateral, _usdsBurnAmt, _calculatedCollateralAmt, _feeAmt);
         vm.prank(redeemer);
+        IVault(VAULT).redeem(_collateral, _usdsAmt, _calculatedCollateralAmt, _deadline);
+        uint256 balAfterFeeVault = ERC20(USDS).balanceOf(FEE_VAULT);
+        uint256 balAfterUSDsRedeemer = ERC20(USDS).balanceOf(redeemer);
+        uint256 balAfterUSDCeRedeemer = ERC20(USDCe).balanceOf(redeemer);
+        assertEq(balAfterFeeVault - balBeforeFeeVault, _feeAmt);
+        assertEq(balBeforeUSDsRedeemer - balAfterUSDsRedeemer, _usdsAmt);
+        assertEq(balAfterUSDCeRedeemer - balBeforeUSDCeRedeemer, _calculatedCollateralAmt);
+    }
+
+    function test_RedeemFromVault_WithFee() public useKnownActor(redeemer) mockOracle(99e6) {
+        deal(_collateral, VAULT, (_usdsAmt * 2) / 1e12);
+        changePrank(VAULT);
+        IUSDs(USDS).mint(redeemer, _usdsAmt);
+        changePrank(redeemer);
+        ERC20(USDS).approve(VAULT, _usdsAmt);
+
+        _calibrateCollateral();
+        _deadline = block.timestamp + 300;
+
+        (uint256 _calculatedCollateralAmt, uint256 _usdsBurnAmt, uint256 _feeAmt,,) =
+            IVault(VAULT).redeemView(_collateral, _usdsAmt);
+        assertTrue(_feeAmt > 0);
+
+        uint256 balBeforeFeeVault = ERC20(USDS).balanceOf(FEE_VAULT);
+        uint256 balBeforeUSDsRedeemer = ERC20(USDS).balanceOf(redeemer);
+        uint256 balBeforeUSDCeRedeemer = ERC20(USDCe).balanceOf(redeemer);
+        vm.expectEmit(VAULT);
+        emit Redeemed(redeemer, _collateral, _usdsBurnAmt, _calculatedCollateralAmt, _feeAmt);
+        changePrank(redeemer);
         IVault(VAULT).redeem(_collateral, _usdsAmt, _calculatedCollateralAmt, _deadline);
         uint256 balAfterFeeVault = ERC20(USDS).balanceOf(FEE_VAULT);
         uint256 balAfterUSDsRedeemer = ERC20(USDS).balanceOf(redeemer);
