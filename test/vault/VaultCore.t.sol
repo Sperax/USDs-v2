@@ -145,7 +145,7 @@ contract Test_Setters is VaultCoreTest {
         _newOracle = makeAddr("_newOracle");
     }
 
-    function test_revertIf_callerIsNotOwner() public useActor(1) {
+    function test_revertsWhen_callerIsNotOwner() public useActor(1) {
         vm.expectRevert("Ownable: caller is not the owner");
         IVault(VAULT).updateFeeVault(_newFeeVault);
         vm.expectRevert("Ownable: caller is not the owner");
@@ -160,7 +160,7 @@ contract Test_Setters is VaultCoreTest {
         IVault(VAULT).updateOracle(_newOracle);
     }
 
-    function test_revertIf_InvalidAddress() public useKnownActor(USDS_OWNER) {
+    function test_revertsWhen_InvalidAddress() public useKnownActor(USDS_OWNER) {
         vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAddress.selector));
         IVault(VAULT).updateFeeVault(address(0));
         vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAddress.selector));
@@ -644,7 +644,7 @@ contract Test_RedeemView is VaultCoreTest {
         IVault(VAULT).redeemView(_collateral, usdsAmt);
     }
 
-    function test_RedeemView_WhenDefaultStrategySetButBalanceIsNotAvailable() public {
+    function test_RedeemView_revertsWhen_DefaultStrategySetButBalanceIsNotAvailable() public {
         deal(USDCe, VAULT, (usdsAmt / 2) / 1e12);
         (uint256 _calculatedCollateralAmt,,,,) = _redeemViewTest(usdsAmt, defaultStrategy);
         uint256 _availableAmount =
