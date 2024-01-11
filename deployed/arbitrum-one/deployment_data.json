@@ -9,6 +9,7 @@
     "LUSD": "0x93b346b6bc2548da6a1e7d98e9a421b42541425b",
     "proxy_admin": "0x3E49925A79CbFb68BAa5bc9DFb4f7D955D1ddF25",
     "usds": "0xD74f5255D557944cf7Dd0E45FF521520002D5748",
+    "usds_impl": "0x67b58013742ce6Bb0Cdc2EF3CE0A35c1d2F5f3c2",
     "chainlink_oracle": "0x0Ca9bf1c701a403f6dB0695a0D6996288F70935d",
     "master_price_oracle": "0x14D99412dAB1878dC01Fe7a1664cdE85896e8E50",
     "spa_buyback_impl": "0xa8308A2dEEaEb7eE7CB27845328A27Cd755C8Dc9",
