@@ -183,7 +183,7 @@ contract AddUSDs is DripperTest {
         dripper.addUSDs(_amount);
 
         assertEq(dripper.dripRate(), _amount / DRIP_DURATION);
-        assertEq(dripper.lastCollectTS(), lastCollectTs); // because collectableAmt was 0
+        assertEq(dripper.lastCollectTS(), block.timestamp);
         assert(lastCollectTs < block.timestamp);
     }
 
@@ -209,7 +209,7 @@ contract AddUSDs is DripperTest {
         dripper.addUSDs(halfAmount);
 
         assertEq(dripper.dripRate(), halfAmount / DRIP_DURATION);
-        assertEq(dripper.lastCollectTS(), block.timestamp); // because collectableAmt was not 0
+        assertEq(dripper.lastCollectTS(), block.timestamp);
         assert(lastCollectTs < block.timestamp);
     }
 }
