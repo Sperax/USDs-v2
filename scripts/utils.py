@@ -122,7 +122,7 @@ def save_deployment_artifacts(data, name, operation_type=""):
         + "_"
         + name
         + "_"
-        + time.strftime("%m-%d-%Y_%H:%M:%S")
+        + time.strftime("%m-%d-%Y_%H-%M-%S")
         + ".json",
     )
     with open(file, "w") as json_file:
