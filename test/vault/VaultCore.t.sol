@@ -427,6 +427,13 @@ contract TestMintView is VaultCoreTest {
         assertEq(_fee, 0);
     }
 
+    function test_Fee0If_CallerIsYieldReceiver() public {
+        vm.prank(IVault(VAULT).yieldReceiver());
+        (_toMinter, _fee) = IVault(VAULT).mintView(_collateral, _collateralAmt);
+        assertTrue(_toMinter > 98e20);
+        assertEq(_fee, 0);
+    }
+
     function test_MintView() public mockOracle(101e6) {
         uint256 expectedFee;
         uint256 expectedToMinter;

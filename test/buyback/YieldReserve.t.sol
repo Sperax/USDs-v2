@@ -275,6 +275,36 @@ contract YieldReserveTest is YieldReserveSetup {
     }
 }
 
+contract Test_MintUSDs is YieldReserveSetup {
+    address buyback;
+
+    event Minted(
+        address indexed wallet, address indexed collateralAddr, uint256 usdsAmt, uint256 collateralAmt, uint256 feeAmt
+    );
+    event USDsAdded(uint256 _amount);
+
+    function setUp() public override {
+        super.setUp();
+        buyback = yieldReserve.buyback();
+        deal(address(USDCe), address(yieldReserve), 1e9);
+        mockPrice(USDCe, 1e8, PRICE_PRECISION);
+        mockPrice(USDS, 1e8, PRICE_PRECISION);
+    }
+
+    function test_mintUSDs() public {
+        uint256 buyback_initialUSDsBal = IERC20(USDS).balanceOf(buyback);
+        uint256 reserveBal = IERC20(USDCe).balanceOf(address(yieldReserve));
+        (uint256 usdsToMint, uint256 feeAmt) = IVault(VAULT).mintView(USDCe, reserveBal);
+        uint256 toBuyback = (usdsToMint * yieldReserve.buybackPercentage() / Helpers.MAX_PERCENTAGE);
+        vm.expectEmit();
+        emit Minted(address(yieldReserve), USDCe, usdsToMint, reserveBal, feeAmt);
+        emit USDsAdded(usdsToMint - toBuyback);
+        yieldReserve.mintUSDs(USDCe);
+        assertEq(IERC20(USDCe).balanceOf(address(yieldReserve)), 0);
+        assertLe(IERC20(USDS).balanceOf(buyback), buyback_initialUSDsBal + toBuyback);
+    }
+}
+
 contract SwapTest is YieldReserveSetup {
     function setUp() public override {
         super.setUp();
