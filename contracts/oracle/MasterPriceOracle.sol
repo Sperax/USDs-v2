@@ -8,22 +8,26 @@ import {IOracle} from "../interfaces/IOracle.sol";
 /// @author Sperax Foundation
 /// @notice Communicates with different price feeds to get the price
 contract MasterPriceOracle is Ownable, IOracle {
-    // Handles price feed data for a give token.
+    /// Store price feed data for tokens.
     mapping(address => PriceFeedData) public tokenPriceFeed;
 
+    // Events
     event PriceFeedUpdated(address indexed token, address indexed source, bytes msgData);
     event PriceFeedRemoved(address indexed token);
 
+    // Custom error messages
+    error InvalidAddress();
     error UnableToFetchPriceFeed(address token);
     error InvalidPriceFeed(address token);
     error PriceFeedNotFound(address token);
 
-    /// @notice Update/Add price feed for `_token`
+    /// @notice Add/Update price feed for `_token`
     /// @param _token address of the desired token.
-    /// @dev Have to be extra cautious while updating the price feed.
     /// @param _source price feed source.
     /// @param _data call data for fetching the price feed.
+    /// @dev Have to be extra cautious while updating the price feed.
     function updateTokenPriceFeed(address _token, address _source, bytes memory _data) external onlyOwner {
+        if (_token == address(0)) revert InvalidAddress();
         // Validate if the price feed is being emitted correctly.
         _getPriceFeed(_token, _source, _data);
 
@@ -31,8 +35,8 @@ contract MasterPriceOracle is Ownable, IOracle {
         emit PriceFeedUpdated(_token, _source, _data);
     }
 
-    /// @notice Remove an existing price feed for `token`.
-    /// @param _token Address of the token.
+    /// @notice Remove an existing price feed for `_token`.
+    /// @param _token address of the token.
     function removeTokenPriceFeed(address _token) external onlyOwner {
         if (tokenPriceFeed[_token].source == address(0)) {
             revert PriceFeedNotFound(_token);

@@ -1,0 +1,24 @@
+@startuml USDs Rebase Flow
+
+title USDs Rebase Flow
+actor User
+participant Vault
+participant RebaseManager
+participant Dripper
+participant USDs
+
+User -> Vault : rebase()
+Vault -> RebaseManager : fetchRebaseAmt()
+RebaseManager -> Dripper : getCollectableAmt()
+Dripper --> RebaseManager : Dripped USDs
+note over RebaseManager : Calculate rebase amount based on\n1. Available USDs\n2. Min/Max rebase amount
+note over RebaseManager : Validate time gap since the last rebase
+RebaseManager -> Dripper : collect()
+Dripper -> USDs : safeTransfer(vault, collectableAmt)
+USDs --> Vault : collectableAmt USDs
+note over Dripper, USDs : collectableAmt is always >= rebaseAmt
+RebaseManager --> Vault : rebaseAmt
+Vault -> USDs : rebase(rebaseAmt)
+USDs -> USDs : _burn(vault, rebaseAmt)
+note over USDs : Update rebasingCreditsPerToken\nresulting in an updated rebasing account balance
+@enduml

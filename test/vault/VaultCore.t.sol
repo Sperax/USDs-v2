@@ -427,6 +427,13 @@ contract TestMintView is VaultCoreTest {
         assertEq(_fee, 0);
     }
 
+    function test_Fee0If_CallerIsYieldReceiver() public {
+        vm.prank(IVault(VAULT).yieldReceiver());
+        (_toMinter, _fee) = IVault(VAULT).mintView(_collateral, _collateralAmt);
+        assertTrue(_toMinter > 98e20);
+        assertEq(_fee, 0);
+    }
+
     function test_MintView() public mockOracle(101e6) {
         uint256 expectedFee;
         uint256 expectedToMinter;
@@ -472,12 +479,13 @@ contract TestRebase is VaultCoreTest {
     event RebasedUSDs(uint256 rebaseAmt);
 
     function test_Rebase() public {
+        uint256 _amount = 1e22;
         vm.startPrank(VAULT);
         IRebaseManager(REBASE_MANAGER).fetchRebaseAmt();
-        IUSDs(USDS).mint(actors[1], 1e22);
+        IUSDs(USDS).mint(actors[1], _amount);
         changePrank(actors[1]);
-        ERC20(USDS).approve(DRIPPER, 1e22);
-        IDripper(DRIPPER).addUSDs(1e22);
+        ERC20(USDS).approve(DRIPPER, _amount);
+        IDripper(DRIPPER).addUSDs(_amount);
         changePrank(VAULT);
         skip(1 days);
         IDripper(DRIPPER).collect();
@@ -649,7 +657,7 @@ contract TestRedeemView is VaultCoreTest {
             uint256 _vaultAmt,
             uint256 _strategyAmt
         ) = _redeemViewTest(usdsAmt, address(0));
-        (uint256 calculatedCollateralAmt, uint256 usdsBurnAmt, uint256 feeAmt, uint256 vaultAmt, uint256 strategyAmt) =
+        (uint256 calculatedCollateralAmt, uint256 usdsBurnAmt, uint256 feeAmt,,) =
             IVault(VAULT).redeemView(_collateral, usdsAmt);
         assertEq(_calculatedCollateralAmt, calculatedCollateralAmt);
         assertEq(_usdsBurnAmt, usdsBurnAmt);

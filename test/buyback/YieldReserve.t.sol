@@ -168,67 +168,67 @@ contract YieldReserveTest is YieldReserveSetup {
 
     function test_updateBuybackAddress_auth_error() public useActor(0) {
         vm.expectRevert("Ownable: caller is not the owner");
-        yieldReserve.updateBuybackAddress(VAULT);
+        yieldReserve.updateBuyback(VAULT);
     }
 
     function test_updateBuybackAddress_inputs() public useKnownActor(USDS_OWNER) {
         vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAddress.selector));
-        yieldReserve.updateBuybackAddress(address(0));
+        yieldReserve.updateBuyback(address(0));
     }
 
     function test_updateBuybackAddress() public useKnownActor(USDS_OWNER) {
-        yieldReserve.updateBuybackAddress(VAULT);
+        yieldReserve.updateBuyback(VAULT);
         assertEq(yieldReserve.buyback(), VAULT);
     }
 
     function test_updateOracleAddress_auth_error() public useActor(0) {
         vm.expectRevert("Ownable: caller is not the owner");
-        yieldReserve.updateOracleAddress(VAULT);
+        yieldReserve.updateOracle(VAULT);
     }
 
     function test_updateOracleAddress_inputs() public useKnownActor(USDS_OWNER) {
         vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAddress.selector));
-        yieldReserve.updateOracleAddress(address(0));
+        yieldReserve.updateOracle(address(0));
     }
 
     function test_updateOracleAddress() public useKnownActor(USDS_OWNER) {
-        yieldReserve.updateOracleAddress(VAULT);
+        yieldReserve.updateOracle(VAULT);
         assertEq(yieldReserve.oracle(), VAULT);
     }
 
     function test_updateDripperAddress_auth_error() public useActor(0) {
         vm.expectRevert("Ownable: caller is not the owner");
-        yieldReserve.updateDripperAddress(VAULT);
+        yieldReserve.updateDripper(VAULT);
     }
 
     function test_updateDripperAddress_inputs() public useKnownActor(USDS_OWNER) {
         vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAddress.selector));
-        yieldReserve.updateDripperAddress(address(0));
+        yieldReserve.updateDripper(address(0));
     }
 
     function test_updateDripperAddress() public useKnownActor(USDS_OWNER) {
-        yieldReserve.updateDripperAddress(VAULT);
+        yieldReserve.updateDripper(VAULT);
         assertEq(yieldReserve.dripper(), VAULT);
     }
 
     function test_updateVaultAddress_auth_error() public useActor(0) {
         vm.expectRevert("Ownable: caller is not the owner");
-        yieldReserve.updateVaultAddress(VAULT);
+        yieldReserve.updateVault(VAULT);
     }
 
     function test_updateVaultAddress_inputs() public useKnownActor(USDS_OWNER) {
         vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAddress.selector));
-        yieldReserve.updateVaultAddress(address(0));
+        yieldReserve.updateVault(address(0));
     }
 
     function test_updateVaultAddress() public useKnownActor(USDS_OWNER) {
-        yieldReserve.updateVaultAddress(ORACLE);
+        yieldReserve.updateVault(ORACLE);
         assertEq(yieldReserve.vault(), ORACLE);
     }
 
     function test_getTokenBForTokenA_inputs() public useKnownActor(USDS_OWNER) {
-        mockPrice(USDCe, 10e8, PRICE_PRECISION);
-        mockPrice(USDS, 10e8, PRICE_PRECISION);
+        mockPrice(USDCe, 1e8, PRICE_PRECISION);
+        mockPrice(USDS, 1e8, PRICE_PRECISION);
 
         vm.expectRevert(abi.encodeWithSelector(YieldReserve.InvalidSourceToken.selector));
         yieldReserve.getTokenBForTokenA(USDS, USDCe, 10000);
@@ -275,13 +275,43 @@ contract YieldReserveTest is YieldReserveSetup {
     }
 }
 
+contract Test_MintUSDs is YieldReserveSetup {
+    address buyback;
+
+    event Minted(
+        address indexed wallet, address indexed collateralAddr, uint256 usdsAmt, uint256 collateralAmt, uint256 feeAmt
+    );
+    event USDsAdded(uint256 _amount);
+
+    function setUp() public override {
+        super.setUp();
+        buyback = yieldReserve.buyback();
+        deal(address(USDCe), address(yieldReserve), 1e9);
+        mockPrice(USDCe, 1e8, PRICE_PRECISION);
+        mockPrice(USDS, 1e8, PRICE_PRECISION);
+    }
+
+    function test_mintUSDs() public {
+        uint256 buyback_initialUSDsBal = IERC20(USDS).balanceOf(buyback);
+        uint256 reserveBal = IERC20(USDCe).balanceOf(address(yieldReserve));
+        (uint256 usdsToMint, uint256 feeAmt) = IVault(VAULT).mintView(USDCe, reserveBal);
+        uint256 toBuyback = (usdsToMint * yieldReserve.buybackPercentage() / Helpers.MAX_PERCENTAGE);
+        vm.expectEmit();
+        emit Minted(address(yieldReserve), USDCe, usdsToMint, reserveBal, feeAmt);
+        emit USDsAdded(usdsToMint - toBuyback);
+        yieldReserve.mintUSDs(USDCe);
+        assertEq(IERC20(USDCe).balanceOf(address(yieldReserve)), 0);
+        assertLe(IERC20(USDS).balanceOf(buyback), buyback_initialUSDsBal + toBuyback);
+    }
+}
+
 contract SwapTest is YieldReserveSetup {
     function setUp() public override {
         super.setUp();
         vm.startPrank(USDS_OWNER);
-        deal(address(USDCe), USDS_OWNER, 1 ether);
-        deal(address(USDCe), address(yieldReserve), 100 ether);
-        deal(address(DAI), address(yieldReserve), 100 ether);
+        deal(address(USDCe), USDS_OWNER, 1e18);
+        deal(address(USDCe), address(yieldReserve), 1e20);
+        deal(address(DAI), address(yieldReserve), 1e20);
 
         mockPrice(USDCe, 1e8, PRICE_PRECISION);
         mockPrice(USDS, 1e8, PRICE_PRECISION);
