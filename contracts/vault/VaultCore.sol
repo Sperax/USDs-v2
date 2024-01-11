@@ -107,6 +107,11 @@ contract VaultCore is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradea
         emit OracleUpdated(_oracle);
     }
 
+    function recoverE20(address _token, address _recipient, uint256 _amount) external onlyOwner {
+        Helpers._isNonZeroAddr(_recipient);
+        IERC20Upgradeable(_token).safeTransfer(_recipient, _amount);
+    }
+
     /// @notice Allocate `_amount` of`_collateral` to `_strategy`
     /// @param _collateral address of the desired collateral
     /// @param _strategy address of the desired strategy
