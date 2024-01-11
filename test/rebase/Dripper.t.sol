@@ -27,6 +27,7 @@ contract DripperTest is PreMigrationSetup {
     event VaultUpdated(address vault);
     event DripDurationUpdated(uint256 dripDuration);
     event Recovered(address owner, uint256 amount);
+    event USDsAdded(uint256 _amount);
 
     error NothingToRecover();
 
@@ -144,7 +145,7 @@ contract Collect is DripperTest {
         changePrank(WHALE_USDS);
         IERC20(USDS).approve(address(dripper), _amount);
         dripper.addUSDs(_amount);
-        skip(8 days); // adding one additional day so that full amount can be collected
+        skip(14 days); // adding additional days so that full amount can be collected
 
         vm.expectEmit(address(USDS));
         emit Transfer(address(dripper), VAULT, _amount);
@@ -172,10 +173,43 @@ contract AddUSDs is DripperTest {
         changePrank(WHALE_USDS);
         IERC20(USDS).approve(address(dripper), _amount);
 
+        uint256 lastCollectTs = dripper.lastCollectTS();
+        skip(14 days);
+
         vm.expectEmit(USDS);
         emit Transfer(WHALE_USDS, address(dripper), _amount);
+        vm.expectEmit(address(dripper));
+        emit USDsAdded(_amount);
         dripper.addUSDs(_amount);
 
         assertEq(dripper.dripRate(), _amount / DRIP_DURATION);
+        assertEq(dripper.lastCollectTS(), lastCollectTs); // because collectableAmt was 0
+        assert(lastCollectTs < block.timestamp);
+    }
+
+    function testFuzz_AddUSDs_Collect(uint256 _amount) external {
+        _amount = bound(_amount, 2 * (7 days), MAX_SUPPLY - IUSDs(USDS).totalSupply());
+
+        changePrank(VAULT);
+        IUSDs(USDS).mint(WHALE_USDS, _amount);
+        changePrank(WHALE_USDS);
+        IERC20(USDS).approve(address(dripper), _amount);
+        uint256 halfAmount = _amount / 2;
+        dripper.addUSDs(halfAmount);
+
+        uint256 lastCollectTs = dripper.lastCollectTS();
+        skip(14 days);
+
+        vm.expectEmit(address(dripper));
+        emit Collected(halfAmount);
+        vm.expectEmit(USDS);
+        emit Transfer(WHALE_USDS, address(dripper), halfAmount);
+        vm.expectEmit(address(dripper));
+        emit USDsAdded(halfAmount);
+        dripper.addUSDs(halfAmount);
+
+        assertEq(dripper.dripRate(), halfAmount / DRIP_DURATION);
+        assertEq(dripper.lastCollectTS(), block.timestamp); // because collectableAmt was not 0
+        assert(lastCollectTs < block.timestamp);
     }
 }
