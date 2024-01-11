@@ -49,7 +49,7 @@ contract YieldReserve is ReentrancyGuard, Ownable {
     event OracleUpdated(address newOracle);
     event VaultUpdated(address newVault);
     event DripperUpdated(address newDripper);
-    event USDsSent(uint256 toBuyback, uint256 toVault);
+    event USDsSent(uint256 toBuyback, uint256 toDripper);
     event SrcTokenPermissionUpdated(address indexed token, bool isAllowed);
     event DstTokenPermissionUpdated(address indexed token, bool isAllowed);
 
@@ -188,7 +188,6 @@ contract YieldReserve is ReentrancyGuard, Ownable {
     }
 
     /// @notice Swap allowed source token for allowed destination token.
-    /// @dev Reverts if caller is not owner.
     /// @param _srcToken Source/Input token.
     /// @param _dstToken Destination/Output token.
     /// @param _amountIn Input token amount.
@@ -221,8 +220,20 @@ contract YieldReserve is ReentrancyGuard, Ownable {
         });
     }
 
+    /// @notice Mints USDs directly with the allowed collaterals for USDs.
+    /// @param _token Address of token to mint USDs with
+    /// @dev Only collaterals configured in USDs vault are allowed to be used for minting.
+    function mintUSDs(address _token) public nonReentrant {
+        Helpers._isNonZeroAddr(_token);
+        uint256 bal = IERC20(_token).balanceOf(address(this));
+        IERC20(_token).forceApprove(vault, bal);
+        IVault(vault).mint(_token, bal, 0, block.timestamp);
+        // No need to do slippage check as it is our contract
+        // and the vault does that.
+        _sendUSDs();
+    }
+
     /// @notice Get an estimate of the output token amount for a given input token amount.
-    /// @dev Reverts if caller is not owner.
     /// @param _srcToken Input token address.
     /// @param _dstToken Output token address.
     /// @param _amountIn Input amount of _srcToken.
