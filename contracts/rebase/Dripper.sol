@@ -65,10 +65,10 @@ contract Dripper is IDripper, Ownable {
     function collect() public returns (uint256) {
         uint256 collectableAmt = getCollectableAmt();
         if (collectableAmt != 0) {
-            lastCollectTS = block.timestamp;
             IERC20(Helpers.USDS).safeTransfer(vault, collectableAmt);
             emit Collected(collectableAmt);
         }
+        lastCollectTS = block.timestamp;
         if (IERC20(Helpers.USDS).balanceOf(address(this)) == 0) dripRate = 0;
         return collectableAmt;
     }
