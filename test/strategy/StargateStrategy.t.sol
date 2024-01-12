@@ -673,7 +673,7 @@ contract TestUpdateFarm is StargateStrategyTest {
 
     function test_revertsWhen_CallerIsNotOwner() public {
         vm.expectRevert("Ownable: caller is not the owner");
-        strategy.updateFarm(_newFarm);
+        strategy.updateFarm(_newFarm, address(0));
     }
 
     function test_UpdateFarm() public useKnownActor(USDS_OWNER) {
@@ -685,7 +685,7 @@ contract TestUpdateFarm is StargateStrategyTest {
         }
         vm.expectEmit(true, true, true, true);
         emit FarmUpdated(_newFarm);
-        strategy.updateFarm(_newFarm);
+        strategy.updateFarm(_newFarm, STARGATE);
         for (uint8 i = 0; i < assetData.length; ++i) {
             (newFarmBalances[i],) = ILPStaking(_newFarm).userInfo(assetData[i].rewardPid, address(strategy));
             assertEq(oldFarmBalances[i], newFarmBalances[i], "Mismatch in balance");
