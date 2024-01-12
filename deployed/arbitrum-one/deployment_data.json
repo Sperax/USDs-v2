@@ -20,5 +20,6 @@
     "collateral_manager": "0xdA423BFa1E196598190deEfbAFC28aDb36FaeDF0",
     "dripper": "0xd50193e8fFb00beA274bD2b11d0a7Ea08dA044c1",
     "rebase_manager": "0x297331A0155B1e30bBFA85CF3609eC0fF037BEEC",
-    "yield_reserve": "0xfD14C8ef0993fd9409f7820BA8BA80370529d861"
+    "yield_reserve": "0xfD14C8ef0993fd9409f7820BA8BA80370529d861",
+    "aave_strategy": "0x974993eE8DF7F5C4F3f9Aa4eB5b4534F359f3388"
 }
