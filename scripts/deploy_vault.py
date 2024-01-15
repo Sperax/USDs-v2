@@ -237,13 +237,6 @@ def main():
                 {'from': owner},
             )
 
-    # vault.transferOwnership(USDS_OWNER_ADDR, {'from': owner})
-    # collateral_manager.transferOwnership(USDS_OWNER_ADDR, {'from': owner})
-    # yield_reserve.transferOwnership(USDS_OWNER_ADDR, {'from': owner})
-    # dripper.transferOwnership(USDS_OWNER_ADDR, {'from': owner})
-    # rebase_manager.transferOwnership(USDS_OWNER_ADDR, {'from': owner})
-        
-
     data = {
         **data,
         'proxy_admin': proxy_admin.address,
