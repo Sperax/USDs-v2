@@ -21,5 +21,7 @@
     "dripper": "0xd50193e8fFb00beA274bD2b11d0a7Ea08dA044c1",
     "rebase_manager": "0x297331A0155B1e30bBFA85CF3609eC0fF037BEEC",
     "yield_reserve": "0xfD14C8ef0993fd9409f7820BA8BA80370529d861",
-    "aave_strategy": "0x974993eE8DF7F5C4F3f9Aa4eB5b4534F359f3388"
+    "aave_strategy": "0x974993eE8DF7F5C4F3f9Aa4eB5b4534F359f3388",
+    "stargate_strategy": "0xb9C9100720D8c6E35eb8dd0F9C1aBEf320dAA136",
+    "compound_strategy": "0xBCeb48625771E35420076f79Ec6921E783a82442"
 }
