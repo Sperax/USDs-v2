@@ -66,6 +66,19 @@ contract AaveStrategy is InitializableAbstractStrategy {
         emit Deposit(_asset, _amount);
     }
 
+    /// @notice Deposit the lpToken in the strategy.
+    /// @param _asset Address of the collateral.
+    /// @param _amount Amount of token to be added.
+    /// @dev This function is added to facilitate Migration of funds
+    ///      from old AaveStrategy.
+    function depositLp(address _asset, uint256 _amount) external onlyVaultOrOwner nonReentrant {
+        if (!supportsCollateral(_asset)) revert CollateralNotSupported(_asset);
+        Helpers._isNonZeroAmt(_amount);
+        allocatedAmount[_asset] += _amount;
+        IERC20(assetToPToken[_asset]).safeTransferFrom(msg.sender, address(this), _amount);
+        emit Deposit(_asset, _amount);
+    }
+
     /// @inheritdoc InitializableAbstractStrategy
     function withdraw(address _recipient, address _asset, uint256 _amount)
         external
