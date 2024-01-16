@@ -475,7 +475,7 @@ contract TestBurn is USDsTest {
         emit Transfer(account, address(0), amount);
         usds.burn(amount);
 
-        assertApproxEqAbs(usds.balanceOf(account), preBalance - amount, APPROX_ERROR_MARGIN);
+        assertApproxEqAbs(usds.balanceOf(account), amount - preBalance, APPROX_ERROR_MARGIN);
         assertEq(usds.totalSupply(), prevSupply - amount);
         (uint256 creditBalance, uint256 creditPerToken) = usds.creditsBalanceOf(account);
         assertEq(usds.nonRebasingCreditsPerToken(account), 0);
