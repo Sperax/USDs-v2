@@ -459,8 +459,9 @@ contract TestBurn is USDsTest {
 
     function test_burn_rebasing(uint256 _amount) public useKnownActor(USDS_OWNER) {
         amount = bound(_amount, 1, MAX_SUPPLY - usds.totalSupply());
-        address account = VAULT; // VAULT is rebasing and has some existing USDs.
+        address account = VAULT; // VAULT is non-rebasing and has some existing USDs.
         changePrank(account);
+        usds.burn(usds.balanceOf(account)); // burns off any exiting balance for upcoming calculations.
         usds.rebaseOptIn();
         usds.mint(account, amount);
 

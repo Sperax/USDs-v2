@@ -25,7 +25,7 @@ contract YieldReserveTest is PreMigrationSetup {
         SPAPrecision = 10 ** ERC20(SPA).decimals();
 
         vm.startPrank(USDS_OWNER);
-        yieldReserve = new YieldReserve(BUYBACK, VAULT, ORACLE, DRIPPER);
+        yieldReserve = new YieldReserve(SPA_BUYBACK, VAULT, ORACLE, DRIPPER);
         vm.stopPrank();
     }
 

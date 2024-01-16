@@ -9,6 +9,7 @@ import {IOracle} from "../../contracts/interfaces/IOracle.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {IveSPARewarder} from "../../contracts/interfaces/IveSPARewarder.sol";
 import {IUSDs} from "../../contracts/interfaces/IUSDs.sol";
+import {USDs} from "../../contracts/token/USDs.sol";
 
 contract SPABuybackTestSetup is BaseTest {
     SPABuyback internal spaBuyback;
@@ -240,9 +241,9 @@ contract Test_Withdraw is SPABuybackTestSetup {
     }
 
     function test_revertsWhen_withdrawMoreThanBalance() public useKnownActor(USDS_OWNER) {
-        amount = IERC20(USDS).balanceOf(address(spaBuyback));
-        amount = amount + 1e20;
-        vm.expectRevert("Transfer greater than balance");
+        uint256 balance = IERC20(USDS).balanceOf(address(spaBuyback));
+        amount = balance + 1e20;
+        vm.expectRevert(abi.encodeWithSelector(USDs.TransferGreaterThanBal.selector, amount, balance));
         spaBuyback.withdraw(token, user, amount);
     }
 

@@ -58,7 +58,6 @@ abstract contract PreMigrationSetup is Setup {
         USDS_OWNER = 0x5b12d9846F8612E439730d18E1C12634753B1bF1;
         PROXY_ADMIN = 0x3E49925A79CbFb68BAa5bc9DFb4f7D955D1ddF25;
         SPA_BUYBACK = 0xFbc0d3cA777722d234FE01dba94DeDeDb277AFe3;
-        BUYBACK = 0xf3f98086f7B61a32be4EdF8d8A4b964eC886BBcd;
 
         upgradeUtil = new UpgradeUtil();
 
