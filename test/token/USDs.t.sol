@@ -386,7 +386,7 @@ contract TestBurn is USDsTest {
         usds.burn(amount);
 
         // account for mathematical
-        assertApproxEqAbs(amount - bal, usds.balanceOf(VAULT), 1);
+        assertApproxEqAbs(bal - amount, usds.balanceOf(VAULT), 1);
     }
 
     function test_burn_case3() public useKnownActor(USDS_OWNER) {
