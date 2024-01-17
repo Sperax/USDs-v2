@@ -226,6 +226,82 @@ contract Deposit is AaveStrategyTest {
     }
 }
 
+contract DepositLPTest is AaveStrategyTest {
+    function setUp() public override {
+        super.setUp();
+        vm.startPrank(USDS_OWNER);
+        _initializeStrategy();
+        _setAssetData();
+        vm.stopPrank();
+    }
+
+    function test_depositLp_revertsWhen_CollateralNotSupported() public useKnownActor(VAULT) {
+        vm.expectRevert(abi.encodeWithSelector(CollateralNotSupported.selector, DUMMY_ADDRESS));
+        strategy.depositLp(DUMMY_ADDRESS, 1);
+    }
+
+    function test_depositLp_revertsWhen_InvalidAmount() public useKnownActor(VAULT) {
+        vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAmount.selector));
+        strategy.depositLp(ASSET, 0);
+    }
+
+    function test_depositLp_revertsWhen_CallerNotVaultOrOwner() public useActor(0) {
+        vm.expectRevert(abi.encodeWithSelector(CallerNotVaultOrOwner.selector, actors[0]));
+        strategy.depositLp(ASSET, 1);
+    }
+
+    function test_depositLp_CallerVault() public useKnownActor(VAULT) {
+        uint256 initial_bal = strategy.checkBalance(ASSET);
+
+        deal(address(ASSET), VAULT, depositAmount + 100);
+        IERC20(ASSET).approve(address(strategy.aavePool()), depositAmount + 100);
+        strategy.aavePool().supply(ASSET, depositAmount + 100, VAULT, 0);
+
+        IERC20(strategy.assetToPToken(ASSET)).approve(address(strategy), depositAmount);
+
+        uint256 lpBalanceOfVaultBeforeDeposit = IERC20(strategy.assetToPToken(ASSET)).balanceOf(VAULT);
+        uint256 lpBalanceOfStrategyBeforeDeposit = IERC20(strategy.assetToPToken(ASSET)).balanceOf(address(strategy));
+        uint256 allocatedAmountBeforeDeposit = strategy.allocatedAmount(ASSET);
+        vm.expectEmit(address(strategy));
+        emit Deposit(ASSET, depositAmount);
+        strategy.depositLp(ASSET, depositAmount);
+        uint256 lpBalanceOfVaultAfterDeposit = IERC20(strategy.assetToPToken(ASSET)).balanceOf(VAULT);
+        uint256 lpBalanceOfStrategyAfterDeposit = IERC20(strategy.assetToPToken(ASSET)).balanceOf(address(strategy));
+        uint256 allocatedAmountAfterDeposit = strategy.allocatedAmount(ASSET);
+
+        uint256 new_bal = strategy.checkBalance(ASSET);
+        assertEq(initial_bal + depositAmount, new_bal);
+        assertEq(lpBalanceOfVaultBeforeDeposit - depositAmount, lpBalanceOfVaultAfterDeposit);
+        assertEq(lpBalanceOfStrategyBeforeDeposit + depositAmount, lpBalanceOfStrategyAfterDeposit);
+        assertEq(allocatedAmountBeforeDeposit + depositAmount, allocatedAmountAfterDeposit);
+    }
+
+    function test_depositLp_CallerOwner() public useKnownActor(USDS_OWNER) {
+        uint256 initial_bal = strategy.checkBalance(ASSET);
+
+        deal(address(ASSET), USDS_OWNER, depositAmount + 100);
+        IERC20(ASSET).approve(address(strategy.aavePool()), depositAmount + 100);
+        strategy.aavePool().supply(ASSET, depositAmount + 100, USDS_OWNER, 0);
+
+        IERC20(strategy.assetToPToken(ASSET)).approve(address(strategy), depositAmount);
+        uint256 lpBalanceOfVaultBeforeDeposit = IERC20(strategy.assetToPToken(ASSET)).balanceOf(USDS_OWNER);
+        uint256 lpBalanceOfStrategyBeforeDeposit = IERC20(strategy.assetToPToken(ASSET)).balanceOf(address(strategy));
+        uint256 allocatedAmountBeforeDeposit = strategy.allocatedAmount(ASSET);
+        vm.expectEmit(address(strategy));
+        emit Deposit(ASSET, depositAmount);
+        strategy.depositLp(ASSET, depositAmount);
+        uint256 lpBalanceOfVaultAfterDeposit = IERC20(strategy.assetToPToken(ASSET)).balanceOf(USDS_OWNER);
+        uint256 lpBalanceOfStrategyAfterDeposit = IERC20(strategy.assetToPToken(ASSET)).balanceOf(address(strategy));
+        uint256 allocatedAmountAfterDeposit = strategy.allocatedAmount(ASSET);
+
+        uint256 new_bal = strategy.checkBalance(ASSET);
+        assertEq(initial_bal + depositAmount, new_bal);
+        assertEq(lpBalanceOfVaultBeforeDeposit - depositAmount, lpBalanceOfVaultAfterDeposit);
+        assertEq(lpBalanceOfStrategyBeforeDeposit + depositAmount, lpBalanceOfStrategyAfterDeposit);
+        assertEq(allocatedAmountBeforeDeposit + depositAmount, allocatedAmountAfterDeposit);
+    }
+}
+
 contract CollectInterest is AaveStrategyTest {
     address public yieldReceiver;
 
