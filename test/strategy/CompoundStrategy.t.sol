@@ -338,10 +338,85 @@ contract CheckRewardEarnedTest is CompoundStrategyTest {
         strategy.deposit(ASSET, depositAmount);
         changePrank(USDS_OWNER);
         vm.warp(block.timestamp + 10 days);
-        vm.mockCall(P_TOKEN, abi.encodeWithSignature("baseTrackingAccrued(address)"), abi.encode(10000000));
+        IReward.RewardConfig memory config = strategy.rewardPool().rewardConfig(P_TOKEN);
+        IReward.RewardOwed memory data =
+            IReward(address(strategy.rewardPool())).getRewardOwed(P_TOKEN, address(strategy));
+        address rwdToken = data.token;
+        uint256 mockAccrued = 10000000;
+        vm.mockCall(P_TOKEN, abi.encodeWithSignature("baseTrackingAccrued(address)"), abi.encode(mockAccrued));
+        IComet(P_TOKEN).accrueAccount(address(strategy));
+        uint256 accrued = mockAccrued;
+        if (config.shouldUpscale) {
+            accrued *= config.rescaleFactor;
+        } else {
+            accrued /= config.rescaleFactor;
+        }
+        accrued = ((accrued * config.multiplier) / 1e18);
+        uint256 collectibleAmount = accrued - strategy.rewardPool().rewardsClaimed(P_TOKEN, address(strategy));
+
+        CompoundStrategy.RewardData[] memory rewardData = strategy.checkRewardEarned();
+        assert(rewardData.length > 0);
+        // since P_TOKEN is in index 1 of data array checking for index 1 in rewardData
+        assertEq(rewardData[1].token, rwdToken);
+        assertEq(rewardData[1].amount, collectibleAmount);
+    }
+
+    function test_CheckRewardEarned_shouldUpscaleTrue() public useKnownActor(USDS_OWNER) {
+        changePrank(VAULT);
+        deal(ASSET, VAULT, depositAmount);
+        IERC20(ASSET).approve(address(strategy), depositAmount);
+        strategy.deposit(ASSET, depositAmount);
+        changePrank(USDS_OWNER);
+
+        vm.warp(block.timestamp + 10 days);
+        IReward.RewardConfig memory config = strategy.rewardPool().rewardConfig(P_TOKEN);
+        config.shouldUpscale = true;
+        IReward.RewardOwed memory data =
+            IReward(address(strategy.rewardPool())).getRewardOwed(P_TOKEN, address(strategy));
+        address rwdToken = data.token;
+        uint256 mockAccrued = 10000000;
+        vm.mockCall(P_TOKEN, abi.encodeWithSignature("baseTrackingAccrued(address)"), abi.encode(mockAccrued));
+        vm.mockCall(REWARD_POOL, abi.encodeWithSignature("rewardConfig(address)", P_TOKEN), abi.encode(config));
+        uint256 accrued = mockAccrued;
+
+        accrued *= config.rescaleFactor;
+        accrued = ((accrued * config.multiplier) / 1e18);
+        uint256 collectibleAmount = accrued - strategy.rewardPool().rewardsClaimed(P_TOKEN, address(strategy));
         IComet(P_TOKEN).accrueAccount(address(strategy));
         CompoundStrategy.RewardData[] memory rewardData = strategy.checkRewardEarned();
         assert(rewardData.length > 0);
+        // since P_TOKEN is in index 1 of data array checking for index 1 in rewardData
+        assertEq(rewardData[1].token, rwdToken);
+        assertEq(rewardData[1].amount, collectibleAmount);
+    }
+
+    function test_CheckRewardEarned_shouldUpscaleFalse() public useKnownActor(USDS_OWNER) {
+        changePrank(VAULT);
+        deal(ASSET, VAULT, depositAmount);
+        IERC20(ASSET).approve(address(strategy), depositAmount);
+        strategy.deposit(ASSET, depositAmount);
+        changePrank(USDS_OWNER);
+
+        vm.warp(block.timestamp + 10 days);
+        IReward.RewardConfig memory config = strategy.rewardPool().rewardConfig(P_TOKEN);
+        config.shouldUpscale = false;
+        IReward.RewardOwed memory data =
+            IReward(address(strategy.rewardPool())).getRewardOwed(P_TOKEN, address(strategy));
+        address rwdToken = data.token;
+        uint256 mockAccrued = 10000000;
+        vm.mockCall(P_TOKEN, abi.encodeWithSignature("baseTrackingAccrued(address)"), abi.encode(mockAccrued));
+        vm.mockCall(REWARD_POOL, abi.encodeWithSignature("rewardConfig(address)", P_TOKEN), abi.encode(config));
+        uint256 accrued = mockAccrued;
+
+        accrued /= config.rescaleFactor;
+        accrued = ((accrued * config.multiplier) / 1e18);
+        uint256 collectibleAmount = accrued - strategy.rewardPool().rewardsClaimed(P_TOKEN, address(strategy));
+        IComet(P_TOKEN).accrueAccount(address(strategy));
+        CompoundStrategy.RewardData[] memory rewardData = strategy.checkRewardEarned();
+        assert(rewardData.length > 0);
+        // since P_TOKEN is in index 1 of data array checking for index 1 in rewardData
+        assertEq(rewardData[1].token, rwdToken);
+        assertEq(rewardData[1].amount, collectibleAmount);
     }
 }
 
