@@ -344,7 +344,6 @@ contract CheckRewardEarnedTest is CompoundStrategyTest {
         address rwdToken = data.token;
         uint256 mockAccrued = 10000000;
         vm.mockCall(P_TOKEN, abi.encodeWithSignature("baseTrackingAccrued(address)"), abi.encode(mockAccrued));
-        IComet(P_TOKEN).accrueAccount(address(strategy));
         uint256 accrued = mockAccrued;
         if (config.shouldUpscale) {
             accrued *= config.rescaleFactor;
@@ -354,6 +353,7 @@ contract CheckRewardEarnedTest is CompoundStrategyTest {
         accrued = ((accrued * config.multiplier) / 1e18);
         uint256 collectibleAmount = accrued - strategy.rewardPool().rewardsClaimed(P_TOKEN, address(strategy));
 
+        IComet(P_TOKEN).accrueAccount(address(strategy));
         CompoundStrategy.RewardData[] memory rewardData = strategy.checkRewardEarned();
         assert(rewardData.length > 0);
         // since P_TOKEN is in index 1 of data array checking for index 1 in rewardData
