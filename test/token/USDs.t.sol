@@ -613,8 +613,7 @@ contract TestRebase is USDsTest {
         assertEq(prevSupply, usds.totalSupply());
     }
 
-    // TODO remove test?
-    function test_rebase_opt_in() public useKnownActor(USDS_OWNER) {
+    function test_rebase_opt_in() public {
         changePrank(VAULT);
         usds.rebaseOptIn();
         uint256 amount = 100000;
@@ -624,8 +623,7 @@ contract TestRebase is USDsTest {
         assertEq(prevSupply, usds.totalSupply());
     }
 
-    // TODO remove test?
-    function test_rebase_opt_out() public useKnownActor(USDS_OWNER) {
+    function test_rebase_opt_out() public {
         changePrank(VAULT);
         usds.rebaseOptIn();
         usds.rebaseOptOut();
