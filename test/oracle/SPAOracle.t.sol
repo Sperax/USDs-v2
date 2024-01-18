@@ -2,7 +2,7 @@
 pragma solidity 0.8.19;
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import {SPAOracle} from "../../contracts/oracle/SPAOracle.sol";
+import {SPAOracle, IDiaOracle} from "../../contracts/oracle/SPAOracle.sol";
 import {IUniswapV3Factory} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Factory.sol";
 import {BaseTest} from "../utils/BaseTest.sol";
 
@@ -34,6 +34,7 @@ abstract contract BaseUniOracleTest is BaseTest {
 
     error FeedUnavailable();
     error InvalidAddress();
+    error QuoteTokenFeedMissing();
 
     function setUp() public virtual override {
         super.setUp();
@@ -85,16 +86,30 @@ contract Test_Init is SPAOracleTest {
         assertEq(uint256(spaOracle.maPeriod()), uint256(MA_PERIOD));
         assertEq(spaOracle.weightDIA(), WEIGHT_DIA);
     }
+
+    function test_revertWhen_QuoteTokenFeedMissing() public {
+        vm.expectRevert(abi.encodeWithSelector(QuoteTokenFeedMissing.selector));
+        new SPAOracle(masterOracle, USDS, FEE_TIER, MA_PERIOD, WEIGHT_DIA); // USDS is not added to master oracle
+    }
 }
 
-contract Test_FetchPrice is SPAOracleTest {
-    function test_fetchPrice() public {
+contract Test_GetPrice is SPAOracleTest {
+    function test_revertWhen_PriceTooOld() public {
+        vm.startPrank(USDS_OWNER);
+        spaOracle.updateDIAParams(WEIGHT_DIA, 121);
+        vm.stopPrank();
+
+        vm.expectRevert(abi.encodeWithSelector(PriceTooOld.selector));
+        spaOracle.getPrice();
+    }
+
+    function test_GetPrice() public {
         (uint256 price, uint256 precision) = spaOracle.getPrice();
         assertEq(precision, SPA_PRICE_PRECISION);
         assertGt(price, 0);
     }
 
-    function testFuzz_fetchPrice_when_period_value_below_minTwapPeriod(uint256 period) public {
+    function testFuzz_GetPrice_when_period_value_below_minTwapPeriod(uint256 period) public {
         // this test is to make sure that even if the twap period value is less than MIN_TWAP_PERIOD (10 mins)
         // we still get the price based on MIN_TWAP_PERIOD (10 mins)
         vm.assume(period < 10 minutes);
@@ -162,7 +177,7 @@ contract Test_updateMasterOracle is SPAOracleTest {
 
     function test_revertsWhen_quoteTokenPriceFeedUnavailable() public useKnownActor(USDS_OWNER) {
         IMasterOracle(masterOracle).removeTokenPriceFeed(USDCe);
-        vm.expectRevert();
+        vm.expectRevert(abi.encodeWithSelector(QuoteTokenFeedMissing.selector));
         spaOracle.updateMasterOracle(masterOracle);
     }
 

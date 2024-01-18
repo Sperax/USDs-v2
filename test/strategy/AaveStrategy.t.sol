@@ -214,15 +214,20 @@ contract Deposit is AaveStrategyTest {
         strategy.deposit(ASSET, 0);
     }
 
-    function test_Deposit() public useKnownActor(VAULT) {
+    function testFuzz_Deposit(uint256 _depositAmount) public useKnownActor(VAULT) {
+        depositAmount = bound(_depositAmount, 1, 1e4 * 10 ** ERC20(ASSET).decimals()); // keeping a lesser upper limit to avoid supply cap error
         uint256 initial_bal = strategy.checkBalance(ASSET);
+        uint256 initialLPBalance = strategy.checkLPTokenBalance(ASSET);
+        assert(initialLPBalance == 0);
 
         deal(address(ASSET), VAULT, depositAmount);
         IERC20(ASSET).approve(address(strategy), depositAmount);
         strategy.deposit(ASSET, depositAmount);
 
         uint256 new_bal = strategy.checkBalance(ASSET);
+        uint256 newLPBalance = strategy.checkLPTokenBalance(ASSET);
         assertEq(initial_bal + depositAmount, new_bal);
+        assertApproxEqAbs(initialLPBalance + depositAmount, newLPBalance, 1);
     }
 }
 

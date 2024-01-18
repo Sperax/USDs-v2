@@ -505,6 +505,7 @@ contract Test_CollectInterest is Test_Harvest {
 
             /// @note precision Error from stargate
             assertApproxEqAbs(strategy.checkLPTokenBalance(assetData[i].asset), initialLPBal, 1);
+            assertEq(strategy.checkInterestEarned(assetData[i].asset), 0);
         }
     }
 
