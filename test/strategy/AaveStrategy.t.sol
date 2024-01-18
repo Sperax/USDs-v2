@@ -240,17 +240,17 @@ contract DepositLPTest is AaveStrategyTest {
         vm.stopPrank();
     }
 
-    function test_depositLp_revertsWhen_CollateralNotSupported() public useKnownActor(VAULT) {
+    function test_depositLp_RevertWhen_CollateralNotSupported() public useKnownActor(VAULT) {
         vm.expectRevert(abi.encodeWithSelector(CollateralNotSupported.selector, DUMMY_ADDRESS));
         strategy.depositLp(DUMMY_ADDRESS, 1);
     }
 
-    function test_depositLp_revertsWhen_InvalidAmount() public useKnownActor(VAULT) {
+    function test_depositLp_RevertWhen_InvalidAmount() public useKnownActor(VAULT) {
         vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAmount.selector));
         strategy.depositLp(ASSET, 0);
     }
 
-    function test_depositLp_revertsWhen_CallerNotVaultOrOwner() public useActor(0) {
+    function test_depositLp_RevertWhen_CallerNotVaultOrOwner() public useActor(0) {
         vm.expectRevert(abi.encodeWithSelector(CallerNotVaultOrOwner.selector, actors[0]));
         strategy.depositLp(ASSET, 1);
     }

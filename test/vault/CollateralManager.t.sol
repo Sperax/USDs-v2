@@ -79,7 +79,7 @@ contract Constructor is CollateralManagerTest {
 }
 
 contract CollateralManager_AddCollateral_Test is CollateralManagerTest {
-    function test_revertsWhen_downsidePegExceedsMax(
+    function test_RevertWhen_downsidePegExceedsMax(
         uint16 _baseMintFee,
         uint16 _baseRedeemFee,
         uint16 _downsidePeg,
@@ -93,7 +93,7 @@ contract CollateralManager_AddCollateral_Test is CollateralManagerTest {
         collateralSetUp(USDCe, _colComp, _baseMintFee, _baseRedeemFee, _downsidePeg);
     }
 
-    function test_revertsWhen_baseMintFeeExceedsMax(
+    function test_RevertWhen_baseMintFeeExceedsMax(
         uint16 _baseMintFee,
         uint16 _baseRedeemFee,
         uint16 _downsidePeg,
@@ -107,7 +107,7 @@ contract CollateralManager_AddCollateral_Test is CollateralManagerTest {
         collateralSetUp(USDCe, _colComp, _baseMintFee, _baseRedeemFee, _downsidePeg);
     }
 
-    function test_revertsWhen_baseRedeemFeeExceedsMax(
+    function test_RevertWhen_baseRedeemFeeExceedsMax(
         uint16 _baseMintFee,
         uint16 _baseRedeemFee,
         uint16 _downsidePeg,
@@ -121,7 +121,7 @@ contract CollateralManager_AddCollateral_Test is CollateralManagerTest {
         collateralSetUp(USDCe, _colComp, _baseMintFee, _baseRedeemFee, _downsidePeg);
     }
 
-    function test_revertsWhen_addSameCollateral(
+    function test_RevertWhen_addSameCollateral(
         uint16 _baseMintFee,
         uint16 _baseRedeemFee,
         uint16 _downsidePeg,
@@ -137,7 +137,7 @@ contract CollateralManager_AddCollateral_Test is CollateralManagerTest {
         collateralSetUp(USDCe, _colComp, _baseMintFee, _baseRedeemFee, _downsidePeg);
     }
 
-    function test_revertsWhen_collateralCompositionExceeded(
+    function test_RevertWhen_collateralCompositionExceeded(
         uint16 _baseMintFee,
         uint16 _baseRedeemFee,
         uint16 _downsidePeg
@@ -218,7 +218,7 @@ contract CollateralManager_AddCollateral_Test is CollateralManagerTest {
 }
 
 contract CollateralManager_updateCollateral_Test is CollateralManagerTest {
-    function test_revertsWhen_updateNonExistingCollateral(
+    function test_RevertWhen_updateNonExistingCollateral(
         uint16 _baseMintFee,
         uint16 _baseRedeemFee,
         uint16 _downsidePeg,
@@ -233,7 +233,7 @@ contract CollateralManager_updateCollateral_Test is CollateralManagerTest {
         collateralUpdate(USDT, _colComp, _baseMintFee, _baseRedeemFee, _downsidePeg);
     }
 
-    function test_revertsWhen_collateralCompositionExceeded(
+    function test_RevertWhen_collateralCompositionExceeded(
         uint16 _baseMintFee,
         uint16 _baseRedeemFee,
         uint16 _downsidePeg,
@@ -333,7 +333,7 @@ contract CollateralManager_updateCollateral_Test is CollateralManagerTest {
 }
 
 contract CollateralManager_removeCollateral_Test is CollateralManagerTest {
-    function test_revertsWhen_removeNonExistingCollateral() external useKnownActor(USDS_OWNER) {
+    function test_RevertWhen_removeNonExistingCollateral() external useKnownActor(USDS_OWNER) {
         vm.expectRevert(abi.encodeWithSelector(CollateralManager.CollateralDoesNotExist.selector));
         manager.removeCollateral(USDCe);
     }
@@ -377,7 +377,7 @@ contract CollateralManager_removeCollateral_Test is CollateralManagerTest {
         }
     }
 
-    function test_revertsWhen_removeStrategyCollateralStrategyExists(
+    function test_RevertWhen_removeStrategyCollateralStrategyExists(
         uint16 _baseMintFee,
         uint16 _baseRedeemFee,
         uint16 _downsidePeg,
@@ -396,13 +396,13 @@ contract CollateralManager_removeCollateral_Test is CollateralManagerTest {
 }
 
 contract CollateralManager_addCollateralStrategy_Test is CollateralManagerTest {
-    function test_revertsWhen_collateralDoesntExist(uint16 _collateralComposition) external useKnownActor(USDS_OWNER) {
+    function test_RevertWhen_collateralDoesntExist(uint16 _collateralComposition) external useKnownActor(USDS_OWNER) {
         vm.assume(_collateralComposition <= Helpers.MAX_PERCENTAGE);
         vm.expectRevert(abi.encodeWithSelector(CollateralManager.CollateralDoesNotExist.selector));
         manager.addCollateralStrategy(USDCe, STARGATE, 1000);
     }
 
-    function test_revertsWhen_addCollateralstrategyWhenAlreadyMapped(
+    function test_RevertWhen_addCollateralstrategyWhenAlreadyMapped(
         uint16 _baseMintFee,
         uint16 _baseRedeemFee,
         uint16 _downsidePeg,
@@ -419,7 +419,7 @@ contract CollateralManager_addCollateralStrategy_Test is CollateralManagerTest {
         manager.addCollateralStrategy(USDCe, STARGATE, _colComp);
     }
 
-    function test_revertsWhen_addCollateralstrategyNotSupported(
+    function test_RevertWhen_addCollateralstrategyNotSupported(
         uint16 _baseMintFee,
         uint16 _baseRedeemFee,
         uint16 _downsidePeg,
@@ -435,7 +435,7 @@ contract CollateralManager_addCollateralStrategy_Test is CollateralManagerTest {
         manager.addCollateralStrategy(FRAX, STARGATE, _colComp);
     }
 
-    function test_revertsWhen_addCollateralstrategyAllocationPerExceeded(
+    function test_RevertWhen_addCollateralstrategyAllocationPerExceeded(
         uint16 _baseMintFee,
         uint16 _baseRedeemFee,
         uint16 _downsidePeg,
@@ -504,7 +504,7 @@ contract CollateralManager_addCollateralStrategy_Test is CollateralManagerTest {
 }
 
 contract CollateralManager_updateCollateralStrategy_Test is CollateralManagerTest {
-    function test_revertsWhen_updateCollateralstrategyWhenNotMapped(
+    function test_RevertWhen_updateCollateralstrategyWhenNotMapped(
         uint16 _baseMintFee,
         uint16 _baseRedeemFee,
         uint16 _downsidePeg,
@@ -520,7 +520,7 @@ contract CollateralManager_updateCollateralStrategy_Test is CollateralManagerTes
         manager.updateCollateralStrategy(USDCe, STARGATE, 2000);
     }
 
-    function test_revertsWhen_updateCollateralstrategyAllocationPerExceeded(
+    function test_RevertWhen_updateCollateralstrategyAllocationPerExceeded(
         uint16 _baseMintFee,
         uint16 _baseRedeemFee,
         uint16 _downsidePeg,
@@ -537,7 +537,7 @@ contract CollateralManager_updateCollateralStrategy_Test is CollateralManagerTes
         manager.updateCollateralStrategy(USDCe, STARGATE, 10001);
     }
 
-    function test_revertsWhen_updateCollateralstrategyAllocationNotValid(
+    function test_RevertWhen_updateCollateralstrategyAllocationNotValid(
         uint16 _baseMintFee,
         uint16 _baseRedeemFee,
         uint16 _downsidePeg,
@@ -624,7 +624,7 @@ contract CollateralManager_updateCollateralStrategy_Test is CollateralManagerTes
 }
 
 contract CollateralManager_removeCollateralStrategy_Test is CollateralManagerTest {
-    function test_revertsWhen_strategyNotMapped(
+    function test_RevertWhen_strategyNotMapped(
         uint16 _baseMintFee,
         uint16 _baseRedeemFee,
         uint16 _downsidePeg,
@@ -661,7 +661,7 @@ contract CollateralManager_removeCollateralStrategy_Test is CollateralManagerTes
         manager.removeCollateralStrategy(USDCe, AAVE);
     }
 
-    function test_revertsWhen_strategyInUse(
+    function test_RevertWhen_strategyInUse(
         uint16 _baseMintFee,
         uint16 _baseRedeemFee,
         uint16 _downsidePeg,
@@ -678,7 +678,7 @@ contract CollateralManager_removeCollateralStrategy_Test is CollateralManagerTes
         manager.removeCollateralStrategy(USDCe, STARGATE);
     }
 
-    function test_revertsWhen_DefaultStrategy(
+    function test_RevertWhen_DefaultStrategy(
         uint16 _baseMintFee,
         uint16 _baseRedeemFee,
         uint16 _downsidePeg,
@@ -696,7 +696,7 @@ contract CollateralManager_removeCollateralStrategy_Test is CollateralManagerTes
         manager.removeCollateralStrategy(USDCe, STARGATE);
     }
 
-    function test_revertsWhen_DefaultStrategyNotExist(
+    function test_RevertWhen_DefaultStrategyNotExist(
         uint16 _baseMintFee,
         uint16 _baseRedeemFee,
         uint16 _downsidePeg,
@@ -877,7 +877,7 @@ contract CollateralManager_mintRedeemParams_test is CollateralManagerTest {
         assertEq(mintData.desiredCollateralComposition, _data.desiredCollateralComposition);
     }
 
-    function test_revertsWhen_getMintParams_collateralDoesntExist() external useKnownActor(USDS_OWNER) {
+    function test_RevertWhen_getMintParams_collateralDoesntExist() external useKnownActor(USDS_OWNER) {
         vm.expectRevert(abi.encodeWithSelector(CollateralManager.CollateralDoesNotExist.selector));
         manager.getMintParams(USDT);
     }
@@ -915,7 +915,7 @@ contract CollateralManager_mintRedeemParams_test is CollateralManagerTest {
         assertEq(redeemData.desiredCollateralComposition, _data.desiredCollateralComposition);
     }
 
-    function test_revertsWhen_getRedeemParams_collateralDoesntExist() external useKnownActor(USDS_OWNER) {
+    function test_RevertWhen_getRedeemParams_collateralDoesntExist() external useKnownActor(USDS_OWNER) {
         vm.expectRevert(abi.encodeWithSelector(CollateralManager.CollateralDoesNotExist.selector));
         manager.getRedeemParams(FRAX);
     }

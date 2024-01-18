@@ -118,17 +118,17 @@ contract UpdateTokenPriceFeed is MasterPriceOracleTest {
         msgData = abi.encode(this.dummyPrice.selector);
     }
 
-    function test_revertsWhen_NotOwner() public useActor(0) {
+    function test_RevertWhen_NotOwner() public useActor(0) {
         vm.expectRevert("Ownable: caller is not the owner");
         masterOracle.updateTokenPriceFeed(token, source, msgData);
     }
 
-    function test_revertsWhen_InvalidPriceFeed() public useKnownActor(USDS_OWNER) {
+    function test_RevertWhen_InvalidPriceFeed() public useKnownActor(USDS_OWNER) {
         vm.expectRevert(abi.encodeWithSelector(MasterPriceOracle.InvalidPriceFeed.selector, token));
         masterOracle.updateTokenPriceFeed(token, address(0), msgData);
     }
 
-    function test_revertsWhen_UnableToFetchPriceFeed() public useKnownActor(USDS_OWNER) {
+    function test_RevertWhen_UnableToFetchPriceFeed() public useKnownActor(USDS_OWNER) {
         vm.expectRevert(abi.encodeWithSelector(MasterPriceOracle.UnableToFetchPriceFeed.selector, token));
         masterOracle.updateTokenPriceFeed(token, source, abi.encode(this.dummyInvalidPriceFeed.selector));
     }
@@ -181,12 +181,12 @@ contract RemoveTokenPriceFeed is MasterPriceOracleTest {
         msgData = abi.encode(this.dummyPrice.selector);
     }
 
-    function test_revertsWhen_NotOwner() public useActor(0) {
+    function test_RevertWhen_NotOwner() public useActor(0) {
         vm.expectRevert("Ownable: caller is not the owner");
         masterOracle.removeTokenPriceFeed(token);
     }
 
-    function test_revertsWhen_PriceFeedNotFound() public useKnownActor(USDS_OWNER) {
+    function test_RevertWhen_PriceFeedNotFound() public useKnownActor(USDS_OWNER) {
         vm.expectRevert(abi.encodeWithSelector(MasterPriceOracle.PriceFeedNotFound.selector, token));
         masterOracle.removeTokenPriceFeed(token);
     }

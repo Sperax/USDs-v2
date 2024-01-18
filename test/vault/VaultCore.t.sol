@@ -150,7 +150,7 @@ contract Test_Setters is VaultCoreTest {
         _newOracle = makeAddr("_newOracle");
     }
 
-    function test_revertsWhen_callerIsNotOwner() public useActor(1) {
+    function test_RevertWhen_callerIsNotOwner() public useActor(1) {
         vm.expectRevert("Ownable: caller is not the owner");
         IVault(VAULT).updateFeeVault(_newFeeVault);
         vm.expectRevert("Ownable: caller is not the owner");
@@ -165,7 +165,7 @@ contract Test_Setters is VaultCoreTest {
         IVault(VAULT).updateOracle(_newOracle);
     }
 
-    function test_revertsWhen_InvalidAddress() public useKnownActor(USDS_OWNER) {
+    function test_RevertWhen_InvalidAddress() public useKnownActor(USDS_OWNER) {
         vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAddress.selector));
         IVault(VAULT).updateFeeVault(address(0));
         vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAddress.selector));
@@ -235,14 +235,14 @@ contract Test_Allocate is VaultCoreTest {
         _strategy = AAVE_STRATEGY;
     }
 
-    function test_revertsWhen_CollateralAllocationPaused() public useActor(1) {
+    function test_RevertWhen_CollateralAllocationPaused() public useActor(1) {
         // DAI
         _collateral = 0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1;
         vm.expectRevert(abi.encodeWithSelector(CollateralManager.CollateralAllocationPaused.selector));
         IVault(VAULT).allocate(_collateral, _strategy, _amount);
     }
 
-    function test_revertsWhen_AllocationNotAllowed() public useActor(1) {
+    function test_RevertWhen_AllocationNotAllowed() public useActor(1) {
         uint16 cap = 3000;
         uint256 maxCollateralUsage = (
             cap
@@ -327,20 +327,20 @@ contract Test_Mint is VaultCoreTest {
         IVault(VAULT).updateFeeVault(feeVault);
     }
 
-    function testFuzz_revertsWhen_DeadlinePassed(uint256 __deadline) public useKnownActor(minter) {
+    function testFuzz_RevertWhen_DeadlinePassed(uint256 __deadline) public useKnownActor(minter) {
         uint256 _latestDeadline = block.timestamp - 1;
         _deadline = bound(__deadline, 0, _latestDeadline);
         vm.expectRevert(abi.encodeWithSelector(Helpers.CustomError.selector, "Deadline passed"));
         IVault(VAULT).mint(_collateral, _collateralAmt, _minUSDSAmt, _deadline);
     }
 
-    function test_revertsWhen_MintFailed() public useKnownActor(minter) {
+    function test_RevertWhen_MintFailed() public useKnownActor(minter) {
         _collateralAmt = 0;
         vm.expectRevert(abi.encodeWithSelector(VaultCore.MintFailed.selector));
         IVault(VAULT).mint(_collateral, _collateralAmt, _minUSDSAmt, _deadline);
     }
 
-    function test_revertsWhen_SlippageScrewsYou() public useKnownActor(minter) {
+    function test_RevertWhen_SlippageScrewsYou() public useKnownActor(minter) {
         (_minUSDSAmt,) = IVault(VAULT).mintView(_collateral, _collateralAmt);
         uint256 _expectedMinAmt = _minUSDSAmt + 10e18;
         vm.expectRevert(abi.encodeWithSelector(Helpers.MinSlippageError.selector, _minUSDSAmt, _expectedMinAmt));
@@ -572,7 +572,7 @@ contract Test_RedeemView is VaultCoreTest {
         _updateCollateralData(_data);
     }
 
-    function test_revertsWhen_RedeemNotAllowed() public {
+    function test_RevertWhen_RedeemNotAllowed() public {
         ICollateralManager.CollateralBaseData memory _data = ICollateralManager.CollateralBaseData({
             mintAllowed: true,
             redeemAllowed: false,
@@ -637,7 +637,7 @@ contract Test_RedeemView is VaultCoreTest {
         assertEq(strategyAmt, 0);
     }
 
-    function test_revertsWhen_CollateralAmtMoreThanVaultAmtAndDefaultStrategyNotSet() public {
+    function test_RevertWhen_CollateralAmtMoreThanVaultAmtAndDefaultStrategyNotSet() public {
         deal(USDCe, VAULT, (_usdsAmt / 2) / 1e12);
         vm.prank(USDS_OWNER);
         ICollateralManager(COLLATERAL_MANAGER).updateCollateralDefaultStrategy(USDCe, address(0));
@@ -656,7 +656,7 @@ contract Test_RedeemView is VaultCoreTest {
         IVault(VAULT).redeemView(_collateral, _usdsAmt);
     }
 
-    function test_RedeemView_revertsWhen_DefaultStrategySetButBalanceIsNotAvailable() public {
+    function test_RedeemView_RevertWhen_DefaultStrategySetButBalanceIsNotAvailable() public {
         deal(USDCe, VAULT, (_usdsAmt / 2) / 1e12);
         (uint256 _calculatedCollateralAmt,,,,) = _redeemViewTest(_usdsAmt, defaultStrategy);
         uint256 _availableAmount =
@@ -710,12 +710,12 @@ contract Test_RedeemView is VaultCoreTest {
         assertEq(_strategyAmt, 0);
     }
 
-    function test_RedeemView_revertsWhen_InvalidStrategy() public {
+    function test_RedeemView_RevertWhen_InvalidStrategy() public {
         vm.expectRevert(abi.encodeWithSelector(VaultCore.InvalidStrategy.selector, _collateral, COLLATERAL_MANAGER));
         IVault(VAULT).redeemView(_collateral, _usdsAmt, COLLATERAL_MANAGER);
     }
 
-    function test_RedeemView_revertsWhen_InsufficientCollateral() public {
+    function test_RedeemView_RevertWhen_InsufficientCollateral() public {
         (uint256 _calculatedCollateralAmt,,,,) = _redeemViewTest(_usdsAmt, otherStrategy);
         uint256 _availableAmount =
             ERC20(_collateral).balanceOf(VAULT) + IStrategy(otherStrategy).checkAvailableBalance(_collateral);
@@ -769,7 +769,7 @@ contract Test_Redeem is VaultCoreTest {
         _deadline = block.timestamp + 120;
     }
 
-    function test_RedeemFromVault_revertsWhen_SlippageMoreThanExpected() public useKnownActor(redeemer) {
+    function test_RedeemFromVault_RevertWhen_SlippageMoreThanExpected() public useKnownActor(redeemer) {
         deal(_collateral, VAULT, (_usdsAmt * 2) / 1e12);
         (_minCollAmt,,,,) = _redeemViewTest(_usdsAmt, address(0));
         emit log_named_uint("_minCollAmt", _minCollAmt);

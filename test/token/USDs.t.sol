@@ -108,7 +108,7 @@ contract TestInitialize is USDsTest {
         newUsds = USDs(upgradeUtil.deployErc1967Proxy(address(usdsImpl)));
     }
 
-    function test_revertWhen_InvalidAddress() public useKnownActor(USDS_OWNER) {
+    function test_RevertWhen_InvalidAddress() public useKnownActor(USDS_OWNER) {
         vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAddress.selector));
         newUsds.initialize(tokenName, tokenSymbol, address(0));
     }
@@ -123,7 +123,7 @@ contract TestInitialize is USDsTest {
         assertEq(currentActor, newUsds.owner());
     }
 
-    function test_revertWhen_AlreadyInitialized() public useKnownActor(USDS_OWNER) {
+    function test_RevertWhen_AlreadyInitialized() public useKnownActor(USDS_OWNER) {
         vm.expectRevert("Initializable: contract is already initialized");
         usds.initialize(tokenName, tokenSymbol, VAULT);
     }
@@ -141,14 +141,14 @@ contract TestTransferFrom is USDsTest {
         vm.stopPrank();
     }
 
-    function test_revertWhen_InsufficientAllowance() public useKnownActor(VAULT) {
+    function test_RevertWhen_InsufficientAllowance() public useKnownActor(VAULT) {
         uint256 amountToTransfer = usds.balanceOf(USER1);
 
         vm.expectRevert(bytes("Insufficient allowance"));
         usds.transferFrom(USER1, USER2, amountToTransfer);
     }
 
-    function test_revertWhen_TransferGreaterThanBal() public useKnownActor(VAULT) {
+    function test_RevertWhen_TransferGreaterThanBal() public useKnownActor(VAULT) {
         uint256 amountToTransfer = usds.balanceOf(USER1) + 1;
 
         vm.expectRevert(
@@ -157,14 +157,14 @@ contract TestTransferFrom is USDsTest {
         usds.transferFrom(USER1, USER2, amountToTransfer);
     }
 
-    function test_revertWhen_TransferToZeroAddr() public useKnownActor(USER1) {
+    function test_RevertWhen_TransferToZeroAddr() public useKnownActor(USER1) {
         uint256 amountToTransfer = usds.balanceOf(USER1);
 
         vm.expectRevert(abi.encodeWithSelector(USDs.TransferToZeroAddr.selector));
         usds.transferFrom(USER1, address(0), amountToTransfer);
     }
 
-    function test_revertWhen_ContractPaused() public useKnownActor(USER1) {
+    function test_RevertWhen_ContractPaused() public useKnownActor(USER1) {
         changePrank(USDS_OWNER);
         usds.pauseSwitch(true);
         changePrank(USER1);
@@ -232,7 +232,7 @@ contract TestTransfer is USDsTest {
         vm.stopPrank();
     }
 
-    function test_revertWhen_TransferGreaterThanBal() public useKnownActor(USER1) {
+    function test_RevertWhen_TransferGreaterThanBal() public useKnownActor(USER1) {
         uint256 bal = usds.balanceOf(USER1);
         uint256 amountToTransfer = bal + 1;
 
@@ -240,14 +240,14 @@ contract TestTransfer is USDsTest {
         usds.transfer(USER2, amountToTransfer);
     }
 
-    function test_revertWhen_TransferToZeroAddr() public useKnownActor(USER1) {
+    function test_RevertWhen_TransferToZeroAddr() public useKnownActor(USER1) {
         uint256 amountToTransfer = usds.balanceOf(USER1);
 
         vm.expectRevert(abi.encodeWithSelector(USDs.TransferToZeroAddr.selector));
         usds.transfer(address(0), amountToTransfer);
     }
 
-    function test_revertWhen_ContractPaused() public {
+    function test_RevertWhen_ContractPaused() public {
         changePrank(USDS_OWNER);
         usds.pauseSwitch(true);
         changePrank(USER1);
@@ -331,12 +331,12 @@ contract TestMint is USDsTest {
         amount = 10 * USDsPrecision;
     }
 
-    function test_revertWhen_CallerNotVault() public useKnownActor(USER1) {
+    function test_RevertWhen_CallerNotVault() public useKnownActor(USER1) {
         vm.expectRevert(abi.encodeWithSelector(USDs.CallerNotVault.selector, USER1));
         usds.mint(USDS_OWNER, amount);
     }
 
-    function test_revertWhen_ContractPaused() public useKnownActor(USDS_OWNER) {
+    function test_RevertWhen_ContractPaused() public useKnownActor(USDS_OWNER) {
         usds.pauseSwitch(true);
         changePrank(VAULT);
 
@@ -344,12 +344,12 @@ contract TestMint is USDsTest {
         usds.mint(USDS_OWNER, amount);
     }
 
-    function test_revertWhen_MintToZeroAddr() public useKnownActor(VAULT) {
+    function test_RevertWhen_MintToZeroAddr() public useKnownActor(VAULT) {
         vm.expectRevert(abi.encodeWithSelector(USDs.MintToZeroAddr.selector));
         usds.mint(address(0), amount);
     }
 
-    function test_revertWhen_MaxSupplyReached() public useKnownActor(VAULT) {
+    function test_RevertWhen_MaxSupplyReached() public useKnownActor(VAULT) {
         vm.expectRevert(abi.encodeWithSelector(USDs.MaxSupplyReached.selector, MAX_SUPPLY + usds.totalSupply()));
         usds.mint(USDS_OWNER, MAX_SUPPLY);
     }
@@ -409,7 +409,7 @@ contract TestBurn is USDsTest {
         amount = 100000;
     }
 
-    function test_revertWhen_ContractPaused() public useKnownActor(USDS_OWNER) {
+    function test_RevertWhen_ContractPaused() public useKnownActor(USDS_OWNER) {
         usds.pauseSwitch(true);
         changePrank(VAULT);
 
@@ -417,7 +417,7 @@ contract TestBurn is USDsTest {
         usds.burn(amount);
     }
 
-    function test_revertWhen_InsufficientBalance() public useKnownActor(USDS_OWNER) {
+    function test_RevertWhen_InsufficientBalance() public useKnownActor(USDS_OWNER) {
         changePrank(VAULT);
         usds.rebaseOptIn();
 
@@ -496,7 +496,7 @@ contract TestRebaseOptIn is USDsTest {
         usds.rebaseOptIn();
     }
 
-    function test_revertWhen_CallerNotOwner() public useKnownActor(VAULT) {
+    function test_RevertWhen_CallerNotOwner() public useKnownActor(VAULT) {
         vm.expectRevert("Ownable: caller is not the owner");
         usds.rebaseOptIn(currentActor);
     }
@@ -525,7 +525,7 @@ contract TestRebaseOptOut is USDsTest {
         usds.rebaseOptOut();
     }
 
-    function test_revertWhen_CallerNotOwner() public useKnownActor(USER1) {
+    function test_RevertWhen_CallerNotOwner() public useKnownActor(USER1) {
         vm.expectRevert("Ownable: caller is not the owner");
         usds.rebaseOptOut(currentActor);
     }
@@ -557,12 +557,12 @@ contract TestRebaseOptOut is USDsTest {
 contract TestRebase is USDsTest {
     using StableMath for uint256;
 
-    function test_revertWhen_CallerNotVault() public useKnownActor(USER1) {
+    function test_RevertWhen_CallerNotVault() public useKnownActor(USER1) {
         vm.expectRevert(abi.encodeWithSelector(USDs.CallerNotVault.selector, USER1));
         usds.rebase(1);
     }
 
-    function test_revertWhen_CannotIncreaseZeroSupply() public {
+    function test_RevertWhen_CannotIncreaseZeroSupply() public {
         address account = VAULT;
         changePrank(account);
         USDs usdsImpl = new USDs();
@@ -653,7 +653,7 @@ contract TestUpdateVault is USDsTest {
 }
 
 contract TestPauseSwitch is USDsTest {
-    function test_revertWhen_CallerNotOwner() public useKnownActor(USER1) {
+    function test_RevertWhen_CallerNotOwner() public useKnownActor(USER1) {
         vm.expectRevert("Ownable: caller is not the owner");
         usds.pauseSwitch(true);
     }

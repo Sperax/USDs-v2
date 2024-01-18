@@ -726,12 +726,12 @@ contract Test_RecoverERC20 is StargateStrategyTest {
         amount = 1000 * 10 ** ERC20(token).decimals();
     }
 
-    function test_revertsWhen_CallerIsNotOwner() public {
+    function test_RevertWhen_CallerIsNotOwner() public {
         vm.expectRevert("Ownable: caller is not the owner");
         strategy.recoverERC20(token, receiver, amount);
     }
 
-    function test_revertsWhen_AmountMoreThanBalance() public useKnownActor(USDS_OWNER) {
+    function test_RevertWhen_AmountMoreThanBalance() public useKnownActor(USDS_OWNER) {
         vm.expectRevert();
         strategy.recoverERC20(token, receiver, amount);
     }
@@ -757,7 +757,7 @@ contract Test_UpdateFarm is StargateStrategyTest {
         _newFarm = 0xeA8DfEE1898a7e0a59f7527F076106d7e44c2176;
     }
 
-    function test_revertsWhen_CallerIsNotOwner() public {
+    function test_RevertWhen_CallerIsNotOwner() public {
         vm.expectRevert("Ownable: caller is not the owner");
         strategy.updateFarm(_newFarm, address(0));
     }

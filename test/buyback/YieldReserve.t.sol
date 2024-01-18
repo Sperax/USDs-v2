@@ -53,12 +53,12 @@ contract ToggleSrcTokenPermissionTest is YieldReserveTest {
         mockPrice(SPA, 10, SPAPrecision);
     }
 
-    function test_revertsWhen_callerNotOwner() public useActor(0) {
+    function test_RevertWhen_callerNotOwner() public useActor(0) {
         vm.expectRevert("Ownable: caller is not the owner");
         yieldReserve.toggleSrcTokenPermission(SPA, true);
     }
 
-    function test_revertsWhen_AlreadyInDesiredState() public useKnownActor(USDS_OWNER) {
+    function test_RevertWhen_AlreadyInDesiredState() public useKnownActor(USDS_OWNER) {
         yieldReserve.toggleSrcTokenPermission(SPA, true);
         vm.expectRevert(abi.encodeWithSelector(YieldReserve.AlreadyInDesiredState.selector));
         yieldReserve.toggleSrcTokenPermission(SPA, true);
@@ -74,7 +74,7 @@ contract ToggleSrcTokenPermissionTest is YieldReserveTest {
         assertEq(tokenData.conversionFactor, 1);
     }
 
-    function test_revertsWhen_priceFeeDoesNotExist() public useKnownActor(USDS_OWNER) {
+    function test_RevertWhen_priceFeeDoesNotExist() public useKnownActor(USDS_OWNER) {
         address randomTokenAddress = address(0x9);
 
         vm.expectRevert(abi.encodeWithSelector(YieldReserve.TokenPriceFeedMissing.selector));
@@ -100,12 +100,12 @@ contract ToggleDstTokenPermissionTest is YieldReserveTest {
         mockPrice(SPA, 10, SPAPrecision);
     }
 
-    function test_revertsWhen_callerNotOwner() public useActor(0) {
+    function test_RevertWhen_callerNotOwner() public useActor(0) {
         vm.expectRevert("Ownable: caller is not the owner");
         yieldReserve.toggleDstTokenPermission(SPA, true);
     }
 
-    function test_revertsWhen_AlreadyInDesiredState() public useKnownActor(USDS_OWNER) {
+    function test_RevertWhen_AlreadyInDesiredState() public useKnownActor(USDS_OWNER) {
         yieldReserve.toggleDstTokenPermission(SPA, true);
         vm.expectRevert(abi.encodeWithSelector(YieldReserve.AlreadyInDesiredState.selector));
         yieldReserve.toggleDstTokenPermission(SPA, true);
@@ -121,7 +121,7 @@ contract ToggleDstTokenPermissionTest is YieldReserveTest {
         assertEq(tokenData.conversionFactor, 1);
     }
 
-    function test_revertsWhen_priceFeeDoesNotExist() public useKnownActor(USDS_OWNER) {
+    function test_RevertWhen_priceFeeDoesNotExist() public useKnownActor(USDS_OWNER) {
         address randomTokenAddress = address(0x9);
 
         vm.expectRevert(abi.encodeWithSelector(YieldReserve.TokenPriceFeedMissing.selector));
@@ -151,22 +151,22 @@ contract WithdrawTest is YieldReserveTest {
         amount = 1e21;
     }
 
-    function test_revertsWhen_callerNotOwner() public {
+    function test_RevertWhen_callerNotOwner() public {
         vm.expectRevert("Ownable: caller is not the owner");
         yieldReserve.withdraw(token, receiver, amount);
     }
 
-    function test_revertsWhen_invalidToken() public useKnownActor(USDS_OWNER) {
+    function test_RevertWhen_invalidToken() public useKnownActor(USDS_OWNER) {
         vm.expectRevert("Address: call to non-contract");
         yieldReserve.withdraw(address(0), receiver, amount);
     }
 
-    function test_revertsWhen_invalidReceiver() public useKnownActor(USDS_OWNER) {
+    function test_RevertWhen_invalidReceiver() public useKnownActor(USDS_OWNER) {
         vm.expectRevert("ERC20: transfer to the zero address");
         yieldReserve.withdraw(token, address(0), amount);
     }
 
-    function test_revertsWhen_invalidAmount() public useKnownActor(USDS_OWNER) {
+    function test_RevertWhen_invalidAmount() public useKnownActor(USDS_OWNER) {
         vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAmount.selector));
         yieldReserve.withdraw(token, receiver, 0);
     }
@@ -187,18 +187,18 @@ contract WithdrawTest is YieldReserveTest {
 contract UpdateBuybackPercentageTest is YieldReserveTest {
     event BuybackPercentageUpdated(uint256 toBuyback);
 
-    function test_revertsWhen_callerNotOwner() public useActor(0) {
+    function test_RevertWhen_callerNotOwner() public useActor(0) {
         vm.expectRevert("Ownable: caller is not the owner");
         yieldReserve.updateBuybackPercentage(2000);
     }
 
-    function test_revertsWhen_percentageGTMax() public useKnownActor(USDS_OWNER) {
+    function test_RevertWhen_percentageGTMax() public useKnownActor(USDS_OWNER) {
         uint256 buybackPercentage = 10001;
         vm.expectRevert(abi.encodeWithSelector(Helpers.GTMaxPercentage.selector, buybackPercentage));
         yieldReserve.updateBuybackPercentage(buybackPercentage);
     }
 
-    function test_revertsWhen_percentageIsZero() public useKnownActor(USDS_OWNER) {
+    function test_RevertWhen_percentageIsZero() public useKnownActor(USDS_OWNER) {
         uint256 buybackPercentage = 0;
         vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAmount.selector));
         yieldReserve.updateBuybackPercentage(buybackPercentage);
@@ -217,12 +217,12 @@ contract UpdateBuybackPercentageTest is YieldReserveTest {
 contract UpdateBuybackAddressTest is YieldReserveTest {
     event BuybackUpdated(address newBuyback);
 
-    function test_revertsWhen_callerNotOwner() public {
+    function test_RevertWhen_callerNotOwner() public {
         vm.expectRevert("Ownable: caller is not the owner");
         yieldReserve.updateBuyback(VAULT);
     }
 
-    function test_revertsWhen_InvalidAddress() public useKnownActor(USDS_OWNER) {
+    function test_RevertWhen_InvalidAddress() public useKnownActor(USDS_OWNER) {
         vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAddress.selector));
         yieldReserve.updateBuyback(address(0));
     }
@@ -238,12 +238,12 @@ contract UpdateBuybackAddressTest is YieldReserveTest {
 contract UpdateOracleAddressTest is YieldReserveTest {
     event OracleUpdated(address newOracle);
 
-    function test_revertsWhen_callerNotOwner() public useActor(0) {
+    function test_RevertWhen_callerNotOwner() public useActor(0) {
         vm.expectRevert("Ownable: caller is not the owner");
         yieldReserve.updateOracle(VAULT);
     }
 
-    function test_revertsWhen_invalidAddress() public useKnownActor(USDS_OWNER) {
+    function test_RevertWhen_invalidAddress() public useKnownActor(USDS_OWNER) {
         vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAddress.selector));
         yieldReserve.updateOracle(address(0));
     }
@@ -259,12 +259,12 @@ contract UpdateOracleAddressTest is YieldReserveTest {
 contract UpdateDripperAddressTest is YieldReserveTest {
     event DripperUpdated(address newDripper);
 
-    function test_revertsWhen_callerNotOwner() public useActor(0) {
+    function test_RevertWhen_callerNotOwner() public useActor(0) {
         vm.expectRevert("Ownable: caller is not the owner");
         yieldReserve.updateDripper(VAULT);
     }
 
-    function test_revertsWhen_invalidAddress() public useKnownActor(USDS_OWNER) {
+    function test_RevertWhen_invalidAddress() public useKnownActor(USDS_OWNER) {
         vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAddress.selector));
         yieldReserve.updateDripper(address(0));
     }
@@ -280,12 +280,12 @@ contract UpdateDripperAddressTest is YieldReserveTest {
 contract UpdateVaultAddressTest is YieldReserveTest {
     event VaultUpdated(address newVault);
 
-    function test_revertsWhen_callerNotOwner() public useActor(0) {
+    function test_RevertWhen_callerNotOwner() public useActor(0) {
         vm.expectRevert("Ownable: caller is not the owner");
         yieldReserve.updateVault(VAULT);
     }
 
-    function test_revertsWhen_invalidAddress() public useKnownActor(USDS_OWNER) {
+    function test_RevertWhen_invalidAddress() public useKnownActor(USDS_OWNER) {
         vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAddress.selector));
         yieldReserve.updateVault(address(0));
     }
@@ -305,18 +305,18 @@ contract GetTokenBForTokenATest is YieldReserveTest {
         mockPrice(USDS, 1e8, PRICE_PRECISION);
     }
 
-    function test_revertsWhen_invalidSourceToken() public {
+    function test_RevertWhen_invalidSourceToken() public {
         vm.expectRevert(abi.encodeWithSelector(YieldReserve.InvalidSourceToken.selector));
         yieldReserve.getTokenBForTokenA(USDS, USDCe, 10000);
     }
 
-    function test_revertsWhen_invalidDestinationToken() public useKnownActor(USDS_OWNER) {
+    function test_RevertWhen_invalidDestinationToken() public useKnownActor(USDS_OWNER) {
         yieldReserve.toggleSrcTokenPermission(USDS, true);
         vm.expectRevert(abi.encodeWithSelector(YieldReserve.InvalidDestinationToken.selector));
         yieldReserve.getTokenBForTokenA(USDS, USDCe, 10000);
     }
 
-    function test_revertsWhen_invalidAmount() public useKnownActor(USDS_OWNER) {
+    function test_RevertWhen_invalidAmount() public useKnownActor(USDS_OWNER) {
         yieldReserve.toggleSrcTokenPermission(USDS, true);
         yieldReserve.toggleDstTokenPermission(USDCe, true);
         vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAmount.selector));
