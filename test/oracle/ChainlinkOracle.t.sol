@@ -32,13 +32,13 @@ contract ChainlinkOracleTest is BaseTest {
 }
 
 contract Test_SetTokenData is ChainlinkOracleTest {
-    function test_revertsWhen_notOwner() public {
+    function test_RevertWhen_notOwner() public {
         ChainlinkOracle.SetupTokenData memory tokenData = _getTokenData()[0];
         vm.expectRevert("Ownable: caller is not the owner");
         chainlinkOracle.setTokenData(tokenData.token, tokenData.data);
     }
 
-    function test_revertsWhen_InvalidPrecision() public useKnownActor(USDS_OWNER) {
+    function test_RevertWhen_InvalidPrecision() public useKnownActor(USDS_OWNER) {
         ChainlinkOracle.SetupTokenData memory tokenData = _getTokenData()[0];
         tokenData.data.pricePrecision = 1e9;
         vm.expectRevert(abi.encodeWithSelector(ChainlinkOracle.InvalidPricePrecision.selector));
@@ -47,7 +47,7 @@ contract Test_SetTokenData is ChainlinkOracleTest {
 
     function test_setTokenData() public useKnownActor(USDS_OWNER) {
         ChainlinkOracle.SetupTokenData memory tokenData = _getTokenData()[0];
-        vm.expectEmit(true, true, true, true);
+        vm.expectEmit(address(chainlinkOracle));
         emit TokenDataChanged(
             tokenData.token, tokenData.data.priceFeed, tokenData.data.pricePrecision, tokenData.data.timeout
         );
@@ -71,12 +71,12 @@ contract Test_GetTokenPrice is ChainlinkOracleTest {
         vm.stopPrank();
     }
 
-    function test_revertsWhen_unSupportedCollateral() public {
+    function test_RevertWhen_unSupportedCollateral() public {
         vm.expectRevert(abi.encodeWithSelector(ChainlinkOracle.TokenNotSupported.selector, USDS));
         chainlinkOracle.getTokenPrice(USDS);
     }
 
-    function test_revertsWhen_sequencerDown() public {
+    function test_RevertWhen_sequencerDown() public {
         (uint80 roundId,, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound) =
             AggregatorV3Interface(chainlinkOracle.CHAINLINK_SEQ_UPTIME_FEED()).latestRoundData();
 
@@ -90,7 +90,7 @@ contract Test_GetTokenPrice is ChainlinkOracleTest {
         chainlinkOracle.getTokenPrice(USDCe);
     }
 
-    function test_revertsWhen_gracePeriodNotPassed() public {
+    function test_RevertWhen_gracePeriodNotPassed() public {
         (uint80 roundId,,, uint256 updatedAt, uint80 answeredInRound) =
             AggregatorV3Interface(chainlinkOracle.CHAINLINK_SEQ_UPTIME_FEED()).latestRoundData();
 
@@ -106,7 +106,7 @@ contract Test_GetTokenPrice is ChainlinkOracleTest {
         chainlinkOracle.getTokenPrice(USDCe);
     }
 
-    function test_revertsWhen_roundNotComplete() public {
+    function test_RevertWhen_roundNotComplete() public {
         uint256 updatedAt = 0;
         uint256 price = 100;
         vm.mockCall(
@@ -118,7 +118,7 @@ contract Test_GetTokenPrice is ChainlinkOracleTest {
         chainlinkOracle.getTokenPrice(USDCe);
     }
 
-    function testFuzz_revertsWhen_PriceNegative(int256 price) public {
+    function testFuzz_RevertWhen_PriceNegative(int256 price) public {
         vm.assume(price < 0);
         uint256 updatedAt = block.timestamp;
         vm.mockCall(
@@ -130,7 +130,7 @@ contract Test_GetTokenPrice is ChainlinkOracleTest {
         chainlinkOracle.getTokenPrice(USDCe);
     }
 
-    function test_revertsWhen_stalePrice() public {
+    function test_RevertWhen_stalePrice() public {
         uint256 updatedAt = block.timestamp - (25 hours + 1 seconds);
         vm.mockCall(
             0x50834F3163758fcC1Df9973b6e91f0F0F0434aD3,

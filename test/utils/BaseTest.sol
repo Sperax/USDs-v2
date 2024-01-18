@@ -29,7 +29,6 @@ abstract contract Setup is Test {
     address internal ORACLE;
     address internal DRIPPER;
     address internal REBASE_MANAGER;
-    address internal BUYBACK;
     address internal STARGATE_STRATEGY;
     address internal AAVE_STRATEGY;
     address internal FEE_VAULT;
@@ -89,11 +88,10 @@ abstract contract BaseTest is Setup {
         SPA = 0x5575552988A3A80504bBaeB1311674fCFd40aD4B;
         USDS_OWNER = 0x5b12d9846F8612E439730d18E1C12634753B1bF1;
         PROXY_ADMIN = 0x3E49925A79CbFb68BAa5bc9DFb4f7D955D1ddF25;
-        DRIPPER = 0xf3f98086f7B61a32be4EdF8d8A4b964eC886BBcd; // dummy addr
-        REBASE_MANAGER = 0xf3f98086f7B61a32be4EdF8d8A4b964eC886BBcd; // dummy addr
+        DRIPPER = 0xd50193e8fFb00beA274bD2b11d0a7Ea08dA044c1;
+        REBASE_MANAGER = 0x297331A0155B1e30bBFA85CF3609eC0fF037BEEC;
         SPA_BUYBACK = 0xFbc0d3cA777722d234FE01dba94DeDeDb277AFe3;
-        BUYBACK = 0xf3f98086f7B61a32be4EdF8d8A4b964eC886BBcd;
-        VAULT = 0xF783DD830A4650D2A8594423F123250652340E3f;
-        ORACLE = 0xf3f98086f7B61a32be4EdF8d8A4b964eC886BBcd;
+        VAULT = 0x6Bbc476Ee35CBA9e9c3A59fc5b10d7a0BC6f74Ca;
+        ORACLE = 0x14D99412dAB1878dC01Fe7a1664cdE85896e8E50;
     }
 }

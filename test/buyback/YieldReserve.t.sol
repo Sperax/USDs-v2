@@ -8,7 +8,7 @@ import {VaultCore} from "../../contracts/vault/VaultCore.sol";
 import {IERC20, ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {PreMigrationSetup} from "../utils/DeploymentSetup.sol";
 
-contract YieldReserveSetup is PreMigrationSetup {
+contract YieldReserveTest is PreMigrationSetup {
     YieldReserve internal yieldReserve;
     IVault internal vault;
     uint256 USDCePrecision;
@@ -25,7 +25,7 @@ contract YieldReserveSetup is PreMigrationSetup {
         SPAPrecision = 10 ** ERC20(SPA).decimals();
 
         vm.startPrank(USDS_OWNER);
-        yieldReserve = new YieldReserve(BUYBACK, VAULT, ORACLE, DRIPPER);
+        yieldReserve = new YieldReserve(SPA_BUYBACK, VAULT, ORACLE, DRIPPER);
         vm.stopPrank();
     }
 
@@ -45,199 +45,280 @@ contract YieldReserveSetup is PreMigrationSetup {
     }
 }
 
-contract YieldReserveTest is YieldReserveSetup {
-    function test_toggleSrcTokenPermission_auth_error() public useActor(0) {
+contract ToggleSrcTokenPermissionTest is YieldReserveTest {
+    event SrcTokenPermissionUpdated(address indexed token, bool isAllowed);
+
+    function setUp() public override {
+        super.setUp();
+        mockPrice(SPA, 10, SPAPrecision);
+    }
+
+    function test_RevertWhen_callerNotOwner() public useActor(0) {
         vm.expectRevert("Ownable: caller is not the owner");
         yieldReserve.toggleSrcTokenPermission(SPA, true);
     }
 
-    function test_toggleSrcTokenPermission() public useKnownActor(USDS_OWNER) {
-        mockPrice(SPA, 10, SPAPrecision);
-
+    function test_RevertWhen_AlreadyInDesiredState() public useKnownActor(USDS_OWNER) {
         yieldReserve.toggleSrcTokenPermission(SPA, true);
+        vm.expectRevert(abi.encodeWithSelector(YieldReserve.AlreadyInDesiredState.selector));
+        yieldReserve.toggleSrcTokenPermission(SPA, true);
+    }
+
+    function test_ToggleSrcTokenFalse() public useKnownActor(USDS_OWNER) {
+        yieldReserve.toggleSrcTokenPermission(SPA, true);
+        vm.expectEmit(true, true, true, true, address(yieldReserve));
+        emit SrcTokenPermissionUpdated(SPA, false);
+        yieldReserve.toggleSrcTokenPermission(SPA, false);
         YieldReserve.TokenData memory tokenData = getTokenData(SPA);
-        assertTrue(tokenData.srcAllowed);
-        assertEq(tokenData.conversionFactor, 1);
-
-        assertTrue(IOracle(ORACLE).priceFeedExists(SPA));
-
-        vm.expectRevert(abi.encodeWithSelector(YieldReserve.AlreadyInDesiredState.selector));
-        yieldReserve.toggleSrcTokenPermission(SPA, true);
-
-        // toggle to false case
-        yieldReserve.toggleSrcTokenPermission(SPA, false);
-
-        tokenData = getTokenData(SPA);
         assertFalse(tokenData.srcAllowed);
+        assertEq(tokenData.conversionFactor, 1);
+    }
 
-        vm.expectRevert(abi.encodeWithSelector(YieldReserve.AlreadyInDesiredState.selector));
-        yieldReserve.toggleSrcTokenPermission(SPA, false);
-
-        // priceFeed doesn't exist case.
+    function test_RevertWhen_priceFeeDoesNotExist() public useKnownActor(USDS_OWNER) {
         address randomTokenAddress = address(0x9);
 
         vm.expectRevert(abi.encodeWithSelector(YieldReserve.TokenPriceFeedMissing.selector));
         yieldReserve.toggleSrcTokenPermission(randomTokenAddress, true);
     }
 
-    function test_toggleDstTokenPermission_auth_error() public useActor(0) {
+    function test_toggleSrcTokenPermission() public useKnownActor(USDS_OWNER) {
+        assertTrue(IOracle(ORACLE).priceFeedExists(SPA));
+        vm.expectEmit(true, true, true, true, address(yieldReserve));
+        emit SrcTokenPermissionUpdated(SPA, true);
+        yieldReserve.toggleSrcTokenPermission(SPA, true);
+        YieldReserve.TokenData memory tokenData = getTokenData(SPA);
+        assertTrue(tokenData.srcAllowed);
+        assertEq(tokenData.conversionFactor, 1);
+    }
+}
+
+contract ToggleDstTokenPermissionTest is YieldReserveTest {
+    event DstTokenPermissionUpdated(address indexed token, bool isAllowed);
+
+    function setUp() public override {
+        super.setUp();
+        mockPrice(SPA, 10, SPAPrecision);
+    }
+
+    function test_RevertWhen_callerNotOwner() public useActor(0) {
         vm.expectRevert("Ownable: caller is not the owner");
         yieldReserve.toggleDstTokenPermission(SPA, true);
     }
 
-    function test_toggleDstTokenPermission() public useKnownActor(USDS_OWNER) {
-        mockPrice(SPA, 10, SPAPrecision);
-
+    function test_RevertWhen_AlreadyInDesiredState() public useKnownActor(USDS_OWNER) {
         yieldReserve.toggleDstTokenPermission(SPA, true);
-
-        YieldReserve.TokenData memory tokenData = getTokenData(SPA);
-        assertTrue(tokenData.dstAllowed);
-        assertEq(tokenData.conversionFactor, 1);
-
-        assertTrue(IOracle(ORACLE).priceFeedExists(SPA));
-
         vm.expectRevert(abi.encodeWithSelector(YieldReserve.AlreadyInDesiredState.selector));
         yieldReserve.toggleDstTokenPermission(SPA, true);
+    }
 
-        // toggle to false case
+    function test_ToggleDstTokenFalse() public useKnownActor(USDS_OWNER) {
+        yieldReserve.toggleDstTokenPermission(SPA, true);
+        vm.expectEmit(true, true, true, true, address(yieldReserve));
+        emit DstTokenPermissionUpdated(SPA, false);
         yieldReserve.toggleDstTokenPermission(SPA, false);
-
-        tokenData = getTokenData(SPA);
+        YieldReserve.TokenData memory tokenData = getTokenData(SPA);
         assertFalse(tokenData.dstAllowed);
+        assertEq(tokenData.conversionFactor, 1);
+    }
 
-        vm.expectRevert(abi.encodeWithSelector(YieldReserve.AlreadyInDesiredState.selector));
-        yieldReserve.toggleSrcTokenPermission(SPA, false);
-
-        // priceFeed doesn't exist case.
+    function test_RevertWhen_priceFeeDoesNotExist() public useKnownActor(USDS_OWNER) {
         address randomTokenAddress = address(0x9);
 
         vm.expectRevert(abi.encodeWithSelector(YieldReserve.TokenPriceFeedMissing.selector));
         yieldReserve.toggleDstTokenPermission(randomTokenAddress, true);
     }
 
-    function test_withdraw_auth_error() public useActor(0) {
-        vm.expectRevert("Ownable: caller is not the owner");
-        yieldReserve.withdraw(SPA, USDS_OWNER, 10);
+    function test_toggleDstTokenPermission() public useKnownActor(USDS_OWNER) {
+        assertTrue(IOracle(ORACLE).priceFeedExists(SPA));
+        vm.expectEmit(true, true, true, true, address(yieldReserve));
+        emit DstTokenPermissionUpdated(SPA, true);
+        yieldReserve.toggleDstTokenPermission(SPA, true);
+        YieldReserve.TokenData memory tokenData = getTokenData(SPA);
+        assertTrue(tokenData.dstAllowed);
+        assertEq(tokenData.conversionFactor, 1);
+    }
+}
+
+contract WithdrawTest is YieldReserveTest {
+    address token;
+    address receiver;
+    uint256 amount;
+
+    function setUp() public override {
+        super.setUp();
+        token = SPA;
+        receiver = USDS_OWNER;
+        amount = 1e21;
     }
 
-    function test_withdraw_inputs() public useKnownActor(USDS_OWNER) {
+    function test_RevertWhen_callerNotOwner() public {
+        vm.expectRevert("Ownable: caller is not the owner");
+        yieldReserve.withdraw(token, receiver, amount);
+    }
+
+    function test_RevertWhen_invalidToken() public useKnownActor(USDS_OWNER) {
         vm.expectRevert("Address: call to non-contract");
-        yieldReserve.withdraw(address(0), USDS_OWNER, 10);
+        yieldReserve.withdraw(address(0), receiver, amount);
+    }
 
+    function test_RevertWhen_invalidReceiver() public useKnownActor(USDS_OWNER) {
         vm.expectRevert("ERC20: transfer to the zero address");
-        yieldReserve.withdraw(SPA, address(0), 10);
+        yieldReserve.withdraw(token, address(0), amount);
+    }
 
+    function test_RevertWhen_invalidAmount() public useKnownActor(USDS_OWNER) {
         vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAmount.selector));
-        yieldReserve.withdraw(SPA, USDS_OWNER, 0);
+        yieldReserve.withdraw(token, receiver, 0);
     }
 
     function test_withdraw() public useKnownActor(USDS_OWNER) {
-        uint256 inputBal = 10000;
-        deal(address(SPA), address(yieldReserve), inputBal * SPAPrecision);
+        deal(address(SPA), address(yieldReserve), amount);
 
         uint256 initialBal = IERC20(SPA).balanceOf(USDS_OWNER);
 
-        yieldReserve.withdraw(SPA, USDS_OWNER, inputBal);
+        yieldReserve.withdraw(SPA, USDS_OWNER, amount);
 
         uint256 newBal = IERC20(SPA).balanceOf(USDS_OWNER);
 
-        assertEq(inputBal + initialBal, newBal);
+        assertEq(amount + initialBal, newBal);
     }
+}
 
-    function test_updateBuybackPercentage_auth_error() public useActor(0) {
+contract UpdateBuybackPercentageTest is YieldReserveTest {
+    event BuybackPercentageUpdated(uint256 toBuyback);
+
+    function test_RevertWhen_callerNotOwner() public useActor(0) {
         vm.expectRevert("Ownable: caller is not the owner");
         yieldReserve.updateBuybackPercentage(2000);
     }
 
-    function test_updateBuybackPercentage_inputs() public useKnownActor(USDS_OWNER) {
+    function test_RevertWhen_percentageGTMax() public useKnownActor(USDS_OWNER) {
         uint256 buybackPercentage = 10001;
         vm.expectRevert(abi.encodeWithSelector(Helpers.GTMaxPercentage.selector, buybackPercentage));
         yieldReserve.updateBuybackPercentage(buybackPercentage);
+    }
 
-        buybackPercentage = 0;
+    function test_RevertWhen_percentageIsZero() public useKnownActor(USDS_OWNER) {
+        uint256 buybackPercentage = 0;
         vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAmount.selector));
         yieldReserve.updateBuybackPercentage(buybackPercentage);
     }
 
     function test_updateBuybackPercentage() public useKnownActor(USDS_OWNER) {
         uint256 buybackPercentage = 2000;
+        vm.expectEmit(address(yieldReserve));
+        emit BuybackPercentageUpdated(buybackPercentage);
         yieldReserve.updateBuybackPercentage(buybackPercentage);
 
         assertEq(yieldReserve.buybackPercentage(), buybackPercentage);
     }
+}
 
-    function test_updateBuybackAddress_auth_error() public useActor(0) {
+contract UpdateBuybackAddressTest is YieldReserveTest {
+    event BuybackUpdated(address newBuyback);
+
+    function test_RevertWhen_callerNotOwner() public {
         vm.expectRevert("Ownable: caller is not the owner");
         yieldReserve.updateBuyback(VAULT);
     }
 
-    function test_updateBuybackAddress_inputs() public useKnownActor(USDS_OWNER) {
+    function test_RevertWhen_InvalidAddress() public useKnownActor(USDS_OWNER) {
         vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAddress.selector));
         yieldReserve.updateBuyback(address(0));
     }
 
     function test_updateBuybackAddress() public useKnownActor(USDS_OWNER) {
+        vm.expectEmit(address(yieldReserve));
+        emit BuybackUpdated(VAULT);
         yieldReserve.updateBuyback(VAULT);
         assertEq(yieldReserve.buyback(), VAULT);
     }
+}
 
-    function test_updateOracleAddress_auth_error() public useActor(0) {
+contract UpdateOracleAddressTest is YieldReserveTest {
+    event OracleUpdated(address newOracle);
+
+    function test_RevertWhen_callerNotOwner() public useActor(0) {
         vm.expectRevert("Ownable: caller is not the owner");
         yieldReserve.updateOracle(VAULT);
     }
 
-    function test_updateOracleAddress_inputs() public useKnownActor(USDS_OWNER) {
+    function test_RevertWhen_invalidAddress() public useKnownActor(USDS_OWNER) {
         vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAddress.selector));
         yieldReserve.updateOracle(address(0));
     }
 
     function test_updateOracleAddress() public useKnownActor(USDS_OWNER) {
+        vm.expectEmit(address(yieldReserve));
+        emit OracleUpdated(VAULT);
         yieldReserve.updateOracle(VAULT);
         assertEq(yieldReserve.oracle(), VAULT);
     }
+}
 
-    function test_updateDripperAddress_auth_error() public useActor(0) {
+contract UpdateDripperAddressTest is YieldReserveTest {
+    event DripperUpdated(address newDripper);
+
+    function test_RevertWhen_callerNotOwner() public useActor(0) {
         vm.expectRevert("Ownable: caller is not the owner");
         yieldReserve.updateDripper(VAULT);
     }
 
-    function test_updateDripperAddress_inputs() public useKnownActor(USDS_OWNER) {
+    function test_RevertWhen_invalidAddress() public useKnownActor(USDS_OWNER) {
         vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAddress.selector));
         yieldReserve.updateDripper(address(0));
     }
 
     function test_updateDripperAddress() public useKnownActor(USDS_OWNER) {
+        vm.expectEmit(address(yieldReserve));
+        emit DripperUpdated(VAULT);
         yieldReserve.updateDripper(VAULT);
         assertEq(yieldReserve.dripper(), VAULT);
     }
+}
 
-    function test_updateVaultAddress_auth_error() public useActor(0) {
+contract UpdateVaultAddressTest is YieldReserveTest {
+    event VaultUpdated(address newVault);
+
+    function test_RevertWhen_callerNotOwner() public useActor(0) {
         vm.expectRevert("Ownable: caller is not the owner");
         yieldReserve.updateVault(VAULT);
     }
 
-    function test_updateVaultAddress_inputs() public useKnownActor(USDS_OWNER) {
+    function test_RevertWhen_invalidAddress() public useKnownActor(USDS_OWNER) {
         vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAddress.selector));
         yieldReserve.updateVault(address(0));
     }
 
     function test_updateVaultAddress() public useKnownActor(USDS_OWNER) {
+        vm.expectEmit(address(yieldReserve));
+        emit VaultUpdated(ORACLE);
         yieldReserve.updateVault(ORACLE);
         assertEq(yieldReserve.vault(), ORACLE);
     }
+}
 
-    function test_getTokenBForTokenA_inputs() public useKnownActor(USDS_OWNER) {
+contract GetTokenBForTokenATest is YieldReserveTest {
+    function setUp() public override {
+        super.setUp();
         mockPrice(USDCe, 1e8, PRICE_PRECISION);
         mockPrice(USDS, 1e8, PRICE_PRECISION);
+    }
 
+    function test_RevertWhen_invalidSourceToken() public {
         vm.expectRevert(abi.encodeWithSelector(YieldReserve.InvalidSourceToken.selector));
         yieldReserve.getTokenBForTokenA(USDS, USDCe, 10000);
-        yieldReserve.toggleSrcTokenPermission(USDS, true);
+    }
 
+    function test_RevertWhen_invalidDestinationToken() public useKnownActor(USDS_OWNER) {
+        yieldReserve.toggleSrcTokenPermission(USDS, true);
         vm.expectRevert(abi.encodeWithSelector(YieldReserve.InvalidDestinationToken.selector));
         yieldReserve.getTokenBForTokenA(USDS, USDCe, 10000);
-        yieldReserve.toggleDstTokenPermission(USDCe, true);
+    }
 
+    function test_RevertWhen_invalidAmount() public useKnownActor(USDS_OWNER) {
+        yieldReserve.toggleSrcTokenPermission(USDS, true);
+        yieldReserve.toggleDstTokenPermission(USDCe, true);
         vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAmount.selector));
         yieldReserve.getTokenBForTokenA(USDS, USDCe, 0);
     }
@@ -275,7 +356,7 @@ contract YieldReserveTest is YieldReserveSetup {
     }
 }
 
-contract Test_MintUSDs is YieldReserveSetup {
+contract Test_MintUSDs is YieldReserveTest {
     address buyback;
 
     event Minted(
@@ -305,7 +386,7 @@ contract Test_MintUSDs is YieldReserveSetup {
     }
 }
 
-contract SwapTest is YieldReserveSetup {
+contract SwapTest is YieldReserveTest {
     function setUp() public override {
         super.setUp();
         vm.startPrank(USDS_OWNER);

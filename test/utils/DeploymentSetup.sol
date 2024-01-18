@@ -35,6 +35,10 @@ abstract contract PreMigrationSetup is Setup {
         bytes msgData;
     }
 
+    uint256 constant REBASE_MANAGER_GAP = 1 days;
+    uint256 constant REBASE_MANAGER_APR_CAP = 1000;
+    uint256 constant REBASE_MANAGER_APR_BOTTOM = 800;
+
     UpgradeUtil internal upgradeUtil;
     MasterPriceOracle internal masterOracle;
     ChainlinkOracle chainlinkOracle;
@@ -54,7 +58,6 @@ abstract contract PreMigrationSetup is Setup {
         USDS_OWNER = 0x5b12d9846F8612E439730d18E1C12634753B1bF1;
         PROXY_ADMIN = 0x3E49925A79CbFb68BAa5bc9DFb4f7D955D1ddF25;
         SPA_BUYBACK = 0xFbc0d3cA777722d234FE01dba94DeDeDb277AFe3;
-        BUYBACK = 0xf3f98086f7B61a32be4EdF8d8A4b964eC886BBcd;
 
         upgradeUtil = new UpgradeUtil();
 
@@ -79,7 +82,9 @@ abstract contract PreMigrationSetup is Setup {
         COLLATERAL_MANAGER = address(collateralManager);
         FEE_VAULT = 0xFbc0d3cA777722d234FE01dba94DeDeDb277AFe3;
         DRIPPER = address(new Dripper(VAULT, 7 days));
-        REBASE_MANAGER = address(new RebaseManager(VAULT, DRIPPER, 1 days, 1000, 800));
+        REBASE_MANAGER = address(
+            new RebaseManager(VAULT, DRIPPER, REBASE_MANAGER_GAP, REBASE_MANAGER_APR_CAP, REBASE_MANAGER_APR_BOTTOM)
+        );
 
         vault.updateCollateralManager(COLLATERAL_MANAGER);
         vault.updateFeeCalculator(FEE_CALCULATOR);
