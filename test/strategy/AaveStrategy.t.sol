@@ -327,10 +327,8 @@ contract CollectInterest is AaveStrategyTest {
 
         strategy.collectInterest(ASSET);
 
+        assertEq(strategy.checkInterestEarned(ASSET), 0);
         uint256 current_bal = IERC20(ASSET).balanceOf(yieldReceiver);
-        uint256 newInterestEarned = strategy.checkInterestEarned(ASSET);
-
-        assertEq(newInterestEarned, 0);
         assertEq(current_bal, (initial_bal + harvestAmount));
     }
 }
