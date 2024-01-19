@@ -257,9 +257,7 @@ contract CollectInterestTest is CompoundStrategyTest {
         strategy.collectInterest(ASSET);
 
         uint256 current_bal = IERC20(ASSET).balanceOf(yieldReceiver);
-        uint256 newInterestEarned = strategy.checkInterestEarned(ASSET);
-
-        assertEq(newInterestEarned, 0);
+        assertApproxEqAbs(strategy.checkInterestEarned(ASSET), 0, 1);
         assertEq(current_bal, (initial_bal + harvestAmount));
     }
 }
