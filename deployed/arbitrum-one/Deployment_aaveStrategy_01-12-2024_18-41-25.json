@@ -1,0 +1,148 @@
+{
+    "proxy_addr": "0x974993eE8DF7F5C4F3f9Aa4eB5b4534F359f3388",
+    "impl_addr": "0xe7762Cad3Aafd3324a299AEeC331C660B74EE78e",
+    "proxy_admin": "0x3E49925A79CbFb68BAa5bc9DFb4f7D955D1ddF25",
+    "type": "Deployment",
+    "transactions": [
+        {
+            "step": "Implementation_deployment",
+            "tx_hash": "0x2c273bfc9bdb01e761e0b49bca2b96c2d12e74da7af350c7f42457278da6d6a8",
+            "contract": "AaveStrategy",
+            "contract_addr": "0xe7762Cad3Aafd3324a299AEeC331C660B74EE78e",
+            "tx_func": "constructor",
+            "blocknumber": 169716220,
+            "gas_used": 22740260,
+            "gas_limit": 27806512
+        },
+        {
+            "step": "Proxy_deployment",
+            "tx_hash": "0xef97947b010c33e2c65098f1d2a38cd9dbf1bf0deb7bf03f00f3afa34a563789",
+            "contract": "TUP",
+            "contract_addr": "0x974993eE8DF7F5C4F3f9Aa4eB5b4534F359f3388",
+            "tx_func": "constructor",
+            "blocknumber": 169716243,
+            "gas_used": 10469517,
+            "gas_limit": 12911930
+        },
+        {
+            "step": "Proxy_initialization",
+            "tx_hash": "0xa4d8518cc61df2c3a51f9209dba93ad8607d77d6bffdcb6f4fcb32369a148c24",
+            "contract": "TUP",
+            "contract_addr": null,
+            "tx_func": null,
+            "blocknumber": 169716267,
+            "gas_used": 909223,
+            "gas_limit": 1255240
+        },
+        {
+            "step": "Post_deployment_step",
+            "tx_hash": "0x1bb36854eaefd17fecb33c89f4694e8195a1b66c5090476c64d1a7eded347eba",
+            "contract": "TUP",
+            "contract_addr": null,
+            "tx_func": null,
+            "blocknumber": 169716292,
+            "gas_used": 868120,
+            "gas_limit": 1208042
+        },
+        {
+            "step": "Post_deployment_step",
+            "tx_hash": "0x18d5b5cd004e26470de9872aaf95bec36e57130b3c7f08af016084c6a34ae44d",
+            "contract": "TUP",
+            "contract_addr": null,
+            "tx_func": null,
+            "blocknumber": 169716309,
+            "gas_used": 850940,
+            "gas_limit": 1188843
+        },
+        {
+            "step": "Post_deployment_step",
+            "tx_hash": "0xff0131957797048d5926baf1b6e0cea92d9e2510b4da3c53ee52d8158eab43db",
+            "contract": "TUP",
+            "contract_addr": null,
+            "tx_func": null,
+            "blocknumber": 169716323,
+            "gas_used": 850964,
+            "gas_limit": 1188870
+        },
+        {
+            "step": "Post_deployment_step",
+            "tx_hash": "0x2ddb9239b8a63a5fb169fcc27de17f63ed40fa859eb4a011ff494383614ef829",
+            "contract": "TUP",
+            "contract_addr": null,
+            "tx_func": null,
+            "blocknumber": 169716340,
+            "gas_used": 851020,
+            "gas_limit": 1188932
+        },
+        {
+            "step": "Post_deployment_step",
+            "tx_hash": "0x7c4c8a2e29d5d71e8a0f554a0b5481d5065454e536696f37eb0c45eb9c6d5dd7",
+            "contract": "TUP",
+            "contract_addr": null,
+            "tx_func": null,
+            "blocknumber": 169716356,
+            "gas_used": 654526,
+            "gas_limit": 954921
+        }
+    ],
+    "config_name": "aaveStrategy",
+    "config": {
+        "deployment_params": {
+            "platform_addr": "0xa97684ead0e402dC232d5A977953DF7ECBaB3CDb",
+            "vault": "0x6Bbc476Ee35CBA9e9c3A59fc5b10d7a0BC6f74Ca"
+        },
+        "post_deployment_steps": [
+            {
+                "func": "setPTokenAddress",
+                "args": {
+                    "asset": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+                    "lpToken": "0x724dc807b04555b71ed48a6896b6F41593b8C637"
+                },
+                "transact": true,
+                "contract": "aaveStrategy",
+                "contract_addr": "0x974993eE8DF7F5C4F3f9Aa4eB5b4534F359f3388"
+            },
+            {
+                "func": "setPTokenAddress",
+                "args": {
+                    "asset": "0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1",
+                    "lpToken": "0x82E64f49Ed5EC1bC6e43DAD4FC8Af9bb3A2312EE"
+                },
+                "transact": true,
+                "contract": "aaveStrategy",
+                "contract_addr": "0x974993eE8DF7F5C4F3f9Aa4eB5b4534F359f3388"
+            },
+            {
+                "func": "setPTokenAddress",
+                "args": {
+                    "asset": "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8",
+                    "lpToken": "0x625E7708f30cA75bfd92586e17077590C60eb4cD"
+                },
+                "transact": true,
+                "contract": "aaveStrategy",
+                "contract_addr": "0x974993eE8DF7F5C4F3f9Aa4eB5b4534F359f3388"
+            },
+            {
+                "func": "setPTokenAddress",
+                "args": {
+                    "asset": "0x93b346b6bc2548da6a1e7d98e9a421b42541425b",
+                    "lpToken": "0x8ffDf2DE812095b1D19CB146E4c004587C0A0692"
+                },
+                "transact": true,
+                "contract": "aaveStrategy",
+                "contract_addr": "0x974993eE8DF7F5C4F3f9Aa4eB5b4534F359f3388"
+            },
+            {
+                "func": "transferOwnership",
+                "args": {
+                    "new_admin": "0x5b12d9846F8612E439730d18E1C12634753B1bF1"
+                },
+                "transact": true,
+                "contract": "aaveStrategy",
+                "contract_addr": "0x974993eE8DF7F5C4F3f9Aa4eB5b4534F359f3388"
+            }
+        ],
+        "upgradeable": true,
+        "proxy_admin": "0x3E49925A79CbFb68BAa5bc9DFb4f7D955D1ddF25"
+    }
+}

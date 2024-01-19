@@ -183,7 +183,10 @@ contract StargateStrategy is InitializableAbstractStrategy {
     /// @notice A function to withdraw from old farm, update farm and deposit in new farm
     /// @param _newFarm Address of the new farm
     /// @dev Only callable by owner
-    function updateFarm(address _newFarm) external nonReentrant onlyOwner {
+    /// @dev @note Claim the rewards before calling this function!
+    function updateFarm(address _newFarm, address _rewardToken) external nonReentrant onlyOwner {
+        Helpers._isNonZeroAddr(_rewardToken);
+        Helpers._isNonZeroAddr(_newFarm);
         address _oldFarm = farm;
         uint256 _numAssets = assetsMapped.length;
         address _asset;
@@ -201,6 +204,7 @@ contract StargateStrategy is InitializableAbstractStrategy {
             }
         }
         farm = _newFarm;
+        rewardTokenAddress[0] = _rewardToken;
         emit FarmUpdated(_newFarm);
     }
 

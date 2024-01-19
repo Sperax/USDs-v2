@@ -4,7 +4,7 @@ pragma solidity 0.8.19;
 import {BaseStrategy} from "./BaseStrategy.t.sol";
 import {BaseTest} from "../utils/BaseTest.sol";
 import {UpgradeUtil} from "../utils/UpgradeUtil.sol";
-import {AaveStrategy} from "../../contracts/strategies/aave/AaveStrategy.sol";
+import {AaveStrategy, IAaveLendingPool} from "../../contracts/strategies/aave/AaveStrategy.sol";
 import {InitializableAbstractStrategy, Helpers} from "../../contracts/strategies/InitializableAbstractStrategy.sol";
 import {IERC20, ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
@@ -103,7 +103,6 @@ contract InitializeTests is AaveStrategyTest {
         strategy.initialize(address(0), VAULT);
 
         vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAddress.selector));
-
         strategy.initialize(AAVE_POOL_PROVIDER, address(0));
     }
 
@@ -215,15 +214,79 @@ contract Deposit is AaveStrategyTest {
         strategy.deposit(ASSET, 0);
     }
 
-    function test_Deposit() public useKnownActor(VAULT) {
+    function testFuzz_Deposit(uint256 _depositAmount) public useKnownActor(VAULT) {
+        depositAmount = bound(_depositAmount, 1, 1e4 * 10 ** ERC20(ASSET).decimals()); // keeping a lesser upper limit to avoid supply cap error
         uint256 initial_bal = strategy.checkBalance(ASSET);
+        uint256 initialLPBalance = strategy.checkLPTokenBalance(ASSET);
+        assert(initialLPBalance == 0);
 
         deal(address(ASSET), VAULT, depositAmount);
         IERC20(ASSET).approve(address(strategy), depositAmount);
-        strategy.deposit(ASSET, 1);
+        strategy.deposit(ASSET, depositAmount);
 
         uint256 new_bal = strategy.checkBalance(ASSET);
-        assertEq(initial_bal + 1, new_bal);
+        uint256 newLPBalance = strategy.checkLPTokenBalance(ASSET);
+        assertEq(initial_bal + depositAmount, new_bal);
+        assertApproxEqAbs(initialLPBalance + depositAmount, newLPBalance, 1);
+    }
+}
+
+contract DepositLPTest is AaveStrategyTest {
+    function setUp() public override {
+        super.setUp();
+        vm.startPrank(USDS_OWNER);
+        _initializeStrategy();
+        _setAssetData();
+        vm.stopPrank();
+    }
+
+    function test_depositLp_RevertWhen_CollateralNotSupported() public useKnownActor(VAULT) {
+        vm.expectRevert(abi.encodeWithSelector(CollateralNotSupported.selector, DUMMY_ADDRESS));
+        strategy.depositLp(DUMMY_ADDRESS, 1);
+    }
+
+    function test_depositLp_RevertWhen_InvalidAmount() public useKnownActor(VAULT) {
+        vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAmount.selector));
+        strategy.depositLp(ASSET, 0);
+    }
+
+    function test_depositLp_RevertWhen_CallerNotVaultOrOwner() public useActor(0) {
+        vm.expectRevert(abi.encodeWithSelector(CallerNotVaultOrOwner.selector, actors[0]));
+        strategy.depositLp(ASSET, 1);
+    }
+
+    function test_depositLp(bool _bool, uint256 _depositAmount) public {
+        address caller;
+        _bool ? caller = VAULT : caller = USDS_OWNER;
+        address pToken = strategy.assetToPToken(ASSET);
+        IAaveLendingPool aavePool = strategy.aavePool();
+        depositAmount = bound(_depositAmount, 1, 1e4 * 10 ** ERC20(pToken).decimals());
+
+        vm.startPrank(caller);
+
+        deal(ASSET, caller, depositAmount);
+        IERC20(ASSET).approve(address(aavePool), depositAmount);
+        aavePool.supply(ASSET, depositAmount, caller, 0);
+        IERC20(strategy.assetToPToken(ASSET)).approve(address(strategy), depositAmount);
+
+        uint256 initialBalance = strategy.checkBalance(ASSET);
+        uint256 lpBalanceOfCallerBeforeDeposit = IERC20(pToken).balanceOf(caller);
+        uint256 lpBalanceOfStrategyBeforeDeposit = IERC20(pToken).balanceOf(address(strategy));
+        uint256 allocatedAmountBeforeDeposit = strategy.allocatedAmount(ASSET);
+
+        vm.expectEmit(address(strategy));
+        emit Deposit(ASSET, depositAmount);
+        strategy.depositLp(ASSET, depositAmount);
+
+        uint256 newBalance = strategy.checkBalance(ASSET);
+        uint256 lpBalanceOfCallerAfterDeposit = IERC20(pToken).balanceOf(caller);
+        uint256 lpBalanceOfStrategyAfterDeposit = IERC20(pToken).balanceOf(address(strategy));
+        uint256 allocatedAmountAfterDeposit = strategy.allocatedAmount(ASSET);
+
+        assertEq(initialBalance + depositAmount, newBalance);
+        assertApproxEqAbs(lpBalanceOfCallerBeforeDeposit, lpBalanceOfCallerAfterDeposit + depositAmount, 1);
+        assertApproxEqAbs(lpBalanceOfStrategyBeforeDeposit + depositAmount, lpBalanceOfStrategyAfterDeposit, 1);
+        assertEq(allocatedAmountBeforeDeposit + depositAmount, allocatedAmountAfterDeposit);
     }
 }
 

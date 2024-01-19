@@ -271,7 +271,7 @@ contract VaultCore is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradea
 
         // Skip fee collection for owner
         uint256 feePercentage = 0;
-        if (msg.sender != owner()) {
+        if (msg.sender != owner() && msg.sender != yieldReceiver) {
             // Calculate mint fee based on collateral data
             feePercentage = IFeeCalculator(feeCalculator).getMintFee(_collateral);
         }

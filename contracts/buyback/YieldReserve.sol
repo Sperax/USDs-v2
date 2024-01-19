@@ -45,11 +45,11 @@ contract YieldReserve is ReentrancyGuard, Ownable {
     event USDsMintedViaSwapper(address indexed collateralAddr, uint256 usdsMinted);
     event Withdrawn(address indexed token, address indexed receiver, uint256 amount);
     event BuybackPercentageUpdated(uint256 toBuyback);
-    event BuybackAddressUpdated(address newBuyback);
+    event BuybackUpdated(address newBuyback);
     event OracleUpdated(address newOracle);
-    event VaultAddressUpdated(address newVault);
-    event DripperAddressUpdated(address newDripper);
-    event USDsSent(uint256 toBuyback, uint256 toVault);
+    event VaultUpdated(address newVault);
+    event DripperUpdated(address newDripper);
+    event USDsSent(uint256 toBuyback, uint256 toDripper);
     event SrcTokenPermissionUpdated(address indexed token, bool isAllowed);
     event DstTokenPermissionUpdated(address indexed token, bool isAllowed);
 
@@ -65,10 +65,10 @@ contract YieldReserve is ReentrancyGuard, Ownable {
     /// @param _oracle Address of the Oracle.
     /// @param _dripper Address of the Dripper contract.
     constructor(address _buyback, address _vault, address _oracle, address _dripper) {
-        updateBuybackAddress(_buyback);
-        updateVaultAddress(_vault);
-        updateOracleAddress(_oracle);
-        updateDripperAddress(_dripper);
+        updateBuyback(_buyback);
+        updateVault(_vault);
+        updateOracle(_oracle);
+        updateDripper(_dripper);
 
         // Initialize buybackPercentage to 50%
         updateBuybackPercentage(5000);
@@ -154,16 +154,16 @@ contract YieldReserve is ReentrancyGuard, Ownable {
     /// @notice Update the address of the Buyback contract.
     /// @dev Reverts if caller is not owner.
     /// @param _newBuyBack New address of the Buyback contract.
-    function updateBuybackAddress(address _newBuyBack) public onlyOwner {
+    function updateBuyback(address _newBuyBack) public onlyOwner {
         Helpers._isNonZeroAddr(_newBuyBack);
         buyback = _newBuyBack;
-        emit BuybackAddressUpdated(_newBuyBack);
+        emit BuybackUpdated(_newBuyBack);
     }
 
     /// @notice Update the address of the Oracle contract.
     /// @dev Reverts if caller is not owner.
     /// @param _newOracle New address of the Oracle contract.
-    function updateOracleAddress(address _newOracle) public onlyOwner {
+    function updateOracle(address _newOracle) public onlyOwner {
         Helpers._isNonZeroAddr(_newOracle);
         oracle = _newOracle;
         emit OracleUpdated(_newOracle);
@@ -172,23 +172,22 @@ contract YieldReserve is ReentrancyGuard, Ownable {
     /// @notice Update the address of the Dripper contract.
     /// @dev Reverts if caller is not owner.
     /// @param _newDripper New address of the Dripper contract.
-    function updateDripperAddress(address _newDripper) public onlyOwner {
+    function updateDripper(address _newDripper) public onlyOwner {
         Helpers._isNonZeroAddr(_newDripper);
         dripper = _newDripper;
-        emit DripperAddressUpdated(_newDripper);
+        emit DripperUpdated(_newDripper);
     }
 
     /// @notice Update the address of the VaultCore contract.
     /// @dev Reverts if caller is not owner.
     /// @param _newVault New address of the VaultCore contract.
-    function updateVaultAddress(address _newVault) public onlyOwner {
+    function updateVault(address _newVault) public onlyOwner {
         Helpers._isNonZeroAddr(_newVault);
         vault = _newVault;
-        emit VaultAddressUpdated(_newVault);
+        emit VaultUpdated(_newVault);
     }
 
     /// @notice Swap allowed source token for allowed destination token.
-    /// @dev Reverts if caller is not owner.
     /// @param _srcToken Source/Input token.
     /// @param _dstToken Destination/Output token.
     /// @param _amountIn Input token amount.
@@ -221,8 +220,20 @@ contract YieldReserve is ReentrancyGuard, Ownable {
         });
     }
 
+    /// @notice Mints USDs directly with the allowed collaterals for USDs.
+    /// @param _token Address of token to mint USDs with
+    /// @dev Only collaterals configured in USDs vault are allowed to be used for minting.
+    function mintUSDs(address _token) public nonReentrant {
+        Helpers._isNonZeroAddr(_token);
+        uint256 bal = IERC20(_token).balanceOf(address(this));
+        IERC20(_token).forceApprove(vault, bal);
+        IVault(vault).mint(_token, bal, 0, block.timestamp);
+        // No need to do slippage check as it is our contract
+        // and the vault does that.
+        _sendUSDs();
+    }
+
     /// @notice Get an estimate of the output token amount for a given input token amount.
-    /// @dev Reverts if caller is not owner.
     /// @param _srcToken Input token address.
     /// @param _dstToken Output token address.
     /// @param _amountIn Input amount of _srcToken.

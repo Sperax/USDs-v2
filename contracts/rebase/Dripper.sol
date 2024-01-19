@@ -23,6 +23,7 @@ contract Dripper is IDripper, Ownable {
     event Recovered(address owner, uint256 amount);
     event VaultUpdated(address vault);
     event DripDurationUpdated(uint256 dripDuration);
+    event USDsAdded(uint256 _amount);
 
     // Custom error messages
     error NothingToRecover();
@@ -48,26 +49,28 @@ contract Dripper is IDripper, Ownable {
         emit Recovered(msg.sender, bal);
     }
 
-    /// @notice Transfers the dripped tokens to the vault.
-    /// @dev This function also updates the dripRate based on the fund state.
-    /// @return The amount of tokens collected and transferred to the vault.
-    function collect() external returns (uint256) {
-        uint256 collectableAmt = getCollectableAmt();
-        if (collectableAmt != 0) {
-            lastCollectTS = block.timestamp;
-            IERC20(Helpers.USDS).safeTransfer(vault, collectableAmt);
-            emit Collected(collectableAmt);
-        }
-        if (IERC20(Helpers.USDS).balanceOf(address(this)) == 0) dripRate = 0;
-        return collectableAmt;
-    }
-
     /// @notice Function to be used to send USDs to dripper and update `dripRate`.
     /// @param _amount Amount of USDs to be sent form caller to this contract.
     function addUSDs(uint256 _amount) external {
         Helpers._isNonZeroAmt(_amount);
+        collect();
         IERC20(Helpers.USDS).safeTransferFrom(msg.sender, address(this), _amount);
         dripRate = IERC20(Helpers.USDS).balanceOf(address(this)) / dripDuration;
+        emit USDsAdded(_amount);
+    }
+
+    /// @notice Transfers the dripped tokens to the vault.
+    /// @dev This function also updates the dripRate based on the fund state.
+    /// @return The amount of tokens collected and transferred to the vault.
+    function collect() public returns (uint256) {
+        uint256 collectableAmt = getCollectableAmt();
+        if (collectableAmt != 0) {
+            IERC20(Helpers.USDS).safeTransfer(vault, collectableAmt);
+            emit Collected(collectableAmt);
+        }
+        lastCollectTS = block.timestamp;
+        if (IERC20(Helpers.USDS).balanceOf(address(this)) == 0) dripRate = 0;
+        return collectableAmt;
     }
 
     /// @notice Update the vault address.

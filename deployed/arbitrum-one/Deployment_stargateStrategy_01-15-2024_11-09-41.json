@@ -1,0 +1,138 @@
+{
+    "proxy_addr": "0xb9C9100720D8c6E35eb8dd0F9C1aBEf320dAA136",
+    "impl_addr": "0xc61CEFE2fE6F8De61067419c1336e720A802ffea",
+    "proxy_admin": "0x3E49925A79CbFb68BAa5bc9DFb4f7D955D1ddF25",
+    "type": "Deployment",
+    "transactions": [
+        {
+            "step": "Implementation_deployment",
+            "tx_hash": "0x4074feee7e2a697b97a6bb3ba82b2ac39015f1b23179be52e9b29923ea3989b3",
+            "contract": "StargateStrategy",
+            "contract_addr": "0xc61CEFE2fE6F8De61067419c1336e720A802ffea",
+            "tx_func": "constructor",
+            "blocknumber": 170601120,
+            "gas_used": 17486028,
+            "gas_limit": 21098256
+        },
+        {
+            "step": "Proxy_deployment",
+            "tx_hash": "0x4052dfcf153a18b3ed531d1368c68075b530df65cfa2e4b2fd4c645975727ff6",
+            "contract": "TUP",
+            "contract_addr": "0xb9C9100720D8c6E35eb8dd0F9C1aBEf320dAA136",
+            "tx_func": "constructor",
+            "blocknumber": 170601151,
+            "gas_used": 5633684,
+            "gas_limit": 6906202
+        },
+        {
+            "step": "Proxy_initialization",
+            "tx_hash": "0xbebb3d93569c6f5d384ba6cffbfd94d48e4fe1023462a064c1a6844815690b3a",
+            "contract": "TUP",
+            "contract_addr": null,
+            "tx_func": null,
+            "blocknumber": 170601179,
+            "gas_used": 878275,
+            "gas_limit": 1132948
+        },
+        {
+            "step": "Post_deployment_step",
+            "tx_hash": "0x568d4a1b716649c1740a78c0b26b51a5411495f7f15a2ed5a4586d4dea21d188",
+            "contract": "TUP",
+            "contract_addr": null,
+            "tx_func": null,
+            "blocknumber": 170601198,
+            "gas_used": 671755,
+            "gas_limit": 886374
+        },
+        {
+            "step": "Post_deployment_step",
+            "tx_hash": "0x7f2cc1a32f1055416538c057e053aca3433629917e793cf094b4308f8fe8c971",
+            "contract": "TUP",
+            "contract_addr": null,
+            "tx_func": null,
+            "blocknumber": 170601215,
+            "gas_used": 674567,
+            "gas_limit": 889517
+        },
+        {
+            "step": "Post_deployment_step",
+            "tx_hash": "0xfa3f25a3d168ffbf6147193e98e9ac8da73bfb9fc6e322f3960b4f384430419d",
+            "contract": "TUP",
+            "contract_addr": null,
+            "tx_func": null,
+            "blocknumber": 170601239,
+            "gas_used": 674555,
+            "gas_limit": 889504
+        },
+        {
+            "step": "Post_deployment_step",
+            "tx_hash": "0x793742d5fdffca31a1425424840304eb30dcf418173986449f70397819769554",
+            "contract": "TUP",
+            "contract_addr": null,
+            "tx_func": null,
+            "blocknumber": 170601257,
+            "gas_used": 351632,
+            "gas_limit": 506774
+        }
+    ],
+    "config_name": "stargateStrategy",
+    "config": {
+        "deployment_params": {
+            "router": "0x53Bf833A5d6c4ddA888F69c22C88C9f356a41614",
+            "vault": "0x6Bbc476Ee35CBA9e9c3A59fc5b10d7a0BC6f74Ca",
+            "eToken": "0x912CE59144191C1204E64559FE8253a0e49E6548",
+            "farm": "0x9774558534036Ff2E236331546691b4eB70594b1",
+            "depositSlippage": 50,
+            "withdrawSlippage": 50
+        },
+        "post_deployment_steps": [
+            {
+                "func": "setPTokenAddress",
+                "args": {
+                    "asset": "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8",
+                    "lpToken": "0x892785f33CdeE22A30AEF750F285E18c18040c3e",
+                    "pid": 1,
+                    "rewardPid": 0
+                },
+                "transact": true,
+                "contract": "stargateStrategy",
+                "contract_addr": "0xb9C9100720D8c6E35eb8dd0F9C1aBEf320dAA136"
+            },
+            {
+                "func": "setPTokenAddress",
+                "args": {
+                    "asset": "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9",
+                    "lpToken": "0xB6CfcF89a7B22988bfC96632aC2A9D6daB60d641",
+                    "pid": 2,
+                    "rewardPid": 1
+                },
+                "transact": true,
+                "contract": "stargateStrategy",
+                "contract_addr": "0xb9C9100720D8c6E35eb8dd0F9C1aBEf320dAA136"
+            },
+            {
+                "func": "setPTokenAddress",
+                "args": {
+                    "asset": "0x17FC002b466eEc40DaE837Fc4bE5c67993ddBd6F",
+                    "lpToken": "0xaa4BF442F024820B2C28Cd0FD72b82c63e66F56C",
+                    "pid": 7,
+                    "rewardPid": 3
+                },
+                "transact": true,
+                "contract": "stargateStrategy",
+                "contract_addr": "0xb9C9100720D8c6E35eb8dd0F9C1aBEf320dAA136"
+            },
+            {
+                "func": "transferOwnership",
+                "args": {
+                    "new_admin": "0x5b12d9846F8612E439730d18E1C12634753B1bF1"
+                },
+                "transact": true,
+                "contract": "stargateStrategy",
+                "contract_addr": "0xb9C9100720D8c6E35eb8dd0F9C1aBEf320dAA136"
+            }
+        ],
+        "upgradeable": true,
+        "proxy_admin": "0x3E49925A79CbFb68BAa5bc9DFb4f7D955D1ddF25"
+    }
+}

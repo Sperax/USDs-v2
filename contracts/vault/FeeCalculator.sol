@@ -31,7 +31,6 @@ contract FeeCalculator is IFeeCalculator {
 
     // Custom error messages
     error InvalidCalibration();
-    error FeeNotCalibrated(address collateral);
 
     constructor(address _collateralManager) {
         COLLATERAL_MANAGER = ICollateralManager(_collateralManager);
