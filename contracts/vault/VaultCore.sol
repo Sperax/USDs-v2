@@ -15,20 +15,21 @@ import {ICollateralManager} from "./interfaces/ICollateralManager.sol";
 import {IStrategy} from "./interfaces/IStrategy.sol";
 import {Helpers} from "../libraries/Helpers.sol";
 
-/// @title Savings manager (Vault) contract for USDs protocol
+/// @title Savings Manager (Vault) Contract for USDs Protocol
 /// @author Sperax Foundation
-/// @notice Lets users mint/redeem USDs for/with allowed collaterals
-/// @notice Allocates collateral in strategies by consulting Collateral Manager contract
+/// @notice This contract enables users to mint and redeem USDs with allowed collaterals.
+/// @notice It also allocates collateral to strategies based on the Collateral Manager contract.
 contract VaultCore is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradeable {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
-    address public feeVault; // SPABuyback contract
-    address public yieldReceiver;
-    address public collateralManager;
-    address public feeCalculator;
-    address public oracle;
-    address public rebaseManager;
+    address public feeVault; // Address of the SPABuyback contract
+    address public yieldReceiver; // Address of the Yield Receiver contract
+    address public collateralManager; // Address of the Collateral Manager contract
+    address public feeCalculator; // Address of the Fee Calculator contract
+    address public oracle; // Address of the Oracle contract
+    address public rebaseManager; // Address of the Rebase Manager contract
 
+    // Events
     event FeeVaultUpdated(address newFeeVault);
     event YieldReceiverUpdated(address newYieldReceiver);
     event CollateralManagerUpdated(address newCollateralManager);
@@ -44,6 +45,7 @@ contract VaultCore is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradea
     event RebasedUSDs(uint256 rebaseAmt);
     event Allocated(address indexed collateral, address indexed strategy, uint256 amount);
 
+    // Custom Error messages
     error AllocationNotAllowed(address collateral, address strategy, uint256 amount);
     error RedemptionPausedForCollateral(address collateral);
     error InsufficientCollateral(address collateral, address strategy, uint256 amount, uint256 availableAmount);
@@ -59,60 +61,60 @@ contract VaultCore is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradea
         __ReentrancyGuard_init();
     }
 
-    /// @notice Updates the address receiving fee
-    /// @param _feeVault updated address of the fee vault
+    /// @notice Updates the address receiving fee.
+    /// @param _feeVault New desired SPABuyback address.
     function updateFeeVault(address _feeVault) external onlyOwner {
         Helpers._isNonZeroAddr(_feeVault);
         feeVault = _feeVault;
         emit FeeVaultUpdated(_feeVault);
     }
 
-    /// @notice Updates the address receiving yields from strategies
-    /// @param _yieldReceiver new desired address
+    /// @notice Updates the address receiving yields from strategies.
+    /// @param _yieldReceiver New desired yield receiver address.
     function updateYieldReceiver(address _yieldReceiver) external onlyOwner {
         Helpers._isNonZeroAddr(_yieldReceiver);
         yieldReceiver = _yieldReceiver;
         emit YieldReceiverUpdated(_yieldReceiver);
     }
 
-    /// @notice Updates the address having the config for collaterals
-    /// @param _collateralManager new desired address
+    /// @notice Updates the address having the configuration for collaterals.
+    /// @param _collateralManager New desired collateral manager address.
     function updateCollateralManager(address _collateralManager) external onlyOwner {
         Helpers._isNonZeroAddr(_collateralManager);
         collateralManager = _collateralManager;
         emit CollateralManagerUpdated(_collateralManager);
     }
 
-    /// @notice Updates the address having the config for rebase
-    /// @param _rebaseManager new desired address
+    /// @notice Updates the address having the configuration for rebases.
+    /// @param _rebaseManager New desired rebase manager address.
     function updateRebaseManager(address _rebaseManager) external onlyOwner {
         Helpers._isNonZeroAddr(_rebaseManager);
         rebaseManager = _rebaseManager;
         emit RebaseManagerUpdated(_rebaseManager);
     }
 
-    /// @notice Updates the fee calculator library
-    /// @param _feeCalculator new desired address
+    /// @notice Updates the fee calculator library.
+    /// @param _feeCalculator New desired fee calculator address.
     function updateFeeCalculator(address _feeCalculator) external onlyOwner {
         Helpers._isNonZeroAddr(_feeCalculator);
         feeCalculator = _feeCalculator;
         emit FeeCalculatorUpdated(_feeCalculator);
     }
 
-    /// @notice Updates the price oracle address
-    /// @param _oracle new desired address
+    /// @notice Updates the price oracle address.
+    /// @param _oracle New desired oracle address.
     function updateOracle(address _oracle) external onlyOwner {
         Helpers._isNonZeroAddr(_oracle);
         oracle = _oracle;
         emit OracleUpdated(_oracle);
     }
 
-    /// @notice Allocate `_amount` of`_collateral` to `_strategy`
-    /// @param _collateral address of the desired collateral
-    /// @param _strategy address of the desired strategy
-    /// @param _amount amount of collateral to be allocated
+    /// @notice Allocates `_amount` of `_collateral` to `_strategy`.
+    /// @param _collateral Address of the desired collateral.
+    /// @param _strategy Address of the desired strategy.
+    /// @param _amount Amount of collateral to be allocated.
     function allocate(address _collateral, address _strategy, uint256 _amount) external nonReentrant {
-        // Validate the allocation is based on the desired configuration
+        // Validate the allocation based on the desired configuration
         if (!ICollateralManager(collateralManager).validateAllocation(_collateral, _strategy, _amount)) {
             revert AllocationNotAllowed(_collateral, _strategy, _amount);
         }
@@ -121,11 +123,11 @@ contract VaultCore is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradea
         emit Allocated(_collateral, _strategy, _amount);
     }
 
-    /// @notice mint USDs by depositing collateral
-    /// @param _collateral address of the collateral
-    /// @param _collateralAmt amount of collateral to mint USDs with
-    /// @param _minUSDSAmt minimum expected amount of USDs to be minted
-    /// @param _deadline the expiry time of the transaction
+    /// @notice Mint USDs by depositing collateral.
+    /// @param _collateral Address of the collateral.
+    /// @param _collateralAmt Amount of collateral to mint USDs with.
+    /// @param _minUSDSAmt Minimum expected amount of USDs to be minted.
+    /// @param _deadline Expiry time of the transaction.
     function mint(address _collateral, uint256 _collateralAmt, uint256 _minUSDSAmt, uint256 _deadline)
         external
         nonReentrant
@@ -133,27 +135,27 @@ contract VaultCore is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradea
         _mint(_collateral, _collateralAmt, _minUSDSAmt, _deadline);
     }
 
-    /// @notice mint USDs by depositing collateral
-    /// @param _collateral address of the collateral
-    /// @param _collateralAmt amount of collateral to mint USDs with
-    /// @param _minUSDSAmt minimum expected amount of USDs to be minted
-    /// @param _deadline the expiry time of the transaction
-    /// @dev This function is for backward compatibility
+    /// @notice Mint USDs by depositing collateral (backward compatibility).
+    /// @param _collateral Address of the collateral.
+    /// @param _collateralAmt Amount of collateral to mint USDs with.
+    /// @param _minUSDSAmt Minimum expected amount of USDs to be minted.
+    /// @param _deadline Expiry time of the transaction.
+    /// @dev This function is for backward compatibility.
     function mintBySpecifyingCollateralAmt(
         address _collateral,
         uint256 _collateralAmt,
         uint256 _minUSDSAmt,
-        uint256, // deprecated
+        uint256, // Deprecated
         uint256 _deadline
     ) external nonReentrant {
         _mint(_collateral, _collateralAmt, _minUSDSAmt, _deadline);
     }
 
-    /// @notice redeem USDs for `_collateral`
-    /// @param _collateral address of the collateral
-    /// @param _usdsAmt Amount of USDs to be redeemed
-    /// @param _minCollAmt minimum expected amount of collateral to be received
-    /// @param _deadline expiry time of the transaction
+    /// @notice Redeem USDs for `_collateral`.
+    /// @param _collateral Address of the collateral.
+    /// @param _usdsAmt Amount of USDs to be redeemed.
+    /// @param _minCollAmt Minimum expected amount of collateral to be received.
+    /// @param _deadline Expiry time of the transaction.
     /// @dev In case where there is not sufficient collateral available in the vault,
     ///      the collateral is withdrawn from the default strategy configured for the collateral.
     function redeem(address _collateral, uint256 _usdsAmt, uint256 _minCollAmt, uint256 _deadline)
@@ -169,12 +171,12 @@ contract VaultCore is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradea
         });
     }
 
-    /// @notice redeem USDs for `_collateral`
-    /// @param _collateral address of the collateral
-    /// @param _usdsAmt Amount of USDs to be redeemed
-    /// @param _minCollAmt minimum expected amount of collateral to be received
-    /// @param _deadline expiry time of the transaction
-    /// @param _strategy address of the strategy to withdraw excess collateral from
+    /// @notice Redeem USDs for `_collateral` from a specific strategy.
+    /// @param _collateral Address of the collateral.
+    /// @param _usdsAmt Amount of USDs to be redeemed.
+    /// @param _minCollAmt Minimum expected amount of collateral to be received.
+    /// @param _deadline Expiry time of the transaction.
+    /// @param _strategy Address of the strategy to withdraw excess collateral from.
     function redeem(address _collateral, uint256 _usdsAmt, uint256 _minCollAmt, uint256 _deadline, address _strategy)
         external
         nonReentrant
@@ -188,15 +190,15 @@ contract VaultCore is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradea
         });
     }
 
-    /// @notice Get the expected redeem result
-    /// @param _collateral desired collateral address
-    /// @param _usdsAmt amount of usds to be redeemed
-    /// @return calculatedCollateralAmt expected amount of collateral to be released
-    ///                          based on the price calculation
-    /// @return usdsBurnAmt expected amount of USDs to be burnt in the process
-    /// @return feeAmt amount of USDs collected as fee for redemption
-    /// @return vaultAmt amount of Collateral released from Vault
-    /// @return strategyAmt amount of Collateral to withdraw from strategy
+    /// @notice Get the expected redeem result.
+    /// @param _collateral Desired collateral address.
+    /// @param _usdsAmt Amount of USDs to be redeemed.
+    /// @return calculatedCollateralAmt Expected amount of collateral to be released
+    /// based on the price calculation.
+    /// @return usdsBurnAmt Expected amount of USDs to be burnt in the process.
+    /// @return feeAmt Amount of USDs collected as fee for redemption.
+    /// @return vaultAmt Amount of collateral released from Vault.
+    /// @return strategyAmt Amount of collateral to withdraw from the strategy.
     function redeemView(address _collateral, uint256 _usdsAmt)
         external
         view
@@ -212,16 +214,16 @@ contract VaultCore is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradea
             _redeemView(_collateral, _usdsAmt, address(0));
     }
 
-    /// @notice Get the expected redeem result
-    /// @param _collateral desired collateral address
-    /// @param _usdsAmt amount of usds to be redeemed
-    /// @param _strategyAddr Address of strategy to redeem from
-    /// @return calculatedCollateralAmt expected amount of collateral to be released
-    ///                          based on the price calculation
-    /// @return usdsBurnAmt expected amount of USDs to be burnt in the process
-    /// @return feeAmt amount of USDs collected as fee for redemption
-    /// @return vaultAmt amount of Collateral released from Vault
-    /// @return strategyAmt amount of Collateral to withdraw from strategy
+    /// @notice Get the expected redeem result from a specific strategy.
+    /// @param _collateral Desired collateral address.
+    /// @param _usdsAmt Amount of USDs to be redeemed.
+    /// @param _strategyAddr Address of strategy to redeem from.
+    /// @return calculatedCollateralAmt Expected amount of collateral to be released
+    /// based on the price calculation.
+    /// @return usdsBurnAmt Expected amount of USDs to be burnt in the process.
+    /// @return feeAmt Amount of USDs collected as fee for redemption.
+    /// @return vaultAmt Amount of collateral released from Vault.
+    /// @return strategyAmt Amount of collateral to withdraw from the strategy.
     function redeemView(address _collateral, uint256 _usdsAmt, address _strategyAddr)
         external
         view
@@ -237,8 +239,8 @@ contract VaultCore is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradea
             _redeemView(_collateral, _usdsAmt, _strategyAddr);
     }
 
-    /// @notice Rebase USDs to share earned yield with the USDs holders
-    /// @dev If Rebase manager returns a non zero value, it calls rebase function on token/ USDs contract
+    /// @notice Rebase USDs to share earned yield with the USDs holders.
+    /// @dev If Rebase manager returns a non-zero value, it calls the rebase function on the USDs contract.
     function rebase() public {
         uint256 rebaseAmt = IRebaseManager(rebaseManager).fetchRebaseAmt();
         if (rebaseAmt != 0) {
@@ -247,10 +249,10 @@ contract VaultCore is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradea
         }
     }
 
-    /// @notice Get the expected mint result (USDs amt, fee)
-    /// @param _collateral address of the collateral
-    /// @param _collateralAmt amount of collateral
-    /// @return Returns the expected USDs mint amount and fee for minting
+    /// @notice Get the expected mint result (USDs amount, fee).
+    /// @param _collateral Address of collateral.
+    /// @param _collateralAmt Amount of collateral.
+    /// @return Returns the expected USDs mint amount and fee for minting.
     function mintView(address _collateral, uint256 _collateralAmt) public view returns (uint256, uint256) {
         // Get mint configuration
         ICollateralManager.CollateralMintData memory collateralMintConfig =
@@ -269,7 +271,7 @@ contract VaultCore is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradea
 
         // Skip fee collection for owner
         uint256 feePercentage = 0;
-        if (msg.sender != owner()) {
+        if (msg.sender != owner() && msg.sender != yieldReceiver) {
             // Calculate mint fee based on collateral data
             feePercentage = IFeeCalculator(feeCalculator).getMintFee(_collateral);
         }
@@ -290,11 +292,16 @@ contract VaultCore is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradea
         return (toMinterAmt, feeAmt);
     }
 
-    /// @notice mint USDs
-    /// @param _collateral address of collateral
-    /// @param _collateralAmt amount of collateral to deposit
-    /// @param _minUSDSAmt min expected USDs amount to be minted
-    /// @param _deadline Deadline timestamp for executing mint
+    /// @notice Mint USDs by depositing collateral.
+    /// @param _collateral Address of the collateral.
+    /// @param _collateralAmt Amount of collateral to deposit.
+    /// @param _minUSDSAmt Minimum expected amount of USDs to be minted.
+    /// @param _deadline Deadline timestamp for executing mint.
+    /// @dev Mints USDs by locking collateral based on user input, ensuring a minimum
+    /// expected minted amount is met.
+    /// @dev If the minimum expected amount is not met, the transaction will revert.
+    /// @dev Fee is collected, and collateral is transferred accordingly.
+    /// @dev A rebase operation is triggered after minting.
     function _mint(address _collateral, uint256 _collateralAmt, uint256 _minUSDSAmt, uint256 _deadline) private {
         Helpers._checkDeadline(_deadline);
         (uint256 toMinterAmt, uint256 feeAmt) = mintView(_collateral, _collateralAmt);
@@ -320,13 +327,16 @@ contract VaultCore is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradea
         });
     }
 
-    /// @notice Redeem USDs
-    /// @param _collateral address of collateral to receive
-    /// @param _usdsAmt amount of USDs to redeem
-    /// @param _minCollateralAmt min expected Collateral amount to be received
-    /// @param _deadline Deadline timestamp for executing mint
-    /// @param _strategyAddr Address of the strategy to withdraw from
-    /// @dev withdraw from strategy is triggered only if vault doesn't have enough funds
+    /// @notice Redeem USDs for collateral.
+    /// @param _collateral Address of the collateral to receive.
+    /// @param _usdsAmt Amount of USDs to redeem.
+    /// @param _minCollateralAmt Minimum expected collateral amount to be received.
+    /// @param _deadline Deadline timestamp for executing the redemption.
+    /// @param _strategyAddr Address of the strategy to withdraw from.
+    /// @dev Redeems USDs for collateral, ensuring a minimum expected collateral amount
+    /// is met.
+    /// @dev If the minimum expected collateral amount is not met, the transaction will revert.
+    /// @dev Fee is collected, collateral is transferred, and a rebase operation is triggered.
     function _redeem(
         address _collateral,
         uint256 _usdsAmt,
@@ -374,17 +384,25 @@ contract VaultCore is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradea
         });
     }
 
-    /// @notice Get the expected redeem result
-    /// @param _collateral desired collateral address
-    /// @param _usdsAmt amount of usds to be redeemed
-    /// @param _strategyAddr address of the strategy to redeem from
-    /// @return calculatedCollateralAmt expected amount of collateral to be released
-    ///                          based on the price calculation
-    /// @return usdsBurnAmt expected amount of USDs to be burnt in the process
-    /// @return feeAmt amount of USDs collected as fee for redemption
-    /// @return vaultAmt amount of Collateral to be released from Vault
-    /// @return strategyAmt amount of Collateral to be withdrawn from strategy
-    /// @return strategy Strategy to withdraw collateral from
+    /// @notice Get the expected redeem result.
+    /// @param _collateral Desired collateral address.
+    /// @param _usdsAmt Amount of USDs to be redeemed.
+    /// @param _strategyAddr Address of the strategy to redeem from.
+    /// @return calculatedCollateralAmt Expected amount of collateral to be released
+    ///         based on the price calculation.
+    /// @return usdsBurnAmt Expected amount of USDs to be burnt in the process.
+    /// @return feeAmt Amount of USDs collected as a fee for redemption.
+    /// @return vaultAmt Amount of collateral released from Vault.
+    /// @return strategyAmt Amount of collateral to withdraw from the strategy.
+    /// @return strategy Strategy contract to withdraw collateral from.
+    /// @dev Calculates the expected results of a redemption, including collateral
+    ///      amount, fees, and strategy-specific details.
+    /// @dev Ensures that the redemption is allowed for the specified collateral.
+    /// @dev Calculates fees, burn amounts, and collateral amounts based on prices
+    ///      and conversion factors.
+    /// @dev Determines if collateral needs to be withdrawn from a strategy, and if
+    ///      so, checks the availability of collateral in the strategy.
+
     function _redeemView(address _collateral, uint256 _usdsAmt, address _strategyAddr)
         private
         view

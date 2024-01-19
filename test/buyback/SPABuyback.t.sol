@@ -7,7 +7,9 @@ import {UpgradeUtil} from "../utils/UpgradeUtil.sol";
 import {MasterPriceOracle} from "../../contracts/oracle/MasterPriceOracle.sol";
 import {IOracle} from "../../contracts/interfaces/IOracle.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {IveSPARewarder} from "../../contracts/interfaces/IveSPARewarder.sol";
 import {IUSDs} from "../../contracts/interfaces/IUSDs.sol";
+import {USDs} from "../../contracts/token/USDs.sol";
 
 contract SPABuybackTestSetup is BaseTest {
     SPABuyback internal spaBuyback;
@@ -17,19 +19,15 @@ contract SPABuybackTestSetup is BaseTest {
     IOracle.PriceData internal spaData;
 
     address internal user;
-    address internal constant VESPA_REWARDER = 0x2CaB3abfC1670D1a452dF502e216a66883cDf079;
+    address internal constant VESPA_REWARDER = 0x5eD5C72D24fF0931E5a38C2969160dFE259E7C05;
     uint256 internal constant MAX_PERCENTAGE = 10000;
     uint256 internal rewardPercentage;
     uint256 internal minUSDsOut;
     uint256 internal spaIn;
 
     modifier mockOracle() {
-        vm.mockCall(
-            address(ORACLE), abi.encodeWithSignature("getPrice(address)", USDS), abi.encode(995263234350000000, 1e18)
-        );
-        vm.mockCall(
-            address(ORACLE), abi.encodeWithSignature("getPrice(address)", SPA), abi.encode(4729390000000000, 1e18)
-        );
+        vm.mockCall(address(ORACLE), abi.encodeWithSignature("getPrice(address)", USDS), abi.encode(99526323, 1e8));
+        vm.mockCall(address(ORACLE), abi.encodeWithSignature("getPrice(address)", SPA), abi.encode(472939, 1e8));
         _;
         vm.clearMockedCalls();
     }
@@ -63,13 +61,19 @@ contract SPABuybackTestSetup is BaseTest {
         spaData = IOracle(ORACLE).getPrice(SPA);
         return (_usdsAmount * usdsData.price * spaData.precision) / (spaData.price * usdsData.precision);
     }
+
+    function _getWeek(uint256 _n) internal view returns (uint256) {
+        uint256 week = 7 days;
+        uint256 thisWeek = (block.timestamp / week) * week;
+        return thisWeek + (_n * week);
+    }
 }
 
-contract TestInit is SPABuybackTestSetup {
+contract Test_Init is SPABuybackTestSetup {
     SPABuyback private _spaBuybackImpl;
     SPABuyback private _spaBuyback;
 
-    function testInitialize() public {
+    function test_initialize() public {
         address _proxy;
         vm.startPrank(USDS_OWNER);
         _spaBuybackImpl = new SPABuyback();
@@ -80,104 +84,106 @@ contract TestInit is SPABuybackTestSetup {
         vm.stopPrank();
     }
 
-    function testCannotInitializeTwice() public useKnownActor(USDS_OWNER) {
+    function test_RevertWhen_alreadyInitialized() public useKnownActor(USDS_OWNER) {
         vm.expectRevert("Initializable: contract is already initialized");
         spaBuyback.initialize(VESPA_REWARDER, rewardPercentage);
     }
 
-    function testCannotInitializeImplementation() public useKnownActor(USDS_OWNER) {
+    function test_RevertWhen_initializingImplementation() public useKnownActor(USDS_OWNER) {
         vm.expectRevert("Initializable: contract is already initialized");
         spaBuybackImpl.initialize(VESPA_REWARDER, rewardPercentage);
     }
 
-    function testInit() public {
+    function test_initParams() public {
         assertEq(spaBuyback.veSpaRewarder(), VESPA_REWARDER);
         assertEq(spaBuyback.rewardPercentage(), rewardPercentage);
     }
 }
 
-contract TestGetters is SPABuybackTestSetup {
+contract Test_GetUSDsOutForSpa is SPABuybackTestSetup {
     uint256 private usdsAmount;
-    uint256 private spaReqd;
 
     function setUp() public override {
         super.setUp();
-        usdsAmount = 100e18;
-        spaIn = 100000e18;
+        usdsAmount = 1e20;
+        spaIn = 1e23;
     }
 
-    function testGetSpaReqdForUSDs() public mockOracle {
-        uint256 calculatedSpaReqd = _calculateSpaReqdForUSDs(usdsAmount);
-        uint256 spaReqdByContract = spaBuyback.getSPAReqdForUSDs(usdsAmount);
-        assertEq(calculatedSpaReqd, spaReqdByContract);
-    }
-
-    function testGetUsdsOutForSpa() public mockOracle {
+    function test_GetUsdsOutForSpa() public mockOracle {
         uint256 calculateUSDsOut = _calculateUSDsForSpaIn(spaIn);
         uint256 usdsOutByContract = spaBuyback.getUsdsOutForSpa(spaIn);
         assertEq(calculateUSDsOut, usdsOutByContract);
     }
 
-    function testCannotIfInvalidAmount() public mockOracle {
+    function test_RevertWhen_invalidAmount() public mockOracle {
         vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAmount.selector));
         spaBuyback.getUsdsOutForSpa(0);
     }
 }
 
-contract TestSetters is SPABuybackTestSetup {
-    event RewardPercentageUpdated(uint256 newRewardPercentage);
-    event VeSpaRewarderUpdated(address newVeSpaRewarder);
-    event OracleUpdated(address newOracle);
+contract Test_GetSPAReqdForUSDs is SPABuybackTestSetup {
+    uint256 private usdsAmount;
 
-    function testCannotIfCallerNotOwner() external useActor(0) {
+    function setUp() public override {
+        super.setUp();
+        usdsAmount = 1e20;
+        spaIn = 1e23;
+    }
+
+    function test_getSPAReqdForUSDs() public mockOracle {
+        uint256 calculatedSpaReqd = _calculateSpaReqdForUSDs(usdsAmount);
+        uint256 spaReqdByContract = spaBuyback.getSPAReqdForUSDs(usdsAmount);
+        assertEq(calculatedSpaReqd, spaReqdByContract);
+    }
+
+    function test_RevertWhen_invalidAmount() public mockOracle {
+        vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAmount.selector));
+        spaBuyback.getSPAReqdForUSDs(0);
+    }
+}
+
+contract Test_UpdateRewardPercentage is SPABuybackTestSetup {
+    event RewardPercentageUpdated(uint256 newRewardPercentage);
+
+    function test_RevertWhen_callerNotOwner() external useActor(0) {
         vm.expectRevert("Ownable: caller is not the owner");
         spaBuyback.updateRewardPercentage(9000);
-        vm.expectRevert("Ownable: caller is not the owner");
-        spaBuyback.updateVeSpaRewarder(actors[0]);
-        vm.expectRevert("Ownable: caller is not the owner");
-        spaBuyback.updateOracle(actors[0]);
     }
 
     // function updateRewardPercentage
-    function testCannotIfPercentageIsZero() external useKnownActor(USDS_OWNER) {
+    function test_RevertWhen_percentageIsZero() external useKnownActor(USDS_OWNER) {
         vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAmount.selector));
         spaBuyback.updateRewardPercentage(0);
     }
 
-    function testCannotIfPercentageMoreThanMax() external useKnownActor(USDS_OWNER) {
+    function test_RevertWhen_percentageMoreThanMax() external useKnownActor(USDS_OWNER) {
         vm.expectRevert(abi.encodeWithSelector(Helpers.GTMaxPercentage.selector, 10001));
         spaBuyback.updateRewardPercentage(10001);
     }
 
-    function testUpdateRewardPercentage() external useKnownActor(USDS_OWNER) {
+    function test_updateRewardPercentage() external useKnownActor(USDS_OWNER) {
         uint256 newRewardPercentage = 8000;
         vm.expectEmit(true, true, true, true, address(spaBuyback));
         emit RewardPercentageUpdated(newRewardPercentage);
         spaBuyback.updateRewardPercentage(8000);
         assertEq(spaBuyback.rewardPercentage(), newRewardPercentage);
     }
+}
 
-    // function updateVeSpaRewarder
-    function testCannotIfInvalidAddress() external useKnownActor(USDS_OWNER) {
-        vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAddress.selector));
-        spaBuyback.updateVeSpaRewarder(address(0));
+contract Test_UpdateOracle is SPABuybackTestSetup {
+    event OracleUpdated(address newOracle);
+
+    function test_RevertWhen_callerNotOwner() external useActor(0) {
+        vm.expectRevert("Ownable: caller is not the owner");
+        spaBuyback.updateOracle(actors[0]);
     }
 
-    function testUpdateVeSpaRewarder() external useKnownActor(USDS_OWNER) {
-        address newRewarder = actors[1];
-        vm.expectEmit(true, true, true, true, address(spaBuyback));
-        emit VeSpaRewarderUpdated(newRewarder);
-        spaBuyback.updateVeSpaRewarder(newRewarder);
-        assertEq(spaBuyback.veSpaRewarder(), newRewarder);
-    }
-
-    // function updateOracle
-    function testCannotIfInvalidAddressOracle() external useKnownActor(USDS_OWNER) {
+    function test_RevertWhen_invalidOracleAddress() external useKnownActor(USDS_OWNER) {
         vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAddress.selector));
         spaBuyback.updateOracle(address(0));
     }
 
-    function testUpdateOracle() external useKnownActor(USDS_OWNER) {
+    function test_updateOracle() external useKnownActor(USDS_OWNER) {
         address newOracle = actors[1];
         vm.expectEmit(true, true, true, true, address(spaBuyback));
         emit OracleUpdated(newOracle);
@@ -186,7 +192,29 @@ contract TestSetters is SPABuybackTestSetup {
     }
 }
 
-contract TestWithdraw is SPABuybackTestSetup {
+contract Test_UpdateRewarder is SPABuybackTestSetup {
+    event VeSpaRewarderUpdated(address newVeSpaRewarder);
+
+    function test_RevertWhen_callerNotOwner() external useActor(0) {
+        vm.expectRevert("Ownable: caller is not the owner");
+        spaBuyback.updateVeSpaRewarder(actors[0]);
+    }
+
+    function test_RevertWhen_invalidRewarderAddress() external useKnownActor(USDS_OWNER) {
+        vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAddress.selector));
+        spaBuyback.updateVeSpaRewarder(address(0));
+    }
+
+    function test_updateVeSpaRewarder() external useKnownActor(USDS_OWNER) {
+        address newRewarder = actors[1];
+        vm.expectEmit(true, true, true, true, address(spaBuyback));
+        emit VeSpaRewarderUpdated(newRewarder);
+        spaBuyback.updateVeSpaRewarder(newRewarder);
+        assertEq(spaBuyback.veSpaRewarder(), newRewarder);
+    }
+}
+
+contract Test_Withdraw is SPABuybackTestSetup {
     address private token;
     uint256 private amount;
 
@@ -195,31 +223,31 @@ contract TestWithdraw is SPABuybackTestSetup {
     function setUp() public override {
         super.setUp();
         token = USDS;
-        amount = 100e18;
+        amount = 1e20;
 
         vm.prank(VAULT);
         IUSDs(USDS).mint(address(spaBuyback), amount);
     }
 
-    function testCannotIfCallerNotOwner() public useActor(0) {
+    function test_RevertWhen_CallerNotOwner() public useActor(0) {
         vm.expectRevert("Ownable: caller is not the owner");
         spaBuyback.withdraw(token, user, amount);
     }
 
-    function testCannotWithdrawSPA() public useKnownActor(USDS_OWNER) {
+    function test_RevertWhen_withdrawSPA() public useKnownActor(USDS_OWNER) {
         token = SPA;
         vm.expectRevert(abi.encodeWithSelector(SPABuyback.CannotWithdrawSPA.selector));
         spaBuyback.withdraw(token, user, amount);
     }
 
-    function testCannotWithdrawMoreThanBalance() public useKnownActor(USDS_OWNER) {
-        amount = IERC20(USDS).balanceOf(address(spaBuyback));
-        amount = amount + 100e18;
-        vm.expectRevert("Transfer greater than balance");
+    function test_RevertWhen_withdrawMoreThanBalance() public useKnownActor(USDS_OWNER) {
+        uint256 balance = IERC20(USDS).balanceOf(address(spaBuyback));
+        amount = balance + 1e20;
+        vm.expectRevert(abi.encodeWithSelector(USDs.TransferGreaterThanBal.selector, amount, balance));
         spaBuyback.withdraw(token, user, amount);
     }
 
-    function testWithdraw() public useKnownActor(USDS_OWNER) {
+    function test_withdraw() public useKnownActor(USDS_OWNER) {
         uint256 balBefore = IERC20(USDS).balanceOf(user);
         vm.expectEmit(true, true, true, true, address(spaBuyback));
         emit Withdrawn(token, user, amount);
@@ -229,14 +257,14 @@ contract TestWithdraw is SPABuybackTestSetup {
     }
 }
 
-contract TestBuyUSDs is SPABuybackTestSetup {
+contract Test_BuyUSDs is SPABuybackTestSetup {
     struct BalComparison {
         uint256 balBefore;
         uint256 balAfter;
     }
 
     BalComparison private spaTotalSupply;
-    BalComparison private spaBal;
+    BalComparison private rewarderSPABal;
 
     event BoughtBack(
         address indexed receiverOfUSDs,
@@ -251,54 +279,62 @@ contract TestBuyUSDs is SPABuybackTestSetup {
 
     function setUp() public override {
         super.setUp();
-        spaIn = 100000e18;
+        spaIn = 1e23;
         minUSDsOut = 1;
     }
 
-    function testCannotIfSpaAmountTooLow() public mockOracle {
+    function test_RevertWhen_SpaAmountTooLow() public mockOracle {
         spaIn = 100;
         vm.expectRevert(abi.encodeWithSelector(Helpers.CustomError.selector, "SPA Amount too low"));
         spaBuyback.buyUSDs(spaIn, minUSDsOut);
     }
 
-    function testCannotIfSlippageMoreThanExpected() public mockOracle {
-        minUSDsOut = spaBuyback.getUsdsOutForSpa(spaIn) + 100e18;
-        vm.expectRevert(abi.encodeWithSelector(Helpers.MinSlippageError.selector, minUSDsOut - 100e18, minUSDsOut));
+    function test_RevertWhen_SlippageMoreThanExpected() public mockOracle {
+        minUSDsOut = spaBuyback.getUsdsOutForSpa(spaIn) + 1e20;
+        vm.expectRevert(abi.encodeWithSelector(Helpers.MinSlippageError.selector, minUSDsOut - 1e20, minUSDsOut));
         spaBuyback.buyUSDs(spaIn, minUSDsOut);
     }
 
-    function testCannotIfInsufficientUSDsBalance() public mockOracle {
+    function test_RevertWhen_InsufficientUSDsBalance() public mockOracle {
         minUSDsOut = spaBuyback.getUsdsOutForSpa(spaIn);
         vm.expectRevert(abi.encodeWithSelector(SPABuyback.InsufficientUSDsBalance.selector, minUSDsOut, 0));
         spaBuyback.buyUSDs(spaIn, minUSDsOut);
     }
 
-    function testBuyUSDs() public mockOracle {
+    function test_buyUSDs() public mockOracle {
         minUSDsOut = _calculateUSDsForSpaIn(spaIn);
         vm.prank(VAULT);
-        IUSDs(USDS).mint(address(spaBuyback), minUSDsOut + 10e18);
+        IUSDs(USDS).mint(address(spaBuyback), minUSDsOut + 1e19);
         spaTotalSupply.balBefore = IERC20(SPA).totalSupply();
-        spaBal.balBefore = IERC20(SPA).balanceOf(VESPA_REWARDER);
+        rewarderSPABal.balBefore = IERC20(SPA).balanceOf(VESPA_REWARDER);
         deal(SPA, user, spaIn);
         vm.startPrank(user);
         IERC20(SPA).approve(address(spaBuyback), spaIn);
         spaData = IOracle(ORACLE).getPrice(SPA);
+
+        // Calculate SPA to be distributed and burnt
+        uint256 spaRewarded = spaIn * spaBuyback.rewardPercentage() / Helpers.MAX_PERCENTAGE;
+        uint256 spaBurnt = spaIn - spaRewarded;
+
+        uint256 initialRewards = IveSPARewarder(VESPA_REWARDER).rewardsPerWeek(_getWeek(1), SPA);
         vm.expectEmit(true, true, false, true, address(spaBuyback));
         emit BoughtBack(user, user, spaData.price, spaIn, minUSDsOut);
         vm.expectEmit(true, true, true, true, address(spaBuyback));
-        emit SPARewarded(spaIn / 2);
+        emit SPARewarded(spaRewarded);
         vm.expectEmit(true, true, true, true, address(spaBuyback));
-        emit SPABurned(spaIn / 2);
+        emit SPABurned(spaBurnt);
         spaBuyback.buyUSDs(spaIn, minUSDsOut);
         vm.stopPrank();
+        uint256 rewardsAfter = IveSPARewarder(VESPA_REWARDER).rewardsPerWeek(_getWeek(1), SPA);
         spaTotalSupply.balAfter = IERC20(SPA).totalSupply();
-        spaBal.balAfter = IERC20(SPA).balanceOf(VESPA_REWARDER);
-        assertEq(spaBal.balAfter - spaBal.balBefore, spaIn / 2);
-        assertEq(spaTotalSupply.balBefore - spaTotalSupply.balAfter, spaIn / 2);
+        rewarderSPABal.balAfter = IERC20(SPA).balanceOf(VESPA_REWARDER);
+        assertEq(rewarderSPABal.balAfter - rewarderSPABal.balBefore, spaRewarded);
+        assertEq(initialRewards + (spaRewarded), rewardsAfter);
+        assertEq(spaTotalSupply.balBefore - spaTotalSupply.balAfter, spaBurnt);
     }
 
     // Testing with fuzzing
-    function testBuyUSDs(uint256 spaIn, uint256 spaPrice, uint256 usdsPrice) public {
+    function test_buyUSDs(uint256 spaIn, uint256 spaPrice, uint256 usdsPrice) public {
         usdsPrice = bound(usdsPrice, 7e17, 13e17);
         spaPrice = bound(spaPrice, 1e15, 1e20);
         spaIn = bound(spaIn, 1e18, 1e27);
@@ -312,6 +348,7 @@ contract TestBuyUSDs is SPABuybackTestSetup {
             deal(SPA, user, spaIn);
             vm.startPrank(user);
             IERC20(SPA).approve(address(spaBuyback), spaIn);
+            uint256 initialRewards = IveSPARewarder(VESPA_REWARDER).rewardsPerWeek(_getWeek(1), SPA);
             vm.expectEmit(true, true, true, true, address(spaBuyback));
             emit BoughtBack(user, user, spaData.price, spaIn, minUSDsOut);
             vm.expectEmit(true, true, true, false, address(spaBuyback));
@@ -320,6 +357,8 @@ contract TestBuyUSDs is SPABuybackTestSetup {
             emit SPABurned(spaIn / 2);
             spaBuyback.buyUSDs(spaIn, minUSDsOut);
             vm.stopPrank();
+            uint256 rewardsAfter = IveSPARewarder(VESPA_REWARDER).rewardsPerWeek(_getWeek(1), SPA);
+            assertEq(initialRewards + (spaIn / 2), rewardsAfter);
             vm.clearMockedCalls();
             emit log_named_uint("SPA spent", spaIn);
         }

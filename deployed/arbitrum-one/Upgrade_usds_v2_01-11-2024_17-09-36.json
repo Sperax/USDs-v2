@@ -1,0 +1,24 @@
+{
+    "new_impl": "0x67b58013742ce6Bb0Cdc2EF3CE0A35c1d2F5f3c2",
+    "Description": "Remove upgrade account functionality",
+    "type": "Upgrade",
+    "transactions": [
+        {
+            "step": "New_implementation_deployment",
+            "tx_hash": "0x80757cfd846fac2aea8261e45dc5b5f860e804fd4e237f0bedf88dce2d1d3de0",
+            "contract": "USDs",
+            "contract_addr": "0x67b58013742ce6Bb0Cdc2EF3CE0A35c1d2F5f3c2",
+            "tx_func": "constructor",
+            "blocknumber": 169353778,
+            "gas_used": 24921731,
+            "gas_limit": 30403123
+        }
+    ],
+    "config_name": "usds_v2",
+    "config": {
+        "proxy_address": "0xD74f5255D557944cf7Dd0E45FF521520002D5748",
+        "gnosis_upgrade": true,
+        "proxy_admin": "0x3E49925A79CbFb68BAa5bc9DFb4f7D955D1ddF25",
+        "post_upgrade_steps": []
+    }
+}

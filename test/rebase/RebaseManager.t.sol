@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 pragma solidity 0.8.19;
 
 import {PreMigrationSetup} from ".././utils/DeploymentSetup.sol";
@@ -7,6 +8,7 @@ import {IOracle} from "../../contracts/interfaces/IOracle.sol";
 import {IERC20, ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {console} from "forge-std/console.sol";
 import {IVault} from "../../contracts/interfaces/IVault.sol";
+import {IUSDs} from "../../contracts/interfaces/IUSDs.sol";
 
 contract RebaseManagerTest is PreMigrationSetup {
     //  Init Variables.
@@ -15,6 +17,8 @@ contract RebaseManagerTest is PreMigrationSetup {
     IVault internal vault;
     uint256 USDCePrecision;
     uint256 USDsPrecision;
+
+    uint256 MAX_SUPPLY = ~uint128(0);
 
     // Events from the actual contract.
     event VaultUpdated(address vault);
@@ -36,110 +40,174 @@ contract RebaseManagerTest is PreMigrationSetup {
     }
 
     function mintUSDs(uint256 amountIn) public {
-        vm.startPrank(USDS_OWNER);
-
-        deal(address(USDCe), USDS_OWNER, amountIn);
-
-        IERC20(USDCe).approve(VAULT, amountIn);
-        IVault(VAULT).mintBySpecifyingCollateralAmt(USDCe, amountIn, 0, 0, block.timestamp + 1200);
+        vm.startPrank(VAULT);
+        IUSDs(USDS).mint(USDS_OWNER, amountIn);
         vm.stopPrank();
     }
 }
 
+contract Constructor is RebaseManagerTest {
+    function test_Constructor() external {
+        assertEq(rebaseManager.vault(), VAULT);
+        assertEq(rebaseManager.dripper(), DRIPPER);
+        assertEq(rebaseManager.gap(), REBASE_MANAGER_GAP);
+        assertEq(rebaseManager.aprCap(), REBASE_MANAGER_APR_CAP);
+        assertEq(rebaseManager.aprBottom(), REBASE_MANAGER_APR_BOTTOM);
+        assertEq(rebaseManager.lastRebaseTS(), block.timestamp);
+    }
+}
+
 contract UpdateVault is RebaseManagerTest {
-    function test_RevertWhen_VaultIsZeroAddress() external useKnownActor(USDS_OWNER) {
+    function test_RevertWhen_CallerIsNotOwner() external useActor(0) {
+        address newVaultAddress = address(1);
+
+        vm.expectRevert("Ownable: caller is not the owner");
+        rebaseManager.updateVault(newVaultAddress);
+    }
+
+    function test_RevertWhen_InvalidAddress() external useKnownActor(USDS_OWNER) {
         address newVaultAddress = address(0);
         vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAddress.selector));
         rebaseManager.updateVault(newVaultAddress);
     }
 
-    // Can't set the fuzzer for address type
-    function test_UpdateVault() external useKnownActor(USDS_OWNER) {
-        address newVaultAddress = address(1);
-        vm.expectEmit(true, true, false, true);
-        emit VaultUpdated(address(1));
+    function test_UpdateVault(address newVaultAddress) external useKnownActor(USDS_OWNER) {
+        vm.assume(newVaultAddress != address(0));
 
+        vm.expectEmit(address(rebaseManager));
+        emit VaultUpdated(newVaultAddress);
         rebaseManager.updateVault(newVaultAddress);
-    }
 
-    function test_RevertWhen_CallerIsNotOwner() external useActor(0) {
-        address newVaultAddress = address(1);
-
-        vm.expectRevert("Ownable: caller is not the owner");
-        rebaseManager.updateVault(newVaultAddress);
+        assertEq(rebaseManager.vault(), newVaultAddress);
     }
 }
 
 contract UpdateDripper is RebaseManagerTest {
-    function test_RevertWhen_DripperIsZeroAddress() external useKnownActor(USDS_OWNER) {
+    function test_RevertWhen_CallerIsNotOwner() external useActor(0) {
+        address newDripperAddress = address(1);
+
+        vm.expectRevert("Ownable: caller is not the owner");
+        rebaseManager.updateDripper(newDripperAddress);
+    }
+
+    function test_RevertWhen_InvalidAddress() external useKnownActor(USDS_OWNER) {
         address newDripperAddress = address(0);
         vm.expectRevert(abi.encodeWithSelector(Helpers.InvalidAddress.selector));
         rebaseManager.updateDripper(newDripperAddress);
     }
 
-    function test_RevertWhen_CallerIsNotOwner() external useActor(0) {
-        address newDripperAddress = address(1);
+    function test_UpdateDripper(address newDripperAddress) external useKnownActor(USDS_OWNER) {
+        vm.assume(newDripperAddress != address(0));
 
-        vm.expectRevert("Ownable: caller is not the owner");
+        vm.expectEmit(address(rebaseManager));
+        emit DripperUpdated(newDripperAddress);
         rebaseManager.updateDripper(newDripperAddress);
-    }
 
-    function test_UpdateDripper() external useKnownActor(USDS_OWNER) {
-        address newDripperAddress = address(1);
-        vm.expectEmit(true, true, false, true);
-        emit DripperUpdated(address(1));
-        rebaseManager.updateDripper(newDripperAddress);
+        assertEq(rebaseManager.dripper(), newDripperAddress);
     }
 }
 
 contract UpdateGap is RebaseManagerTest {
-    function test_UpdateGap_Zero() external useKnownActor(USDS_OWNER) {
-        vm.expectEmit(true, true, false, true);
-        emit GapUpdated(0);
-        rebaseManager.updateGap(0);
-    }
-
     function test_RevertWhen_CallerIsNotOwner() external useActor(0) {
         vm.expectRevert("Ownable: caller is not the owner");
-        rebaseManager.updateGap(86400 * 7);
+        rebaseManager.updateGap(7 days);
     }
 
     function test_UpdateGap(uint256 gap) external useKnownActor(USDS_OWNER) {
-        vm.assume(gap != 0);
-
-        vm.expectEmit(true, true, false, true);
+        vm.expectEmit(address(rebaseManager));
         emit GapUpdated(gap);
         rebaseManager.updateGap(gap);
+
+        assertEq(rebaseManager.gap(), gap);
     }
 }
 
 contract UpdateAPR is RebaseManagerTest {
-    function test_RevertWhen_InvalidConfig(uint256 aprBottom, uint256 aprCap) external useKnownActor(USDS_OWNER) {
-        vm.assume(aprBottom > aprCap);
+    function test_RevertWhen_InvalidAPRConfig() external useKnownActor(USDS_OWNER) {
+        uint256 aprBottom = 10;
+        uint256 aprCap = 9;
+
         vm.expectRevert(abi.encodeWithSelector(InvalidAPRConfig.selector, aprBottom, aprCap));
         rebaseManager.updateAPR(aprBottom, aprCap);
     }
 
-    function test_RevertWhen_CallerIsNotOwner(uint256 aprBottom, uint256 aprCap) external useActor(0) {
-        vm.assume(aprBottom <= aprCap);
+    function test_RevertWhen_CallerIsNotOwner() external useActor(0) {
+        uint256 aprBottom = 10;
+        uint256 aprCap = 9;
+
         vm.expectRevert("Ownable: caller is not the owner");
         rebaseManager.updateAPR(aprBottom, aprCap);
     }
 
     function test_UpdateAPR(uint256 aprBottom, uint256 aprCap) external useKnownActor(USDS_OWNER) {
         vm.assume(aprBottom <= aprCap);
-        vm.expectEmit(true, true, false, true);
+
+        vm.expectEmit(address(rebaseManager));
         emit APRUpdated(aprBottom, aprCap);
         rebaseManager.updateAPR(aprBottom, aprCap);
+
+        assertEq(rebaseManager.aprBottom(), aprBottom);
+        assertEq(rebaseManager.aprCap(), aprCap);
     }
 }
 
 contract FetchRebaseAmt is RebaseManagerTest {
-    function test_RevertWhen_CallerIsNotOwner() external useActor(0) {
+    event Collected(uint256 amount);
+
+    function test_RevertWhen_CallerNotVault() external useActor(0) {
         vm.expectRevert(abi.encodeWithSelector(CallerNotVault.selector, actors[0]));
         rebaseManager.fetchRebaseAmt();
     }
 
+    function test_FetchRebaseAmt_WhenRebaseAmtIsZero() external useKnownActor(VAULT) {
+        uint256 rebaseAmt = rebaseManager.fetchRebaseAmt();
+        assertEq(rebaseAmt, 0);
+    }
+
+    function test_FetchRebaseAmt(uint256 _amount, uint256 vaultBalance) external useKnownActor(VAULT) {
+        _amount = bound(_amount, 7 days, MAX_SUPPLY - IUSDs(USDS).totalSupply());
+        vaultBalance = bound(vaultBalance, 1, MAX_SUPPLY - IUSDs(USDS).totalSupply());
+        uint256 calculatedRebaseAmt = _amount + vaultBalance;
+        vm.mockCall(address(USDS), abi.encodeWithSignature("balanceOf(address)", VAULT), abi.encode(vaultBalance));
+
+        mintUSDs(_amount);
+        changePrank(USDS_OWNER);
+        IERC20(USDS).approve(address(dripper), _amount);
+        dripper.addUSDs(_amount);
+
+        changePrank(VAULT);
+        skip(14 days); // to collect all the drip
+        uint256 lastRebaseTS = rebaseManager.lastRebaseTS();
+        skip(rebaseManager.gap()); // to allow rebase
+
+        (uint256 minRebaseAmt, uint256 maxRebaseAmt) = rebaseManager.getMinAndMaxRebaseAmt();
+        assert(minRebaseAmt > 0);
+        assert(maxRebaseAmt > 0);
+
+        uint256 availableRebaseAmt = rebaseManager.getAvailableRebaseAmt();
+        assertEq(availableRebaseAmt, calculatedRebaseAmt);
+
+        if (calculatedRebaseAmt < minRebaseAmt) {
+            uint256 rebaseAmt = rebaseManager.fetchRebaseAmt();
+
+            assertEq(rebaseAmt, 0);
+            assertEq(rebaseManager.lastRebaseTS(), lastRebaseTS);
+        } else {
+            vm.expectEmit(address(dripper));
+            emit Collected(_amount);
+            uint256 rebaseAmt = rebaseManager.fetchRebaseAmt();
+
+            assertEq(rebaseManager.lastRebaseTS(), block.timestamp);
+
+            if (calculatedRebaseAmt > maxRebaseAmt) {
+                assertEq(rebaseAmt, maxRebaseAmt);
+            } else {
+                assertEq(rebaseAmt, calculatedRebaseAmt);
+            }
+        }
+    }
+
+    // TODO remove this?
     function test_FetchRebaseAmt_Scenario() external {
         vm.prank(VAULT);
         rebaseManager.fetchRebaseAmt();
@@ -147,7 +215,7 @@ contract FetchRebaseAmt is RebaseManagerTest {
         IOracle.PriceData memory usdceData = IOracle(ORACLE).getPrice(USDS);
         uint256 usdcePrice = usdceData.price;
         uint256 usdcePrecision = usdceData.precision;
-        skip(86400 * 10);
+        skip(10 days);
         // Using mock call to set price feed as we are skipping 10 days into the future and oracle will not have the data for that day.
         vm.mockCall(
             address(ORACLE), abi.encodeWithSignature("getPrice(address)", USDCe), abi.encode(usdcePrice, usdcePrecision)
@@ -155,17 +223,17 @@ contract FetchRebaseAmt is RebaseManagerTest {
         // Minting USDs
         mintUSDs(1e11);
         vm.prank(USDS_OWNER);
-        IERC20(USDS).transfer(address(dripper), 1e22);
+        IERC20(USDS).transfer(address(dripper), 1e11);
 
         vm.startPrank(VAULT);
         dripper.collect();
         console.log("Day 1 After Minting USDs");
-        skip(86400 * 1);
+        skip(1 days);
         (uint256 min, uint256 max) = rebaseManager.getMinAndMaxRebaseAmt();
         console.log("Min Rebase Amt", min / (10 ** 18), "max Rebase Amt", max / (10 ** 18));
         uint256 collectable0 = dripper.getCollectableAmt();
         console.log("collectable0", collectable0 / 10 ** 18);
-        skip(86400 * 1);
+        skip(1 days);
         console.log("Day 2 After Minting USDs");
         (uint256 min2, uint256 max2) = rebaseManager.getMinAndMaxRebaseAmt();
         console.log("Min Rebase Amt", min2 / (10 ** 18), "max Rebase Amt", max2 / (10 ** 18));
@@ -175,7 +243,7 @@ contract FetchRebaseAmt is RebaseManagerTest {
         console.log("Rebase Amount", rebaseAmt1 / 10 ** 18);
         // Trying to collect from dripper after rebase
         dripper.collect();
-        skip(86400 * 1);
+        skip(1 days);
         console.log("Day 3 After Minting USDs");
         (uint256 min3, uint256 max3) = rebaseManager.getMinAndMaxRebaseAmt();
         console.log("Min Rebase Amt", min3 / (10 ** 18), "max Rebase Amt", max3 / (10 ** 18));

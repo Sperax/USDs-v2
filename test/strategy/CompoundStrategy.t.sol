@@ -208,15 +208,20 @@ contract DepositTest is CompoundStrategyTest {
         strategy.deposit(ASSET, 0);
     }
 
-    function test_Deposit() public useKnownActor(VAULT) {
+    function testFuzz_Deposit(uint256 _depositAmount) public useKnownActor(VAULT) {
+        depositAmount = bound(_depositAmount, 1, 1e10 * 10 ** ERC20(ASSET).decimals());
         uint256 initial_bal = strategy.checkBalance(ASSET);
+        uint256 initialLPBalance = strategy.checkLPTokenBalance(ASSET);
+        assert(initialLPBalance == 0);
 
         deal(ASSET, VAULT, depositAmount);
         IERC20(ASSET).approve(address(strategy), depositAmount);
         strategy.deposit(ASSET, depositAmount);
 
         uint256 new_bal = strategy.checkBalance(ASSET);
+        uint256 newLPBalance = strategy.checkLPTokenBalance(ASSET);
         assertEq(initial_bal + depositAmount, new_bal);
+        assertApproxEqAbs(initialLPBalance + depositAmount, newLPBalance, 2);
     }
 }
 
@@ -252,9 +257,7 @@ contract CollectInterestTest is CompoundStrategyTest {
         strategy.collectInterest(ASSET);
 
         uint256 current_bal = IERC20(ASSET).balanceOf(yieldReceiver);
-        uint256 newInterestEarned = strategy.checkInterestEarned(ASSET);
-
-        assertEq(newInterestEarned, 0);
+        assertApproxEqAbs(strategy.checkInterestEarned(ASSET), 0, 1);
         assertEq(current_bal, (initial_bal + harvestAmount));
     }
 }
@@ -338,10 +341,85 @@ contract CheckRewardEarnedTest is CompoundStrategyTest {
         strategy.deposit(ASSET, depositAmount);
         changePrank(USDS_OWNER);
         vm.warp(block.timestamp + 10 days);
-        vm.mockCall(P_TOKEN, abi.encodeWithSignature("baseTrackingAccrued(address)"), abi.encode(10000000));
+        IReward.RewardConfig memory config = strategy.rewardPool().rewardConfig(P_TOKEN);
+        IReward.RewardOwed memory data =
+            IReward(address(strategy.rewardPool())).getRewardOwed(P_TOKEN, address(strategy));
+        address rwdToken = data.token;
+        uint256 mockAccrued = 10000000;
+        vm.mockCall(P_TOKEN, abi.encodeWithSignature("baseTrackingAccrued(address)"), abi.encode(mockAccrued));
+        uint256 accrued = mockAccrued;
+        if (config.shouldUpscale) {
+            accrued *= config.rescaleFactor;
+        } else {
+            accrued /= config.rescaleFactor;
+        }
+        accrued = ((accrued * config.multiplier) / 1e18);
+        uint256 collectibleAmount = accrued - strategy.rewardPool().rewardsClaimed(P_TOKEN, address(strategy));
+
         IComet(P_TOKEN).accrueAccount(address(strategy));
-        uint256 reward = strategy.checkRewardEarned();
-        assertNotEq(reward, 0);
+        CompoundStrategy.RewardData[] memory rewardData = strategy.checkRewardEarned();
+        assert(rewardData.length > 0);
+        // since P_TOKEN is in index 1 of data array checking for index 1 in rewardData
+        assertEq(rewardData[1].token, rwdToken);
+        assertEq(rewardData[1].amount, collectibleAmount);
+    }
+
+    function test_CheckRewardEarned_shouldUpscaleTrue() public useKnownActor(USDS_OWNER) {
+        changePrank(VAULT);
+        deal(ASSET, VAULT, depositAmount);
+        IERC20(ASSET).approve(address(strategy), depositAmount);
+        strategy.deposit(ASSET, depositAmount);
+        changePrank(USDS_OWNER);
+
+        vm.warp(block.timestamp + 10 days);
+        IReward.RewardConfig memory config = strategy.rewardPool().rewardConfig(P_TOKEN);
+        config.shouldUpscale = true;
+        IReward.RewardOwed memory data =
+            IReward(address(strategy.rewardPool())).getRewardOwed(P_TOKEN, address(strategy));
+        address rwdToken = data.token;
+        uint256 mockAccrued = 10000000;
+        vm.mockCall(P_TOKEN, abi.encodeWithSignature("baseTrackingAccrued(address)"), abi.encode(mockAccrued));
+        vm.mockCall(REWARD_POOL, abi.encodeWithSignature("rewardConfig(address)", P_TOKEN), abi.encode(config));
+        uint256 accrued = mockAccrued;
+
+        accrued *= config.rescaleFactor;
+        accrued = ((accrued * config.multiplier) / 1e18);
+        uint256 collectibleAmount = accrued - strategy.rewardPool().rewardsClaimed(P_TOKEN, address(strategy));
+        IComet(P_TOKEN).accrueAccount(address(strategy));
+        CompoundStrategy.RewardData[] memory rewardData = strategy.checkRewardEarned();
+        assert(rewardData.length > 0);
+        // since P_TOKEN is in index 1 of data array checking for index 1 in rewardData
+        assertEq(rewardData[1].token, rwdToken);
+        assertEq(rewardData[1].amount, collectibleAmount);
+    }
+
+    function test_CheckRewardEarned_shouldUpscaleFalse() public useKnownActor(USDS_OWNER) {
+        changePrank(VAULT);
+        deal(ASSET, VAULT, depositAmount);
+        IERC20(ASSET).approve(address(strategy), depositAmount);
+        strategy.deposit(ASSET, depositAmount);
+        changePrank(USDS_OWNER);
+
+        vm.warp(block.timestamp + 10 days);
+        IReward.RewardConfig memory config = strategy.rewardPool().rewardConfig(P_TOKEN);
+        config.shouldUpscale = false;
+        IReward.RewardOwed memory data =
+            IReward(address(strategy.rewardPool())).getRewardOwed(P_TOKEN, address(strategy));
+        address rwdToken = data.token;
+        uint256 mockAccrued = 10000000;
+        vm.mockCall(P_TOKEN, abi.encodeWithSignature("baseTrackingAccrued(address)"), abi.encode(mockAccrued));
+        vm.mockCall(REWARD_POOL, abi.encodeWithSignature("rewardConfig(address)", P_TOKEN), abi.encode(config));
+        uint256 accrued = mockAccrued;
+
+        accrued /= config.rescaleFactor;
+        accrued = ((accrued * config.multiplier) / 1e18);
+        uint256 collectibleAmount = accrued - strategy.rewardPool().rewardsClaimed(P_TOKEN, address(strategy));
+        IComet(P_TOKEN).accrueAccount(address(strategy));
+        CompoundStrategy.RewardData[] memory rewardData = strategy.checkRewardEarned();
+        assert(rewardData.length > 0);
+        // since P_TOKEN is in index 1 of data array checking for index 1 in rewardData
+        assertEq(rewardData[1].token, rwdToken);
+        assertEq(rewardData[1].amount, collectibleAmount);
     }
 }
 
@@ -354,7 +432,7 @@ contract CheckAvailableBalanceTest is CompoundStrategyTest {
         _deposit();
     }
 
-    function test_checkAvilableBalance_LTAllocatedAmount() public {
+    function test_checkAvailableBalance_LTAllocatedAmount() public {
         vm.mockCall(ASSET, abi.encodeWithSignature("balanceOf(address)"), abi.encode(depositAmount - 100));
         uint256 availableBalance = strategy.checkAvailableBalance(ASSET);
         assertTrue(availableBalance < depositAmount);

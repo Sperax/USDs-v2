@@ -7,9 +7,9 @@ import {IUniswapV3Factory} from "@uniswap/v3-core/contracts/interfaces/IUniswapV
 import {IUniswapUtils} from "../strategies/uniswap/interfaces/IUniswapUtils.sol";
 
 interface IMasterPriceOracle {
-    /// @notice Validates if price feed exists for a `_token`
+    /// @notice Validates if price feed exists for a `_token`.
     /// @param _token address of the desired token.
-    /// @return Returns bool
+    /// @return Returns bool (true if exists).
     function priceFeedExists(address _token) external view returns (bool);
 
     /// @notice Gets the price feed for `_token`.
@@ -19,9 +19,9 @@ interface IMasterPriceOracle {
     function getPrice(address _token) external view returns (uint256, uint256);
 }
 
-/// @title Base Uni Oracle contract for USDs protocol
-/// @author Sperax Foundation
-/// @notice Has all the base functionalities, variables etc to be implemented by child contracts
+/// @title Base Uni Oracle contract for USDs protocol.
+/// @author Sperax Foundation.
+/// @notice Has all the base functionalities, variables etc to be implemented by child contracts.
 abstract contract BaseUniOracle is Ownable {
     address public constant UNISWAP_FACTORY = 0x1F98431c8aD98523631AE4a59f267346ea31F984;
     address public constant UNISWAP_UTILS = 0xd2Aa19D3B7f8cdb1ea5B782c5647542055af415e;
@@ -29,11 +29,11 @@ abstract contract BaseUniOracle is Ownable {
     uint256 internal constant MA_PERIOD_LOWER_BOUND = 10 minutes;
     uint256 internal constant MA_PERIOD_UPPER_BOUND = 2 hours;
 
-    address public masterOracle; // Address of the master price oracle
-    address public pool; // Address of the uniswap pool for the token and quoteToken
-    address public quoteToken; // Address of the quoteToken
-    uint32 public maPeriod; // Moving average period
-    uint128 public quoteTokenPrecision; // QuoteToken price precision
+    address public masterOracle; // Address of the master price oracle.
+    address public pool; // Address of the uniswap pool for the token and quoteToken.
+    address public quoteToken; // Address of the quoteToken.
+    uint32 public maPeriod; // Moving average period.
+    uint128 public quoteTokenPrecision; // QuoteToken price precision.
 
     event MasterOracleUpdated(address newOracle);
     event UniMAPriceDataChanged(address quoteToken, uint24 feeTier, uint32 maPeriod);
@@ -44,12 +44,13 @@ abstract contract BaseUniOracle is Ownable {
     error InvalidAddress();
     error InvalidMaPeriod();
 
-    /// @notice A function to get price
-    /// @return (uint256, uint256) Returns price and price precision
+    /// @notice A function to get price.
+    /// @return (uint256 price, uint256 precision).
     function getPrice() external view virtual returns (uint256, uint256);
 
-    /// @notice Updates the master price oracle
-    /// @param _newOracle Address of the desired oracle
+    /// @notice Updates the master price oracle.
+    /// @param _newOracle Address of the desired oracle.
+    /// @dev Reverts if caller is not the owner.
     function updateMasterOracle(address _newOracle) public onlyOwner {
         _isNonZeroAddr(_newOracle);
         masterOracle = _newOracle;
@@ -59,11 +60,12 @@ abstract contract BaseUniOracle is Ownable {
         emit MasterOracleUpdated(_newOracle);
     }
 
-    /// @notice Configures the uniswap price feed for the `_token`
-    /// @param _token Desired base token
-    /// @param _quoteToken Token pair to get price Feed from
-    /// @param _feeTier feeTier for the token pair
-    /// @param _maPeriod moving average period
+    /// @notice Configures the uniswap price feed for the `_token`.
+    /// @param _token Desired base token.
+    /// @param _quoteToken Token pair to get price Feed from.
+    /// @param _feeTier feeTier for the token pair.
+    /// @param _maPeriod moving average period.
+    /// @dev Reverts if caller is not the owner.
     function setUniMAPriceData(address _token, address _quoteToken, uint24 _feeTier, uint32 _maPeriod)
         public
         onlyOwner
@@ -73,12 +75,12 @@ abstract contract BaseUniOracle is Ownable {
             revert FeedUnavailable();
         }
 
-        // Validate if the oracle has a price feed for the _quoteToken
+        // Validate if the oracle has a price feed for the _quoteToken.
         if (!IMasterPriceOracle(masterOracle).priceFeedExists(_quoteToken)) {
             revert QuoteTokenFeedMissing();
         }
 
-        // Validate if maPeriod is between 10 minutes and 2 hours
+        // Validate if maPeriod is between 10 minutes and 2 hours.
         if (_maPeriod < MA_PERIOD_LOWER_BOUND || _maPeriod > MA_PERIOD_UPPER_BOUND) {
             revert InvalidMaPeriod();
         }
@@ -91,17 +93,17 @@ abstract contract BaseUniOracle is Ownable {
         emit UniMAPriceDataChanged(_quoteToken, _feeTier, _maPeriod);
     }
 
-    /// @notice Gets the quoteToken's price and pricePrecision
-    /// @dev For a valid quote should have a configured price feed in the Master Oracle
+    /// @notice Gets the quoteToken's price and pricePrecision.
+    /// @dev For a valid quote should have a configured price feed in the Master Oracle.
     function _getQuoteTokenPrice() internal view returns (uint256, uint256) {
         return IMasterPriceOracle(masterOracle).getPrice(quoteToken);
     }
 
-    /// @notice get the Uniswap V3 Moving Average (MA) of tokenBPerTokenA
-    /// @param _tokenA is baseToken
-    /// @dev e.g. for USDsPerSPA, _tokenA = SPA and tokenB = USDs
-    /// @param _tokenAPrecision Token a decimal precision (18 decimals -> 1e18, 6 decimals -> 1e6 ... etc)
-    /// @dev tokenBPerTokenA has the same precision as tokenB
+    /// @notice Get the Uniswap V3 Moving Average (MA) of tokenBPerTokenA.
+    /// @param _tokenA is baseToken.
+    /// @dev e.g. for USDsPerSPA, _tokenA = SPA and tokenB = USDs.
+    /// @param _tokenAPrecision Token a decimal precision (18 decimals -> 1e18, 6 decimals -> 1e6 ... etc).
+    /// @dev tokenBPerTokenA has the same precision as tokenB.
     function _getUniMAPrice(address _tokenA, uint128 _tokenAPrecision) internal view returns (uint256) {
         // get MA tick
         uint32 oldestObservationSecondsAgo = IUniswapUtils(UNISWAP_UTILS).getOldestObservationSecondsAgo(pool);

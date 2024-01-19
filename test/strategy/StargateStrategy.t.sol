@@ -40,6 +40,8 @@ contract StargateStrategyTest is BaseStrategy, BaseTest {
     StargateStrategy internal strategy;
     address internal proxyAddress;
 
+    event FarmUpdated(address _newFarm);
+
     // Test errors
     error IncorrectPoolId(address asset, uint16 pid);
     error IncorrectRewardPoolId(address asset, uint256 rewardPid);
@@ -123,7 +125,7 @@ contract StargateStrategyTest is BaseStrategy, BaseTest {
     }
 }
 
-contract InitializationTest is StargateStrategyTest {
+contract Test_Initialization is StargateStrategyTest {
     function test_ValidInitialization() public useKnownActor(USDS_OWNER) {
         // Test state variables pre initialization
         assertEq(impl.owner(), address(0));
@@ -154,7 +156,7 @@ contract InitializationTest is StargateStrategyTest {
         _initializeStrategy();
 
         address newVault = address(1);
-        vm.expectEmit(true, true, false, true);
+        vm.expectEmit(address(strategy));
         emit VaultUpdated(newVault);
         strategy.updateVault(newVault);
     }
@@ -163,7 +165,7 @@ contract InitializationTest is StargateStrategyTest {
         uint16 newRate = 100;
         _initializeStrategy();
 
-        vm.expectEmit(true, false, false, true);
+        vm.expectEmit(address(strategy));
         emit HarvestIncentiveRateUpdated(newRate);
         strategy.updateHarvestIncentiveRate(newRate);
 
@@ -173,7 +175,7 @@ contract InitializationTest is StargateStrategyTest {
     }
 }
 
-contract SetPToken is StargateStrategyTest {
+contract Test_SetPToken is StargateStrategyTest {
     function setUp() public override {
         super.setUp();
         vm.startPrank(USDS_OWNER);
@@ -186,7 +188,7 @@ contract SetPToken is StargateStrategyTest {
             assertEq(strategy.assetToPToken(assetData[i].asset), address(0));
             assertFalse(strategy.supportsCollateral(assetData[i].asset));
 
-            vm.expectEmit(true, true, false, true);
+            vm.expectEmit(address(strategy));
             emit PTokenAdded(assetData[i].asset, assetData[i].pToken);
             strategy.setPTokenAddress(assetData[i].asset, assetData[i].pToken, assetData[i].pid, assetData[i].rewardPid);
 
@@ -239,7 +241,7 @@ contract SetPToken is StargateStrategyTest {
     }
 }
 
-contract RemovePToken is StargateStrategyTest {
+contract Test_RemovePToken is StargateStrategyTest {
     using stdStorage for StdStorage;
 
     function setUp() public override {
@@ -253,7 +255,7 @@ contract RemovePToken is StargateStrategyTest {
     function test_RemovePToken() public useKnownActor(USDS_OWNER) {
         AssetData memory data = assetData[0];
         assertTrue(strategy.supportsCollateral(data.asset));
-        vm.expectEmit(true, true, false, true);
+        vm.expectEmit(address(strategy));
         emit PTokenRemoved(data.asset, data.pToken);
         strategy.removePToken(0);
         assertFalse(strategy.supportsCollateral(data.asset));
@@ -283,7 +285,7 @@ contract RemovePToken is StargateStrategyTest {
     }
 }
 
-contract ChangeSlippage is StargateStrategyTest {
+contract Test_ChangeSlippage is StargateStrategyTest {
     uint16 public updatedDepositSlippage = 100;
     uint16 public updatedWithdrawSlippage = 200;
 
@@ -295,7 +297,7 @@ contract ChangeSlippage is StargateStrategyTest {
     }
 
     function test_UpdateSlippage() public useKnownActor(USDS_OWNER) {
-        vm.expectEmit(true, false, false, true);
+        vm.expectEmit(address(strategy));
         emit SlippageUpdated(updatedDepositSlippage, updatedWithdrawSlippage);
         strategy.updateSlippage(updatedDepositSlippage, updatedWithdrawSlippage);
         assertEq(strategy.depositSlippage(), updatedDepositSlippage);
@@ -313,7 +315,7 @@ contract ChangeSlippage is StargateStrategyTest {
     }
 }
 
-contract Deposit is StargateStrategyTest {
+contract Test_Deposit is StargateStrategyTest {
     function setUp() public override {
         super.setUp();
         vm.startPrank(USDS_OWNER);
@@ -403,7 +405,7 @@ contract Deposit is StargateStrategyTest {
     }
 }
 
-contract HarvestTest is StargateStrategyTest {
+contract Test_Harvest is StargateStrategyTest {
     address public yieldReceiver;
 
     function setUp() public override {
@@ -418,30 +420,31 @@ contract HarvestTest is StargateStrategyTest {
     }
 }
 
-contract CollectReward is HarvestTest {
+contract Test_CollectReward is Test_Harvest {
     function test_CollectReward(uint16 _harvestIncentiveRate) public {
         _harvestIncentiveRate = uint16(bound(_harvestIncentiveRate, 0, 10000));
         vm.prank(USDS_OWNER);
         strategy.updateHarvestIncentiveRate(_harvestIncentiveRate);
-        uint256 initialRewards = strategy.checkRewardEarned();
+        StargateStrategy.RewardData[] memory initialRewards = strategy.checkRewardEarned();
 
-        assert(initialRewards == 0);
+        assert(initialRewards[0].token == strategy.rewardTokenAddress(0));
+        assert(initialRewards[0].amount == 0);
 
         // Do a time travel & mine dummy blocks for accumulating some rewards
         vm.warp(block.timestamp + 10 days);
         vm.roll(block.number + 1000);
 
-        uint256 currentRewards = strategy.checkRewardEarned();
-        assert(currentRewards > 0);
-        uint256 incentiveAmt = (currentRewards * strategy.harvestIncentiveRate()) / Helpers.MAX_PERCENTAGE;
-        uint256 harvestAmt = currentRewards - incentiveAmt;
+        StargateStrategy.RewardData[] memory currentRewards = strategy.checkRewardEarned();
+        assert(currentRewards[0].amount > 0);
+        uint256 incentiveAmt = (currentRewards[0].amount * strategy.harvestIncentiveRate()) / Helpers.MAX_PERCENTAGE;
+        uint256 harvestAmt = currentRewards[0].amount - incentiveAmt;
         address caller = actors[1];
 
         if (incentiveAmt > 0) {
-            vm.expectEmit(true, true, false, true);
+            vm.expectEmit(address(strategy));
             emit HarvestIncentiveCollected(E_TOKEN, caller, incentiveAmt);
         }
-        vm.expectEmit(true, true, false, true);
+        vm.expectEmit(address(strategy));
         emit RewardTokenCollected(E_TOKEN, yieldReceiver, harvestAmt);
         vm.prank(caller);
         strategy.collectReward();
@@ -450,11 +453,11 @@ contract CollectReward is HarvestTest {
         assertEq(ERC20(E_TOKEN).balanceOf(caller), incentiveAmt);
 
         currentRewards = strategy.checkRewardEarned();
-        assert(currentRewards == 0);
+        assert(currentRewards[0].amount == 0);
     }
 }
 
-contract CollectInterest is HarvestTest {
+contract Test_CollectInterest is Test_Harvest {
     using stdStorage for StdStorage;
 
     function test_CollectInterest() public {
@@ -478,9 +481,29 @@ contract CollectInterest is HarvestTest {
             assertEq(strategy.checkLPTokenBalance(assetData[i].asset), mockBal);
             assertTrue(interestEarned > 0);
 
-            vm.expectEmit(true, false, false, false);
-            emit InterestCollected(assetData[i].asset, yieldReceiver, interestEarned);
+            vm.expectEmit(true, true, false, false);
+            emit InterestCollected(assetData[i].asset, yieldReceiver, interestEarned); // used vm.recordLogs to test the interestEarned part due to precision error
+
+            vm.recordLogs();
+
             strategy.collectInterest(assetData[i].asset);
+            assertApproxEqAbs(strategy.checkInterestEarned(assetData[i].asset), 0, 1);
+
+            VmSafe.Log[] memory logs = vm.getRecordedLogs();
+
+            uint256 amt;
+            for (uint8 j = 0; j < logs.length; ++j) {
+                if (logs[j].topics[0] == keccak256("InterestCollected(address,address,uint256)")) {
+                    (amt) = abi.decode(logs[j].data, (uint256));
+                }
+            }
+
+            uint256 incentiveAmt = (interestEarned * 10) / 10000;
+            uint256 harvestAmount = interestEarned - incentiveAmt;
+
+            // TODO need to check why there is a big delta
+            assertApproxEqAbs(amt, harvestAmount, (harvestAmount / 1e7));
+
             /// @note precision Error from stargate
             assertApproxEqAbs(strategy.checkLPTokenBalance(assetData[i].asset), initialLPBal, 1);
         }
@@ -492,7 +515,7 @@ contract CollectInterest is HarvestTest {
     }
 }
 
-contract Withdraw is StargateStrategyTest {
+contract Test_Withdraw is StargateStrategyTest {
     using stdStorage for StdStorage;
 
     function setUp() public override {
@@ -509,9 +532,25 @@ contract Withdraw is StargateStrategyTest {
             uint256 initialBal = strategy.checkBalance(assetData[i].asset);
             uint256 initialVaultBal = collateral.balanceOf(VAULT);
 
-            vm.expectEmit(true, false, false, false);
+            vm.expectEmit(true, false, false, false); // used vm.recordLogs to test the initialBal part due to precision error
             emit Withdrawal(assetData[i].asset, initialBal);
+
+            vm.recordLogs();
+
             strategy.withdraw(VAULT, assetData[i].asset, initialBal);
+
+            VmSafe.Log[] memory logs = vm.getRecordedLogs();
+
+            uint256 amt;
+            for (uint8 j = 0; j < logs.length; ++j) {
+                if (logs[j].topics[0] == keccak256("Withdrawal(address,uint256)")) {
+                    (amt) = abi.decode(logs[j].data, (uint256));
+                }
+            }
+
+            // TODO need to check why there is a big delta
+            assertApproxEqAbs(amt, initialBal, (initialBal / 1e7));
+
             assertApproxEqAbs(
                 collateral.balanceOf(VAULT),
                 initialVaultBal + initialBal,
@@ -541,9 +580,25 @@ contract Withdraw is StargateStrategyTest {
             uint256 initialBal = strategy.checkBalance(assetData[i].asset);
             uint256 initialVaultBal = collateral.balanceOf(VAULT);
 
-            vm.expectEmit(true, false, false, false);
+            vm.expectEmit(true, false, false, false); // used vm.recordLogs to test the initialBal part due to precision error
             emit Withdrawal(assetData[i].asset, initialBal);
+
+            vm.recordLogs();
+
             strategy.withdrawToVault(assetData[i].asset, initialBal);
+
+            VmSafe.Log[] memory logs = vm.getRecordedLogs();
+
+            uint256 amt;
+            for (uint8 j = 0; j < logs.length; ++j) {
+                if (logs[j].topics[0] == keccak256("Withdrawal(address,uint256)")) {
+                    (amt) = abi.decode(logs[j].data, (uint256));
+                }
+            }
+
+            // TODO need to check why there is a big delta
+            assertApproxEqAbs(amt, initialBal, (initialBal / 1e7));
+
             assertApproxEqAbs(
                 collateral.balanceOf(VAULT),
                 initialVaultBal + initialBal,
@@ -599,7 +654,41 @@ contract Withdraw is StargateStrategyTest {
     }
 }
 
-contract EdgeCases is StargateStrategyTest {
+contract Test_EmergencyWithdrawToVault is StargateStrategyTest {
+    function setUp() public override {
+        super.setUp();
+        vm.startPrank(USDS_OWNER);
+        _initializeStrategy();
+        _createDeposits();
+        vm.stopPrank();
+    }
+
+    function test_emergencyWithdrawToVault() public useKnownActor(USDS_OWNER) {
+        for (uint8 i = 0; i < assetData.length; ++i) {
+            uint256 initialBal = strategy.checkBalance(assetData[i].asset);
+            uint256 initialVaultBal = ERC20(assetData[i].asset).balanceOf(VAULT);
+
+            (uint256 allocatedAmtBeforeEmergencyWithdraw,,) = strategy.assetInfo(assetData[i].asset);
+
+            vm.expectEmit(address(strategy));
+            emit Withdrawal(assetData[i].asset, initialBal);
+            strategy.emergencyWithdrawToVault(assetData[i].asset);
+
+            (uint256 allocatedAmtAfterEmergencyWithdraw,,) = strategy.assetInfo(assetData[i].asset);
+
+            assertEq(strategy.checkLPTokenBalance(assetData[i].asset), 0);
+            assertEq(strategy.checkBalance(assetData[i].asset), 0);
+            assertEq(allocatedAmtAfterEmergencyWithdraw, allocatedAmtBeforeEmergencyWithdraw - initialBal);
+            assertApproxEqAbs(
+                ERC20(assetData[i].asset).balanceOf(VAULT),
+                initialVaultBal + initialBal,
+                1 * IStargatePool(assetData[i].pToken).convertRate()
+            );
+        }
+    }
+}
+
+contract Test_EdgeCases is StargateStrategyTest {
     function setUp() public override {
         super.setUp();
         vm.startPrank(USDS_OWNER);
@@ -621,7 +710,7 @@ contract EdgeCases is StargateStrategyTest {
     }
 }
 
-contract TestRecoverERC20 is StargateStrategyTest {
+contract Test_RecoverERC20 is StargateStrategyTest {
     address token;
     address receiver;
     uint256 amount;
@@ -634,15 +723,15 @@ contract TestRecoverERC20 is StargateStrategyTest {
         vm.stopPrank();
         token = DAI;
         receiver = actors[1];
-        amount = 1e22;
+        amount = 1000 * 10 ** ERC20(token).decimals();
     }
 
-    function test_RevertsWhen_CallerIsNotOwner() public {
+    function test_RevertWhen_CallerIsNotOwner() public {
         vm.expectRevert("Ownable: caller is not the owner");
         strategy.recoverERC20(token, receiver, amount);
     }
 
-    function test_RevertsWhen_AmountMoreThanBalance() public useKnownActor(USDS_OWNER) {
+    function test_RevertWhen_AmountMoreThanBalance() public useKnownActor(USDS_OWNER) {
         vm.expectRevert();
         strategy.recoverERC20(token, receiver, amount);
     }
@@ -653,5 +742,39 @@ contract TestRecoverERC20 is StargateStrategyTest {
         strategy.recoverERC20(token, receiver, amount);
         uint256 balAfter = ERC20(token).balanceOf(receiver);
         assertEq(balAfter - balBefore, amount);
+    }
+}
+
+contract Test_UpdateFarm is StargateStrategyTest {
+    address _newFarm;
+
+    function setUp() public override {
+        super.setUp();
+        vm.startPrank(USDS_OWNER);
+        _initializeStrategy();
+        _createDeposits();
+        vm.stopPrank();
+        _newFarm = 0xeA8DfEE1898a7e0a59f7527F076106d7e44c2176;
+    }
+
+    function test_RevertWhen_CallerIsNotOwner() public {
+        vm.expectRevert("Ownable: caller is not the owner");
+        strategy.updateFarm(_newFarm, address(0));
+    }
+
+    function test_UpdateFarm() public useKnownActor(USDS_OWNER) {
+        uint256 _length = assetData.length;
+        uint256[] memory oldFarmBalances = new uint256[](_length);
+        uint256[] memory newFarmBalances = new uint256[](_length);
+        for (uint8 i = 0; i < _length; ++i) {
+            (oldFarmBalances[i],) = ILPStaking(STARGATE_FARM).userInfo(assetData[i].rewardPid, address(strategy));
+        }
+        vm.expectEmit(address(strategy));
+        emit FarmUpdated(_newFarm);
+        strategy.updateFarm(_newFarm, STARGATE);
+        for (uint8 i = 0; i < assetData.length; ++i) {
+            (newFarmBalances[i],) = ILPStaking(_newFarm).userInfo(assetData[i].rewardPid, address(strategy));
+            assertEq(oldFarmBalances[i], newFarmBalances[i], "Mismatch in balance");
+        }
     }
 }

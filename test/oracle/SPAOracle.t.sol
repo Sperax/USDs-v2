@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.19;
 
-import {SPAOracle} from "../../contracts/oracle/SPAOracle.sol";
+import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {SPAOracle, IDiaOracle} from "../../contracts/oracle/SPAOracle.sol";
 import {IUniswapV3Factory} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Factory.sol";
 import {BaseTest} from "../utils/BaseTest.sol";
 
@@ -33,6 +34,7 @@ abstract contract BaseUniOracleTest is BaseTest {
 
     error FeedUnavailable();
     error InvalidAddress();
+    error QuoteTokenFeedMissing();
 
     function setUp() public virtual override {
         super.setUp();
@@ -66,6 +68,8 @@ contract SPAOracleTest is BaseUniOracleTest {
     event DIAParamsUpdated(uint256 weightDIA, uint128 maxTime);
 
     error InvalidWeight();
+    error InvalidTime();
+    error PriceTooOld();
 
     function setUp() public override {
         super.setUp();
@@ -82,16 +86,30 @@ contract Test_Init is SPAOracleTest {
         assertEq(uint256(spaOracle.maPeriod()), uint256(MA_PERIOD));
         assertEq(spaOracle.weightDIA(), WEIGHT_DIA);
     }
+
+    function test_RevertWhen_QuoteTokenFeedMissing() public {
+        vm.expectRevert(abi.encodeWithSelector(QuoteTokenFeedMissing.selector));
+        new SPAOracle(masterOracle, USDS, FEE_TIER, MA_PERIOD, WEIGHT_DIA); // USDS is not added to master oracle
+    }
 }
 
-contract Test_FetchPrice is SPAOracleTest {
-    function test_fetchPrice() public {
+contract Test_GetPrice is SPAOracleTest {
+    function test_RevertWhen_PriceTooOld() public {
+        vm.startPrank(USDS_OWNER);
+        spaOracle.updateDIAParams(WEIGHT_DIA, 121);
+        vm.stopPrank();
+
+        vm.expectRevert(abi.encodeWithSelector(PriceTooOld.selector));
+        spaOracle.getPrice();
+    }
+
+    function test_GetPrice() public {
         (uint256 price, uint256 precision) = spaOracle.getPrice();
         assertEq(precision, SPA_PRICE_PRECISION);
         assertGt(price, 0);
     }
 
-    function testFuzz_fetchPrice_when_period_value_below_minTwapPeriod(uint256 period) public {
+    function testFuzz_GetPrice_when_period_value_below_minTwapPeriod(uint256 period) public {
         // this test is to make sure that even if the twap period value is less than MIN_TWAP_PERIOD (10 mins)
         // we still get the price based on MIN_TWAP_PERIOD (10 mins)
         vm.assume(period < 10 minutes);
@@ -118,12 +136,12 @@ contract Test_FetchPrice is SPAOracleTest {
 contract Test_setUniMAPriceData is SPAOracleTest {
     error InvalidMaPeriod();
 
-    function test_revertsWhen_notOwner() public {
+    function test_RevertWhen_notOwner() public {
         vm.expectRevert("Ownable: caller is not the owner");
         spaOracle.setUniMAPriceData(SPA, USDCe, 10000, 600);
     }
 
-    function test_revertsWhen_invalidData() public useKnownActor(USDS_OWNER) {
+    function test_RevertWhen_invalidData() public useKnownActor(USDS_OWNER) {
         vm.expectRevert(abi.encodeWithSelector(FeedUnavailable.selector));
         spaOracle.setUniMAPriceData(SPA, FRAX, 3000, 600);
     }
@@ -132,9 +150,12 @@ contract Test_setUniMAPriceData is SPAOracleTest {
         vm.expectEmit(true, true, true, true);
         emit UniMAPriceDataChanged(USDCe, 10000, 700);
         spaOracle.setUniMAPriceData(SPA, USDCe, 10000, 700);
+        assertEq(spaOracle.quoteToken(), USDCe);
+        assertEq(spaOracle.maPeriod(), 700);
+        assertEq(spaOracle.quoteTokenPrecision(), uint128(10) ** ERC20(USDCe).decimals());
     }
 
-    function test_revertsWhen_invalidMaPeriod() public useKnownActor(USDS_OWNER) {
+    function test_RevertWhen_invalidMaPeriod() public useKnownActor(USDS_OWNER) {
         vm.expectRevert(abi.encodeWithSelector(InvalidMaPeriod.selector));
         spaOracle.setUniMAPriceData(SPA, USDCe, 10000, 599);
 
@@ -144,19 +165,19 @@ contract Test_setUniMAPriceData is SPAOracleTest {
 }
 
 contract Test_updateMasterOracle is SPAOracleTest {
-    function test_revertsWhen_notOwner() public {
+    function test_RevertWhen_notOwner() public {
         vm.expectRevert("Ownable: caller is not the owner");
         spaOracle.updateMasterOracle(masterOracle);
     }
 
-    function test_revertsWhen_invalidAddress() public useKnownActor(USDS_OWNER) {
+    function test_RevertWhen_invalidAddress() public useKnownActor(USDS_OWNER) {
         vm.expectRevert(abi.encodeWithSelector(InvalidAddress.selector));
         spaOracle.updateMasterOracle(address(0));
     }
 
-    function test_revertsWhen_quoteTokenPriceFeedUnavailable() public useKnownActor(USDS_OWNER) {
+    function test_RevertWhen_quoteTokenPriceFeedUnavailable() public useKnownActor(USDS_OWNER) {
         IMasterOracle(masterOracle).removeTokenPriceFeed(USDCe);
-        vm.expectRevert();
+        vm.expectRevert(abi.encodeWithSelector(QuoteTokenFeedMissing.selector));
         spaOracle.updateMasterOracle(masterOracle);
     }
 
@@ -164,19 +185,25 @@ contract Test_updateMasterOracle is SPAOracleTest {
         vm.expectEmit(true, true, true, true);
         emit MasterOracleUpdated(masterOracle);
         spaOracle.updateMasterOracle(masterOracle);
+        assertEq(spaOracle.masterOracle(), masterOracle);
     }
 }
 
 contract Test_UpdateDIAWeight is SPAOracleTest {
-    function test_revertsWhen_notOwner() public {
+    function test_RevertWhen_notOwner() public {
         vm.expectRevert("Ownable: caller is not the owner");
         spaOracle.updateDIAParams(60, 600);
     }
 
-    function test_revertsWhen_invalidWeight() public useKnownActor(USDS_OWNER) {
+    function test_RevertWhen_invalidWeight() public useKnownActor(USDS_OWNER) {
         uint256 newWeight = spaOracle.MAX_WEIGHT() + 10;
         vm.expectRevert(abi.encodeWithSelector(InvalidWeight.selector));
         spaOracle.updateDIAParams(newWeight, 600);
+    }
+
+    function test_RevertWhen_invalidTime() public useKnownActor(USDS_OWNER) {
+        vm.expectRevert(abi.encodeWithSelector(InvalidTime.selector));
+        spaOracle.updateDIAParams(80, 80);
     }
 
     function test_updateDIAParams() public useKnownActor(USDS_OWNER) {
@@ -185,5 +212,7 @@ contract Test_UpdateDIAWeight is SPAOracleTest {
         vm.expectEmit(true, true, true, true);
         emit DIAParamsUpdated(newWeight, maxTime);
         spaOracle.updateDIAParams(newWeight, maxTime);
+        assertEq(spaOracle.weightDIA(), newWeight);
+        assertEq(spaOracle.diaMaxTimeThreshold(), maxTime);
     }
 }

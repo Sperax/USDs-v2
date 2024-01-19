@@ -14,17 +14,14 @@ import {StableMath} from "../libraries/StableMath.sol";
 import {Helpers} from "../libraries/Helpers.sol";
 import {IUSDs} from "../interfaces/IUSDs.sol";
 
-///  NOTE that this is an ERC20 token but the invariant that the sum of
-///  balanceOf(x) for all x is not >= totalSupply(). This is a consequence of the
-///  rebasing design. Any integrations with USDs should be aware.
-
 /// @title USDs Token Contract on Arbitrum (L2)
-/// @dev ERC20 compatible contract for USDs
-/// @dev support rebase feature
-/// @dev inspired by OUSD: https://github.com/OriginProtocol/origin-dollar/blob/master/contracts/contracts/token/OUSD.sol
 /// @author Sperax Foundation
+/// @dev ERC20 compatible contract for USDs supporting the rebase feature.
+/// This ERC20 token represents USDs on the Arbitrum (L2) network. Note that the invariant holds that the sum of
+/// balanceOf(x) for all x is not greater than totalSupply(). This is a consequence of the rebasing design. Integrations
+/// with USDs should be aware of this feature.
+/// Inspired by OUSD: https://github.com/OriginProtocol/origin-dollar/blob/master/contracts/contracts/token/OUSD.sol
 contract USDs is ERC20PermitUpgradeable, OwnableUpgradeable, ReentrancyGuardUpgradeable, IUSDs {
-    // @todo validate upgrade with Openzeppelin's upgradeValidation lib
     using SafeMathUpgradeable for uint256;
     using StableMath for uint256;
 
@@ -36,32 +33,36 @@ contract USDs is ERC20PermitUpgradeable, OwnableUpgradeable, ReentrancyGuardUpgr
 
     uint256 private constant MAX_SUPPLY = ~uint128(0); // (2^128) - 1
     // solhint-disable var-name-mixedcase
-    uint256 internal _totalSupply; // the total supply of USDs
+    uint256 internal _totalSupply; // Total supply of USDs
     uint256[4] private _deprecated_vars; // totalMinted, totalBurnt, mintedViaGateway, burntViaGateway
     mapping(address => mapping(address => uint256)) private _allowances;
-    address public vault; // the address where (i) all collaterals of USDs protocol reside, e.g. USDT, USDC, ETH, etc and (ii) major actions like USDs minting are initiated
-    // an user's balance of USDs is based on her balance of "credits."
-    // in a rebase process, her USDs balance will change according to her credit balance and the rebase ratio
+    address public vault; // The address where (i) all collaterals of USDs protocol reside, e.g., USDT, USDC, ETH, etc., and (ii) major actions like USDs minting are initiated.
+
+    // An user's balance of USDs is based on her balance of "credits."
+    // In a rebase process, her USDs balance will change according to her credit balance and the rebase ratio.
     mapping(address => uint256) private _creditBalances;
     uint256 private _deprecated_rebasingCredits;
-    uint256 public rebasingCreditsPerToken; // the rebase ratio = num of credits / num of USDs
-    // Frozen address/credits are non rebasing (value is held in contracts which
-    // do not receive yield unless they explicitly opt in)
-    uint256 public nonRebasingSupply; // num of USDs that are not affected by rebase
-    // @note nonRebasingCreditsPerToken value is set as 1 for each account
-    mapping(address => uint256) public nonRebasingCreditsPerToken; // the rebase ratio of non-rebasing accounts just before they opt out
-    mapping(address => RebaseOptions) public rebaseState; // the rebase state of each account, i.e. opt in or opt out
+    uint256 public rebasingCreditsPerToken; // The rebase ratio = number of credits / number of USDs.
+
+    // Frozen address/credits are non-rebasing (value is held in contracts which
+    // do not receive yield unless they explicitly opt in).
+    uint256 public nonRebasingSupply; // The number of USDs that are not affected by rebase.
+    // The nonRebasingCreditsPerToken value is set as 1 for each account.
+    mapping(address => uint256) public nonRebasingCreditsPerToken; // The rebase ratio of non-rebasing accounts just before they opt out.
+    mapping(address => RebaseOptions) public rebaseState; // The rebase state of each account, i.e., opt in or opt out.
     address[2] private _deprecated_gatewayAddr;
     mapping(address => bool) private _deprecated_isUpgraded;
     bool public paused;
     // solhint-enable var-name-mixedcase
 
+    // Events
     event TotalSupplyUpdated(uint256 totalSupply, uint256 rebasingCredits, uint256 rebasingCreditsPerToken);
     event Paused(bool isPaused);
     event VaultUpdated(address newVault);
     event RebaseOptIn(address indexed account);
     event RebaseOptOut(address indexed account);
 
+    // Custom error messages
     error CallerNotVault(address caller);
     error ContractPaused();
     error IsAlreadyRebasingAccount(address account);
@@ -73,16 +74,21 @@ contract USDs is ERC20PermitUpgradeable, OwnableUpgradeable, ReentrancyGuardUpgr
     error MintToZeroAddr();
     error MaxSupplyReached(uint256 totalSupply);
 
-    /// @notice Verifies that the caller is the Savings Manager contract
+    /// @notice Verifies that the caller is the Savings Manager contract.
     modifier onlyVault() {
         if (msg.sender != vault) revert CallerNotVault(msg.sender);
         _;
     }
 
+    // Disable initialization for the implementation contract
     constructor() {
         _disableInitializers();
     }
 
+    /// @notice Initializes the contract with the provided name, symbol, and vault address.
+    /// @param _nameArg The name of the USDs token.
+    /// @param _symbolArg The symbol of the USDs token.
+    /// @param _vaultAddress The address where collaterals of USDs protocol reside, and major actions like USDs minting are initiated.
     function initialize(string memory _nameArg, string memory _symbolArg, address _vaultAddress) external initializer {
         Helpers._isNonZeroAddr(_vaultAddress);
         __ERC20_init(_nameArg, _symbolArg);
@@ -95,44 +101,44 @@ contract USDs is ERC20PermitUpgradeable, OwnableUpgradeable, ReentrancyGuardUpgr
     }
 
     /// @notice Mints new USDs tokens, increasing totalSupply.
-    /// @param _account the account address the newly minted USDs will be attributed to
-    /// @param _amount the amount of USDs that will be minted
+    /// @param _account The account address to which the newly minted USDs will be attributed.
+    /// @param _amount The amount of USDs to be minted.
     function mint(address _account, uint256 _amount) external override onlyVault nonReentrant {
         _mint(_account, _amount);
     }
 
     /// @notice Burns tokens, decreasing totalSupply.
-    /// @param _amount amount to burn
+    /// @param _amount The amount to burn.
     function burn(uint256 _amount) external override nonReentrant {
         _burn(msg.sender, _amount);
     }
 
-    /// @notice Voluntary opt-in for rebase
-    /// @dev Useful for smart-contract wallets
+    /// @notice Voluntary opt-in for rebase.
+    /// @dev Useful for smart-contract wallets.
     function rebaseOptIn() external {
         _rebaseOptIn(msg.sender);
     }
 
-    /// @notice Voluntary opt-out from rebase
+    /// @notice Voluntary opt-out from rebase.
     function rebaseOptOut() external {
         _rebaseOptOut(msg.sender);
     }
 
-    /// @notice Adds `_account` to rebasing account list
-    /// @param _account Address of the desired account
+    /// @notice Adds `_account` to the rebasing account list.
+    /// @param _account Address of the desired account.
     function rebaseOptIn(address _account) external onlyOwner {
         _rebaseOptIn(_account);
     }
 
-    /// @notice Adds `_account` to non-rebasing account list
-    /// @param _account Address of the desired account
+    /// @notice Adds `_account` to the non-rebasing account list.
+    /// @param _account Address of the desired account.
     function rebaseOptOut(address _account) external onlyOwner {
         _rebaseOptOut(_account);
     }
 
-    /// @notice The rebase function. Modify the supply without minting new tokens. This uses a change in
-    ///       the exchange rate between "credits" and USDs tokens to change balances.
-    /// @param _rebaseAmt amount of USDs to rebase with.
+    /// @notice The rebase function. Modifies the supply without minting new tokens.
+    ///         This uses a change in the exchange rate between "credits" and USDs tokens to change balances.
+    /// @param _rebaseAmt The amount of USDs to rebase with.
     function rebase(uint256 _rebaseAmt) external override onlyVault nonReentrant {
         uint256 prevTotalSupply = _totalSupply;
 
@@ -140,19 +146,19 @@ contract USDs is ERC20PermitUpgradeable, OwnableUpgradeable, ReentrancyGuardUpgr
 
         if (_totalSupply == 0) revert CannotIncreaseZeroSupply();
 
-        // Compute the existing rebasing credits,
+        // Compute the existing rebasing credits.
         uint256 rebasingCredits = (_totalSupply - nonRebasingSupply).mulTruncate(rebasingCreditsPerToken);
 
-        // special case: if the total supply remains the same
+        // Special case: if the total supply remains the same.
         if (_totalSupply == prevTotalSupply) {
             emit TotalSupplyUpdated(_totalSupply, rebasingCredits, rebasingCreditsPerToken);
             return;
         }
 
-        // check if the new total supply surpasses the MAX
+        // Check if the new total supply surpasses the MAX.
         _totalSupply = prevTotalSupply > MAX_SUPPLY ? MAX_SUPPLY : prevTotalSupply;
 
-        // calculate the new rebase ratio, i.e. credits per token
+        // Calculate the new rebase ratio, i.e., credits per token.
         rebasingCreditsPerToken = rebasingCredits.divPrecisely(_totalSupply - nonRebasingSupply);
 
         if (rebasingCreditsPerToken == 0) revert InvalidRebase();
@@ -160,25 +166,25 @@ contract USDs is ERC20PermitUpgradeable, OwnableUpgradeable, ReentrancyGuardUpgr
         emit TotalSupplyUpdated(_totalSupply, rebasingCredits, rebasingCreditsPerToken);
     }
 
-    /// @notice change the vault address
-    /// @param _newVault the new vault address
+    /// @notice Change the vault address.
+    /// @param _newVault The new vault address.
     function updateVault(address _newVault) external onlyOwner {
         Helpers._isNonZeroAddr(_newVault);
         vault = _newVault;
         emit VaultUpdated(_newVault);
     }
 
-    /// @notice Called by the owner to pause | unpause the contract
-    /// @param _pause pauseSwitch state.
+    /// @notice Called by the owner to pause or unpause the contract.
+    /// @param _pause The state of the pause switch.
     function pauseSwitch(bool _pause) external onlyOwner {
         paused = _pause;
         emit Paused(_pause);
     }
 
     /// @notice Transfer tokens to a specified address.
-    /// @param _to the address to transfer to.
-    /// @param _value the _amount to be transferred.
-    /// @return true on success.
+    /// @param _to The address to transfer to.
+    /// @param _value The amount to be transferred.
+    /// @return True on success.
     function transfer(address _to, uint256 _value) public override returns (bool) {
         if (_to == address(0)) revert TransferToZeroAddr();
         uint256 bal = balanceOf(msg.sender);
@@ -192,17 +198,16 @@ contract USDs is ERC20PermitUpgradeable, OwnableUpgradeable, ReentrancyGuardUpgr
     }
 
     /// @notice Transfer tokens from one address to another.
-    /// @param _from The address you want to send tokens from.
-    /// @param _to The address you want to transfer to.
-    /// @param _value The _amount of tokens to be transferred.
+    /// @param _from The address from which you want to send tokens.
+    /// @param _to The address to which the tokens will be transferred.
+    /// @param _value The amount of tokens to be transferred.
     /// @return true on success.
     function transferFrom(address _from, address _to, uint256 _value) public override returns (bool) {
         if (_to == address(0)) revert TransferToZeroAddr();
         uint256 bal = balanceOf(_from);
         if (_value > bal) revert TransferGreaterThanBal(_value, bal);
 
-        // notice: allowance balance check depends on "sub" non-negative check
-
+        // Notice: allowance balance check depends on "sub" non-negative check
         _allowances[_from][msg.sender] = _allowances[_from][msg.sender].sub(_value, "Insufficient allowance");
 
         _executeTransfer(_from, _to, _value);
@@ -212,14 +217,14 @@ contract USDs is ERC20PermitUpgradeable, OwnableUpgradeable, ReentrancyGuardUpgr
         return true;
     }
 
-    /// @notice Approve the passed address to spend the specified _amount of tokens on behalf of
+    /// @notice Approve the passed address to spend the specified amount of tokens on behalf of
     ///  msg.sender. This method is included for ERC20 compatibility.
-    ///  increaseAllowance and decreaseAllowance should be used instead.
+    ///  @dev increaseAllowance and decreaseAllowance should be used instead.
     ///  Changing an allowance with this method brings the risk that someone may transfer both
     ///  the old and the new allowance - if they are both greater than zero - if a transfer
     ///  transaction is mined before the later approve() call is mined.
-    /// @param _spender The address which will spend the funds.
-    /// @param _value The _amount of tokens to be spent.
+    /// @param _spender The address that will spend the funds.
+    /// @param _value The amount of tokens to be spent.
     /// @return true on success.
     function approve(address _spender, uint256 _value) public override returns (bool) {
         _allowances[msg.sender][_spender] = _value;
@@ -227,11 +232,11 @@ contract USDs is ERC20PermitUpgradeable, OwnableUpgradeable, ReentrancyGuardUpgr
         return true;
     }
 
-    /// @notice Increase the _amount of tokens that an owner has allowed to a _spender.
+    /// @notice Increase the amount of tokens that an owner has allowed a `_spender` to spend.
     ///  This method should be used instead of approve() to avoid the double approval vulnerability
     ///  described above.
-    /// @param _spender The address which will spend the funds.
-    /// @param _addedValue The _amount of tokens to increase the allowance by.
+    /// @param _spender The address that will spend the funds.
+    /// @param _addedValue The amount of tokens to increase the allowance by.
     /// @return true on success.
     function increaseAllowance(address _spender, uint256 _addedValue) public override returns (bool) {
         _allowances[msg.sender][_spender] = _allowances[msg.sender][_spender] + _addedValue;
@@ -239,9 +244,9 @@ contract USDs is ERC20PermitUpgradeable, OwnableUpgradeable, ReentrancyGuardUpgr
         return true;
     }
 
-    /// @notice Decrease the _amount of tokens that an owner has allowed to a _spender.
-    /// @param _spender The address which will spend the funds.
-    /// @param _subtractedValue The _amount of tokens to decrease the allowance by.
+    /// @notice Decrease the amount of tokens that an owner has allowed a `_spender` to spend.
+    /// @param _spender The address that will spend the funds.
+    /// @param _subtractedValue The amount of tokens to decrease the allowance by.
     /// @return true on success.
     function decreaseAllowance(address _spender, uint256 _subtractedValue) public override returns (bool) {
         uint256 oldValue = _allowances[msg.sender][_spender];
@@ -254,62 +259,55 @@ contract USDs is ERC20PermitUpgradeable, OwnableUpgradeable, ReentrancyGuardUpgr
         return true;
     }
 
-    /// @notice check the current total supply of USDs
+    /// @notice Check the current total supply of USDs.
     /// @return The total supply of USDs.
     function totalSupply() public view override(ERC20Upgradeable, IUSDs) returns (uint256) {
         return _totalSupply;
     }
 
     /// @notice Gets the USDs balance of the specified address.
-    /// @param _account Address to query the balance of.
-    /// @return A uint256 representing the _amount of base units owned by the
-    ///          specified address.
+    /// @param _account The address to query the balance of.
+    /// @return A uint256 representing the amount of base units owned by the specified address.
     function balanceOf(address _account) public view override returns (uint256) {
         return _balanceOf(_account);
     }
 
     /// @notice Gets the credits balance of the specified address.
     /// @param _account The address to query the balance of.
-    /// @return (uint256, uint256) Credit balance and credits per token of the
-    ///          address
+    /// @return (uint256, uint256) Credit balance and credits per token of the address.
     function creditsBalanceOf(address _account) public view returns (uint256, uint256) {
         return (_creditBalances[_account], _creditsPerToken(_account));
     }
 
-    /// @notice Function to check the _amount of tokens that an owner has allowed to a _spender.
-    /// @param _owner The address which owns the funds.
-    /// @param _spender The address which will spend the funds.
-    /// @return The number of tokens still available for the _spender.
+    /// @notice Function to check the amount of tokens that an owner has allowed a spender.
+    /// @param _owner The address that owns the funds.
+    /// @param _spender The address that will spend the funds.
+    /// @return The number of tokens still available for the spender.
     function allowance(address _owner, address _spender) public view override returns (uint256) {
         return _allowances[_owner][_spender];
     }
 
-    /// @notice Creates `_amount` tokens and assigns them to `_account`, increasing
-    ///  the total supply.
-    ///
-    ///  Emits a {Transfer} event with `from` set to the zero address.
-    ///
-    ///  Requirements
-    ///
-    ///  - `to` cannot be the zero address.
-    /// @param _account the account address the newly minted USDs will be attributed to
-    /// @param _amount the amount of USDs that will be minted
+    /// @notice Creates `_amount` tokens and assigns them to `_account`, increasing the total supply.
+    /// @dev Emits a {Transfer} event with `from` set to the zero address.
+    /// @dev Requirements - `to` cannot be the zero address.
+    /// @param _account The account address to which the newly minted USDs will be attributed.
+    /// @param _amount The amount of USDs that will be minted.
     function _mint(address _account, uint256 _amount) internal override {
         _isNotPaused();
         if (_account == address(0)) revert MintToZeroAddr();
 
-        // notice: If the account is non rebasing and doesn't have a set creditsPerToken
-        //          then set it i.e. this is a mint from a fresh contract
+        // Notice: If the account is non-rebasing and doesn't have a set creditsPerToken,
+        // then set it i.e. this is a mint from a fresh contract
         // creditAmount for non-rebasing accounts = _amount
         uint256 creditAmount = _amount;
 
-        // update global stats
+        // Update global stats
         if (_isNonRebasingAccount(_account)) {
             nonRebasingSupply = nonRebasingSupply + _amount;
         } else {
             creditAmount = _amount.mulTruncate(rebasingCreditsPerToken);
         }
-        // update credit balance for the account
+        // Update credit balance for the account
         _creditBalances[_account] = _creditBalances[_account] + creditAmount;
 
         _totalSupply = _totalSupply + _amount;
@@ -319,13 +317,11 @@ contract USDs is ERC20PermitUpgradeable, OwnableUpgradeable, ReentrancyGuardUpgr
         emit Transfer(address(0), _account, _amount);
     }
 
-    /// @notice Destroys `_amount` tokens from `_account`, reducing the
-    ///  total supply.
-    ///
-    ///  Emits a {Transfer} event with `to` set to the zero address.
-    ///
-    ///  Requirements
-    ///
+    /// @notice Destroys `_amount` tokens from `_account`, reducing the total supply.
+    /// @param _account The account address from which the USDs will be burnt.
+    /// @param _amount The amount of USDs that will be burnt.
+    /// @dev Emits a {Transfer} event with `to` set to the zero address.
+    /// @dev Requirements:
     ///  - `_account` cannot be the zero address.
     ///  - `_account` must have at least `_amount` tokens.
     function _burn(address _account, uint256 _amount) internal override {
@@ -349,9 +345,9 @@ contract USDs is ERC20PermitUpgradeable, OwnableUpgradeable, ReentrancyGuardUpgr
         emit Transfer(_account, address(0), _amount);
     }
 
-    /// @notice Update the count of non rebasing credits in response to a transfer
-    /// @param _from The address you want to send tokens from.
-    /// @param _to The address you want to transfer to.
+    /// @notice Update the count of non-rebasing credits in response to a transfer
+    /// @param _from The address from which you want to send tokens.
+    /// @param _to The address to which the tokens will be transferred.
     /// @param _value Amount of USDs to transfer
     function _executeTransfer(address _from, address _to, uint256 _value) private {
         _isNotPaused();
@@ -362,12 +358,12 @@ contract USDs is ERC20PermitUpgradeable, OwnableUpgradeable, ReentrancyGuardUpgr
         if (isNonRebasingFrom) {
             _creditBalances[_from] = _creditBalances[_from].sub(_value, "Transfer amount exceeds balance");
             if (!isNonRebasingTo) {
-                // Transfer to rebasing account from non-rebasing account
+                // Transfer to a rebasing account from a non-rebasing account
                 // Decreasing non-rebasing supply by the amount that was sent
                 nonRebasingSupply = nonRebasingSupply.sub(_value);
             }
         } else {
-            // updating credit balance for rebasing account
+            // Updating credit balance for a rebasing account
             _creditBalances[_from] = _creditBalances[_from].sub(creditAmount, "Transfer amount exceeds balance");
         }
 
@@ -375,19 +371,20 @@ contract USDs is ERC20PermitUpgradeable, OwnableUpgradeable, ReentrancyGuardUpgr
             _creditBalances[_to] = _creditBalances[_to] + _value;
 
             if (!isNonRebasingFrom) {
-                // Transfer to non-rebasing account from rebasing account,
+                // Transfer to a non-rebasing account from a rebasing account,
                 // Increasing non-rebasing supply by the amount that was sent
                 nonRebasingSupply = nonRebasingSupply + _value;
             }
         } else {
-            // updating credit balance for rebasing account
+            // Updating credit balance for a rebasing account
             _creditBalances[_to] = _creditBalances[_to] + creditAmount;
         }
     }
 
-    /// @notice Add a contract address to the non rebasing exception list. I.e. the
+    /// @notice Add a contract address to the non-rebasing exception list. I.e., the
     ///  address's balance will be part of rebases so the account will be exposed
     ///  to upside and downside.
+    /// @param _account address of the account opting in for rebase.
     function _rebaseOptIn(address _account) private {
         if (!_isNonRebasingAccount(_account)) {
             revert IsAlreadyRebasingAccount(_account);
@@ -395,10 +392,10 @@ contract USDs is ERC20PermitUpgradeable, OwnableUpgradeable, ReentrancyGuardUpgr
 
         uint256 bal = _balanceOf(_account);
 
-        // Decreasing non rebasing supply
+        // Decreasing non-rebasing supply
         nonRebasingSupply = nonRebasingSupply - bal;
 
-        // convert the balance to credits
+        // Convert the balance to credits
         _creditBalances[_account] = bal.mulTruncate(rebasingCreditsPerToken);
 
         rebaseState[_account] = RebaseOptions.OptIn;
@@ -409,17 +406,17 @@ contract USDs is ERC20PermitUpgradeable, OwnableUpgradeable, ReentrancyGuardUpgr
         emit RebaseOptIn(_account);
     }
 
-    /// @notice Remove a contract address to the non rebasing exception list.
+    /// @notice Remove a contract address from the non-rebasing exception list.
     function _rebaseOptOut(address _account) private {
         if (_isNonRebasingAccount(_account)) {
             revert IsAlreadyNonRebasingAccount(_account);
         }
 
         uint256 bal = _balanceOf(_account);
-        // Increase non rebasing supply
+        // Increase non-rebasing supply
         nonRebasingSupply = nonRebasingSupply + bal;
 
-        // adjusting credits
+        // Adjusting credits
         _creditBalances[_account] = bal;
 
         // Set fixed credits per token
@@ -444,12 +441,12 @@ contract USDs is ERC20PermitUpgradeable, OwnableUpgradeable, ReentrancyGuardUpgr
     }
 
     /// @notice Ensures internal account for rebasing and non-rebasing credits and
-    ///       supply is updated following deployment of frozen yield change.
+    ///       supply is updated following the deployment of frozen yield change.
     /// @param _account Address of the account.
     function _ensureNonRebasingMigration(address _account) private {
         if (nonRebasingCreditsPerToken[_account] == 0) {
             if (_creditBalances[_account] != 0) {
-                // Update non rebasing supply
+                // Update non-rebasing supply
                 uint256 bal = _balanceOf(_account);
                 nonRebasingSupply = nonRebasingSupply + bal;
                 _creditBalances[_account] = bal;
@@ -458,7 +455,7 @@ contract USDs is ERC20PermitUpgradeable, OwnableUpgradeable, ReentrancyGuardUpgr
         }
     }
 
-    /// @notice Calculates balance of account
+    /// @notice Calculates the balance of the account.
     /// @dev Function assumes the _account is already upgraded.
     /// @param _account Address of the account.
     function _balanceOf(address _account) private view returns (uint256) {
