@@ -29,7 +29,7 @@ As contributors, we commit to respecting everyone participating in this project.
 
 Various ways to contribute include:
 
-1. **Opening an issue:** Check for existing issues before opening a new one. Provide details within an open issue rather than duplicating it. We welcome feedback and suggestions on the development process.
+1. **Opening an issue:** Check for [existing issues](https://github.com/Sperax/USDs-v2/issues) before opening a new one. Provide details within an open issue rather than duplicating it. We welcome feedback and suggestions on the development process.
 
 2. **Resolving an issue:** Address an issue by either disproving it or fixing it with code changes. Any pull request fixing an issue should reference that issue.
 
