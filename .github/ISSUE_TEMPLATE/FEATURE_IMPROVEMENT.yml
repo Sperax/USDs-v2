@@ -40,3 +40,8 @@ body:
     attributes:
       label: Additional Context
       description: List any additional dependencies or related contracts that may be affected by the proposed feature.
+  - type: textarea
+    attributes:
+      label: External References
+      description: |
+        Share links or code references to other external implementations where this feature is already implemented.
