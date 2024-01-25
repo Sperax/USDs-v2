@@ -23,7 +23,7 @@ Before you contribute, make sure you have:
 
 ## Code of Conduct
 
-As contributors, we commit to respecting everyone participating in this project. Project maintainers reserve the right to remove content that violates the Code of Conduct. Please review our Code of Conduct for more details.
+As contributors, we commit to respecting everyone participating in this project. Project maintainers reserve the right to remove content that violates the Code of Conduct.
 
 ## Types of Contributions
 
