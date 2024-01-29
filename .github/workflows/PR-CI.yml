@@ -17,7 +17,8 @@ on:
       - .github/workflows/foundry-gas-diff.yml
 
 jobs:
-  compare_gas_reports:
+  check:
+    name: Foundry project
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
