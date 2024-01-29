@@ -1,4 +1,4 @@
-name: Report gas diff
+name: Forge Test and Gas Difference
 
 on:
   push:
@@ -37,10 +37,13 @@ jobs:
         with:
           version: nightly
 
+      - name: Check Solhint
+        run: npm run lint-contract
+
       - name: Check formatting
         run: npm run prettier-check
 
-      # Add any step generating a gas report to a temporary file named gasreport.ansi. For example:
+      # Generate a gas report to a temporary file named gasreport.ansi.
       - name: Run tests
         run: forge test --gas-report 2>&1 | tee >(cat) > gasreport.ansi # <- this file name should be unique in your repository!
         env:
