@@ -1,0 +1,47 @@
+name: Feature Improvement
+description: Propose an enhancement to USDs-v2.
+labels: ['triage']
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please verify that the proposed feature has not already been requested.
+  # - type: dropdown
+  #   attributes:
+  #     label: Component
+  #     description: Identify the area of code your idea improves.
+  #     multiple: true
+  #     options:
+  #       - Hooks
+  #       - Singleton
+  #       - Lock and Call
+  #       - Delta accounting
+  #       - 1155 Balances
+  #       - Pool Actions (swap, modifyPosition, donate, take, settle, mint)
+  #       - Gas Optimization
+  #       - General design optimization (improving efficiency, cleanliness, or developer experience)
+  #       - Documentation
+  - type: textarea
+    attributes:
+      label: Feature Description
+      description: Provide a clear and concise description of the suggested feature and the problems it addresses.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Implementation Proposal
+      description: If possible, suggest a high-level architecture change or implementation details.
+  - type: textarea
+    attributes:
+      label: Alternative Approaches
+      description: Describe any alternative solutions considered or the current functionality's sub-optimal aspects.
+  - type: textarea
+    attributes:
+      label: Additional Context
+      description: List any additional dependencies or related contracts that may be affected by the proposed feature.
+  - type: textarea
+    attributes:
+      label: External References
+      description: |
+        Share links or code references to other external implementations where this feature is already implemented.
