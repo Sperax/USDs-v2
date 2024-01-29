@@ -14,7 +14,7 @@ on:
       - contracts/**
       - test/**
       - foundry.toml
-      - .github/workflows/foundry-gas-diff.yml
+      - .github/workflows/PR-CI.yml
 
 jobs:
   check:
