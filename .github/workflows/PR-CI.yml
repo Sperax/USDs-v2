@@ -4,12 +4,8 @@ on:
   push:
     branches:
       - main
-  pull_request:
-    branches:
-      - main
-      - staging
       - dev
-    # Optionally configure to run only for changes in specific files. For example:
+  pull_request:
     paths:
       - contracts/**
       - test/**
@@ -27,7 +23,7 @@ jobs:
 
       - uses: actions/setup-node@v3
         with:
-          node-version: 16
+          node-version: 20
           cache: 'npm'
 
       - run: npm ci --ignore-scripts
@@ -45,7 +41,9 @@ jobs:
 
       # Generate a gas report to a temporary file named gasreport.ansi.
       - name: Run tests
-        run: forge test --gas-report 2>&1 | tee >(cat) > gasreport.ansi # <- this file name should be unique in your repository!
+        run: |
+          set -o pipefail  # Enable pipefail to capture first failure code
+          forge test --gas-report | tee gasreport.ansi
         env:
           # make fuzzing semi-deterministic to avoid noisy gas cost estimation
           # due to non-deterministic fuzzing (but still use pseudo-random fuzzing seeds)
