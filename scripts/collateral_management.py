@@ -1,4 +1,4 @@
-from .preset import  (
+from .preset import (
     usdc,
     usdc_e,
     dai,
@@ -36,7 +36,8 @@ collateral_allocation_data = {
         aave_strategy: 3000
     },
     frax: {
-        stargate_strategy: 10000
+        stargate_strategy: 0,
+        aave_strategy: 10000
     }   
 }
 
@@ -84,7 +85,7 @@ def get_collateral_strategy_stat(collateral, strategy):
     total_collateral = collateral_in_vault + collateral_in_all_strategies
     collateral_in_strategy = collateral_manager.getCollateralInAStrategy(collateral, strategy)
     collateral_cap_for_strategy = collateral_allocation_data[collateral][strategy]
-    allocatable_amt = max(0, ((total_collateral * collateral_cap_for_strategy) / 10000) - collateral_in_strategy)
+    allocatable_amt = max(0, min(collateral_in_vault,((total_collateral * collateral_cap_for_strategy) / 10000) - collateral_in_strategy))
     interest_earned = strategy.checkInterestEarned(collateral)
     reward_earned = strategy.checkRewardEarned()
     return {
@@ -108,7 +109,3 @@ def allocate(collateral, strategy, amount, user):
 
 def main():
     owner = get_user('Select deployer ')
-    collaterals = [usdc, usdc_e, usdt, dai, frax, lusd]
-    data = {}
-    for collateral in collaterals:
-        data[collateral] = get_collateral_stats(collateral)
