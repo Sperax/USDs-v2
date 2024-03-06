@@ -1,20 +1,12 @@
-from .preset import (
-    usdc,
-    usdc_e,
-    dai,
-    usdt,
-    lusd,
-    frax,
-    usds,
-    aave_strategy,
-    master_price_oracle,
-    compound_strategy,
-    stargate_strategy,
-    vault,
-    collateral_manager
+from .preset import *
+from .utils import (
+    get_user,
+    print_dict,
+    get_tx_info
 )
-from .utils import get_user
 
+ALLOCATION_THRESHOLD = 1000
+collaterals = [usdc, usdc_e, usdt, dai, frax, lusd]
 
 collateral_allocation_data = {
     usdc: {
@@ -59,6 +51,7 @@ def get_vault_stat():
         collateral_data['collateral_amt_in_strategies'] = collateral_manager.getCollateralInStrategies(collateral) / 10**decimals
         collateral_data['collateral_val_in_vault'] = (collateral_data['collateral_amt_in_vault'] * collateral_data['price'])
         collateral_data['collateral_val_in_strategies'] = (collateral_data['collateral_amt_in_strategies'] * collateral_data['price'])
+        collateral_data['fee_data'] = get_collateral_fee(collateral)
         data[collateral] = collateral_data        
         total_val_in_vault += collateral_data['collateral_val_in_vault']
         total_val_in_strategies += collateral_data['collateral_val_in_strategies']
@@ -94,8 +87,17 @@ def get_collateral_strategy_stat(collateral, strategy):
         'collateral_in_vault': collateral_in_vault/10**decimals,
         'total_collateral': total_collateral/10**decimals,
         'interest_earned': interest_earned/10**decimals,
-        'reward_earned': reward_earned
+        'reward_earned': reward_earned,
+        'decimals': decimals
     }
+
+def get_collateral_fee(collateral):
+    fee_prec = 10000
+    fee_data = {}
+    fee_data['mint_fee'] = fee_calculator.getMintFee(collateral) / fee_prec
+    fee_data['redeem_fee'] = fee_calculator.getRedeemFee(collateral) / fee_prec
+    return fee_data
+    
 
 def get_collateral_stats(collateral):
     collateral_data = dict()
@@ -103,9 +105,38 @@ def get_collateral_stats(collateral):
         collateral_data[key] = get_collateral_strategy_stat(collateral, key)
     return collateral_data          
 
-def allocate(collateral, strategy, amount, user): 
-    vault.allocate(collateral, strategy, amount, {'from': user})
+def allocate_collateral(collateral, owner):
+    for key in collateral_allocation_data[collateral].keys():
+        collateral_strategy_data = get_collateral_strategy_stat(collateral, key)
+        allocatable_amount = collateral_strategy_data['allocatable_amt']
+        if(allocatable_amount > ALLOCATION_THRESHOLD):
+            print(f'allocating {allocatable_amount} {collateral} -> {key}')
+            tx = vault.allocate(collateral, key, allocatable_amount * int(10**collateral_strategy_data['decimals']), {'from': owner})
+            print(tx.info())
+        else: 
+            print(f'Skipping Not enough amount to allocate: {allocatable_amount}, {collateral, key}')
 
+def allocate_all(owner):
+    for collateral in collaterals:
+        print(f'allocating {collateral}')
+        allocate_collateral(collateral, owner)
+
+def get_collaterals_fee():
+    collateral_fee_data = {}
+    for collateral in collaterals:
+        name = collateral.name() 
+        fee_data = get_collateral_fee(collateral)
+        collateral_fee_data[f'{name}_mint'] = fee_data['mint_fee']
+        collateral_fee_data[f'{name}_redeem'] = fee_data['redeem_fee'] 
+    return collateral_fee_data
+
+def calibrate_fee(owner):
+    fee_before = get_collaterals_fee()
+    print_dict('Collateral_fee_before: ', fee_before)
+    tx = fee_calculator.calibrateFeeForAll({'from': owner})
+    print_dict('tx_info', get_tx_info('Fee_calibration', tx))
+    fee_after = get_collaterals_fee()
+    print_dict('Collateral_fee_after: ', fee_after)
 
 def main():
     owner = get_user('Select deployer ')
