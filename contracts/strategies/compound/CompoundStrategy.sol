@@ -109,9 +109,11 @@ contract CompoundStrategy is InitializableAbstractStrategy {
         for (uint256 i; i < numAssets;) {
             address lpToken = assetToPToken[assetsMapped[i]];
             IReward.RewardOwed memory rewardData = rewardPool.getRewardOwed(lpToken, address(this));
-            rewardPool.claim(lpToken, address(this), false);
-            uint256 harvestAmt = _splitAndSendReward(rewardData.token, yieldReceiver, msg.sender, rewardData.owed);
-            emit RewardTokenCollected(rewardData.token, yieldReceiver, harvestAmt);
+            if (rewardData.owed != 0) {
+                rewardPool.claim(lpToken, address(this), false);
+                uint256 harvestAmt = _splitAndSendReward(rewardData.token, yieldReceiver, msg.sender, rewardData.owed);
+                emit RewardTokenCollected(rewardData.token, yieldReceiver, harvestAmt);
+            }
             unchecked {
                 ++i;
             }
