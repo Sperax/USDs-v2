@@ -42,7 +42,7 @@ contract CollateralManager is ICollateralManager, Ownable {
     address[] private collaterals; // address of all registered collaterals
     mapping(address => CollateralData) public collateralInfo; // collateral configuration
     mapping(address => mapping(address => StrategyData)) private collateralStrategyInfo; // collateral -> strategy => collateralStrategy config
-    mapping(address => address[]) public collateralStrategies; // collateral => strategies[]
+    mapping(address => address[]) private collateralStrategies; // collateral => strategies[]
 
     // Events
     event CollateralAdded(address collateral, CollateralBaseData data);
