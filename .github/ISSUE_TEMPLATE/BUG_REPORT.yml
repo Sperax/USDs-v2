@@ -1,0 +1,31 @@
+name: Bug Report
+description: Report a bug to help us enhance the code quality
+title: '[Bug]: '
+labels: ['bug']
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please ensure that the bug is not already being tracked.
+  - type: textarea
+    attributes:
+      label: Bug Description
+      description: Provide a clear and concise description of the bug, specifying the affected contracts.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Expected Behavior
+      description: Describe the expected behavior after the bug is fixed.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Steps to Reproduce
+      description: If you have written tests showcasing the bug, provide instructions to reproduce the issue.
+      placeholder: 'git checkout <branchname> / forge test --match-test <testName>'
+  - type: textarea
+    attributes:
+      label: Additional Context
+      description: Include any additional context such as dependencies or related contracts that are affected.

@@ -1,16 +1,16 @@
-name: Forge Test
+name: Forge Test and Gas Difference
 
 on:
-  pull_request:
-    branches:
-      - main
-      - staging
-      - dev
   push:
     branches:
       - main
-      - staging
       - dev
+  pull_request:
+    paths:
+      - contracts/**
+      - test/**
+      - foundry.toml
+      - .github/workflows/PR-CI.yml
 
 jobs:
   check:
@@ -23,7 +23,7 @@ jobs:
 
       - uses: actions/setup-node@v3
         with:
-          node-version: 16
+          node-version: 20
           cache: 'npm'
 
       - run: npm ci --ignore-scripts
@@ -33,13 +33,39 @@ jobs:
         with:
           version: nightly
 
+      - name: Check Solhint
+        run: npm run lint-contract
+
       - name: Check formatting
         run: npm run prettier-check
 
+      # Generate a gas report to a temporary file named gasreport.ansi.
       - name: Run tests
-        run: forge test -vvv
+        run: |
+          set -o pipefail  # Enable pipefail to capture first failure code
+          forge test --gas-report | tee gasreport.ansi
         env:
+          # make fuzzing semi-deterministic to avoid noisy gas cost estimation
+          # due to non-deterministic fuzzing (but still use pseudo-random fuzzing seeds)
           FOUNDRY_PROFILE: ci
+          FOUNDRY_FUZZ_SEED: 0x${{ github.event.pull_request.base.sha || github.sha }}
           TEST_MNEMONIC: ${{ secrets.TEST_MNEMONIC }}
           ARB_URL: ${{ secrets.ARB_URL }}
           FORK_BLOCK: ${{secrets.FORK_BLOCK}}
+
+      - name: Compare gas reports
+        uses: Rubilmax/foundry-gas-diff@v3.16
+        with:
+          summaryQuantile: 0.9 # only display the 10% most significant gas diffs in the summary (defaults to 20%)
+          sortCriteria: avg,max # sort diff rows by criteria
+          sortOrders: desc,asc # and directions
+          ignore: test-foundry/**/* # filter out gas reports from specific paths (test/ is included by default)
+        id: gas_diff
+
+      - name: Add gas diff to sticky comment
+        if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          # delete the comment in case changes no longer impact gas costs
+          delete: ${{ !steps.gas_diff.outputs.markdown }}
+          message: ${{ steps.gas_diff.outputs.markdown }}
