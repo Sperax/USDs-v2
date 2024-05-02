@@ -198,10 +198,8 @@ contract YieldReserve is ReentrancyGuard, Ownable {
         nonReentrant
     {
         Helpers._isNonZeroAddr(_receiver);
-        TokenData storage srcTokenData = tokenData[_srcToken];
-        TokenData storage dstTokenData = tokenData[_dstToken];
-        if (!srcTokenData.srcAllowed) revert InvalidSourceToken();
-        if (!dstTokenData.dstAllowed) revert InvalidDestinationToken();
+        if (!tokenData[_srcToken].srcAllowed) revert InvalidSourceToken();
+        if (!tokenData[_dstToken].dstAllowed) revert InvalidDestinationToken();
         uint256 amountToSend = getTokenBForTokenA(_srcToken, _dstToken, _amountIn);
         if (amountToSend < _minAmountOut) {
             revert Helpers.MinSlippageError(amountToSend, _minAmountOut);
