@@ -6,6 +6,7 @@ from .utils import (
 )
 
 ALLOCATION_THRESHOLD = 1000
+MINT_THRESHOLD = 100
 collaterals = [usdc, usdc_e, usdt, dai, frax, lusd]
 
 collateral_allocation_data = {
@@ -111,14 +112,14 @@ def allocate_collateral(collateral, owner):
         allocatable_amount = collateral_strategy_data['allocatable_amt']
         if(allocatable_amount > ALLOCATION_THRESHOLD):
             print(f'allocating {allocatable_amount} {collateral} -> {key}')
-            tx = vault.allocate(collateral, key, allocatable_amount * int(10**collateral_strategy_data['decimals']), {'from': owner})
+            tx = vault.allocate(collateral, key, int(allocatable_amount * 10**collateral_strategy_data['decimals']), {'from': owner})
             print(tx.info())
         else: 
             print(f'Skipping Not enough amount to allocate: {allocatable_amount}, {collateral, key}')
 
 def allocate_all(owner):
     for collateral in collaterals:
-        print(f'allocating {collateral}')
+        print(f'\nAllocating {collateral}')
         allocate_collateral(collateral, owner)
 
 def get_collaterals_fee():
@@ -134,9 +135,17 @@ def calibrate_fee(owner):
     fee_before = get_collaterals_fee()
     print_dict('Collateral_fee_before: ', fee_before)
     tx = fee_calculator.calibrateFeeForAll({'from': owner})
-    print_dict('tx_info', get_tx_info('Fee_calibration', tx))
     fee_after = get_collaterals_fee()
     print_dict('Collateral_fee_after: ', fee_after)
+    print_dict('tx_info', get_tx_info('Fee_calibration', tx))
+
+def yr_mint(owner):
+    for collateral in collaterals:
+        if(collateral.balanceOf(yield_reserve)/10**(collateral.decimals()) > MINT_THRESHOLD):
+            print(f'Minting Collateral {collateral.name()}')
+            yield_reserve.mintUSDs(collateral, {'from': owner})
 
 def main():
     owner = get_user('Select deployer ')
+
+    
