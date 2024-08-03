@@ -394,14 +394,12 @@ contract SwapTest is YieldReserveTest {
 
     function test_RevertWhen_invalidSourceToken() public {
         uint256 amt = 10;
-        IERC20(USDS).approve(address(yieldReserve), amt * USDsPrecision);
         vm.expectRevert(abi.encodeWithSelector(YieldReserve.InvalidSourceToken.selector));
         yieldReserve.swap(USDS, USDCe, amt * USDsPrecision, 0);
     }
 
     function test_RevertWhen_invalidDestinationToken() public useKnownActor(USDS_OWNER) {
         uint256 amt = 10;
-        IERC20(USDS).approve(address(yieldReserve), amt * USDsPrecision);
         yieldReserve.toggleSrcTokenPermission(USDS, true);
         vm.expectRevert(abi.encodeWithSelector(YieldReserve.InvalidDestinationToken.selector));
         yieldReserve.swap(USDS, USDCe, amt * USDsPrecision, 0);

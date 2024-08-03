@@ -30,6 +30,7 @@ abstract contract Setup is Test {
     address internal DRIPPER;
     address internal REBASE_MANAGER;
     address internal STARGATE_STRATEGY;
+    address internal COMPOUND_STRATEGY;
     address internal AAVE_STRATEGY;
     address internal FEE_VAULT;
 

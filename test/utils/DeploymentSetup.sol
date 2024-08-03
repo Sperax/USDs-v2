@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Unlicensed
 pragma solidity 0.8.19;
 
+import {console} from "forge-std/console.sol";
 import {Setup} from "./BaseTest.sol";
 import {UpgradeUtil} from "./UpgradeUtil.sol";
 import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
@@ -136,9 +137,9 @@ abstract contract PreMigrationSetup is Setup {
         collateralManager.addCollateral(USDT, _data);
         collateralManager.addCollateral(FRAX, _data);
         collateralManager.addCollateral(USDC, _data);
-        collateralManager.addCollateralStrategy(USDCe, address(stargateStrategy), 3000);
         collateralManager.addCollateralStrategy(USDCe, address(aaveStrategy), 4000);
-        collateralManager.updateCollateralDefaultStrategy(USDCe, address(stargateStrategy));
+        console.log(collateralManager.isValidStrategy(USDCe, address(aaveStrategy)));
+        collateralManager.updateCollateralDefaultStrategy(USDCe, address(aaveStrategy));
         AAVE_STRATEGY = address(aaveStrategy);
         STARGATE_STRATEGY = address(stargateStrategy);
         feeCalculator.calibrateFeeForAll();
@@ -151,7 +152,10 @@ abstract contract PreMigrationSetup is Setup {
         compoundStrategy = CompoundStrategy(compoundStrategyProxy);
         compoundStrategy.initialize(VAULT, compoundRewardPool);
         compoundStrategy.setPTokenAddress(USDC, 0x9c4ec768c28520B50860ea7a15bd7213a9fF58bf);
+        compoundStrategy.setPTokenAddress(USDCe, 0xA5EDBDD9646f8dFF606d7448e414884C7d905dCA);
+        COMPOUND_STRATEGY = address(compoundStrategy);
         collateralManager.addCollateralStrategy(USDC, address(compoundStrategy), 4000);
+        collateralManager.addCollateralStrategy(USDCe, address(compoundStrategy), 3000);
         vm.stopPrank();
     }
 
