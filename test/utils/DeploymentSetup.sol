@@ -144,14 +144,13 @@ abstract contract PreMigrationSetup is Setup {
         feeCalculator.calibrateFeeForAll();
 
         // Deploying Compound strategy
-        address compoundRewardPool = 0x88730d254A2f7e6AC8388c3198aFd694bA9f7fae;
         CompoundStrategy compoundStrategyImpl = new CompoundStrategy();
         address compoundStrategyProxy = upgradeUtil.deployErc1967Proxy(address(compoundStrategyImpl));
         // vm.makePersistent(aaveStrategyProxy);
         compoundStrategy = CompoundStrategy(compoundStrategyProxy);
-        compoundStrategy.initialize(VAULT, compoundRewardPool);
-        compoundStrategy.setPTokenAddress(USDC, 0x9c4ec768c28520B50860ea7a15bd7213a9fF58bf);
-        compoundStrategy.setPTokenAddress(USDCe, 0xA5EDBDD9646f8dFF606d7448e414884C7d905dCA);
+        compoundStrategy.initialize(VAULT, COMPOUND_REWARD_POOL);
+        compoundStrategy.setPTokenAddress(USDC, COMPOUND_cUSDCv3);
+        compoundStrategy.setPTokenAddress(USDCe, COMPOUND_cUSDCev3);
         COMPOUND_STRATEGY = address(compoundStrategy);
         collateralManager.addCollateralStrategy(USDC, address(compoundStrategy), 4000);
         collateralManager.addCollateralStrategy(USDCe, address(compoundStrategy), 3000);

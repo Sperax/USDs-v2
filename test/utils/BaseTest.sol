@@ -38,6 +38,9 @@ abstract contract Setup is Test {
     address public constant STARGATE = 0xF30Db0F56674b51050630e53043c403f8E162Bf2;
     address public constant AAVE = 0xF2badbB9817A40D29393fa88951415a4A334a898;
     address public constant USDT_TWO_POOL_STRATEGY = 0xdc118F2F00812326Fe0De5c9c74c1c0c609d1eB4;
+    address public constant COMPOUND_REWARD_POOL = 0x88730d254A2f7e6AC8388c3198aFd694bA9f7fae;
+    address public constant COMPOUND_cUSDCv3 = 0x9c4ec768c28520B50860ea7a15bd7213a9fF58bf;
+    address public constant COMPOUND_cUSDCev3 = 0xA5EDBDD9646f8dFF606d7448e414884C7d905dCA;
     // Define fork networks
     uint256 internal arbFork;
 
