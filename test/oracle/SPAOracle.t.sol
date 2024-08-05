@@ -99,6 +99,12 @@ contract Test_GetPrice is SPAOracleTest {
         spaOracle.updateDIAParams(WEIGHT_DIA, 121);
         vm.stopPrank();
 
+        vm.mockCall(
+            DIA_ORACLE,
+            abi.encodeWithSignature("getValue(string)", string("SPA/USD")),
+            abi.encode(0, block.timestamp - 122 seconds)
+        );
+
         vm.expectRevert(abi.encodeWithSelector(PriceTooOld.selector));
         spaOracle.getPrice();
     }

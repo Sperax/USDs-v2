@@ -305,17 +305,6 @@ contract GetTokenBForTokenATest is YieldReserveTest {
         mockPrice(USDS, 1e8, PRICE_PRECISION);
     }
 
-    function test_RevertWhen_invalidSourceToken() public {
-        vm.expectRevert(abi.encodeWithSelector(YieldReserve.InvalidSourceToken.selector));
-        yieldReserve.getTokenBForTokenA(USDS, USDCe, 10000);
-    }
-
-    function test_RevertWhen_invalidDestinationToken() public useKnownActor(USDS_OWNER) {
-        yieldReserve.toggleSrcTokenPermission(USDS, true);
-        vm.expectRevert(abi.encodeWithSelector(YieldReserve.InvalidDestinationToken.selector));
-        yieldReserve.getTokenBForTokenA(USDS, USDCe, 10000);
-    }
-
     function test_RevertWhen_invalidAmount() public useKnownActor(USDS_OWNER) {
         yieldReserve.toggleSrcTokenPermission(USDS, true);
         yieldReserve.toggleDstTokenPermission(USDCe, true);
@@ -401,6 +390,19 @@ contract SwapTest is YieldReserveTest {
         mintUSDs(1e7);
 
         vm.stopPrank();
+    }
+
+    function test_RevertWhen_invalidSourceToken() public {
+        uint256 amt = 10;
+        vm.expectRevert(abi.encodeWithSelector(YieldReserve.InvalidSourceToken.selector));
+        yieldReserve.swap(USDS, USDCe, amt * USDsPrecision, 0);
+    }
+
+    function test_RevertWhen_invalidDestinationToken() public useKnownActor(USDS_OWNER) {
+        uint256 amt = 10;
+        yieldReserve.toggleSrcTokenPermission(USDS, true);
+        vm.expectRevert(abi.encodeWithSelector(YieldReserve.InvalidDestinationToken.selector));
+        yieldReserve.swap(USDS, USDCe, amt * USDsPrecision, 0);
     }
 
     function test_swap_slippage_error() public useKnownActor(USDS_OWNER) {

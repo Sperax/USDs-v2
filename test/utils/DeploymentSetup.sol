@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Unlicensed
 pragma solidity 0.8.19;
 
+import {console} from "forge-std/console.sol";
 import {Setup} from "./BaseTest.sol";
 import {UpgradeUtil} from "./UpgradeUtil.sol";
 import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
@@ -136,22 +137,23 @@ abstract contract PreMigrationSetup is Setup {
         collateralManager.addCollateral(USDT, _data);
         collateralManager.addCollateral(FRAX, _data);
         collateralManager.addCollateral(USDC, _data);
-        collateralManager.addCollateralStrategy(USDCe, address(stargateStrategy), 3000);
         collateralManager.addCollateralStrategy(USDCe, address(aaveStrategy), 4000);
-        collateralManager.updateCollateralDefaultStrategy(USDCe, address(stargateStrategy));
+        collateralManager.updateCollateralDefaultStrategy(USDCe, address(aaveStrategy));
         AAVE_STRATEGY = address(aaveStrategy);
         STARGATE_STRATEGY = address(stargateStrategy);
         feeCalculator.calibrateFeeForAll();
 
         // Deploying Compound strategy
-        address compoundRewardPool = 0x88730d254A2f7e6AC8388c3198aFd694bA9f7fae;
         CompoundStrategy compoundStrategyImpl = new CompoundStrategy();
         address compoundStrategyProxy = upgradeUtil.deployErc1967Proxy(address(compoundStrategyImpl));
         // vm.makePersistent(aaveStrategyProxy);
         compoundStrategy = CompoundStrategy(compoundStrategyProxy);
-        compoundStrategy.initialize(VAULT, compoundRewardPool);
-        compoundStrategy.setPTokenAddress(USDC, 0x9c4ec768c28520B50860ea7a15bd7213a9fF58bf);
+        compoundStrategy.initialize(VAULT, COMPOUND_REWARD_POOL);
+        compoundStrategy.setPTokenAddress(USDC, COMPOUND_cUSDCv3);
+        compoundStrategy.setPTokenAddress(USDCe, COMPOUND_cUSDCev3);
+        COMPOUND_STRATEGY = address(compoundStrategy);
         collateralManager.addCollateralStrategy(USDC, address(compoundStrategy), 4000);
+        collateralManager.addCollateralStrategy(USDCe, address(compoundStrategy), 3000);
         vm.stopPrank();
     }
 

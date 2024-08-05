@@ -34,8 +34,8 @@ contract VaultCoreTest is PreMigrationSetup {
         slippageFactor = 10;
         USDC_PRECISION = 10 ** ERC20(USDCe).decimals();
         _collateral = USDCe;
-        defaultStrategy = STARGATE_STRATEGY;
-        otherStrategy = AAVE_STRATEGY;
+        otherStrategy = COMPOUND_STRATEGY;
+        defaultStrategy = AAVE_STRATEGY;
     }
 
     function _slippageCorrectedAmt(uint256 _expectedAmt) internal view returns (uint256 correctedAmt) {
@@ -756,6 +756,7 @@ contract Test_Redeem is VaultCoreTest {
     uint256 private _usdsAmt;
     uint256 private _minCollAmt;
     uint256 private _deadline;
+    uint256 private constant MINIMUM_WAIT_FOR_COMPOUND = 4;
 
     event Redeemed(
         address indexed wallet, address indexed collateralAddr, uint256 usdsAmt, uint256 collateralAmt, uint256 feeAmt
@@ -860,6 +861,7 @@ contract Test_Redeem is VaultCoreTest {
     function test_RedeemFromSpecificOtherStrategy() public {
         deal(USDCe, VAULT, (_usdsAmt) / 1e12);
         _allocateIntoStrategy(_collateral, otherStrategy, (_usdsAmt / 5) / 1e12);
+        vm.warp(block.timestamp + MINIMUM_WAIT_FOR_COMPOUND); // Added this time travel to fix Compound's BorrowTooSmall error
         (uint256 _calculatedCollateralAmt, uint256 _usdsBurnAmt, uint256 _feeAmt,,) =
             _redeemViewTest(_usdsAmt, otherStrategy);
         vm.prank(VAULT);

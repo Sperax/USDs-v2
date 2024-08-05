@@ -31,8 +31,8 @@ contract VaultCoreTest is PreMigrationSetup {
         super.setUp();
         USDC_PRECISION = 10 ** ERC20(USDCe).decimals();
         _collateral = USDCe;
-        defaultStrategy = STARGATE_STRATEGY;
-        otherStrategy = AAVE_STRATEGY;
+        defaultStrategy = AAVE_STRATEGY;
+        otherStrategy = COMPOUND_STRATEGY;
     }
 
     function _updateCollateralData(ICollateralManager.CollateralBaseData memory _data) internal {
