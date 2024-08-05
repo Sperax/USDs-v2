@@ -138,7 +138,6 @@ abstract contract PreMigrationSetup is Setup {
         collateralManager.addCollateral(FRAX, _data);
         collateralManager.addCollateral(USDC, _data);
         collateralManager.addCollateralStrategy(USDCe, address(aaveStrategy), 4000);
-        console.log(collateralManager.isValidStrategy(USDCe, address(aaveStrategy)));
         collateralManager.updateCollateralDefaultStrategy(USDCe, address(aaveStrategy));
         AAVE_STRATEGY = address(aaveStrategy);
         STARGATE_STRATEGY = address(stargateStrategy);
