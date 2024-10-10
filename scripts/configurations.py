@@ -4,6 +4,7 @@ from brownie import (
     AaveStrategy,
     StargateStrategy,
     CompoundStrategy,
+    USDsDIAOracle,
     USDs,
 )
 
@@ -170,6 +171,20 @@ deployment_config = {
                     },
                     transact=True,
                 ),
+                Step(
+                    func="transferOwnership",
+                    args={"new_admin": USDS_OWNER_ADDR},
+                    transact=True,
+                )
+            ]
+        )
+    ),
+    "usdsDIAOracle": Deployment_data(
+        contract=USDsDIAOracle,
+        config=Deployment_config(
+            upgradeable=False,
+            deployment_params={},
+            post_deployment_steps=[
                 Step(
                     func="transferOwnership",
                     args={"new_admin": USDS_OWNER_ADDR},
