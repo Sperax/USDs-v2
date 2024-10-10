@@ -1,0 +1,43 @@
+{
+    "contract_addr": "0xD6ce80d968c8229fDAea6e315b0441D299FB40f4",
+    "type": "Deployment",
+    "transactions": [
+        {
+            "step": "Deployment_transaction",
+            "tx_hash": "0x91fcb014d66ac4ba81ef3af88f09e875da7152ab8cf651bcceeaa86168eede93",
+            "contract": "USDsDIAOracle",
+            "contract_addr": "0xD6ce80d968c8229fDAea6e315b0441D299FB40f4",
+            "tx_func": "constructor",
+            "blocknumber": 262393781,
+            "gas_used": 1794240,
+            "gas_limit": 2205289
+        },
+        {
+            "step": "Post_deployment_step",
+            "tx_hash": "0xc1e22929cf51e68f38be4d40dfb6e4acb46922398c0aa5d3a77da18549cfb86a",
+            "contract": "USDsDIAOracle",
+            "contract_addr": null,
+            "tx_func": "transferOwnership",
+            "blocknumber": 262393808,
+            "gas_used": 224015,
+            "gas_limit": 318600
+        }
+    ],
+    "config_name": "usdsDIAOracle",
+    "config": {
+        "deployment_params": {},
+        "post_deployment_steps": [
+            {
+                "func": "transferOwnership",
+                "args": {
+                    "new_admin": "0x5b12d9846F8612E439730d18E1C12634753B1bF1"
+                },
+                "transact": true,
+                "contract": "USDsDIAOracle",
+                "contract_addr": "0xD6ce80d968c8229fDAea6e315b0441D299FB40f4"
+            }
+        ],
+        "upgradeable": false,
+        "proxy_admin": null
+    }
+}
