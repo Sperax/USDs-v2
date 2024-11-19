@@ -43,7 +43,7 @@ contract FluidStrategy is InitializableAbstractStrategy {
         IERC20(_asset).safeTransferFrom(msg.sender, address(this), _amount);
         IERC20(_asset).forceApprove(lpToken, _amount);
 
-        uint256 minAmountOut = IfToken(lpToken).convertToShares(_amount);
+        uint256 minAmountOut = IfToken(lpToken).previewDeposit(_amount);
         IfToken(lpToken).deposit(_amount, address(this), minAmountOut);
 
         emit Deposit(_asset, _amount);
@@ -103,8 +103,11 @@ contract FluidStrategy is InitializableAbstractStrategy {
 
         allocatedAmount[_asset] -= _amount;
 
-        uint256 maxSharesBurn = IfToken(lpToken).convertToShares(_amount);
-        IfToken(lpToken).withdraw(_amount, _recipient, address(this), maxSharesBurn);
+        uint256 shares = IfToken(lpToken).previewWithdraw(_amount);
+        uint256 received = IfToken(lpToken).redeem(shares, _recipient, address(this));
+        if (received < _amount) {
+            revert Helpers.MinSlippageError(received, _amount);
+        }
 
         emit Withdrawal(_asset, _amount);
 
