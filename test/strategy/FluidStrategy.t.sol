@@ -74,5 +74,22 @@ contract FluidStrategyTest is BaseStrategy, BaseTest {
     function testUnit() public {
         _initializeStrategy();
         _setAssetData();
+        _deposit();
+        _withdraw();
+    }
+
+    function _deposit() internal {
+        changePrank(VAULT);
+        deal(ASSET, VAULT, depositAmount);
+        IERC20(ASSET).approve(address(strategy), depositAmount);
+        strategy.deposit(ASSET, depositAmount);
+        vm.roll(block.number + 10);
+        vm.warp(block.timestamp + 10);
+        changePrank(USDS_OWNER);
+    }
+
+    function _withdraw() internal {
+        changePrank(VAULT);
+        strategy.withdraw(VAULT, ASSET, depositAmount);
     }
 }
