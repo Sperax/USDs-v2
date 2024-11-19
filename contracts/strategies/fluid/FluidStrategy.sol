@@ -25,6 +25,14 @@ contract FluidStrategy is InitializableAbstractStrategy {
         InitializableAbstractStrategy._initialize(_vault, _depositSlippage, _withdrawSlippage);
     }
 
+    /// @notice Provide support for asset by passing its lpToken address.
+    ///      This method can only be called by the contract owner
+    /// @param _asset    Address of the asset
+    /// @param _lpToken   Address of the corresponding platform token
+    function setPTokenAddress(address _asset, address _lpToken) external onlyOwner {
+        _setPTokenAddress(_asset, _lpToken);
+    }
+
     /// @inheritdoc InitializableAbstractStrategy
     function deposit(address _asset, uint256 _amount) external override {
         address lpToken = _getPTokenFor(_asset);
