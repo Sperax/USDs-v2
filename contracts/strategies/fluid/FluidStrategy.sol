@@ -18,16 +18,10 @@ contract FluidStrategy is InitializableAbstractStrategy {
     mapping(address => uint256) public allocatedAmount; // tracks the allocated amount for an asset.
 
     function initialize(
-        address[] memory assets,
-        address[] memory pTokens,
         address _vault,
         uint16 _depositSlippage, // 200 = 2%
         uint16 _withdrawSlippage // 200 = 2%
     ) external initializer {
-        // Not using a loop here because of increased gas usage in array.length calculation, loop variable declaration, condition and increment.
-        _setPTokenAddress(assets[0], pTokens[0]); // USDT
-        _setPTokenAddress(assets[1], pTokens[1]); // USDC
-
         InitializableAbstractStrategy._initialize(_vault, _depositSlippage, _withdrawSlippage);
     }
 
