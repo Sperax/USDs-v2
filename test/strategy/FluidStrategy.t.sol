@@ -70,4 +70,9 @@ contract FluidStrategyTest is BaseStrategy, BaseTest {
             strategy.setPTokenAddress(data[i].asset, data[i].pToken);
         }
     }
+
+    function testUnit() public {
+        _initializeStrategy();
+        _setAssetData();
+    }
 }
