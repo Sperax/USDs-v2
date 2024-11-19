@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.19;
 
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+
 import {InitializableAbstractStrategy} from "../InitializableAbstractStrategy.sol";
 import {IfToken} from "./interfaces/IfToken.sol";
 
@@ -10,6 +13,10 @@ import {IfToken} from "./interfaces/IfToken.sol";
 /// @notice Important contract addresses:
 ///         https://github.com/Instadapp/fluid-contracts-public/blob/main/deployments/deployments.md#lendingfactory
 contract FluidStrategy is InitializableAbstractStrategy {
+    using SafeERC20 for IERC20;
+
+    mapping(address => uint256) public allocatedAmount; // tracks the allocated amount for an asset.
+
     function initialize(
         address[] memory assets,
         address[] memory pTokens,
@@ -25,17 +32,41 @@ contract FluidStrategy is InitializableAbstractStrategy {
     }
 
     /// @inheritdoc InitializableAbstractStrategy
-    function deposit(address _asset, uint256 _amount) external override {}
+    function deposit(address _asset, uint256 _amount) external override {
+        address lpToken = _getPTokenFor(_asset);
+
+        allocatedAmount[_asset] += _amount;
+
+        IERC20(_asset).safeTransferFrom(msg.sender, address(this), _amount);
+        IERC20(_asset).forceApprove(lpToken, _amount);
+
+        uint256 minAmountOut = IfToken(lpToken).convertToShares(_amount);
+        IfToken(lpToken).deposit(_amount, address(this), minAmountOut);
+
+        emit Deposit(_asset, _amount);
+    }
 
     /// @inheritdoc InitializableAbstractStrategy
     function withdraw(address _recipient, address _asset, uint256 _amount)
         external
         override
+        onlyVault
+        nonReentrant
         returns (uint256 amountReceived)
-    {}
+    {
+        amountReceived = _withdraw(_recipient, _asset, _amount);
+    }
 
     /// @inheritdoc InitializableAbstractStrategy
-    function withdrawToVault(address _asset, uint256 _amount) external override returns (uint256 amount) {}
+    function withdrawToVault(address _asset, uint256 _amount)
+        external
+        override
+        onlyOwner
+        nonReentrant
+        returns (uint256 amountReceived)
+    {
+        amountReceived = _withdraw(vault, _asset, _amount);
+    }
 
     /// @inheritdoc InitializableAbstractStrategy
     function collectInterest(address _asset) external override {}
@@ -60,6 +91,19 @@ contract FluidStrategy is InitializableAbstractStrategy {
 
     /// @inheritdoc InitializableAbstractStrategy
     function supportsCollateral(address _asset) external view override returns (bool) {}
+
+    function _withdraw(address _recipient, address _asset, uint256 _amount) internal returns (uint256) {
+        address lpToken = _getPTokenFor(_asset);
+
+        allocatedAmount[_asset] -= _amount;
+
+        uint256 maxSharesBurn = IfToken(lpToken).convertToShares(_amount);
+        IfToken(lpToken).withdraw(_amount, _recipient, address(this), maxSharesBurn);
+
+        emit Deposit(_asset, _amount);
+
+        return _amount;
+    }
 
     /// @inheritdoc InitializableAbstractStrategy
     function _abstractSetPToken(address _asset, address _pToken) internal view override {
