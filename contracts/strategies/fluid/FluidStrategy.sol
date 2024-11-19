@@ -4,7 +4,7 @@ pragma solidity 0.8.19;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-import {InitializableAbstractStrategy} from "../InitializableAbstractStrategy.sol";
+import {InitializableAbstractStrategy, Helpers} from "../InitializableAbstractStrategy.sol";
 import {IfToken} from "./interfaces/IfToken.sol";
 
 /// @title Fluid strategy for USDs protocol
@@ -35,6 +35,7 @@ contract FluidStrategy is InitializableAbstractStrategy {
 
     /// @inheritdoc InitializableAbstractStrategy
     function deposit(address _asset, uint256 _amount) external override {
+        Helpers._isNonZeroAmt(_amount);
         address lpToken = _getPTokenFor(_asset);
 
         allocatedAmount[_asset] += _amount;
@@ -95,6 +96,9 @@ contract FluidStrategy is InitializableAbstractStrategy {
     function supportsCollateral(address _asset) external view override returns (bool) {}
 
     function _withdraw(address _recipient, address _asset, uint256 _amount) internal returns (uint256) {
+        Helpers._isNonZeroAddr(_recipient);
+        Helpers._isNonZeroAmt(_amount, "Must withdraw something");
+
         address lpToken = _getPTokenFor(_asset);
 
         allocatedAmount[_asset] -= _amount;
@@ -102,7 +106,7 @@ contract FluidStrategy is InitializableAbstractStrategy {
         uint256 maxSharesBurn = IfToken(lpToken).convertToShares(_amount);
         IfToken(lpToken).withdraw(_amount, _recipient, address(this), maxSharesBurn);
 
-        emit Deposit(_asset, _amount);
+        emit Withdrawal(_asset, _amount);
 
         return _amount;
     }
