@@ -109,7 +109,7 @@ contract FluidStrategy is InitializableAbstractStrategy {
 
     /// @inheritdoc InitializableAbstractStrategy
     function _abstractSetPToken(address _asset, address _pToken) internal view override {
-        if (IfToken(_pToken).asset() == _asset) {
+        if (IfToken(_pToken).asset() != _asset) {
             revert InvalidAssetLpPair(_asset, _pToken);
         }
     }
