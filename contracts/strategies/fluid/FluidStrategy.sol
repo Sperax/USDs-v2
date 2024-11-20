@@ -4,7 +4,7 @@ pragma solidity 0.8.19;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-import {InitializableAbstractStrategy, Helpers} from "../InitializableAbstractStrategy.sol";
+import {InitializableAbstractStrategy, Helpers, IStrategyVault} from "../InitializableAbstractStrategy.sol";
 import {IfToken} from "./interfaces/IfToken.sol";
 
 /// @title Fluid strategy for USDs protocol
@@ -16,6 +16,8 @@ contract FluidStrategy is InitializableAbstractStrategy {
     using SafeERC20 for IERC20;
 
     mapping(address => uint256) public allocatedAmount; // tracks the allocated amount for an asset.
+
+    error NoRewardIncentive();
 
     function initialize(
         address _vault,
@@ -33,8 +35,18 @@ contract FluidStrategy is InitializableAbstractStrategy {
         _setPTokenAddress(_asset, _lpToken);
     }
 
+    /// @dev Remove a supported asset by passing its index.
+    ///       This method can only be called by the system owner
+    ///  @param _assetIndex Index of the asset to be removed
+    function removePToken(uint256 _assetIndex) external onlyOwner {
+        address asset = _removePTokenAddress(_assetIndex);
+        if (allocatedAmount[asset] != 0) {
+            revert CollateralAllocated(asset);
+        }
+    }
+
     /// @inheritdoc InitializableAbstractStrategy
-    function deposit(address _asset, uint256 _amount) external override {
+    function deposit(address _asset, uint256 _amount) external override nonReentrant {
         Helpers._isNonZeroAmt(_amount);
         address lpToken = _getPTokenFor(_asset);
 
@@ -72,28 +84,59 @@ contract FluidStrategy is InitializableAbstractStrategy {
     }
 
     /// @inheritdoc InitializableAbstractStrategy
-    function collectInterest(address _asset) external override {}
+    function collectInterest(address _asset) external override nonReentrant {
+        uint256 assetInterest = checkInterestEarned(_asset);
+        if (assetInterest != 0) {
+            address yieldReceiver = IStrategyVault(vault).yieldReceiver();
+            IfToken(_getPTokenFor(_asset)).withdraw(assetInterest, address(this), address(this));
+            uint256 harvestAmt = _splitAndSendReward(_asset, yieldReceiver, msg.sender, assetInterest);
+            emit InterestCollected(_asset, yieldReceiver, harvestAmt);
+        }
+    }
+
+    /// @inheritdoc InitializableAbstractStrategy
+    function supportsCollateral(address _asset) external view override returns (bool) {
+        return assetToPToken[_asset] != address(0);
+    }
+
+    /// @inheritdoc InitializableAbstractStrategy
+    function checkBalance(address _asset) external view override returns (uint256 balance) {
+        balance = allocatedAmount[_asset];
+    }
+
+    /// @inheritdoc InitializableAbstractStrategy
+    function checkAvailableBalance(address _asset) external view override returns (uint256) {
+        uint256 availableLiquidity = _getAvailableLiquidity(_asset);
+        uint256 allocatedValue = allocatedAmount[_asset];
+        if (availableLiquidity <= allocatedValue) {
+            return availableLiquidity;
+        }
+        return allocatedValue;
+    }
 
     /// @notice Collect accumulated reward token and send to Vault.
-    function collectReward() external override {}
+    function collectReward() external pure override {
+        revert NoRewardIncentive();
+    }
 
     /// @inheritdoc InitializableAbstractStrategy
-    function checkBalance(address _asset) external view override returns (uint256) {}
+    function checkRewardEarned() external pure override returns (RewardData[] memory) {
+        return (new RewardData[](0));
+    }
 
     /// @inheritdoc InitializableAbstractStrategy
-    function checkAvailableBalance(address _asset) external view override returns (uint256) {}
+    function checkInterestEarned(address _asset) public view override returns (uint256 interest) {
+        uint256 availableLiquidity = _getAvailableLiquidity(_asset);
+        uint256 allocatedValue = allocatedAmount[_asset];
+        if (availableLiquidity > allocatedValue) {
+            interest = availableLiquidity - allocatedValue;
+        }
+    }
 
     /// @inheritdoc InitializableAbstractStrategy
-    function checkInterestEarned(address _asset) external view override returns (uint256) {}
-
-    /// @inheritdoc InitializableAbstractStrategy
-    function checkRewardEarned() external view override returns (RewardData[] memory) {}
-
-    /// @inheritdoc InitializableAbstractStrategy
-    function checkLPTokenBalance(address _asset) external view override returns (uint256) {}
-
-    /// @inheritdoc InitializableAbstractStrategy
-    function supportsCollateral(address _asset) external view override returns (bool) {}
+    function checkLPTokenBalance(address _asset) public view override returns (uint256 balance) {
+        balance = IERC20(_getPTokenFor(_asset)).balanceOf(address(this));
+    }
 
     function _withdraw(address _recipient, address _asset, uint256 _amount) internal returns (uint256) {
         Helpers._isNonZeroAddr(_recipient);
@@ -119,6 +162,12 @@ contract FluidStrategy is InitializableAbstractStrategy {
         if (IfToken(_pToken).asset() != _asset) {
             revert InvalidAssetLpPair(_asset, _pToken);
         }
+    }
+
+    function _getAvailableLiquidity(address _asset) internal view returns (uint256 liquidity) {
+        address lpToken = _getPTokenFor(_asset);
+        uint256 lpBalance = checkLPTokenBalance(_asset);
+        liquidity = IfToken(lpToken).convertToAssets(lpBalance);
     }
 
     /// @notice Get the lpToken for the asset.
