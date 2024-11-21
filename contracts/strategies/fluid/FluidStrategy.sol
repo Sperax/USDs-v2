@@ -18,7 +18,9 @@ contract FluidStrategy is InitializableAbstractStrategy {
     mapping(address => uint256) public allocatedAmount; // tracks the allocated amount for an asset.
 
     error NoRewardIncentive();
+    error LimitReached();
 
+    /// @notice Initializer function of the strategy to initialize the state variables of InitializableAbstractStrategy
     function initialize(
         address _vault,
         uint16 _depositSlippage, // 200 = 2%
@@ -47,14 +49,20 @@ contract FluidStrategy is InitializableAbstractStrategy {
 
     /// @inheritdoc InitializableAbstractStrategy
     function deposit(address _asset, uint256 _amount) external override nonReentrant {
-        Helpers._isNonZeroAmt(_amount);
+        Helpers._isNonZeroAmt(_amount, "Must deposit something");
         address lpToken = _getPTokenFor(_asset);
+
+        // Checking for maximum deposit amount.
+        uint256 maxDeposit = IfToken(lpToken).maxDeposit(address(this));
+        if (_amount > maxDeposit) {
+            revert LimitReached();
+        }
 
         allocatedAmount[_asset] += _amount;
 
+        // Doing the deposit.
         IERC20(_asset).safeTransferFrom(msg.sender, address(this), _amount);
         IERC20(_asset).forceApprove(lpToken, _amount);
-
         uint256 minAmountOut = IfToken(lpToken).previewDeposit(_amount);
         IfToken(lpToken).deposit(_amount, address(this), minAmountOut);
 
@@ -115,6 +123,7 @@ contract FluidStrategy is InitializableAbstractStrategy {
     }
 
     /// @notice Collect accumulated reward token and send to Vault.
+    /// @dev There are no separate rewards by Fluid.
     function collectReward() external pure override {
         revert NoRewardIncentive();
     }
@@ -138,15 +147,26 @@ contract FluidStrategy is InitializableAbstractStrategy {
         balance = IERC20(_getPTokenFor(_asset)).balanceOf(address(this));
     }
 
+    /// @notice Internal withdraw function used for withdrawing from the strategy.
+    /// @param _recipient Receiver of the funds.
+    /// @param _asset Asset to be withdrawn.
+    /// @param _amount Amount to be withdrawn.
+    /// @return _amount Amount withdrawn.
     function _withdraw(address _recipient, address _asset, uint256 _amount) internal returns (uint256) {
         Helpers._isNonZeroAddr(_recipient);
         Helpers._isNonZeroAmt(_amount, "Must withdraw something");
 
+        // Checking for shares required to be burned to get the desired _amount and checking maximum redeemable shares.
         address lpToken = _getPTokenFor(_asset);
+        uint256 shares = IfToken(lpToken).previewWithdraw(_amount);
+        uint256 maxRedeemable = IfToken(lpToken).maxRedeem(address(this));
+        if (shares > maxRedeemable) {
+            revert LimitReached();
+        }
 
         allocatedAmount[_asset] -= _amount;
 
-        uint256 shares = IfToken(lpToken).previewWithdraw(_amount);
+        // Redeeming the shares.
         uint256 received = IfToken(lpToken).redeem(shares, _recipient, address(this));
         if (received < _amount) {
             revert Helpers.MinSlippageError(received, _amount);
@@ -164,9 +184,12 @@ contract FluidStrategy is InitializableAbstractStrategy {
         }
     }
 
+    /// @notice A function to fetch the available liquidity deployed in the strategy.
+    /// @param _asset Asset to be checked for available liquidity.
+    /// @return liquidity Available liquidity.
     function _getAvailableLiquidity(address _asset) internal view returns (uint256 liquidity) {
         address lpToken = _getPTokenFor(_asset);
-        uint256 lpBalance = checkLPTokenBalance(_asset);
+        uint256 lpBalance = IfToken(lpToken).maxRedeem(address(this));
         liquidity = IfToken(lpToken).convertToAssets(lpBalance);
     }
 
