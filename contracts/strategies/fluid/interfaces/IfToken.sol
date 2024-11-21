@@ -8,6 +8,10 @@ interface IfToken {
 
     function withdraw(uint256 assets_, address receiver_, address owner_) external returns (uint256 shares_);
 
+    function withdraw(uint256 assets_, address receiver_, address owner_, uint256 maxSharesBurn_)
+        external
+        returns (uint256 shares_);
+
     function asset() external view returns (address asset);
 
     function previewDeposit(uint256 assets_) external view returns (uint256);
@@ -15,4 +19,10 @@ interface IfToken {
     function previewWithdraw(uint256 shares_) external view returns (uint256);
 
     function convertToAssets(uint256 shares_) external view returns (uint256);
+
+    function maxRedeem(address owner_) external view returns (uint256);
+
+    function maxDeposit(address owner_) external view returns (uint256);
+
+    function maxWithdraw(address owner_) external view returns (uint256);
 }
