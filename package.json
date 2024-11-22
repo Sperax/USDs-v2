@@ -12,7 +12,7 @@
     "install-husky": "husky install",
     "prepare": "npm-run-all install-husky install-pip-packages",
     "slither-analyze": "slither .",
-    "forge-coverage": "forge coverage --report lcov && lcov --remove ./lcov.info -o ./lcov.info 'test/*' && rm -rf ./coverage && genhtml lcov.info --output-dir coverage && mv lcov.info ./coverage",
+    "forge-coverage": "forge coverage --report lcov && lcov --rc branch_coverage=1 --rc derive_function_end_line=0  --remove ./lcov.info -o ./lcov.info && rm -rf ./coverage && genhtml lcov.info --rc branch_coverage=1 --rc derive_function_end_line=0  --output-dir coverage && mv lcov.info ./coverage",
     "lint-contract": "solhint 'contracts/**/*.sol' -f table",
     "lint-test-contract": "solhint 'test/**/*.sol' -f table",
     "lint-contract:errors": "solhint 'contracts/**/*.sol' 'test/**/*.sol' -f table --quiet",
@@ -26,9 +26,9 @@
   "author": "Sperax Inc",
   "license": "ISC",
   "devDependencies": {
-    "husky": "^8.0.3",
+    "husky": "9.1.7",
     "npm-run-all": "^4.1.5",
-    "solhint": "^3.6.2"
+    "solhint": "5.0.3"
   },
   "dependencies": {
     "@chainlink/contracts": "^0.5.1",
