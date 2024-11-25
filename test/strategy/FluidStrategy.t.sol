@@ -154,14 +154,15 @@ contract SetPTokenTest is FluidStrategyTest {
     }
 
     function test_RevertWhen_InvalidPToken() public useKnownActor(USDS_OWNER) {
-        address OTHER_P_TOKEN = 0xe0C97480CA7BDb33B2CD9810cC7f103188de4383;
+        address INVALID_P_TOKEN = 0xe0C97480CA7BDb33B2CD9810cC7f103188de4383;
         vm.expectRevert();
-        strategy.setPTokenAddress(ASSET, OTHER_P_TOKEN);
+        strategy.setPTokenAddress(ASSET, INVALID_P_TOKEN);
     }
 
     function test_RevertWhen_InvalidPToken2() public useKnownActor(USDS_OWNER) {
-        vm.expectRevert();
-        strategy.setPTokenAddress(ASSET, 0xbE3860FD4c3facDf8ad57Aa8c1A36D6dc4390a49);
+        address ANOTHER_ASSET_PTOKEN = 0xbE3860FD4c3facDf8ad57Aa8c1A36D6dc4390a49;
+        vm.expectRevert(abi.encodeWithSelector(InvalidAssetLpPair.selector, ASSET, ANOTHER_ASSET_PTOKEN));
+        strategy.setPTokenAddress(ASSET, ANOTHER_ASSET_PTOKEN);
     }
 
     function test_SetPTokenAddress() public useKnownActor(USDS_OWNER) {
