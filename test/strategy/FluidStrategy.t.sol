@@ -159,7 +159,7 @@ contract SetPTokenTest is FluidStrategyTest {
         strategy.setPTokenAddress(ASSET, INVALID_P_TOKEN);
     }
 
-    function test_RevertWhen_InvalidPToken2() public useKnownActor(USDS_OWNER) {
+    function test_RevertWhen_InvalidPToken_anotherAsset() public useKnownActor(USDS_OWNER) {
         address ANOTHER_ASSET_PTOKEN = 0xbE3860FD4c3facDf8ad57Aa8c1A36D6dc4390a49;
         vm.expectRevert(abi.encodeWithSelector(InvalidAssetLpPair.selector, ASSET, ANOTHER_ASSET_PTOKEN));
         strategy.setPTokenAddress(ASSET, ANOTHER_ASSET_PTOKEN);
