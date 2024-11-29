@@ -5,7 +5,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import {InitializableAbstractStrategy, Helpers, IStrategyVault} from "../InitializableAbstractStrategy.sol";
-import {IfToken} from "./interfaces/IfToken.sol";
+import {IFluidToken} from "./interfaces/IFluidToken.sol";
 
 /// @title Fluid strategy for USDs protocol
 /// @author Sperax Foundation
@@ -53,8 +53,7 @@ contract FluidStrategy is InitializableAbstractStrategy {
         address lpToken = _getPTokenFor(_asset);
 
         // Checking for maximum deposit amount.
-        uint256 maxDeposit = IfToken(lpToken).maxDeposit(address(this));
-        if (_amount > maxDeposit) {
+        if (_amount > IFluidToken(lpToken).maxDeposit(address(this))) {
             revert LimitReached();
         }
 
@@ -63,8 +62,8 @@ contract FluidStrategy is InitializableAbstractStrategy {
         // Doing the deposit.
         IERC20(_asset).safeTransferFrom(msg.sender, address(this), _amount);
         IERC20(_asset).forceApprove(lpToken, _amount);
-        uint256 minAmountOut = IfToken(lpToken).previewDeposit(_amount);
-        IfToken(lpToken).deposit(_amount, address(this), minAmountOut);
+        uint256 minAmountOut = IFluidToken(lpToken).previewDeposit(_amount);
+        IFluidToken(lpToken).deposit(_amount, address(this), minAmountOut);
 
         emit Deposit(_asset, _amount);
     }
@@ -75,9 +74,9 @@ contract FluidStrategy is InitializableAbstractStrategy {
         override
         onlyVault
         nonReentrant
-        returns (uint256 amountReceived)
+        returns (uint256)
     {
-        amountReceived = _withdraw(_recipient, _asset, _amount);
+        return _withdraw(_recipient, _asset, _amount);
     }
 
     /// @inheritdoc InitializableAbstractStrategy
@@ -86,9 +85,9 @@ contract FluidStrategy is InitializableAbstractStrategy {
         override
         onlyOwner
         nonReentrant
-        returns (uint256 amountReceived)
+        returns (uint256)
     {
-        amountReceived = _withdraw(vault, _asset, _amount);
+        return _withdraw(vault, _asset, _amount);
     }
 
     /// @inheritdoc InitializableAbstractStrategy
@@ -96,7 +95,7 @@ contract FluidStrategy is InitializableAbstractStrategy {
         uint256 assetInterest = checkInterestEarned(_asset);
         if (assetInterest != 0) {
             address yieldReceiver = IStrategyVault(vault).yieldReceiver();
-            IfToken(_getPTokenFor(_asset)).withdraw(assetInterest, address(this), address(this));
+            IFluidToken(_getPTokenFor(_asset)).withdraw(assetInterest, address(this), address(this));
             uint256 harvestAmt = _splitAndSendReward(_asset, yieldReceiver, msg.sender, assetInterest);
             emit InterestCollected(_asset, yieldReceiver, harvestAmt);
         }
@@ -108,8 +107,8 @@ contract FluidStrategy is InitializableAbstractStrategy {
     }
 
     /// @inheritdoc InitializableAbstractStrategy
-    function checkBalance(address _asset) external view override returns (uint256 balance) {
-        balance = allocatedAmount[_asset];
+    function checkBalance(address _asset) external view override returns (uint256) {
+        return allocatedAmount[_asset];
     }
 
     /// @inheritdoc InitializableAbstractStrategy
@@ -134,17 +133,18 @@ contract FluidStrategy is InitializableAbstractStrategy {
     }
 
     /// @inheritdoc InitializableAbstractStrategy
-    function checkInterestEarned(address _asset) public view override returns (uint256 interest) {
+    function checkInterestEarned(address _asset) public view override returns (uint256) {
         uint256 availableLiquidity = _getAvailableLiquidity(_asset);
         uint256 allocatedValue = allocatedAmount[_asset];
         if (availableLiquidity > allocatedValue) {
-            interest = availableLiquidity - allocatedValue;
+            return (availableLiquidity - allocatedValue);
         }
+        return 0;
     }
 
     /// @inheritdoc InitializableAbstractStrategy
-    function checkLPTokenBalance(address _asset) public view override returns (uint256 balance) {
-        balance = IERC20(_getPTokenFor(_asset)).balanceOf(address(this));
+    function checkLPTokenBalance(address _asset) public view override returns (uint256) {
+        return IERC20(_getPTokenFor(_asset)).balanceOf(address(this));
     }
 
     /// @notice Internal withdraw function used for withdrawing from the strategy.
@@ -158,16 +158,15 @@ contract FluidStrategy is InitializableAbstractStrategy {
 
         // Checking for shares required to be burned to get the desired _amount and checking maximum redeemable shares.
         address lpToken = _getPTokenFor(_asset);
-        uint256 shares = IfToken(lpToken).previewWithdraw(_amount);
-        uint256 maxRedeemable = IfToken(lpToken).maxRedeem(address(this));
-        if (shares > maxRedeemable) {
+        uint256 shares = IFluidToken(lpToken).previewWithdraw(_amount);
+        if (shares > IFluidToken(lpToken).maxRedeem(address(this))) {
             revert LimitReached();
         }
 
         allocatedAmount[_asset] -= _amount;
 
         // Redeeming the shares.
-        uint256 received = IfToken(lpToken).redeem(shares, _recipient, address(this));
+        uint256 received = IFluidToken(lpToken).redeem(shares, _recipient, address(this));
         if (received < _amount) {
             revert Helpers.MinSlippageError(received, _amount);
         }
@@ -179,7 +178,7 @@ contract FluidStrategy is InitializableAbstractStrategy {
 
     /// @inheritdoc InitializableAbstractStrategy
     function _abstractSetPToken(address _asset, address _pToken) internal view override {
-        if (IfToken(_pToken).asset() != _asset) {
+        if (IFluidToken(_pToken).asset() != _asset) {
             revert InvalidAssetLpPair(_asset, _pToken);
         }
     }
@@ -187,18 +186,18 @@ contract FluidStrategy is InitializableAbstractStrategy {
     /// @notice A function to fetch the available liquidity deployed in the strategy.
     /// @param _asset Asset to be checked for available liquidity.
     /// @return liquidity Available liquidity.
-    function _getAvailableLiquidity(address _asset) internal view returns (uint256 liquidity) {
+    function _getAvailableLiquidity(address _asset) internal view returns (uint256) {
         address lpToken = _getPTokenFor(_asset);
-        uint256 lpBalance = IfToken(lpToken).maxRedeem(address(this));
-        liquidity = IfToken(lpToken).convertToAssets(lpBalance);
+        uint256 lpBalance = IFluidToken(lpToken).maxRedeem(address(this));
+        return IFluidToken(lpToken).convertToAssets(lpBalance);
     }
 
     /// @notice Get the lpToken for the asset.
     ///      Fails if the lpToken doesn't exist in the mapping.
     /// @param _asset Address of the asset
     /// @return lpToken to this asset
-    function _getPTokenFor(address _asset) internal view returns (address lpToken) {
-        lpToken = assetToPToken[_asset];
+    function _getPTokenFor(address _asset) internal view returns (address) {
+        address lpToken = assetToPToken[_asset];
         if (lpToken == address(0)) revert CollateralNotSupported(_asset);
         return lpToken;
     }
