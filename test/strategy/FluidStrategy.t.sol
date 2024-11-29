@@ -5,7 +5,7 @@ import {console} from "forge-std/console.sol";
 import {BaseStrategy} from "./BaseStrategy.t.sol";
 import {BaseTest} from "../utils/BaseTest.sol";
 import {UpgradeUtil} from "../utils/UpgradeUtil.sol";
-import {FluidStrategy, IfToken} from "../../contracts/strategies/fluid/FluidStrategy.sol";
+import {FluidStrategy, IFluidToken} from "../../contracts/strategies/fluid/FluidStrategy.sol";
 import {Helpers} from "../../contracts/libraries/Helpers.sol";
 import {IERC20, ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {InitializableAbstractStrategy} from "../../contracts/strategies/InitializableAbstractStrategy.sol";
@@ -244,7 +244,7 @@ contract DepositTest is FluidStrategyTest {
     }
 
     function test_RevertWhen_LimitReached() public useKnownActor(VAULT) {
-        uint256 maxDeposit = IfToken(P_TOKEN).maxDeposit(address(strategy));
+        uint256 maxDeposit = IFluidToken(P_TOKEN).maxDeposit(address(strategy));
         vm.expectRevert(abi.encodeWithSelector(LimitReached.selector));
         strategy.deposit(ASSET, maxDeposit + 1);
     }
