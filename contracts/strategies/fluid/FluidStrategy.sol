@@ -5,7 +5,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import {InitializableAbstractStrategy, Helpers, IStrategyVault} from "../InitializableAbstractStrategy.sol";
-import {IfToken} from "./interfaces/IfToken.sol";
+import {IFluidToken} from "./interfaces/IFluidToken.sol";
 
 /// @title Fluid strategy for USDs protocol
 /// @author Sperax Foundation
@@ -53,7 +53,7 @@ contract FluidStrategy is InitializableAbstractStrategy {
         address lpToken = _getPTokenFor(_asset);
 
         // Checking for maximum deposit amount.
-        if (_amount > IfToken(lpToken).maxDeposit(address(this))) {
+        if (_amount > IFluidToken(lpToken).maxDeposit(address(this))) {
             revert LimitReached();
         }
 
@@ -62,8 +62,8 @@ contract FluidStrategy is InitializableAbstractStrategy {
         // Doing the deposit.
         IERC20(_asset).safeTransferFrom(msg.sender, address(this), _amount);
         IERC20(_asset).forceApprove(lpToken, _amount);
-        uint256 minAmountOut = IfToken(lpToken).previewDeposit(_amount);
-        IfToken(lpToken).deposit(_amount, address(this), minAmountOut);
+        uint256 minAmountOut = IFluidToken(lpToken).previewDeposit(_amount);
+        IFluidToken(lpToken).deposit(_amount, address(this), minAmountOut);
 
         emit Deposit(_asset, _amount);
     }
@@ -95,7 +95,7 @@ contract FluidStrategy is InitializableAbstractStrategy {
         uint256 assetInterest = checkInterestEarned(_asset);
         if (assetInterest != 0) {
             address yieldReceiver = IStrategyVault(vault).yieldReceiver();
-            IfToken(_getPTokenFor(_asset)).withdraw(assetInterest, address(this), address(this));
+            IFluidToken(_getPTokenFor(_asset)).withdraw(assetInterest, address(this), address(this));
             uint256 harvestAmt = _splitAndSendReward(_asset, yieldReceiver, msg.sender, assetInterest);
             emit InterestCollected(_asset, yieldReceiver, harvestAmt);
         }
@@ -158,15 +158,15 @@ contract FluidStrategy is InitializableAbstractStrategy {
 
         // Checking for shares required to be burned to get the desired _amount and checking maximum redeemable shares.
         address lpToken = _getPTokenFor(_asset);
-        uint256 shares = IfToken(lpToken).previewWithdraw(_amount);
-        if (shares > IfToken(lpToken).maxRedeem(address(this))) {
+        uint256 shares = IFluidToken(lpToken).previewWithdraw(_amount);
+        if (shares > IFluidToken(lpToken).maxRedeem(address(this))) {
             revert LimitReached();
         }
 
         allocatedAmount[_asset] -= _amount;
 
         // Redeeming the shares.
-        uint256 received = IfToken(lpToken).redeem(shares, _recipient, address(this));
+        uint256 received = IFluidToken(lpToken).redeem(shares, _recipient, address(this));
         if (received < _amount) {
             revert Helpers.MinSlippageError(received, _amount);
         }
@@ -178,7 +178,7 @@ contract FluidStrategy is InitializableAbstractStrategy {
 
     /// @inheritdoc InitializableAbstractStrategy
     function _abstractSetPToken(address _asset, address _pToken) internal view override {
-        if (IfToken(_pToken).asset() != _asset) {
+        if (IFluidToken(_pToken).asset() != _asset) {
             revert InvalidAssetLpPair(_asset, _pToken);
         }
     }
@@ -188,8 +188,8 @@ contract FluidStrategy is InitializableAbstractStrategy {
     /// @return liquidity Available liquidity.
     function _getAvailableLiquidity(address _asset) internal view returns (uint256) {
         address lpToken = _getPTokenFor(_asset);
-        uint256 lpBalance = IfToken(lpToken).maxRedeem(address(this));
-        return IfToken(lpToken).convertToAssets(lpBalance);
+        uint256 lpBalance = IFluidToken(lpToken).maxRedeem(address(this));
+        return IFluidToken(lpToken).convertToAssets(lpBalance);
     }
 
     /// @notice Get the lpToken for the asset.
