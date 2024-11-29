@@ -53,8 +53,7 @@ contract FluidStrategy is InitializableAbstractStrategy {
         address lpToken = _getPTokenFor(_asset);
 
         // Checking for maximum deposit amount.
-        uint256 maxDeposit = IfToken(lpToken).maxDeposit(address(this));
-        if (_amount > maxDeposit) {
+        if (_amount > IfToken(lpToken).maxDeposit(address(this))) {
             revert LimitReached();
         }
 
