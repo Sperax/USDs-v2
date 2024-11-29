@@ -75,9 +75,9 @@ contract FluidStrategy is InitializableAbstractStrategy {
         override
         onlyVault
         nonReentrant
-        returns (uint256 amountReceived)
+        returns (uint256)
     {
-        amountReceived = _withdraw(_recipient, _asset, _amount);
+        return _withdraw(_recipient, _asset, _amount);
     }
 
     /// @inheritdoc InitializableAbstractStrategy
@@ -86,9 +86,9 @@ contract FluidStrategy is InitializableAbstractStrategy {
         override
         onlyOwner
         nonReentrant
-        returns (uint256 amountReceived)
+        returns (uint256)
     {
-        amountReceived = _withdraw(vault, _asset, _amount);
+        return _withdraw(vault, _asset, _amount);
     }
 
     /// @inheritdoc InitializableAbstractStrategy
@@ -108,8 +108,8 @@ contract FluidStrategy is InitializableAbstractStrategy {
     }
 
     /// @inheritdoc InitializableAbstractStrategy
-    function checkBalance(address _asset) external view override returns (uint256 balance) {
-        balance = allocatedAmount[_asset];
+    function checkBalance(address _asset) external view override returns (uint256) {
+        return allocatedAmount[_asset];
     }
 
     /// @inheritdoc InitializableAbstractStrategy
@@ -134,17 +134,18 @@ contract FluidStrategy is InitializableAbstractStrategy {
     }
 
     /// @inheritdoc InitializableAbstractStrategy
-    function checkInterestEarned(address _asset) public view override returns (uint256 interest) {
+    function checkInterestEarned(address _asset) public view override returns (uint256) {
         uint256 availableLiquidity = _getAvailableLiquidity(_asset);
         uint256 allocatedValue = allocatedAmount[_asset];
         if (availableLiquidity > allocatedValue) {
-            interest = availableLiquidity - allocatedValue;
+            return (availableLiquidity - allocatedValue);
         }
+        return 0;
     }
 
     /// @inheritdoc InitializableAbstractStrategy
-    function checkLPTokenBalance(address _asset) public view override returns (uint256 balance) {
-        balance = IERC20(_getPTokenFor(_asset)).balanceOf(address(this));
+    function checkLPTokenBalance(address _asset) public view override returns (uint256) {
+        return IERC20(_getPTokenFor(_asset)).balanceOf(address(this));
     }
 
     /// @notice Internal withdraw function used for withdrawing from the strategy.
@@ -187,18 +188,18 @@ contract FluidStrategy is InitializableAbstractStrategy {
     /// @notice A function to fetch the available liquidity deployed in the strategy.
     /// @param _asset Asset to be checked for available liquidity.
     /// @return liquidity Available liquidity.
-    function _getAvailableLiquidity(address _asset) internal view returns (uint256 liquidity) {
+    function _getAvailableLiquidity(address _asset) internal view returns (uint256) {
         address lpToken = _getPTokenFor(_asset);
         uint256 lpBalance = IfToken(lpToken).maxRedeem(address(this));
-        liquidity = IfToken(lpToken).convertToAssets(lpBalance);
+        return IfToken(lpToken).convertToAssets(lpBalance);
     }
 
     /// @notice Get the lpToken for the asset.
     ///      Fails if the lpToken doesn't exist in the mapping.
     /// @param _asset Address of the asset
     /// @return lpToken to this asset
-    function _getPTokenFor(address _asset) internal view returns (address lpToken) {
-        lpToken = assetToPToken[_asset];
+    function _getPTokenFor(address _asset) internal view returns (address) {
+        address lpToken = assetToPToken[_asset];
         if (lpToken == address(0)) revert CollateralNotSupported(_asset);
         return lpToken;
     }
