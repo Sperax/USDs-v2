@@ -159,8 +159,7 @@ contract FluidStrategy is InitializableAbstractStrategy {
         // Checking for shares required to be burned to get the desired _amount and checking maximum redeemable shares.
         address lpToken = _getPTokenFor(_asset);
         uint256 shares = IfToken(lpToken).previewWithdraw(_amount);
-        uint256 maxRedeemable = IfToken(lpToken).maxRedeem(address(this));
-        if (shares > maxRedeemable) {
+        if (shares > IfToken(lpToken).maxRedeem(address(this))) {
             revert LimitReached();
         }
 
