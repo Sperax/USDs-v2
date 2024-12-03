@@ -88,19 +88,19 @@ contract StargateStrategyTest is BaseStrategy, BaseTest {
     }
 
     // Mock Utils:
-    function _mockInsufficientRwd(address asset) internal {
-        // Do a time travel & mine dummy blocks for accumulating some rewards
-        vm.warp(block.timestamp + 10 days);
-        vm.roll(block.number + 1000);
+    // function _mockInsufficientRwd(address asset) internal {
+    //     // Do a time travel & mine dummy blocks for accumulating some rewards
+    //     vm.warp(block.timestamp + 10 days);
+    //     vm.roll(block.number + 1000);
 
-        uint256 pendingRewards = strategy.checkPendingRewards(asset);
-        assert(pendingRewards > 0);
+    //     uint256 pendingRewards = strategy.checkPendingRewards(asset);
+    //     assert(pendingRewards > 0);
 
-        // MOCK: Withdraw rewards from the farm.
-        changePrank(strategy.farm());
-        ERC20(E_TOKEN).transfer(actors[0], ERC20(E_TOKEN).balanceOf(strategy.farm()));
-        changePrank(currentActor);
-    }
+    //     // MOCK: Withdraw rewards from the farm.
+    //     changePrank(strategy.farm());
+    //     ERC20(E_TOKEN).transfer(actors[0], ERC20(E_TOKEN).balanceOf(strategy.farm()));
+    //     changePrank(currentActor);
+    // }
 
     function _configAsset() internal {
         assetData.push(
@@ -110,16 +110,6 @@ contract StargateStrategyTest is BaseStrategy, BaseTest {
                 pToken: 0x892785f33CdeE22A30AEF750F285E18c18040c3e,
                 pid: 1,
                 rewardPid: 0
-            })
-        );
-
-        assetData.push(
-            AssetData({
-                name: "FRAX",
-                asset: 0x17FC002b466eEc40DaE837Fc4bE5c67993ddBd6F,
-                pToken: 0xaa4BF442F024820B2C28Cd0FD72b82c63e66F56C,
-                pid: 7,
-                rewardPid: 3
             })
         );
     }
@@ -210,7 +200,7 @@ contract Test_SetPToken is StargateStrategyTest {
 
     function test_RevertWhen_InvalidPToken() public useKnownActor(USDS_OWNER) {
         AssetData memory data = assetData[0];
-        data.pToken = assetData[1].pToken;
+        data.asset = makeAddr("Random asset");
 
         vm.expectRevert(abi.encodeWithSelector(InvalidAssetLpPair.selector, data.asset, data.pToken));
         strategy.setPTokenAddress(data.asset, data.pToken, data.pid, data.rewardPid);
@@ -387,22 +377,22 @@ contract Test_Deposit is StargateStrategyTest {
         strategy.deposit(data.asset, amount);
     }
 
-    function test_RevertWhen_NotEnoughRwdInFarm() public useKnownActor(VAULT) {
-        AssetData memory data = assetData[0];
-        uint256 amount = 1000000;
+    // function test_RevertWhen_NotEnoughRwdInFarm() public useKnownActor(VAULT) {
+    //     AssetData memory data = assetData[0];
+    //     uint256 amount = 1000000;
 
-        amount *= 10 ** ERC20(data.asset).decimals();
-        deal(data.asset, VAULT, amount, true);
-        ERC20(data.asset).approve(address(strategy), amount);
+    //     amount *= 10 ** ERC20(data.asset).decimals();
+    //     deal(data.asset, VAULT, amount, true);
+    //     ERC20(data.asset).approve(address(strategy), amount);
 
-        // Create initial deposit
-        strategy.deposit(data.asset, amount / 2);
+    //     // Create initial deposit
+    //     strategy.deposit(data.asset, amount / 2);
 
-        _mockInsufficientRwd(data.asset);
+    //     _mockInsufficientRwd(data.asset);
 
-        vm.expectRevert("LPStakingTime: eTokenBal must be >= _amount");
-        strategy.deposit(data.asset, amount / 2);
-    }
+    //     vm.expectRevert("LPStakingTime: eTokenBal must be >= _amount");
+    //     strategy.deposit(data.asset, amount / 2);
+    // }
 }
 
 contract Test_Harvest is StargateStrategyTest {
@@ -420,42 +410,43 @@ contract Test_Harvest is StargateStrategyTest {
     }
 }
 
-contract Test_CollectReward is Test_Harvest {
-    function test_CollectReward(uint16 _harvestIncentiveRate) public {
-        _harvestIncentiveRate = uint16(bound(_harvestIncentiveRate, 0, 10000));
-        vm.prank(USDS_OWNER);
-        strategy.updateHarvestIncentiveRate(_harvestIncentiveRate);
-        StargateStrategy.RewardData[] memory initialRewards = strategy.checkRewardEarned();
+// @note Commented these because Stargate v1 stopped emitting rewards.
+// contract Test_CollectReward is Test_Harvest {
+//     function test_CollectReward(uint16 _harvestIncentiveRate) public {
+//         _harvestIncentiveRate = uint16(bound(_harvestIncentiveRate, 0, 10000));
+//         vm.prank(USDS_OWNER);
+//         strategy.updateHarvestIncentiveRate(_harvestIncentiveRate);
+//         StargateStrategy.RewardData[] memory initialRewards = strategy.checkRewardEarned();
 
-        assert(initialRewards[0].token == strategy.rewardTokenAddress(0));
-        assert(initialRewards[0].amount == 0);
+//         assert(initialRewards[0].token == strategy.rewardTokenAddress(0));
+//         assert(initialRewards[0].amount == 0);
 
-        // Do a time travel & mine dummy blocks for accumulating some rewards
-        vm.warp(block.timestamp + 10 days);
-        vm.roll(block.number + 1000);
+//         // Do a time travel & mine dummy blocks for accumulating some rewards
+//         vm.warp(block.timestamp + 10 days);
+//         vm.roll(block.number + 1000);
 
-        StargateStrategy.RewardData[] memory currentRewards = strategy.checkRewardEarned();
-        assert(currentRewards[0].amount > 0);
-        uint256 incentiveAmt = (currentRewards[0].amount * strategy.harvestIncentiveRate()) / Helpers.MAX_PERCENTAGE;
-        uint256 harvestAmt = currentRewards[0].amount - incentiveAmt;
-        address caller = actors[1];
+//         StargateStrategy.RewardData[] memory currentRewards = strategy.checkRewardEarned();
+//         assert(currentRewards[0].amount > 0);
+//         uint256 incentiveAmt = (currentRewards[0].amount * strategy.harvestIncentiveRate()) / Helpers.MAX_PERCENTAGE;
+//         uint256 harvestAmt = currentRewards[0].amount - incentiveAmt;
+//         address caller = actors[1];
 
-        if (incentiveAmt > 0) {
-            vm.expectEmit(address(strategy));
-            emit HarvestIncentiveCollected(E_TOKEN, caller, incentiveAmt);
-        }
-        vm.expectEmit(address(strategy));
-        emit RewardTokenCollected(E_TOKEN, yieldReceiver, harvestAmt);
-        vm.prank(caller);
-        strategy.collectReward();
+//         if (incentiveAmt > 0) {
+//             vm.expectEmit(address(strategy));
+//             emit HarvestIncentiveCollected(E_TOKEN, caller, incentiveAmt);
+//         }
+//         vm.expectEmit(address(strategy));
+//         emit RewardTokenCollected(E_TOKEN, yieldReceiver, harvestAmt);
+//         vm.prank(caller);
+//         strategy.collectReward();
 
-        assertEq(ERC20(E_TOKEN).balanceOf(yieldReceiver), harvestAmt);
-        assertEq(ERC20(E_TOKEN).balanceOf(caller), incentiveAmt);
+//         assertEq(ERC20(E_TOKEN).balanceOf(yieldReceiver), harvestAmt);
+//         assertEq(ERC20(E_TOKEN).balanceOf(caller), incentiveAmt);
 
-        currentRewards = strategy.checkRewardEarned();
-        assert(currentRewards[0].amount == 0);
-    }
-}
+//         currentRewards = strategy.checkRewardEarned();
+//         assert(currentRewards[0].amount == 0);
+//     }
+// }
 
 contract Test_CollectInterest is Test_Harvest {
     using stdStorage for StdStorage;
@@ -613,14 +604,14 @@ contract Test_Withdraw is StargateStrategyTest {
         strategy.withdrawToVault(data.asset, 0);
     }
 
-    function test_RevertWhen_InsufficientRwdInFarm() public useKnownActor(USDS_OWNER) {
-        AssetData memory data = assetData[0];
-        uint256 initialBal = strategy.checkBalance(data.asset);
+    // function test_RevertWhen_InsufficientRwdInFarm() public useKnownActor(USDS_OWNER) {
+    //     AssetData memory data = assetData[0];
+    //     uint256 initialBal = strategy.checkBalance(data.asset);
 
-        _mockInsufficientRwd(data.asset);
-        vm.expectRevert("LPStakingTime: eTokenBal must be >= _amount");
-        strategy.withdrawToVault(data.asset, initialBal);
-    }
+    //     _mockInsufficientRwd(data.asset);
+    //     vm.expectRevert("LPStakingTime: eTokenBal must be >= _amount");
+    //     strategy.withdrawToVault(data.asset, initialBal);
+    // }
 
     function test_RevertWhen_SlippageCheckFails() public useKnownActor(USDS_OWNER) {
         AssetData memory data = assetData[0];

@@ -24,7 +24,6 @@ abstract contract Setup is Test {
     address internal VAULT;
     address internal FEE_CALCULATOR;
     address internal COLLATERAL_MANAGER;
-    address internal MASTER_PRICE_ORACLE;
     address internal YIELD_RESERVE;
     address internal ORACLE;
     address internal DRIPPER;
