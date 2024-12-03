@@ -62,8 +62,13 @@ contract FluidStrategy is InitializableAbstractStrategy {
         // Doing the deposit.
         IERC20(_asset).safeTransferFrom(msg.sender, address(this), _amount);
         IERC20(_asset).forceApprove(lpToken, _amount);
-        uint256 minAmountOut = IFluidToken(lpToken).previewDeposit(_amount);
-        IFluidToken(lpToken).deposit(_amount, address(this), minAmountOut);
+        uint256 sharesMinted = IFluidToken(lpToken).deposit(_amount, address(this));
+
+        uint256 sharesValue = IFluidToken(lpToken).convertToAssets(sharesMinted);
+        // _amount - 1 because the underlying logic of convertToAssets uses mulDivDown which causes error of 1 wei.
+        if (sharesValue < (_amount - 1)) {
+            revert Helpers.MinSlippageError(sharesValue, _amount);
+        }
 
         emit Deposit(_asset, _amount);
     }
