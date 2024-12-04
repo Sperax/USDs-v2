@@ -261,7 +261,7 @@ contract DepositTest is FluidStrategyTest {
         uint256 new_bal = strategy.checkBalance(ASSET);
         uint256 newLPBalance = strategy.checkLPTokenBalance(ASSET);
         assertEq(initial_bal + depositAmount, new_bal);
-        assertApproxEqRel(initialLPBalance + depositAmount, newLPBalance, 4e16); // 2% slippage
+        assertApproxEqRel(initialLPBalance + depositAmount, newLPBalance, 2e16); // 2% slippage
     }
 }
 
