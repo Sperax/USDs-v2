@@ -249,6 +249,17 @@ contract DepositTest is FluidStrategyTest {
         strategy.deposit(ASSET, maxDeposit + 1);
     }
 
+    function test_RevertWhen_insufficientSharesMinted() public useKnownActor(VAULT) {
+        uint256 maxDeposit = IFluidToken(P_TOKEN).maxDeposit(address(strategy));
+        deal(ASSET, VAULT, maxDeposit);
+        IERC20(ASSET).approve(address(strategy), maxDeposit);
+        vm.mockCall(
+            address(P_TOKEN), abi.encodeWithSignature("convertToAssets(uint256)"), abi.encode(maxDeposit - 1e18)
+        );
+        vm.expectRevert(abi.encodeWithSelector(Helpers.MinSlippageError.selector, maxDeposit - 1e18, maxDeposit));
+        strategy.deposit(ASSET, maxDeposit);
+    }
+
     function testFuzz_Deposit(uint256 _depositAmount) public useKnownActor(VAULT) {
         depositAmount = bound(_depositAmount, 1 * 10 ** ERC20(ASSET).decimals(), 1e6 * 10 ** ERC20(ASSET).decimals());
         uint256 initial_bal = strategy.checkBalance(ASSET);
