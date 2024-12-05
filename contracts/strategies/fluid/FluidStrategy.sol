@@ -64,10 +64,11 @@ contract FluidStrategy is InitializableAbstractStrategy {
         IERC20(_asset).forceApprove(lpToken, _amount);
         uint256 sharesMinted = IFluidToken(lpToken).deposit(_amount, address(this));
 
-        uint256 sharesValue = IFluidToken(lpToken).convertToAssets(sharesMinted);
-        // _amount - 1 because the underlying logic of convertToAssets uses mulDivDown which causes error of 1 wei.
-        if (sharesValue < (_amount - 1)) {
-            revert Helpers.MinSlippageError(sharesValue, _amount);
+        // Checking if the deposited value is lesser than expected.
+        uint256 depositAmt = IFluidToken(lpToken).convertToAssets(sharesMinted);
+        uint256 minDepositAmt = (_amount * (Helpers.MAX_PERCENTAGE - depositSlippage)) / Helpers.MAX_PERCENTAGE;
+        if (depositAmt < minDepositAmt) {
+            revert Helpers.MinSlippageError(depositAmt, minDepositAmt);
         }
 
         emit Deposit(_asset, _amount);
@@ -172,8 +173,11 @@ contract FluidStrategy is InitializableAbstractStrategy {
 
         // Redeeming the shares.
         uint256 received = IFluidToken(lpToken).redeem(shares, _recipient, address(this));
-        if (received < _amount) {
-            revert Helpers.MinSlippageError(received, _amount);
+
+        // Checking if the received amount is more than minimum expected.
+        uint256 minRecvAmt = (_amount * (Helpers.MAX_PERCENTAGE - withdrawSlippage)) / Helpers.MAX_PERCENTAGE;
+        if (received < minRecvAmt) {
+            revert Helpers.MinSlippageError(received, minRecvAmt);
         }
 
         emit Withdrawal(_asset, _amount);
