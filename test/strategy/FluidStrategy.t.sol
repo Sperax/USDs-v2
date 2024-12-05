@@ -249,7 +249,7 @@ contract DepositTest is FluidStrategyTest {
         strategy.deposit(ASSET, maxDeposit + 1);
     }
 
-    function test_RevertWhen_insufficientSharesMinted() public useKnownActor(VAULT) {
+    function test_RevertWhen_insufficientSharesMintedOnDeposit() public useKnownActor(VAULT) {
         uint256 maxDeposit = IFluidToken(P_TOKEN).maxDeposit(address(strategy));
         deal(ASSET, VAULT, maxDeposit);
         IERC20(ASSET).approve(address(strategy), maxDeposit);
@@ -321,6 +321,18 @@ contract WithdrawTest is FluidStrategyTest {
         vm.stopPrank();
     }
 
+    function test_RevertWhen_insufficientSharesMintedOnWithdraw() public useKnownActor(VAULT) {
+        uint256 shares = IFluidToken(P_TOKEN).previewWithdraw(depositAmount);
+        uint256 minRecvAmt =
+            (depositAmount * (Helpers.MAX_PERCENTAGE - strategy.withdrawSlippage())) / Helpers.MAX_PERCENTAGE;
+        vm.mockCall(
+            address(P_TOKEN),
+            abi.encodeWithSignature("redeem(uint256,address,address)", shares, VAULT, address(strategy)),
+            abi.encode(minRecvAmt/2)
+        );
+        vm.expectRevert(abi.encodeWithSelector(Helpers.MinSlippageError.selector, minRecvAmt / 2, minRecvAmt));
+        strategy.withdraw(VAULT, ASSET, depositAmount);
+    }
     function test_RevertWhen_Withdraw0() public useKnownActor(USDS_OWNER) {
         AssetData memory assetData = data[0];
         vm.expectRevert(abi.encodeWithSelector(Helpers.CustomError.selector, "Must withdraw something"));
