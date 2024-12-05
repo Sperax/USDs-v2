@@ -253,10 +253,10 @@ contract DepositTest is FluidStrategyTest {
         uint256 maxDeposit = IFluidToken(P_TOKEN).maxDeposit(address(strategy));
         deal(ASSET, VAULT, maxDeposit);
         IERC20(ASSET).approve(address(strategy), maxDeposit);
-        vm.mockCall(
-            address(P_TOKEN), abi.encodeWithSignature("convertToAssets(uint256)"), abi.encode(maxDeposit - 1e18)
-        );
-        vm.expectRevert(abi.encodeWithSelector(Helpers.MinSlippageError.selector, maxDeposit - 1e18, maxDeposit));
+        uint256 minDepositAmt =
+            (maxDeposit * (Helpers.MAX_PERCENTAGE - strategy.depositSlippage())) / Helpers.MAX_PERCENTAGE;
+        vm.mockCall(address(P_TOKEN), abi.encodeWithSignature("convertToAssets(uint256)"), abi.encode(maxDeposit / 2));
+        vm.expectRevert(abi.encodeWithSelector(Helpers.MinSlippageError.selector, maxDeposit / 2, minDepositAmt));
         strategy.deposit(ASSET, maxDeposit);
     }
 
