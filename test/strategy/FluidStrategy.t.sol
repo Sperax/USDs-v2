@@ -328,11 +328,12 @@ contract WithdrawTest is FluidStrategyTest {
         vm.mockCall(
             address(P_TOKEN),
             abi.encodeWithSignature("redeem(uint256,address,address)", shares, VAULT, address(strategy)),
-            abi.encode(minRecvAmt/2)
+            abi.encode(minRecvAmt / 2)
         );
         vm.expectRevert(abi.encodeWithSelector(Helpers.MinSlippageError.selector, minRecvAmt / 2, minRecvAmt));
         strategy.withdraw(VAULT, ASSET, depositAmount);
     }
+
     function test_RevertWhen_Withdraw0() public useKnownActor(USDS_OWNER) {
         AssetData memory assetData = data[0];
         vm.expectRevert(abi.encodeWithSelector(Helpers.CustomError.selector, "Must withdraw something"));
