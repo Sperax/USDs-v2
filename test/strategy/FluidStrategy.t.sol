@@ -9,6 +9,18 @@ import {FluidStrategy, IFluidToken} from "../../contracts/strategies/fluid/Fluid
 import {Helpers} from "../../contracts/libraries/Helpers.sol";
 import {IERC20, ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {InitializableAbstractStrategy} from "../../contracts/strategies/InitializableAbstractStrategy.sol";
+import {IVault} from "../../contracts/interfaces/IVault.sol";
+
+interface ICollateralManager {
+    function addCollateralStrategy(address _collateral, address _strategy, uint16 _allocationCap) external;
+    function removeCollateralStrategy(address _collateral, address _strategy) external;
+    function getCollateralInStrategies(address _collateral) external view returns (uint256);
+}
+
+interface IStrategy {
+    function checkAvailableBalance(address _asset) external view returns (uint256);
+    function withdrawToVault(address _asset, uint256 _amount) external returns (uint256);
+}
 
 contract FluidStrategyTest is BaseStrategy, BaseTest {
     struct AssetData {
@@ -28,9 +40,11 @@ contract FluidStrategyTest is BaseStrategy, BaseTest {
     address internal yieldReceiver;
     address internal ASSET;
     address internal P_TOKEN;
-    uint16 internal constant depositSlippage = 200;
+    uint16 internal constant depositSlippage = 50;
     uint16 internal constant withdrawSlippage = 200;
     uint256 public constant BLOCKS_MINED_IN_A_DAY = 5750;
+    address internal constant DEFAULT_STRATEGY = 0xb9C9100720D8c6E35eb8dd0F9C1aBEf320dAA136;
+    address internal constant ALTERNATE_STRATEGY = 0x974993eE8DF7F5C4F3f9Aa4eB5b4534F359f3388;
 
     error NoRewardIncentive();
     error LimitReached();
@@ -83,6 +97,10 @@ contract FluidStrategyTest is BaseStrategy, BaseTest {
         for (uint8 i = 0; i < data.length; ++i) {
             strategy.setPTokenAddress(data[i].asset, data[i].pToken);
         }
+    }
+
+    function _allocateIntoStrategy(address __collateral, address _strategy, uint256 _amount) internal useActor(1) {
+        IVault(VAULT).allocate(__collateral, _strategy, _amount);
     }
 
     function _mockInsufficientAsset() internal {
@@ -268,11 +286,53 @@ contract DepositTest is FluidStrategyTest {
         assert(initialLPBalance == 0);
         deal(ASSET, VAULT, depositAmount);
         IERC20(ASSET).approve(address(strategy), depositAmount);
+        vm.expectEmit(true, false, false, true);
+        emit Deposit(ASSET, depositAmount);
         strategy.deposit(ASSET, depositAmount);
         uint256 new_bal = strategy.checkBalance(ASSET);
         uint256 newLPBalance = strategy.checkLPTokenBalance(ASSET);
         assertEq(initial_bal + depositAmount, new_bal);
         assertApproxEqRel(initialLPBalance + depositAmount, newLPBalance, 4e16); // 4% slippage
+    }
+    /**
+     * @dev Tests the allocation of an amount from the vault to the strategy.
+     *
+     * This function performs the following steps:
+     * 1. Sets a cap for the collateral strategy.
+     * 2. Checks the initial balance and LP token balance of the strategy.
+     * 3. Asserts that the initial LP token balance is zero.
+     * 4. Starts a prank as the USDS owner.
+     * 5. Withdraws the available balance from an alternate strategy to the vault.
+     * 6. Removes the alternate strategy from the collateral manager.
+     * 7. Adds the current strategy to the collateral manager with the specified cap.
+     * 8. Calculates the maximum deposit amount based on the cap and the vault's balance.
+     * 9. Deals the asset to the vault.
+     * 10. Allocates the calculated amount into the strategy.
+     * 11. Checks the new balance and LP token balance of the strategy.
+     * 12. Asserts that the new balance is equal to the initial balance plus the maximum deposit.
+     * 13. Asserts that the new LP token balance is approximately equal to the initial LP token balance plus the maximum deposit, allowing for a 4% slippage.
+     */
+
+    function test_allocateAmountFromVault() public {
+        uint16 cap = 3000;
+        uint256 initial_bal = strategy.checkBalance(ASSET);
+        uint256 initialLPBalance = strategy.checkLPTokenBalance(ASSET);
+        assert(initialLPBalance == 0);
+        vm.startPrank(USDS_OWNER);
+        uint256 VaultBalance = IStrategy(ALTERNATE_STRATEGY).checkAvailableBalance(ASSET);
+        IStrategy(ALTERNATE_STRATEGY).withdrawToVault(ASSET, VaultBalance);
+        ICollateralManager(COLLATERAL_MANAGER).removeCollateralStrategy(ASSET, ALTERNATE_STRATEGY);
+        ICollateralManager(COLLATERAL_MANAGER).addCollateralStrategy(ASSET, address(strategy), cap);
+        uint256 maxDeposit = (
+            cap
+                * (ERC20(ASSET).balanceOf(VAULT) + ICollateralManager(COLLATERAL_MANAGER).getCollateralInStrategies(ASSET))
+        ) / 10000;
+        deal(ASSET, VAULT, depositAmount);
+        _allocateIntoStrategy(ASSET, address(strategy), maxDeposit);
+        uint256 new_bal = strategy.checkBalance(ASSET);
+        uint256 newLPBalance = strategy.checkLPTokenBalance(ASSET);
+        assertEq(initial_bal + maxDeposit, new_bal);
+        assertApproxEqRel(initialLPBalance + maxDeposit, newLPBalance, 4e16); // 4% slippage
     }
 }
 
@@ -352,7 +412,6 @@ contract WithdrawTest is FluidStrategyTest {
 
     function test_revertWhen_limitIsReached() public useKnownActor(VAULT) {
         _depositHugeAmount();
-        // emit Withdrawal(ASSET, depositAmount * 10e6);
         timeTravel(10 days);
         vm.expectRevert(abi.encodeWithSelector(LimitReached.selector));
         strategy.withdraw(VAULT, ASSET, depositAmount * 10e6);
@@ -371,6 +430,7 @@ contract WithdrawTest is FluidStrategyTest {
         vm.expectEmit(true, false, false, true);
         emit Withdrawal(ASSET, depositAmount);
         timeTravel(10 days);
+        vm.expectEmit(true, false, false, true);
         strategy.withdraw(VAULT, ASSET, depositAmount);
         assertEq(initialVaultBal + depositAmount, IERC20(ASSET).balanceOf(VAULT));
     }
@@ -385,7 +445,7 @@ contract WithdrawTest is FluidStrategyTest {
     }
 }
 
-contract MiscellaneousTest is FluidStrategyTest {
+contract MiscellaneousTests is FluidStrategyTest {
     function setUp() public override {
         super.setUp();
         vm.startPrank(USDS_OWNER);
@@ -399,11 +459,16 @@ contract MiscellaneousTest is FluidStrategyTest {
         assertEq(rewardData.length, 0);
     }
 
-    // function test_CheckBalance() public {
-    //     (uint256 balance) = strategy.allocatedAmount(ASSET);
-    //     uint256 bal = strategy.checkBalance(ASSET);
-    //     assertEq(bal, balance);
-    // }
+    function test_CheckBalance() public {
+        (uint256 balance) = strategy.allocatedAmount(ASSET);
+        uint256 bal = strategy.checkBalance(ASSET);
+        assertEq(bal, balance);
+    }
+
+    function test_CollectReward() public {
+        vm.expectRevert(abi.encodeWithSelector(NoRewardIncentive.selector));
+        strategy.collectReward();
+    }
 
     function test_CheckAvailableBalance() public {
         vm.startPrank(VAULT);
@@ -427,8 +492,16 @@ contract MiscellaneousTest is FluidStrategyTest {
         assertApproxEqAbs(bal_after, 1e6, 5);
     }
 
-    function test_CollectReward() public {
-        vm.expectRevert(abi.encodeWithSelector(NoRewardIncentive.selector));
-        strategy.collectReward();
+    function test_CheckAvailableBalance_large_deposit() public {
+        vm.startPrank(VAULT);
+        deal(address(ASSET), VAULT, 1e12);
+        IERC20(ASSET).approve(address(strategy), 1e12);
+        strategy.deposit(ASSET, 1e12);
+        vm.stopPrank();
+        vm.mockCall(
+            address(strategy), abi.encodeWithSignature("_getAvailableLiquidity(address)", ASSET), abi.encode(1e30)
+        );
+        uint256 availableBalance = strategy.checkAvailableBalance(ASSET);
+        assertEq(availableBalance, 1e30);
     }
 }
