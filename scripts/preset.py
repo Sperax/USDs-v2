@@ -14,14 +14,23 @@ from brownie import (
     SPABuyback,
     YieldReserve,
     ProxyAdmin,
-    TUP,
+    TUP as TransparentUpgradeableProxy,
+    FluidStrategy,
     Contract,
     network,
 )
 
 import json
 
-from .utils import get_user
+from .utils import (
+    get_user,
+    get_config,
+    Deployment_data,
+    confirm,
+    get_tx_info,
+    run_step
+)
+from .configurations import deployment_config
 import eth_utils
 
 DEPLOYMENT_ARTIFACTS = f'deployed/{network.show_active()}/deployment_data.json'
@@ -78,3 +87,77 @@ def main():
     compound_strategy = Contract.from_abi(
         'CompoundStrategy', data['compound_strategy'], CompoundStrategy.abi
     )
+    fluid_strategy = Contract.from_abi(
+        'FluidStrategy', deployFluidStrategy(deployment_config, owner), FluidStrategy.abi
+    )
+    
+    # Fluid strategy simulations
+    # USDT
+    collateralStrategies = collateral_manager.getCollateralStrategies(usdt)
+    collateralAmounts = []
+    collateralAmounts.append(collateral_manager.getCollateralInVault(usdt))
+    for collateralStrategy in collateralStrategies:
+        collateralAmounts.append(collateral_manager.getCollateralInAStrategy(usdt, collateralStrategy))
+    totalCollateralUSDT = sum(collateralAmounts)
+    collateralPerStrategy = totalCollateralUSDT/3
+    i = 1
+    for collateralStrategy in collateralStrategies:
+        if (collateralAmounts[i] > collateralPerStrategy):
+            amountToWithdraw = collateralAmounts[i] - collateralPerStrategy
+            collateralStrategy = Contract.from_abi('Strategy', collateralStrategy, AaveStrategy.abi)
+            collateralStrategy.withdrawToVault(usdt, amountToWithdraw, ({'from': USDs_OWNER}))
+        collateral_manager.updateCollateralStrategy(usdt, collateralStrategy, 3333, {'from': USDs_OWNER})
+        i+=1
+    collateral_manager.updateCollateralStrategy(usdt, fluid_strategy, 3333, {'from': USDs_OWNER})
+    print('Configuring collateral strategies')
+
+def deployFluidStrategy(configuration, deployer):
+    config_name, config_data = get_config("Select config for deployment", configuration)
+    contract = config_data.contract
+    config = config_data.config
+    deployment_data = {}
+    deployed_contract = None
+    tx_list = []
+    print(json.dumps(config, default=lambda o: o.__dict__, indent=2))
+    confirm("Are the above configurations correct?")
+
+    print("\nDeploying implementation contract")
+    impl = contract.deploy({"from": deployer})
+    tx_list.append(get_tx_info("Implementation_deployment", impl.tx))
+
+    proxy_admin = config.proxy_admin
+
+    if proxy_admin is None:
+        print("\nDeploying proxy admin contract")
+        pa_deployment = ProxyAdmin.deploy({"from": deployer})
+        tx_list.append(get_tx_info("Proxy_admin_deployment", pa_deployment.tx))
+        proxy_admin = pa_deployment.address
+
+    print("\nDeploying proxy contract")
+    proxy = TransparentUpgradeableProxy.deploy(
+        impl.address,
+        proxy_admin,
+        eth_utils.to_bytes(hexstr="0x"),
+        {"from": deployer},
+    )
+    tx_list.append(get_tx_info("Proxy_deployment", proxy.tx))
+
+    # Load the deployed contracts
+    deployed_contract = Contract.from_abi(config_name, proxy.address, contract.abi)
+
+    print("\nInitializing proxy contract")
+    init = deployed_contract.initialize(
+        *config.deployment_params.values(), {"from": deployer}
+    )
+
+    tx_list.append(get_tx_info("Proxy_initialization", init))
+
+    for step in config.post_deployment_steps:
+        step, _, tx = run_step(step, deployed_contract, deployer)
+        if tx is not None:
+            tx_list.append(get_tx_info("Post_deployment_step", tx))
+
+    deployment_data["proxy_addr"] = proxy.address
+    deployment_data["impl_addr"] = impl.address
+    deployment_data["proxy_admin"] = proxy_admin
+    return proxy.address
