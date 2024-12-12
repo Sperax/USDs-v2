@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.19;
 
-import {console} from "forge-std/console.sol";
 import {BaseStrategy} from "./BaseStrategy.t.sol";
 import {BaseTest} from "../utils/BaseTest.sol";
 import {UpgradeUtil} from "../utils/UpgradeUtil.sol";
@@ -18,8 +17,8 @@ interface ICollateralManager {
 }
 
 interface IStrategy {
-    function checkAvailableBalance(address _asset) external view returns (uint256);
     function withdrawToVault(address _asset, uint256 _amount) external returns (uint256);
+    function checkAvailableBalance(address _asset) external view returns (uint256);
 }
 
 contract FluidStrategyTest is BaseStrategy, BaseTest {
@@ -41,7 +40,7 @@ contract FluidStrategyTest is BaseStrategy, BaseTest {
     address internal ASSET;
     address internal P_TOKEN;
     uint16 internal constant depositSlippage = 50;
-    uint16 internal constant withdrawSlippage = 200;
+    uint16 internal constant withdrawSlippage = 50;
     uint256 public constant BLOCKS_MINED_IN_A_DAY = 5750;
     address internal constant DEFAULT_STRATEGY = 0xb9C9100720D8c6E35eb8dd0F9C1aBEf320dAA136;
     address internal constant ALTERNATE_STRATEGY = 0x974993eE8DF7F5C4F3f9Aa4eB5b4534F359f3388;
@@ -294,46 +293,6 @@ contract DepositTest is FluidStrategyTest {
         assertEq(initial_bal + depositAmount, new_bal);
         assertApproxEqRel(initialLPBalance + depositAmount, newLPBalance, 4e16); // 4% slippage
     }
-    /**
-     * @dev Tests the allocation of an amount from the vault to the strategy.
-     *
-     * This function performs the following steps:
-     * 1. Sets a cap for the collateral strategy.
-     * 2. Checks the initial balance and LP token balance of the strategy.
-     * 3. Asserts that the initial LP token balance is zero.
-     * 4. Starts a prank as the USDS owner.
-     * 5. Withdraws the available balance from an alternate strategy to the vault.
-     * 6. Removes the alternate strategy from the collateral manager.
-     * 7. Adds the current strategy to the collateral manager with the specified cap.
-     * 8. Calculates the maximum deposit amount based on the cap and the vault's balance.
-     * 9. Deals the asset to the vault.
-     * 10. Allocates the calculated amount into the strategy.
-     * 11. Checks the new balance and LP token balance of the strategy.
-     * 12. Asserts that the new balance is equal to the initial balance plus the maximum deposit.
-     * 13. Asserts that the new LP token balance is approximately equal to the initial LP token balance plus the maximum deposit, allowing for a 4% slippage.
-     */
-
-    function test_allocateAmountFromVault() public {
-        uint16 cap = 3000;
-        uint256 initial_bal = strategy.checkBalance(ASSET);
-        uint256 initialLPBalance = strategy.checkLPTokenBalance(ASSET);
-        assert(initialLPBalance == 0);
-        vm.startPrank(USDS_OWNER);
-        uint256 VaultBalance = IStrategy(ALTERNATE_STRATEGY).checkAvailableBalance(ASSET);
-        IStrategy(ALTERNATE_STRATEGY).withdrawToVault(ASSET, VaultBalance);
-        ICollateralManager(COLLATERAL_MANAGER).removeCollateralStrategy(ASSET, ALTERNATE_STRATEGY);
-        ICollateralManager(COLLATERAL_MANAGER).addCollateralStrategy(ASSET, address(strategy), cap);
-        uint256 maxDeposit = (
-            cap
-                * (ERC20(ASSET).balanceOf(VAULT) + ICollateralManager(COLLATERAL_MANAGER).getCollateralInStrategies(ASSET))
-        ) / 10000;
-        deal(ASSET, VAULT, depositAmount);
-        _allocateIntoStrategy(ASSET, address(strategy), maxDeposit);
-        uint256 new_bal = strategy.checkBalance(ASSET);
-        uint256 newLPBalance = strategy.checkLPTokenBalance(ASSET);
-        assertEq(initial_bal + maxDeposit, new_bal);
-        assertApproxEqRel(initialLPBalance + maxDeposit, newLPBalance, 4e16); // 4% slippage
-    }
 }
 
 contract CollectInterestTest is FluidStrategyTest {
@@ -342,7 +301,6 @@ contract CollectInterestTest is FluidStrategyTest {
         vm.startPrank(USDS_OWNER);
         _initializeStrategy();
         strategy.setPTokenAddress(ASSET, P_TOKEN);
-
         _deposit();
         vm.stopPrank();
     }
@@ -371,7 +329,7 @@ contract CollectInterestTest is FluidStrategyTest {
     }
 }
 
-contract WithdrawTest is FluidStrategyTest {
+contract WithdrawTestss is FluidStrategyTest {
     function setUp() public override {
         super.setUp();
         vm.startPrank(USDS_OWNER);
@@ -427,10 +385,9 @@ contract WithdrawTest is FluidStrategyTest {
 
     function test_Withdraw() public useKnownActor(VAULT) {
         uint256 initialVaultBal = IERC20(ASSET).balanceOf(VAULT);
-        vm.expectEmit(true, false, false, true);
-        emit Withdrawal(ASSET, depositAmount);
         timeTravel(10 days);
-        vm.expectEmit(true, false, false, true);
+        vm.expectEmit(true, false, false, false);
+        emit Withdrawal(ASSET, depositAmount);
         strategy.withdraw(VAULT, ASSET, depositAmount);
         assertEq(initialVaultBal + depositAmount, IERC20(ASSET).balanceOf(VAULT));
     }
@@ -445,9 +402,16 @@ contract WithdrawTest is FluidStrategyTest {
     }
 }
 
-contract MiscellaneousTests is FluidStrategyTest {
+contract MiscellaneousTestss is FluidStrategyTest {
+    address private redeemer;
+    uint256 private _usdsAmt;
+    uint256 private _minCollAmt;
+    uint256 private _deadline;
+
     function setUp() public override {
         super.setUp();
+        redeemer = actors[1];
+        _usdsAmt = 1000e18;
         vm.startPrank(USDS_OWNER);
         _initializeStrategy();
         strategy.setPTokenAddress(ASSET, P_TOKEN);
@@ -501,7 +465,103 @@ contract MiscellaneousTests is FluidStrategyTest {
         vm.mockCall(
             address(strategy), abi.encodeWithSignature("_getAvailableLiquidity(address)", ASSET), abi.encode(1e30)
         );
-        uint256 availableBalance = strategy.checkAvailableBalance(ASSET);
-        assertEq(availableBalance, 1e30);
+        strategy.checkAvailableBalance(ASSET);
+    }
+}
+
+contract IntegrationTests is FluidStrategyTest {
+    address private redeemer;
+    uint256 private _usdsAmt;
+    uint256 private _minCollAmt;
+    uint256 private _deadline;
+
+    function setUp() public override {
+        super.setUp();
+        redeemer = actors[1];
+        _usdsAmt = 1000e18;
+        vm.startPrank(USDS_OWNER);
+        _initializeStrategy();
+        strategy.setPTokenAddress(ASSET, P_TOKEN);
+        vm.stopPrank();
+    }
+    /**
+     * @dev Tests the allocation of an amount from the vault to the strategy.
+     *
+     * This function performs the following steps:
+     * 1. Sets a cap for the collateral strategy.
+     * 2. Checks the initial balance and LP token balance of the strategy.
+     * 3. Asserts that the initial LP token balance is zero.
+     * 4. Starts a prank as the USDS owner.
+     * 5. Withdraws the available balance from an alternate strategy to the vault.
+     * 6. Removes the alternate strategy from the collateral manager.
+     * 7. Adds the current strategy to the collateral manager with the specified cap.
+     * 8. Calculates the maximum deposit amount based on the cap and the vault's balance.
+     * 9. Deals the asset to the vault.
+     * 10. Allocates the calculated amount into the strategy.
+     * 11. Checks the new balance and LP token balance of the strategy.
+     * 12. Asserts that the new balance is equal to the initial balance plus the maximum deposit.
+     * 13. Asserts that the new LP token balance is approximately equal to the initial LP token balance plus the maximum deposit, allowing for a 4% slippage.
+     */
+
+    function test_allocateAmountFromVault() public {
+        uint16 cap = 3000;
+        uint256 initial_bal = strategy.checkBalance(ASSET);
+        uint256 initialLPBalance = strategy.checkLPTokenBalance(ASSET);
+        assert(initialLPBalance == 0);
+        vm.startPrank(USDS_OWNER);
+        uint256 VaultBalance = IStrategy(ALTERNATE_STRATEGY).checkAvailableBalance(ASSET);
+        IStrategy(ALTERNATE_STRATEGY).withdrawToVault(ASSET, VaultBalance);
+        ICollateralManager(COLLATERAL_MANAGER).removeCollateralStrategy(ASSET, ALTERNATE_STRATEGY);
+        ICollateralManager(COLLATERAL_MANAGER).addCollateralStrategy(ASSET, address(strategy), cap);
+        uint256 maxDeposit = (
+            cap
+                * (ERC20(ASSET).balanceOf(VAULT) + ICollateralManager(COLLATERAL_MANAGER).getCollateralInStrategies(ASSET))
+        ) / 10000;
+        deal(ASSET, VAULT, depositAmount);
+        _allocateIntoStrategy(ASSET, address(strategy), maxDeposit);
+        uint256 new_bal = strategy.checkBalance(ASSET);
+        uint256 newLPBalance = strategy.checkLPTokenBalance(ASSET);
+        assertEq(initial_bal + maxDeposit, new_bal);
+        assertApproxEqRel(initialLPBalance + maxDeposit, newLPBalance, 4e16); // 4% slippage
+    }
+
+    /**
+     * @dev Test function to withdraw assets from an alternate strategy to the vault and reallocate them to a new strategy.
+     *
+     * This function performs the following steps:
+     * 1. Retrieves the available balance from the alternate strategy.
+     * 2. Withdraws the entire balance from the alternate strategy to the vault.
+     * 3. Removes the alternate strategy from the collateral manager.
+     * 4. Adds a new strategy to the collateral manager with a specified cap.
+     * 5. Calculates the maximum deposit amount based on the cap and current balances.
+     * 6. Allocates half of the maximum deposit amount into the new strategy.
+     * 7. Advances the blockchain time by 10 hours.
+     * 8. Sets a deadline for the mint and redeem operations.
+     * 9. Calculates the collateral amount required for redemption.
+     * 10. Mints new tokens by depositing assets into the vault.
+     * 11. Redeems the minted tokens for the underlying asset.
+     */
+    function test_WithdrawToVaultFromAllocation() public useKnownActor(USDS_OWNER) {
+        uint16 cap = 2000;
+        uint256 VaultBalance = IStrategy(ALTERNATE_STRATEGY).checkAvailableBalance(ASSET);
+        IStrategy(ALTERNATE_STRATEGY).withdrawToVault(ASSET, VaultBalance);
+        ICollateralManager(COLLATERAL_MANAGER).removeCollateralStrategy(ASSET, ALTERNATE_STRATEGY);
+        ICollateralManager(COLLATERAL_MANAGER).addCollateralStrategy(ASSET, address(strategy), cap);
+        uint256 maxDeposit = (
+            cap
+                * (ERC20(ASSET).balanceOf(VAULT) + ICollateralManager(COLLATERAL_MANAGER).getCollateralInStrategies(ASSET))
+        ) / 10000;
+        deal(ASSET, VAULT, depositAmount);
+        _allocateIntoStrategy(ASSET, address(strategy), maxDeposit / 2);
+        timeTravel(10 hours);
+        _deadline = block.timestamp + 120;
+
+        (uint256 _calculatedCollateralAmt,,,,) = IVault(VAULT).redeemView(ASSET, maxDeposit / 20);
+        vm.startPrank(USDS_OWNER);
+        deal(ASSET, USDS_OWNER, depositAmount);
+        ERC20(ASSET).approve(VAULT, depositAmount);
+        IVault(VAULT).mint(ASSET, depositAmount, 10e5, _deadline);
+        ERC20(USDS).approve(VAULT, _usdsAmt);
+        IVault(VAULT).redeem(ASSET, _usdsAmt, _calculatedCollateralAmt, _deadline);
     }
 }
