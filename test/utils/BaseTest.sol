@@ -73,7 +73,8 @@ abstract contract Setup is Test {
     function setArbitrumFork() public {
         uint256 FORK_BLOCK = vm.envUint("FORK_BLOCK");
         string memory arbRpcUrl = vm.envString("ARB_URL");
-        arbFork = vm.createSelectFork(arbRpcUrl, FORK_BLOCK);
+        arbFork = vm.createFork(arbRpcUrl, FORK_BLOCK);
+        vm.selectFork(arbFork);
         if (FORK_BLOCK != 0) vm.rollFork(FORK_BLOCK);
     }
 }

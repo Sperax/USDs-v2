@@ -9,11 +9,16 @@ import {Helpers} from "../../contracts/libraries/Helpers.sol";
 import {IERC20, ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {InitializableAbstractStrategy} from "../../contracts/strategies/InitializableAbstractStrategy.sol";
 import {IVault} from "../../contracts/interfaces/IVault.sol";
+import {console} from "forge-std/console.sol";
 
 interface ICollateralManager {
     function addCollateralStrategy(address _collateral, address _strategy, uint16 _allocationCap) external;
     function removeCollateralStrategy(address _collateral, address _strategy) external;
     function getCollateralInStrategies(address _collateral) external view returns (uint256);
+    function getCollateralInVault(address _collateral) external view returns (uint256);
+    function getCollateralStrategies(address _collateral) external view returns (address[] memory);
+    function getCollateralInAStrategy(address _collateral, address _strategy) external view returns (uint256);
+    function updateCollateralStrategy(address _collateral, address _strategy, uint16 _cap) external;
 }
 
 interface IStrategy {
@@ -562,6 +567,94 @@ contract IntegrationTests is FluidStrategyTest {
         ERC20(ASSET).approve(VAULT, depositAmount);
         IVault(VAULT).mint(ASSET, depositAmount, 10e5, _deadline);
         ERC20(USDS).approve(VAULT, _usdsAmt);
-        IVault(VAULT).redeem(ASSET, _usdsAmt, _calculatedCollateralAmt, _deadline);
+        IVault(VAULT).redeem(ASSET, _usdsAmt, _calculatedCollateralAmt, _deadline, address(strategy));
+    }
+}
+
+contract FluidSimulations is IntegrationTests {
+    ICollateralManager collateralManager;
+
+    uint256[] collateralAmounts;
+    address[2] COLLATERALS = [USDT, USDC];
+
+    function test_simulation() external {
+        vm.prank(USDS_OWNER);
+        strategy.setPTokenAddress(data[1].asset, data[1].pToken);
+
+        collateralManager = ICollateralManager(COLLATERAL_MANAGER);
+
+        for (uint8 c; c < COLLATERALS.length; c++) {
+            console.log("\nCollateral address:", COLLATERALS[c]);
+            address[] memory collateralStrategies = collateralManager.getCollateralStrategies(COLLATERALS[c]);
+
+            // Getting the amounts
+            collateralAmounts.push(collateralManager.getCollateralInVault(COLLATERALS[c]));
+            uint256 totalCollateralUSDT = collateralAmounts[0];
+            for (uint8 i; i < collateralStrategies.length; i++) {
+                collateralAmounts.push(
+                    collateralManager.getCollateralInAStrategy(COLLATERALS[c], collateralStrategies[i])
+                );
+                totalCollateralUSDT += collateralAmounts[i + 1];
+            }
+            uint256 collateralPerStrategy = totalCollateralUSDT / 3;
+            console.log("\nTotal collateral:", totalCollateralUSDT / 1e6);
+            console.log("\nCollateral per strategy:", collateralPerStrategy / 1e6);
+
+            // Balancing the strategies and adjusting the allocation caps
+            console.log("\nConfiguring collateral strategies in Collateral manager");
+            for (uint8 i; i < collateralStrategies.length; i++) {
+                if (collateralAmounts[i + 1] > collateralPerStrategy) {
+                    uint256 amountToWithdraw = collateralAmounts[i + 1] - collateralPerStrategy;
+                    vm.prank(USDS_OWNER);
+                    IStrategy(collateralStrategies[i]).withdrawToVault(COLLATERALS[c], amountToWithdraw);
+                }
+                vm.prank(USDS_OWNER);
+                collateralManager.updateCollateralStrategy(COLLATERALS[c], collateralStrategies[i], 3333);
+            }
+
+            // Adding fluid strategy
+            console.log("Adding fluid strategy");
+            vm.prank(USDS_OWNER);
+            collateralManager.addCollateralStrategy(COLLATERALS[c], address(strategy), 3334);
+
+            // collateralPerStrategy -= 10e6;
+            // Allocating to the strategy (Deposit)
+            console.log("Depositing in the strategy:", collateralPerStrategy / 1e6);
+            IVault(VAULT).allocate(COLLATERALS[c], address(strategy), collateralPerStrategy);
+            assertTrue(strategy.checkAvailableBalance(COLLATERALS[c]) >= collateralPerStrategy - 1);
+            vm.roll(block.number + 100000);
+            skip(100 hours);
+
+            // Claiming interest
+            uint256 interestEarned = strategy.checkInterestEarned(COLLATERALS[c]);
+            console.log("\nInterest earned is:", interestEarned);
+            assert(interestEarned != 0);
+            console.log("Claiming interest");
+            uint256 harvestorBalBefore = IERC20(COLLATERALS[c]).balanceOf(actors[0]);
+            uint256 yieldReceiverBalBefore = IERC20(COLLATERALS[c]).balanceOf(IVault(VAULT).yieldReceiver());
+            vm.prank(actors[0]);
+            strategy.collectInterest(COLLATERALS[c]);
+            uint256 harvestorBalAfter = IERC20(COLLATERALS[c]).balanceOf(actors[0]);
+            uint256 yieldReceiverBalAfter = IERC20(COLLATERALS[c]).balanceOf(IVault(VAULT).yieldReceiver());
+            uint256 receivedInterest =
+                (harvestorBalAfter - harvestorBalBefore) + (yieldReceiverBalAfter - yieldReceiverBalBefore);
+            assertTrue(receivedInterest >= interestEarned);
+            console.log("Received interest:", receivedInterest);
+
+            // Withdrawing from the strategy
+            uint256 balBefore = IERC20(COLLATERALS[c]).balanceOf(VAULT);
+            vm.prank(VAULT);
+            strategy.withdraw(VAULT, COLLATERALS[c], collateralPerStrategy);
+            uint256 balAfter = IERC20(COLLATERALS[c]).balanceOf(VAULT);
+            uint256 difference = balAfter - balBefore;
+
+            assertTrue(difference >= collateralPerStrategy);
+            console.log("\nSuccessfully withdrawn:", difference / 1e6);
+
+            // cleanup
+            collateralAmounts.pop();
+            collateralAmounts.pop();
+            collateralAmounts.pop();
+        }
     }
 }
