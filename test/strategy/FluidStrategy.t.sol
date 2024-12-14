@@ -558,7 +558,7 @@ contract IntegrationTests is FluidStrategyTest {
         ) / 10000;
         deal(ASSET, VAULT, depositAmount);
         _allocateIntoStrategy(ASSET, address(strategy), maxDeposit / 2);
-        timeTravel(10 hours);
+        timeTravel(1 hours);
         _deadline = block.timestamp + 120;
 
         (uint256 _calculatedCollateralAmt,,,,) = IVault(VAULT).redeemView(ASSET, maxDeposit / 20);
@@ -597,6 +597,7 @@ contract FluidSimulations is IntegrationTests {
                 totalCollateralUSDT += collateralAmounts[i + 1];
             }
             uint256 collateralPerStrategy = totalCollateralUSDT / 3;
+            collateralPerStrategy -= 10e6;
             console.log("\nTotal collateral:", totalCollateralUSDT / 1e6);
             console.log("\nCollateral per strategy:", collateralPerStrategy / 1e6);
 
@@ -622,8 +623,8 @@ contract FluidSimulations is IntegrationTests {
             console.log("Depositing in the strategy:", collateralPerStrategy / 1e6);
             IVault(VAULT).allocate(COLLATERALS[c], address(strategy), collateralPerStrategy);
             assertTrue(strategy.checkAvailableBalance(COLLATERALS[c]) >= collateralPerStrategy - 1);
-            vm.roll(block.number + 100000);
-            skip(100 hours);
+            vm.roll(block.number + 1000);
+            skip(1 hours);
 
             // Claiming interest
             uint256 interestEarned = strategy.checkInterestEarned(COLLATERALS[c]);
