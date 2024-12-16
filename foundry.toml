@@ -9,5 +9,3 @@ evm_version = 'cancun'   # Some of the test cases failing on AaveStrategy's test
 libs = ['node_modules', 'lib']
 test = 'test'
 cache_path  = 'cache_forge'
-[rpc_endpoints]
-arbitrum = 'https://arb1.arbitrum.io/rpc'
