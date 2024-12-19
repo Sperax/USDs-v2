@@ -5,6 +5,7 @@ from brownie import (
     AaveStrategy,
     StargateStrategy,
     CompoundStrategy,
+    FluidStrategy,
     USDs,
     VaultCore,
     CollateralManager,
@@ -75,6 +76,10 @@ stargate_strategy = Contract.from_abi(
 )
 compound_strategy = Contract.from_abi(
     'CompoundStrategy', data['compound_strategy'], CompoundStrategy.abi
+)
+
+fluid_strategy = Contract.from_abi(
+    'FluidStrategy', data['fluid_strategy'], FluidStrategy.abi
 )
 
 def main():

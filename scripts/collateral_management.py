@@ -11,8 +11,9 @@ collaterals = [usdc, usdc_e, usdt, dai, frax, lusd]
 
 collateral_allocation_data = {
     usdc: {
-        aave_strategy: 5000,
-        compound_strategy: 5000
+        aave_strategy: 3333,
+        compound_strategy: 3333,
+        fluid_strategy: 3334
     },
     usdc_e: {
         aave_strategy: 5000,
@@ -25,8 +26,9 @@ collateral_allocation_data = {
         aave_strategy: 10000
     },
     usdt: {
-        stargate_strategy: 7000,
-        aave_strategy: 3000
+        stargate_strategy: 3333,
+        aave_strategy: 3333,
+        fluid_strategy: 3334
     },
     frax: {
         stargate_strategy: 0,
