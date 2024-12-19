@@ -1,0 +1,109 @@
+{
+    "proxy_addr": "0xa503A325fc97310b6c2FEeAaDeb8816481E0BDAb",
+    "impl_addr": "0x76507BeC91dE8A8e040C32C2366779437512a407",
+    "proxy_admin": "0x3E49925A79CbFb68BAa5bc9DFb4f7D955D1ddF25",
+    "type": "Deployment",
+    "transactions": [
+        {
+            "step": "Implementation_deployment",
+            "tx_hash": "0x26b2592a51464055f3da32bdc6302c6de857b8f95ce40b368a975a7c973844e2",
+            "contract": "FluidStrategy",
+            "contract_addr": "0x76507BeC91dE8A8e040C32C2366779437512a407",
+            "tx_func": "constructor",
+            "blocknumber": 286344923,
+            "gas_used": 3487422,
+            "gas_limit": 4075703
+        },
+        {
+            "step": "Proxy_deployment",
+            "tx_hash": "0xbcf5d87399b79e48cd9a63024e278a4d499783dea8a9d820a7bce7a8e607dfd5",
+            "contract": "TUP",
+            "contract_addr": "0xa503A325fc97310b6c2FEeAaDeb8816481E0BDAb",
+            "tx_func": "constructor",
+            "blocknumber": 286344951,
+            "gas_used": 1333230,
+            "gas_limit": 1578113
+        },
+        {
+            "step": "Proxy_initialization",
+            "tx_hash": "0xc0e3f9d0cb49e228d75dd063646f76fc7ab511314414efcc0d20e3cf47f9aed5",
+            "contract": "TUP",
+            "contract_addr": null,
+            "tx_func": null,
+            "blocknumber": 286344977,
+            "gas_used": 193338,
+            "gas_limit": 235240
+        },
+        {
+            "step": "Post_deployment_step",
+            "tx_hash": "0x73407001604462046dbcd319b4c36eec726048d09da6e8b21b235f8228fb5484",
+            "contract": "TUP",
+            "contract_addr": null,
+            "tx_func": null,
+            "blocknumber": 286344995,
+            "gas_used": 162084,
+            "gas_limit": 199323
+        },
+        {
+            "step": "Post_deployment_step",
+            "tx_hash": "0xc7b44ef95c2930e8f4f40f92b42d89f8e5d512a57c327a0ab68fbff9ebcfef6d",
+            "contract": "TUP",
+            "contract_addr": null,
+            "tx_func": null,
+            "blocknumber": 286345013,
+            "gas_used": 144984,
+            "gas_limit": 180363
+        },
+        {
+            "step": "Post_deployment_step",
+            "tx_hash": "0xb45ba0779a78c2cc33ee36feb8f6e5409f7db48661568be9790f997aad196191",
+            "contract": "TUP",
+            "contract_addr": null,
+            "tx_func": null,
+            "blocknumber": 286345030,
+            "gas_used": 84066,
+            "gas_limit": 110444
+        }
+    ],
+    "config_name": "fluidStrategy",
+    "config": {
+        "deployment_params": {
+            "vault": "0x6Bbc476Ee35CBA9e9c3A59fc5b10d7a0BC6f74Ca",
+            "depositSlippage": 50,
+            "withdrawSlippage": 50
+        },
+        "post_deployment_steps": [
+            {
+                "func": "setPTokenAddress",
+                "args": {
+                    "asset": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+                    "lpToken": "0x1A996cb54bb95462040408C06122D45D6Cdb6096"
+                },
+                "transact": true,
+                "contract": "fluidStrategy",
+                "contract_addr": "0xa503A325fc97310b6c2FEeAaDeb8816481E0BDAb"
+            },
+            {
+                "func": "setPTokenAddress",
+                "args": {
+                    "asset": "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9",
+                    "lpToken": "0x4A03F37e7d3fC243e3f99341d36f4b829BEe5E03"
+                },
+                "transact": true,
+                "contract": "fluidStrategy",
+                "contract_addr": "0xa503A325fc97310b6c2FEeAaDeb8816481E0BDAb"
+            },
+            {
+                "func": "transferOwnership",
+                "args": {
+                    "new_admin": "0x5b12d9846F8612E439730d18E1C12634753B1bF1"
+                },
+                "transact": true,
+                "contract": "fluidStrategy",
+                "contract_addr": "0xa503A325fc97310b6c2FEeAaDeb8816481E0BDAb"
+            }
+        ],
+        "upgradeable": true,
+        "proxy_admin": "0x3E49925A79CbFb68BAa5bc9DFb4f7D955D1ddF25"
+    }
+}
