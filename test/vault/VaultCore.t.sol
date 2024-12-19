@@ -34,8 +34,8 @@ contract VaultCoreTest is PreMigrationSetup {
         slippageFactor = 10;
         USDC_PRECISION = 10 ** ERC20(USDCe).decimals();
         _collateral = USDCe;
-        defaultStrategy = STARGATE_STRATEGY;
-        otherStrategy = AAVE_STRATEGY;
+        defaultStrategy = AAVE_STRATEGY;
+        otherStrategy = STARGATE_STRATEGY;
     }
 
     function _slippageCorrectedAmt(uint256 _expectedAmt) internal view returns (uint256 correctedAmt) {
@@ -675,7 +675,8 @@ contract Test_RedeemView is VaultCoreTest {
 
     function test_RedeemView_FromDefaultStrategy() public {
         deal(USDCe, VAULT, (_usdsAmt) / 1e12);
-        _allocateIntoStrategy(_collateral, defaultStrategy, (_usdsAmt / 5) / 1e12);
+        _usdsAmt = _usdsAmt / 5;
+        _allocateIntoStrategy(_collateral, defaultStrategy, (_usdsAmt) / 1e12);
         (
             uint256 _calculatedCollateralAmt,
             uint256 _usdsBurnAmt,
@@ -733,7 +734,8 @@ contract Test_RedeemView is VaultCoreTest {
 
     function test_RedeemView_FromOtherStrategy() public {
         deal(USDCe, VAULT, (_usdsAmt) / 1e12);
-        _allocateIntoStrategy(_collateral, otherStrategy, (_usdsAmt / 5) / 1e12);
+        _usdsAmt = _usdsAmt / 5;
+        _allocateIntoStrategy(_collateral, otherStrategy, (_usdsAmt) / 1e12);
         (uint256 calculatedCollateralAmt, uint256 usdsBurnAmt, uint256 feeAmt, uint256 vaultAmt, uint256 strategyAmt) =
             IVault(VAULT).redeemView(_collateral, _usdsAmt, otherStrategy);
         (
@@ -834,7 +836,8 @@ contract Test_Redeem is VaultCoreTest {
 
     function test_RedeemFromDefaultStrategy() public {
         deal(USDCe, VAULT, (_usdsAmt) / 1e12);
-        _allocateIntoStrategy(_collateral, defaultStrategy, (_usdsAmt / 5) / 1e12);
+        _usdsAmt = _usdsAmt / 5;
+        _allocateIntoStrategy(_collateral, defaultStrategy, (_usdsAmt) / 1e12);
         (, uint256 _usdsBurnAmt, uint256 _feeAmt,,) = _redeemViewTest(_usdsAmt, address(0));
         vm.prank(VAULT);
         IUSDs(USDS).mint(redeemer, _usdsAmt);
@@ -859,7 +862,8 @@ contract Test_Redeem is VaultCoreTest {
 
     function test_RedeemFromSpecificOtherStrategy() public {
         deal(USDCe, VAULT, (_usdsAmt) / 1e12);
-        _allocateIntoStrategy(_collateral, otherStrategy, (_usdsAmt / 5) / 1e12);
+        _usdsAmt = _usdsAmt / 5;
+        _allocateIntoStrategy(_collateral, otherStrategy, (_usdsAmt) / 1e12);
         (uint256 _calculatedCollateralAmt, uint256 _usdsBurnAmt, uint256 _feeAmt,,) =
             _redeemViewTest(_usdsAmt, otherStrategy);
         vm.prank(VAULT);

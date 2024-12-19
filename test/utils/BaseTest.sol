@@ -24,7 +24,6 @@ abstract contract Setup is Test {
     address internal VAULT;
     address internal FEE_CALCULATOR;
     address internal COLLATERAL_MANAGER;
-    address internal MASTER_PRICE_ORACLE;
     address internal YIELD_RESERVE;
     address internal ORACLE;
     address internal DRIPPER;
@@ -74,9 +73,12 @@ abstract contract Setup is Test {
     function setArbitrumFork() public {
         uint256 FORK_BLOCK = vm.envUint("FORK_BLOCK");
         string memory arbRpcUrl = vm.envString("ARB_URL");
-        arbFork = vm.createFork(arbRpcUrl);
+        if (FORK_BLOCK == 0) {
+            arbFork = vm.createFork(arbRpcUrl);
+        } else {
+            arbFork = vm.createFork(arbRpcUrl, FORK_BLOCK);
+        }
         vm.selectFork(arbFork);
-        if (FORK_BLOCK != 0) vm.rollFork(FORK_BLOCK);
     }
 }
 
@@ -93,5 +95,6 @@ abstract contract BaseTest is Setup {
         SPA_BUYBACK = 0xFbc0d3cA777722d234FE01dba94DeDeDb277AFe3;
         VAULT = 0x6Bbc476Ee35CBA9e9c3A59fc5b10d7a0BC6f74Ca;
         ORACLE = 0x14D99412dAB1878dC01Fe7a1664cdE85896e8E50;
+        COLLATERAL_MANAGER = 0xdA423BFa1E196598190deEfbAFC28aDb36FaeDF0;
     }
 }
