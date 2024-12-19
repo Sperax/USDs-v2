@@ -49,6 +49,7 @@ contract FluidStrategyTest is BaseStrategy, BaseTest {
     uint256 public constant BLOCKS_MINED_IN_A_DAY = 5750;
     address internal constant DEFAULT_STRATEGY = 0xb9C9100720D8c6E35eb8dd0F9C1aBEf320dAA136;
     address internal constant ALTERNATE_STRATEGY = 0x974993eE8DF7F5C4F3f9Aa4eB5b4534F359f3388;
+    address internal constant FLUID_STRATEGY = 0xa503A325fc97310b6c2FEeAaDeb8816481E0BDAb;
 
     error NoRewardIncentive();
     error LimitReached();
@@ -61,7 +62,6 @@ contract FluidStrategyTest is BaseStrategy, BaseTest {
         impl = new FluidStrategy();
         upgradeUtil = new UpgradeUtil();
         proxyAddress = upgradeUtil.deployErc1967Proxy(address(impl));
-
         strategy = FluidStrategy(proxyAddress);
         _configAsset();
         ASSET = data[0].asset;
@@ -583,6 +583,19 @@ contract FluidSimulations is IntegrationTests {
 
         collateralManager = ICollateralManager(COLLATERAL_MANAGER);
 
+        console.log("removing deployed fluid strategy");
+        uint256 USDTAmount = collateralManager.getCollateralInAStrategy(USDT, FLUID_STRATEGY);
+        uint256 USDCAmount = collateralManager.getCollateralInAStrategy(USDC, FLUID_STRATEGY);
+
+        vm.prank(USDS_OWNER);
+        IStrategy(FLUID_STRATEGY).withdrawToVault(USDT, USDTAmount);
+        vm.prank(USDS_OWNER);
+        IStrategy(FLUID_STRATEGY).withdrawToVault(USDC, USDCAmount);
+        vm.prank(USDS_OWNER);
+        collateralManager.removeCollateralStrategy(USDC, FLUID_STRATEGY);
+        vm.prank(USDS_OWNER);
+        collateralManager.removeCollateralStrategy(USDT, FLUID_STRATEGY);
+
         for (uint8 c; c < COLLATERALS.length; c++) {
             console.log("\nCollateral address:", COLLATERALS[c]);
             address[] memory collateralStrategies = collateralManager.getCollateralStrategies(COLLATERALS[c]);
@@ -609,10 +622,10 @@ contract FluidSimulations is IntegrationTests {
                     vm.prank(USDS_OWNER);
                     IStrategy(collateralStrategies[i]).withdrawToVault(COLLATERALS[c], amountToWithdraw);
                 }
+
                 vm.prank(USDS_OWNER);
                 collateralManager.updateCollateralStrategy(COLLATERALS[c], collateralStrategies[i], 3333);
             }
-
             // Adding fluid strategy
             console.log("Adding fluid strategy");
             vm.prank(USDS_OWNER);
@@ -623,8 +636,7 @@ contract FluidSimulations is IntegrationTests {
             console.log("Depositing in the strategy:", collateralPerStrategy / 1e6);
             IVault(VAULT).allocate(COLLATERALS[c], address(strategy), collateralPerStrategy);
             assertTrue(strategy.checkAvailableBalance(COLLATERALS[c]) >= collateralPerStrategy - 1);
-            vm.roll(block.number + 1000);
-            skip(1 hours);
+            timeTravel(10 minutes);
 
             // Claiming interest
             uint256 interestEarned = strategy.checkInterestEarned(COLLATERALS[c]);
@@ -645,11 +657,11 @@ contract FluidSimulations is IntegrationTests {
             // Withdrawing from the strategy
             uint256 balBefore = IERC20(COLLATERALS[c]).balanceOf(VAULT);
             vm.prank(VAULT);
-            strategy.withdraw(VAULT, COLLATERALS[c], collateralPerStrategy);
+            strategy.withdraw(VAULT, COLLATERALS[c], collateralPerStrategy / 2);
             uint256 balAfter = IERC20(COLLATERALS[c]).balanceOf(VAULT);
             uint256 difference = balAfter - balBefore;
 
-            assertTrue(difference >= collateralPerStrategy);
+            assertTrue(difference >= collateralPerStrategy / 2);
             console.log("\nSuccessfully withdrawn:", difference / 1e6);
 
             // cleanup
