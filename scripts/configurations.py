@@ -4,6 +4,7 @@ from brownie import (
     AaveStrategy,
     StargateStrategy,
     CompoundStrategy,
+    FluidStrategy,
     USDs,
 )
 
@@ -177,8 +178,43 @@ deployment_config = {
                 )
             ]
         )
+    ),
+    "fluidStrategy": Deployment_data(
+        # @note https://github.com/Instadapp/fluid-contracts-public/blob/main/deployments/deployments.md#lendingfactory
+        contract=FluidStrategy,
+        config=Deployment_config(
+            upgradeable=True,
+            proxy_admin=PROXY_ADMIN,
+            deployment_params={
+                'vault': VAULT,
+                'depositSlippage': 50,
+                'withdrawSlippage': 50,
+            },
+            post_deployment_steps=[
+                Step(
+                    func="setPTokenAddress",
+                    args={
+                        "asset": USDC,
+                        "lpToken": "0x1A996cb54bb95462040408C06122D45D6Cdb6096",
+                    },
+                    transact=True,
+                ),
+                Step(
+                    func="setPTokenAddress",
+                    args={
+                        "asset": USDT,
+                        "lpToken": "0x4A03F37e7d3fC243e3f99341d36f4b829BEe5E03",
+                    },
+                    transact=True,
+                ),
+                Step(
+                    func="transferOwnership",
+                    args={"new_admin": USDS_OWNER_ADDR},
+                    transact=True,
+                )
+            ]
+        )
     )
-    
 }
 
 upgrade_config = {
